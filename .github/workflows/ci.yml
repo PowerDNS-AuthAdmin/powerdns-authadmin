@@ -200,3 +200,17 @@ jobs:
           # Keep the published manifest to just the two arches (no extra
           # "unknown/unknown" attestation entries cluttering Docker Hub).
           provenance: false
+
+      # Sync the Docker Hub repository overview from DOCKERHUB.md on default-branch
+      # pushes. Best-effort: a failure here (e.g. token scope) must not fail the
+      # publish, hence continue-on-error.
+      - name: Update Docker Hub overview
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.IMAGE_NAME }}
+          readme-filepath: ./DOCKERHUB.md
+          short-description: "Modern self-hosted DNS admin UI for PowerDNS Authoritative — RBAC, OIDC SSO, audit log, multi-backend."

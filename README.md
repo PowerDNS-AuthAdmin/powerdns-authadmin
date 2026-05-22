@@ -65,6 +65,66 @@ ready-to-use install without a single click.
 
 The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./docs/FEATURES.md).
 
+## Screenshots
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/dashboard.png" />
+    <img src="screenshots/light/dashboard.png" alt="Dashboard — live PowerDNS stats and operator attention surfaces" width="900" />
+  </picture>
+</p>
+
+<table>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/powerdns-servers.png" />
+        <img src="screenshots/light/powerdns-servers.png" alt="PowerDNS servers" />
+      </picture>
+      <br /><sub><b>Multi-backend</b> — clusters, primary + secondaries, and standalone primaries side by side with live sync status.</sub>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zones-list.png" />
+        <img src="screenshots/light/zones-list.png" alt="Zones" />
+      </picture>
+      <br /><sub><b>Amalgamated zones</b> — every backend's zones in one searchable list with serial + sync state.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/record-editor.png" />
+        <img src="screenshots/light/record-editor.png" alt="Record editor" />
+      </picture>
+      <br /><sub><b>Per-RRset editor</b> with per-type validation.</sub>
+    </td>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/record-diff.png" />
+        <img src="screenshots/light/record-diff.png" alt="Diff before apply" />
+      </picture>
+      <br /><sub><b>Diff-before-apply</b> — a before/after diff on every save.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/roles.png" />
+        <img src="screenshots/light/roles.png" alt="Roles" />
+      </picture>
+      <br /><sub><b>RBAC</b> — system + custom roles, scoped global / team / zone / server.</sub>
+    </td>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/audit-log.png" />
+        <img src="screenshots/light/audit-log.png" alt="Audit log" />
+      </picture>
+      <br /><sub><b>Append-only audit log</b> with redacted before/after snapshots.</sub>
+    </td>
+  </tr>
+</table>
+
 ## Run it
 
 The app ships as a single image — **[`jseifeddine/powerdns-authadmin`](https://hub.docker.com/r/jseifeddine/powerdns-authadmin)**.
