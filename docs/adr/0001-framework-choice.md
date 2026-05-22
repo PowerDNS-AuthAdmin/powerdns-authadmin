@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-05-16
-- **Deciders:** @jadseifeddine
+- **Deciders:** @jseifeddine
 - **Update (2026-05-22):** the project has since upgraded to **Next.js 16** (still App Router +
   React 19 Server Components — the decision stands; only the minor version moved).
 

@@ -2,7 +2,7 @@
 
 - **Status:** Accepted. **Supersedes [ADR 0005](./0005-migrations-explicit.md).**
 - **Date:** 2026-05-18
-- **Deciders:** @jadseifeddine
+- **Deciders:** @jseifeddine
 
 ## Context
 

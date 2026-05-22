@@ -2,7 +2,7 @@
 
 - **Status:** Superseded by [ADR 0011](./0011-migrate-on-app-boot.md)
 - **Date:** 2026-05-16
-- **Deciders:** @jadseifeddine
+- **Deciders:** @jseifeddine
 
 ## Context
 

@@ -2,7 +2,7 @@
 
 - **Status:** Proposed
 - **Date:** 2026-05-17
-- **Deciders:** @jadseifeddine
+- **Deciders:** @jseifeddine
 
 ## Context
 

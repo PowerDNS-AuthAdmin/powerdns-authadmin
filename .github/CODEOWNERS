@@ -1,25 +1,25 @@
 # CODEOWNERS — required reviewers for sensitive paths.
 #
 # At this stage the project has one maintainer. As contributors are added,
-# their handles go alongside @jadseifeddine for the paths they own.
+# their handles go alongside @jseifeddine for the paths they own.
 #
 # Two-reviewer paths (per CONTRIBUTING.md § Ground rules) are enforced via
 # branch protection rules referencing this file.
 
 # Catch-all
-*                            @jadseifeddine
+*                            @jseifeddine
 
 # Security-sensitive — two reviewers required at branch-protection level.
-/lib/auth/                   @jadseifeddine
-/lib/rbac/                   @jadseifeddine
-/lib/pdns/                   @jadseifeddine
-/middleware.ts               @jadseifeddine
-/.github/workflows/          @jadseifeddine
-/Dockerfile                  @jadseifeddine
-/SECURITY.md                 @jadseifeddine
+/lib/auth/                   @jseifeddine
+/lib/rbac/                   @jseifeddine
+/lib/pdns/                   @jseifeddine
+/middleware.ts               @jseifeddine
+/.github/workflows/          @jseifeddine
+/Dockerfile                  @jseifeddine
+/SECURITY.md                 @jseifeddine
 
 # Design documents
-/REBUILD.md                  @jadseifeddine
-/CONTRIBUTING.md             @jadseifeddine
-/CLAUDE.md                   @jadseifeddine
-/docs/adr/                   @jadseifeddine
+/REBUILD.md                  @jseifeddine
+/CONTRIBUTING.md             @jseifeddine
+/CLAUDE.md                   @jseifeddine
+/docs/adr/                   @jseifeddine
