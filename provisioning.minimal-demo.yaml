@@ -1,0 +1,32 @@
+# provisioning.minimal-demo.yaml
+#
+# First-boot provisioning for the MINIMAL-DEMO STACK (docker-compose.yml).
+# Registers the bundled standalone PowerDNS (official powerdns/pdns-auth image)
+# and generates 10 demo zones (10 records each) so the UI has data on first
+# login.
+#
+# Applied once at boot when PROVISION_ON_BOOT=true and PROVISIONING_FILE points
+# here. To re-apply, delete the `provisioned_at` row from the settings table.
+# See ADR-0012 and provisioning.example.yaml for the full schema.
+
+pdns_servers:
+  - slug: standalone
+    name: Standalone PowerDNS
+    # The `pdns` service on the compose network. http:// is fine internally
+    # (APP_PDNS_ALLOW_INSECURE_HTTP=true in .env.example).
+    base_url: http://pdns:8081/api/v1
+    server_id: localhost
+    # Must match the pdns service's --api-key in docker-compose.yml.
+    api_key: demo-pdns-api-key
+    role: primary
+    is_default: true
+
+demo_zones:
+  - target_server: standalone
+    # Produces example-1.demo. … example-10.demo., each with ~10 records
+    # (apex A, www, mail, MX, SPF TXT, a few hosts, a CNAME).
+    name_prefix: example
+    base_domain: demo
+    count: 10
+    records_per_zone: 10
+    kind: Master

@@ -1,0 +1,294 @@
+/* =============================================================================
+ * app/globals.css — Tailwind v3 directives + design tokens.
+ *
+ * Brand guidance:
+ *  - Neutral grays + a single accent (indigo as a placeholder until the
+ *    project picks a real palette).
+ *  - Dark mode is first-class — every token has a dark variant via the `dark`
+ *    class on <html>. The toggle component lands in Phase 1.5.
+ *  - All assets self-hosted. No `@import url(...)` to external fonts.
+ *
+ * Why CSS variables instead of `theme.extend.colors`:
+ *   Components reference colors as `text-[color:var(--color-fg)]` etc. This
+ *   keeps the design tokens in one place (this file), readable in DevTools,
+ *   and lets a deployment re-theme by replacing this CSS without rebuilding.
+ * ========================================================================== */
+
+/* react-datepicker's stylesheet is loaded here (not from the picker
+ * component) so the theme overrides at the bottom of this file land
+ * AFTER it in the cascade. Imported via the component instead, the
+ * library's `.react-datepicker { background: #fff }` rule sits at the
+ * same specificity as ours but later in the bundle and wins — the
+ * popup then stays light even in dark mode. */
+@import "react-datepicker/dist/react-datepicker.css";
+
+/* Tailwind v4 single-import entry (replaces the v3 @tailwind base/components/
+ * utilities trio). `@config` loads the v3-style JS config so the existing
+ * `content` globs and class-based dark mode (`darkMode: "class"`) keep working
+ * — the app toggles a `.dark` class on <html> and uses a few `dark:` utilities. */
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+
+/* ---------------------------------------------------------------------------
+ * Light-mode tokens. The `.dark` block below overrides these.
+ * ------------------------------------------------------------------------- */
+:root {
+  /* Color palette — purpose-named, not appearance-named. */
+  --color-bg: oklch(99% 0 0);
+  --color-bg-subtle: oklch(97% 0 0);
+  --color-bg-muted: oklch(94% 0 0);
+  --color-fg: oklch(20% 0 0);
+  --color-fg-muted: oklch(45% 0 0);
+  --color-fg-subtle: oklch(60% 0 0);
+  --color-border: oklch(90% 0 0);
+
+  /* Accent — indigo placeholder. Per-deployment branding will override. */
+  --color-accent: oklch(55% 0.18 270);
+  --color-accent-fg: oklch(99% 0 0);
+
+  /* Semantic */
+  --color-success: oklch(58% 0.15 145);
+  --color-warn: oklch(70% 0.18 80);
+  --color-error: oklch(55% 0.22 25);
+
+  /* Typography — system stack, zero font downloads, instant render. No CDN. */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+
+  /* Radii */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+}
+
+.dark {
+  --color-bg: oklch(15% 0 0);
+  --color-bg-subtle: oklch(20% 0 0);
+  --color-bg-muted: oklch(25% 0 0);
+  --color-fg: oklch(98% 0 0);
+  --color-fg-muted: oklch(70% 0 0);
+  --color-fg-subtle: oklch(55% 0 0);
+  --color-border: oklch(30% 0 0);
+  --color-accent: oklch(65% 0.18 270);
+  --color-accent-fg: oklch(15% 0 0);
+}
+
+/* ---------------------------------------------------------------------------
+ * Document-level baseline.
+ *
+ * `color-scheme` is bound to OUR theme class — not `light dark`. Reason: the
+ * "light dark" value tells the browser "the OS preference wins", which means
+ * a dark-mode-OS user toggled into our light theme still gets dark-rendered
+ * native form chrome (checkbox/radio/select dropdowns). Binding to our own
+ * `.dark` class lets the toggle win.
+ * ------------------------------------------------------------------------- */
+html {
+  /* Bumps every rem-based size (text, padding, gap, border-radius, …)
+   * by 20%. Equivalent to having the browser zoomed to 120% on a
+   * default-16px-root setup, but baked into the page so it lands the
+   * same regardless of the operator's browser zoom. Tables already
+   * use overflow-x-auto inside DataTable, so the wider content stays
+   * scrollable on narrow viewports.
+   *
+   * Multiplicative (not absolute): if a user has bumped their browser
+   * font-size for accessibility, our 120% applies on top of theirs. */
+  font-size: 120%;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------------------
+ * Native form controls.
+ *
+ *   - `accent-color` recolors the *checked* fill (and the focus tint on
+ *     range/progress) without us having to rebuild the checkbox visually.
+ *     One property, every browser.
+ *   - Reset the "input box" affordances on checkbox/radio specifically so
+ *     a component's base input styling (border, padding, background) doesn't
+ *     wrap the native control with a second box.
+ * ------------------------------------------------------------------------- */
+input,
+select,
+textarea {
+  accent-color: var(--color-accent);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: none;
+  background-color: transparent;
+}
+
+body {
+  font-family: var(--font-sans);
+  /* Improve text rendering on macOS. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus styling — visible by default. WCAG AA requires clear focus indicators;
+   Tailwind's default `focus:` ring covers interactive elements, this is the
+   safety net for anything tab-focusable without explicit styling. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Shimmer animation for skeleton loaders. A 200%-wide gradient slides across
+ * the element so it reads as a "loading wave" rather than a solid pulse.
+ *
+ * Used by <Skeleton> in components/ui/skeleton.tsx. Reduced-motion users get
+ * a static muted tint instead.
+ * ------------------------------------------------------------------------- */
+@keyframes pda-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.pda-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-subtle) 0%,
+    var(--color-bg-muted) 40%,
+    var(--color-bg-muted) 60%,
+    var(--color-bg-subtle) 100%
+  );
+  background-size: 200% 100%;
+  animation: pda-shimmer 1.4s ease-in-out infinite;
+  border-radius: 0.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pda-skeleton {
+    animation: none;
+    background: var(--color-bg-muted);
+  }
+}
+
+/* ============================================================================
+ * react-datepicker theme overrides
+ *
+ * The library ships a light-theme stylesheet keyed on hardcoded colors; we
+ * remap them to the project's CSS variables so dark mode + brand-color
+ * theming flow through. Selectors are scoped to `.react-datepicker*` so we
+ * don't paint anything outside the picker.
+ * ========================================================================== */
+
+/* The picker's text input — react-datepicker renders a real <input>
+ * inside `.react-datepicker__input-container`. Callers can pass their
+ * own className for the box (border / padding / bg) but `color` needs
+ * an explicit rule because <input> doesn't inherit from its parent in
+ * Chromium / WebKit. Without this the field text stays dark on dark in
+ * dark mode and is unreadable. */
+.react-datepicker-wrapper input,
+.react-datepicker__input-container input {
+  color: var(--color-fg);
+  background: var(--color-bg);
+}
+.react-datepicker-wrapper input::placeholder,
+.react-datepicker__input-container input::placeholder {
+  color: var(--color-fg-muted);
+}
+
+.react-datepicker {
+  font-family: inherit;
+  border-color: var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+.react-datepicker__header {
+  background: var(--color-bg-subtle);
+  border-bottom-color: var(--color-border);
+}
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker-year-header,
+.react-datepicker__day-name,
+.react-datepicker__day,
+.react-datepicker__time-name {
+  color: var(--color-fg);
+}
+.react-datepicker__day:hover,
+.react-datepicker__month-text:hover,
+.react-datepicker__quarter-text:hover,
+.react-datepicker__year-text:hover {
+  background: var(--color-bg-subtle);
+}
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected,
+.react-datepicker__day--in-selecting-range,
+.react-datepicker__day--in-range,
+.react-datepicker__month-text--selected,
+.react-datepicker__month-text--in-range,
+.react-datepicker__quarter-text--selected,
+.react-datepicker__year-text--selected {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+}
+.react-datepicker__day--outside-month,
+.react-datepicker__day--disabled {
+  color: var(--color-fg-muted);
+}
+.react-datepicker__time-container {
+  border-left-color: var(--color-border);
+}
+.react-datepicker__time-container .react-datepicker__time {
+  background: var(--color-bg);
+}
+.react-datepicker__time-container
+  .react-datepicker__time
+  .react-datepicker__time-box
+  ul.react-datepicker__time-list
+  li.react-datepicker__time-list-item {
+  color: var(--color-fg);
+}
+.react-datepicker__time-container
+  .react-datepicker__time
+  .react-datepicker__time-box
+  ul.react-datepicker__time-list
+  li.react-datepicker__time-list-item:hover {
+  background: var(--color-bg-subtle);
+}
+.react-datepicker__time-container
+  .react-datepicker__time
+  .react-datepicker__time-box
+  ul.react-datepicker__time-list
+  li.react-datepicker__time-list-item--selected {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+}
+.react-datepicker__triangle,
+.react-datepicker__triangle::before,
+.react-datepicker__triangle::after {
+  border-bottom-color: var(--color-bg-subtle) !important;
+  fill: var(--color-bg-subtle);
+  color: var(--color-bg-subtle);
+  stroke: var(--color-border);
+}
+.react-datepicker__navigation-icon::before {
+  border-color: var(--color-fg-muted);
+}
+.react-datepicker__close-icon::after {
+  background: var(--color-fg-muted);
+  color: var(--color-bg);
+}
+.react-datepicker-popper {
+  z-index: 50;
+}

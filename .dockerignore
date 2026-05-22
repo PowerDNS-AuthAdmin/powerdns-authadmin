@@ -1,0 +1,54 @@
+# Everything we don't need in the Docker build context.
+# A small build context means faster `docker build` even before any RUN executes.
+
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# Node
+node_modules
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Next.js
+.next
+out
+
+# Test artifacts
+coverage
+playwright-report
+test-results
+.vitest
+
+# Build artifacts
+dist
+build
+
+# Local config / secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+.idea
+.vscode
+*.swp
+
+# Docs not needed at runtime — keep the image small.
+docs
+*.md
+!README.md
+
+# Legacy reference — explicitly excluded.
+PowerDNS-Admin
+
+# Tests sources aren't built into the image.
+tests
+**/*.test.ts
+**/*.test.tsx
+playwright.config.ts
+vitest.config.ts
+vitest.config.integration.ts

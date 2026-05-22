@@ -1,0 +1,44 @@
+# =============================================================================
+# tests/integration/docker-compose.test.yml
+#
+# Test-only overrides layered on top of docker-compose-combined.yml. Brings up
+# the same multi-topology stack (postgres + redis + 3 PDNS topologies + the
+# app image built fresh) under a separate compose project so it doesn't
+# collide with a dev stack's volumes/networks.
+#
+# Usage (driven by `npm run test:integration`):
+#
+#   docker compose \
+#     -f docker-compose-combined.yml \
+#     -f tests/integration/docker-compose.test.yml \
+#     --project-name powerdns-authadmin-test \
+#     up -d --build --wait
+#
+# Host ports (3000, 5432, 6379, 8081-8095, 5300-5310) are NOT remapped, so
+# any running dev stack on the same ports must be stopped first. The runner
+# script (`tests/integration/run.sh`) handles that.
+#
+# Test-mode env differences vs. the dev compose:
+#   - NODE_ENV=test           — exposes test-only behaviors (none today; pinned
+#                               for future feature flags)
+#   - LOG_LEVEL=warn          — quiets info-level chatter during runs
+#   - Deterministic secrets   — APP_SECRET_KEY / APP_ENCRYPTION_KEY hardcoded
+#                               to known test values so any leak in CI logs
+#                               is obviously a test value
+#   - BOOTSTRAP_ADMIN_*       — pinned to admin@test.local for deterministic
+#                               first-login from the suite
+#   - PROVISION_ON_BOOT=true  — the suite assumes the provisioning YAML's
+#                               PDNS servers/clusters + zone templates exist
+# =============================================================================
+
+services:
+  app:
+    environment:
+      NODE_ENV: test
+      LOG_LEVEL: warn
+      APP_SECRET_KEY: dGVzdC1zZWNyZXQta2V5LXBhZGRlZC10by1taW4tMzItY2hhcnM=
+      APP_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      BOOTSTRAP_ADMIN_EMAIL: admin@test.local
+      BOOTSTRAP_ADMIN_PASSWORD: test-bootstrap-pw-changeme-now
+      PROVISION_ON_BOOT: "true"
+      SEED_ON_BOOT: "true"

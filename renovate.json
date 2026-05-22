@@ -1,0 +1,58 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "//": "Renovate configuration. We batch updates weekly and auto-merge patches when CI is green.",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard",
+    ":separateMajorReleases"
+  ],
+  "timezone": "UTC",
+  "schedule": ["before 6am on Monday"],
+  "labels": ["dependencies"],
+  "prHourlyLimit": 4,
+  "prConcurrentLimit": 8,
+  "rangeStrategy": "pin",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on Monday"]
+  },
+  "packageRules": [
+    {
+      "description": "Auto-merge patch updates if CI passes — they are typically bug/security fixes within a known-stable line.",
+      "matchUpdateTypes": ["patch", "pin", "digest"],
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "description": "Group all React-ecosystem updates so they move together (React + ReactDOM + types).",
+      "matchPackagePatterns": ["^react", "^@types/react"],
+      "groupName": "react"
+    },
+    {
+      "description": "Group Next.js + its config plugin so they upgrade in lockstep.",
+      "matchPackageNames": ["next", "eslint-config-next"],
+      "groupName": "next"
+    },
+    {
+      "description": "Group Drizzle ORM + Kit so schema/migration tooling stays in sync.",
+      "matchPackagePatterns": ["^drizzle-"],
+      "groupName": "drizzle"
+    },
+    {
+      "description": "Group TypeScript-ESLint family.",
+      "matchPackagePatterns": ["^@typescript-eslint", "^typescript-eslint"],
+      "groupName": "typescript-eslint"
+    },
+    {
+      "description": "Security advisories never wait — open a PR immediately, any time.",
+      "matchDatasources": ["npm"],
+      "vulnerabilityAlerts": true,
+      "schedule": ["at any time"]
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  }
+}

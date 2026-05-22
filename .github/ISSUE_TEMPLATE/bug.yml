@@ -1,0 +1,81 @@
+name: Bug report
+description: Something is broken or not behaving as documented
+labels: ["type:bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. The clearer the report, the faster the fix.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What did you observe, and what did you expect?
+      placeholder: "I expected X, but got Y."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered list, as concrete as possible.
+      placeholder: |
+        1. ...
+        2. ...
+        3. Error: ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Tag, commit hash, or "main as of YYYY-MM-DD".
+      placeholder: "v0.x.y"
+    validations:
+      required: true
+
+  - type: input
+    id: pdns-version
+    attributes:
+      label: PowerDNS version
+      description: Output of `pdns_server --version` or the docker tag.
+      placeholder: "4.8.4"
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Install method
+      options:
+        - Docker (official image)
+        - Docker (built from source)
+        - npm + node (local dev)
+        - Kubernetes
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste relevant log lines. **Redact secrets first.**
+      render: shell
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment details
+      description: OS, browser, anything else useful.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues and didn't find a duplicate
+          required: true
+        - label: I'm not reporting a security vulnerability (those go to GitHub Security Advisories, see SECURITY.md)
+          required: true

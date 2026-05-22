@@ -1,0 +1,99 @@
+# docker-compose.yml — the MINIMAL-DEMO STACK.
+#
+# PowerDNS-AuthAdmin + a single official PowerDNS Authoritative (SQLite-backed),
+# pre-seeded with 10 demo zones so you can click around immediately. No
+# Postgres, no Redis — the smallest thing that runs end-to-end.
+#
+#   docker compose up -d
+#     → app    http://localhost:3000      (login: admin@example.com / change-me-now)
+#     → pdns   http://localhost:8081/api/v1   (X-API-Key: demo-pdns-api-key)
+#
+# Pulls the published image jseifeddine/powerdns-authadmin (no local build). App
+# config is read from .env.example via `env_file` (working demo values). For
+# real deployments see the "Production" section of README.md.
+#
+# Multi-server / primary+secondary / multi-primary topologies live in the
+# docker-compose-*.yml files. Every stack uses the OFFICIAL powerdns/pdns-auth
+# image — there is no custom PowerDNS build.
+
+name: powerdns-authadmin
+
+services:
+  # One-shot: initialise the PowerDNS gsqlite3 schema into the shared volume,
+  # owned by the pdns uid (953) the official image runs as.
+  pdns-init:
+    image: alpine:3.20
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        apk add --no-cache sqlite >/dev/null
+        sh /init.sh
+        chown -R 953:953 /var/lib/powerdns
+        chmod -R u+rwX /var/lib/powerdns
+    environment:
+      DB: /var/lib/powerdns/pdns.sqlite
+      SCHEMA: /schema.sqlite3.sql
+    volumes:
+      - pdns-data:/var/lib/powerdns
+      - ./docker/pdns/init-primary.sh:/init.sh:ro
+      - ./docker/pdns/schema.sqlite3.sql:/schema.sqlite3.sql:ro
+
+  # Official PowerDNS Authoritative — standalone, SQLite backend, HTTP API on.
+  pdns:
+    image: powerdns/pdns-auth-49:latest
+    restart: unless-stopped
+    depends_on:
+      pdns-init:
+        condition: service_completed_successfully
+    command: ["--api-key=demo-pdns-api-key"]
+    ports:
+      - "5300:53"
+      - "5300:53/udp"
+      - "8081:8081"
+    volumes:
+      - pdns-data:/var/lib/powerdns
+      - ./docker/pdns/single.conf:/etc/powerdns/pdns.conf:ro
+    healthcheck:
+      test: ["CMD", "pdns_control", "rping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  app:
+    image: jseifeddine/powerdns-authadmin:latest
+    restart: unless-stopped
+    depends_on:
+      pdns:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    # All configuration comes from the env file (the exhaustive list lives
+    # there), not an inline `environment:` block. Copy .env.example to .env and
+    # point this at .env for a real deploy.
+    env_file:
+      - .env.example
+    volumes:
+      # SQLite database for the app (DATABASE_URL=file:/data/...).
+      - app-data:/data
+      # First-boot provisioning, mounted where PROVISIONING_FILE points.
+      - ./provisioning.minimal-demo.yaml:/etc/powerdns-authadmin/provisioning.yaml:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/healthz').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  app-data:
+  pdns-data:

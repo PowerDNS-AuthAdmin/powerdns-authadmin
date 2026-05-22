@@ -1,0 +1,53 @@
+name: Feature proposal
+description: Propose a new feature or significant change
+labels: ["type:proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Per `CONTRIBUTING.md`, **proposals are acknowledged before code is written**.
+        Open this issue first; once a maintainer accepts the direction you can open the PR.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What pain are you trying to relieve? Who feels it?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would the change look like from the user's POV? Skip the implementation details.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What else did you think about? Why did you pick the proposal above?
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      description: Roughly, how big is this?
+      options:
+        - "Small: 1–2 day change, no architectural shift"
+        - "Medium: 1–2 week change, touches a few subsystems"
+        - "Large: significant architectural impact, needs an ADR"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues for similar proposals
+          required: true
+        - label: I'm willing to contribute the implementation, OR I'm OK with this sitting in the backlog
+          required: true

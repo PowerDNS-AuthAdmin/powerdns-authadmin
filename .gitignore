@@ -1,0 +1,59 @@
+# Node / pnpm / yarn
+node_modules/
+.pnpm-store/
+.yarn/cache
+.yarn/install-state.gz
+.yarn/build-state.yml
+.pnp.*
+
+# Build output
+dist/
+build/
+.next/
+.nuxt/
+.svelte-kit/
+.output/
+.turbo/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+provisioning.yaml
+compose.yml
+
+# Local data
+*.sqlite
+*.sqlite-journal
+*.db
+# SQLite WAL + shared-memory sidecars (created next to the main .db file
+# when journal_mode=WAL is active).
+*.db-shm
+*.db-wal
+*.sqlite-shm
+*.sqlite-wal
+data/
+pgdata/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.swp
+*.swo
+.claude/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*

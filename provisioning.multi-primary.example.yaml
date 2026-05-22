@@ -1,0 +1,64 @@
+# =============================================================================
+# provisioning.multi-primary.example.yaml
+#
+# Provisioning file for the docker-compose-multi-primary.yml stack.
+# Registers one cluster ("prod") containing three peer primaries — all
+# writable, all backed by the same MariaDB instance in the demo.
+#
+# Mounted by the compose at /etc/powerdns-authadmin/provisioning.yaml on the
+# app container. Re-application is gated by the `provisioned_at` sentinel
+# in the settings table (drop it to force a re-apply).
+# =============================================================================
+
+settings:
+  site_name: "PowerDNS-AuthAdmin · Multi-Primary demo"
+  login_intro: "Three-peer multi-primary PowerDNS cluster. Pick `?cluster=prod` to let the app route writes per the cluster's strategy, or target an individual peer."
+
+# -----------------------------------------------------------------------------
+# Cluster definition. The `write_strategy` chosen here governs which peer
+# the app picks when a write targets `?cluster=prod`:
+#
+#   round_robin    — rotate evenly across active peers (default).
+#   lowest_latency — pick the peer with the lowest recent p50 latency.
+#   random         — uniform random.
+#   least_load     — pick the peer with the fewest recent zone-count
+#                    samples.
+# -----------------------------------------------------------------------------
+clusters:
+  - slug: prod
+    name: "Production cluster"
+    description: "Three peer primaries sharing a single MariaDB backend."
+    write_strategy: round_robin
+
+# -----------------------------------------------------------------------------
+# Three peers — every row is role=primary with cluster_slug=prod. The
+# applier resolves cluster_slug to the cluster's row id at write time.
+# -----------------------------------------------------------------------------
+pdns_servers:
+  - slug: peer-1
+    name: "Peer 1"
+    description: "Member of the prod cluster (sees the same backend as peer-2 and peer-3)."
+    base_url: "http://pdns-peer-1:8081/api/v1"
+    server_id: localhost
+    api_key: "peer-1-changeme"
+    role: primary
+    cluster_slug: prod
+    is_default: true
+
+  - slug: peer-2
+    name: "Peer 2"
+    description: "Member of the prod cluster."
+    base_url: "http://pdns-peer-2:8081/api/v1"
+    server_id: localhost
+    api_key: "peer-2-changeme"
+    role: primary
+    cluster_slug: prod
+
+  - slug: peer-3
+    name: "Peer 3"
+    description: "Member of the prod cluster."
+    base_url: "http://pdns-peer-3:8081/api/v1"
+    server_id: localhost
+    api_key: "peer-3-changeme"
+    role: primary
+    cluster_slug: prod

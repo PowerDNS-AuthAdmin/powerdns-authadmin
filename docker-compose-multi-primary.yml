@@ -1,0 +1,222 @@
+# =============================================================================
+# docker-compose-multi-primary.yml — full demo stack with a 3-peer
+# multi-primary PowerDNS cluster.
+#
+# Topology:
+#   * One MariaDB container hosts the gmysql backend tables (the PDNS
+#     schema is dropped into /docker-entrypoint-initdb.d so it runs once
+#     on first boot).
+#   * Three PDNS containers all point at the SAME MariaDB — they're
+#     equivalent peers. A write via any peer's HTTP API is visible to the
+#     other peers' APIs on the next read (no replication lag because the
+#     backend is shared).
+#   * The app provisions a `pdns_clusters` row + three peer servers
+#     belonging to it. Operators see the cluster in /admin/pdns-clusters
+#     and writes routed to `?cluster=<slug>` are dispatched via the
+#     cluster's write strategy (round_robin / lowest_latency / random /
+#     least_load).
+#
+# For real production use, swap the single shared MariaDB for a replicated
+# topology (Galera, MariaDB Cluster, Postgres logical replication, etc.).
+# The app's expected-serial source-of-truth machinery is what masks the
+# brief convergence gap in that case; in this demo, the gap is zero.
+#
+# Usage:
+#   cp .env.example .env
+#   # fill in APP_SECRET_KEY + APP_ENCRYPTION_KEY
+#   docker compose -f docker-compose-multi-primary.yml up -d
+#   # app          → http://localhost:3000
+#   # peer-1 API   → http://localhost:8091 (X-API-Key: peer-1-changeme)
+#   # peer-2 API   → http://localhost:8092 (X-API-Key: peer-2-changeme)
+#   # peer-3 API   → http://localhost:8093 (X-API-Key: peer-3-changeme)
+# =============================================================================
+
+networks:
+  pdnsnet:
+    driver: bridge
+
+name: powerdns-authadmin-multi-primary
+
+services:
+  # ---- Shared MariaDB backend ------------------------------------------
+  mariadb:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: pdns-root-pw
+      MARIADB_DATABASE: pdns
+      MARIADB_USER: pdns
+      MARIADB_PASSWORD: pdns-pw
+    volumes:
+      - mariadb-data:/var/lib/mysql
+      - ./docker/pdns/schema.mysql.sql:/docker-entrypoint-initdb.d/01-pdns-schema.sql:ro
+    networks:
+      - pdnsnet
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb -updns -ppdns-pw -e 'SELECT 1' pdns"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ---- App-side infrastructure -----------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pdns
+      POSTGRES_PASSWORD: pdns
+      POSTGRES_DB: powerdns_authadmin
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - pdnsnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pdns -d powerdns_authadmin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - pdnsnet
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---- PDNS peers (×3) -------------------------------------------------
+  pdns-peer-1:
+    image: powerdns/pdns-auth-49:latest
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    ports:
+      - "8091:8081"
+    networks:
+      - pdnsnet
+    volumes:
+      - ./docker/pdns/peer.conf:/etc/powerdns/pdns.conf:ro
+    command: ["--api-key=peer-1-changeme"]
+    healthcheck:
+      # `pdns_control rping` returns success once pdns_server is running.
+      # Doesn't depend on the HTTP API being up or the API key being right,
+      # so it's the simplest reliable liveness signal.
+      test: ["CMD", "pdns_control", "rping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  pdns-peer-2:
+    image: powerdns/pdns-auth-49:latest
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    ports:
+      - "8092:8081"
+    networks:
+      - pdnsnet
+    volumes:
+      - ./docker/pdns/peer.conf:/etc/powerdns/pdns.conf:ro
+    command: ["--api-key=peer-2-changeme"]
+    healthcheck:
+      test: ["CMD", "pdns_control", "rping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  pdns-peer-3:
+    image: powerdns/pdns-auth-49:latest
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    ports:
+      - "8093:8081"
+    networks:
+      - pdnsnet
+    volumes:
+      - ./docker/pdns/peer.conf:/etc/powerdns/pdns.conf:ro
+    command: ["--api-key=peer-3-changeme"]
+    healthcheck:
+      test: ["CMD", "pdns_control", "rping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---- The app ---------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pdns-peer-1:
+        condition: service_healthy
+      pdns-peer-2:
+        condition: service_healthy
+      pdns-peer-3:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    networks:
+      - pdnsnet
+    volumes:
+      - ./provisioning.multi-primary.example.yaml:/etc/powerdns-authadmin/provisioning.yaml:ro
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgres://pdns:pdns@postgres:5432/powerdns_authadmin
+      REDIS_URL: redis://redis:6379
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?must be set; generate with openssl rand -base64 32}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?must be set; generate with openssl rand -base64 32}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-bootstrap-admin-pw-changeme}
+      LOCAL_AUTH_ENABLED: "true"
+      APP_PDNS_ALLOW_PRIVATE_NETWORKS: "true"
+      MIGRATE_ON_BOOT: ${MIGRATE_ON_BOOT:-true}
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
+      PROVISIONING_FILE: /etc/powerdns-authadmin/provisioning.yaml
+      PROVISION_ON_BOOT: ${PROVISION_ON_BOOT:-true}
+      # Demo peers expose only http:// — explicit opt-out of the
+      # https-in-production scheme check. APP_PDNS_ALLOW_PRIVATE_NETWORKS
+      # above still governs the IP-range guard.
+      APP_PDNS_ALLOW_INSECURE_HTTP: ${APP_PDNS_ALLOW_INSECURE_HTTP:-true}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/healthz').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  postgres-data:
+  redis-data:
+  mariadb-data:

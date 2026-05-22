@@ -1,0 +1,101 @@
+# =============================================================================
+# provisioning.primary-secondary.example.yaml
+#
+# Provisioning file the docker-compose-primary-secondaries.yml stack mounts
+# at /etc/powerdns-authadmin/provisioning.yaml. Registers all four PDNS
+# containers as backends in the app on first boot so the operator lands on
+# a fully-populated admin UI:
+#
+#   * pdns-primary         (Primary, default backend)
+#   * pdns-secondary-{1,2,3} (Secondaries, linked to the Primary)
+#
+# Also seeds a starter zone template ("internal") so a new zone can be
+# created with NS records + SOA timers pre-filled.
+#
+# The applied state is keyed on slug, so re-running the stack after a
+# config tweak (e.g. rotating an API key here) is a clean upsert — except
+# for the `provisioned_at` sentinel, which gates against accidentally
+# re-applying when the operator has been editing through the UI. Drop the
+# sentinel row to force a re-apply:
+#
+#   psql "$DATABASE_URL" -c "DELETE FROM settings WHERE key='provisioned_at';"
+#
+# Secrets in this file are TOY values matching the compose API keys. Do
+# NOT use them anywhere real.
+# =============================================================================
+
+settings:
+  site_name: "PowerDNS-AuthAdmin · Primary+Secondaries demo"
+  login_intro: "Demo stack with one Primary and three Secondaries. Sign in with the bootstrap admin from .env."
+
+# -----------------------------------------------------------------------------
+# Zone templates — applied at zone-creation time. The `internal` template
+# is the default for the Primary backend below, so creating any new zone
+# starts with the right NS records + SOA timers.
+# -----------------------------------------------------------------------------
+zone_templates:
+  - slug: internal
+    name: Internal zones (NS pinned to local cluster)
+    description: "Sensible defaults for zones served by the demo cluster."
+    soa_ttl: 3600
+    soa_refresh: 3600
+    soa_retry: 900
+    soa_expire: 604800
+    soa_minimum: 3600
+    # Wire value PDNS' API still requires; UI labels render it as "Primary".
+    kind: Master
+    nameservers:
+      - pdns-secondary-1
+      - pdns-secondary-2
+      - pdns-secondary-3
+    records:
+      - name: "@"
+        type: TXT
+        ttl: 3600
+        content: '"v=spf1 -all"'
+    metadata: {}
+    default_for_primary_slugs:
+      - primary
+
+# -----------------------------------------------------------------------------
+# PowerDNS backends. The container hostnames (`pdns-primary`, etc.) are
+# reachable on the compose network; the app uses these URLs to talk to
+# PDNS. Each Secondary references the Primary by slug; the applier resolves
+# the FK at write time.
+# -----------------------------------------------------------------------------
+pdns_servers:
+  - slug: primary
+    name: "Primary (Sydney)"
+    description: "Writable backend — every zone create / record edit lands here."
+    base_url: "http://pdns-primary:8081/api/v1"
+    server_id: localhost
+    api_key: "primary-changeme"
+    role: primary
+    is_default: true
+
+  - slug: secondary-1
+    name: "Secondary 1"
+    description: "Read-only mirror, auto-created via supermaster + AXFR."
+    base_url: "http://pdns-secondary-1:8081/api/v1"
+    server_id: localhost
+    api_key: "secondary-1-changeme"
+    role: secondary
+    primary_slug: primary
+
+  - slug: secondary-2
+    name: "Secondary 2"
+    description: "Read-only mirror, auto-created via supermaster + AXFR."
+    base_url: "http://pdns-secondary-2:8081/api/v1"
+    server_id: localhost
+    api_key: "secondary-2-changeme"
+    role: secondary
+    primary_slug: primary
+
+  - slug: secondary-3
+    name: "Secondary 3"
+    description: "Read-only mirror, auto-created via supermaster + AXFR."
+    base_url: "http://pdns-secondary-3:8081/api/v1"
+    server_id: localhost
+    api_key: "secondary-3-changeme"
+    role: secondary
+    primary_slug: primary

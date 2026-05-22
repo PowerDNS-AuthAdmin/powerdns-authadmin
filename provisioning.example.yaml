@@ -1,0 +1,504 @@
+# =============================================================================
+# PowerDNS-AuthAdmin — exhaustive first-boot provisioning template
+# =============================================================================
+#
+# This file is the canonical "every setting at a glance" reference for the
+# YAML-driven IaC layer. Copy it, comment out what you don't need, and point
+# `PROVISIONING_FILE=/path/to/your.yaml` at it before first boot.
+#
+# How the applier runs:
+#
+#   1. On startup the app calls `applyProvisioning()` if `PROVISIONING_FILE`
+#      is set AND the `settings.provisioned_at` row is absent.
+#   2. Each top-level block is processed in order: settings → roles → teams
+#      → zone_templates → clusters → pdns_servers → demo_zones → oidc.
+#      Inter-block references resolve by slug (e.g. an oidc group_mapping
+#      pointing to a role defined a few blocks up just works).
+#   3. On success the applier writes `settings.provisioned_at = <ISO ts>`.
+#      Subsequent boots skip the file — the admin UI is the source of truth
+#      from that point on. To force a re-apply on a running database:
+#        # Postgres
+#        psql "$DATABASE_URL" -c "DELETE FROM settings WHERE key='provisioned_at';"
+#        # SQLite
+#        sqlite3 /data/powerdns_authadmin.db \
+#          "DELETE FROM settings WHERE key='provisioned_at';"
+#   4. Parse errors abort startup. The app refuses to boot rather than
+#      half-apply a malformed file — fail loud, fix the YAML, retry.
+#
+# Secrets policy:
+#
+#   API keys (PDNS) and client secrets (OIDC) live in this file in plaintext
+#   and are encrypted at rest with `APP_ENCRYPTION_KEY` before they hit the
+#   database. Treat this file as sensitive: chmod 600, owner = the app's
+#   runtime user, mounted read-only in containers. Prefer mounting from a
+#   secret store (Docker secrets, K8s Secret, HashiCorp Vault).
+#
+# Every top-level section is optional. Drop the blocks you don't need.
+# Unknown keys at any level are rejected at parse time — typos fail fast
+# instead of silently becoming no-ops.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# version (optional)
+# -----------------------------------------------------------------------------
+# When set, the applier refuses to run unless the app's reported version
+# starts with this prefix. Belt-and-braces for "we changed the schema, your
+# IaC is now stale." Leave unset to opt out.
+# -----------------------------------------------------------------------------
+# version: "0.1"
+
+# -----------------------------------------------------------------------------
+# settings  —  global key/value writes to the `settings` table
+# -----------------------------------------------------------------------------
+# Every key here mirrors the admin Settings page (see
+# lib/validators/settings.ts → KNOWN_SETTING_KEYS). Unknown keys reject at
+# parse time. Each key is independently optional.
+# -----------------------------------------------------------------------------
+settings:
+  # Plain-text site name. Shown in the nav and the login page <title>.
+  site_name: "My Org DNS"
+
+  # Optional brand logo. Accepts an absolute https:// URL OR an inline
+  # `data:image/...` URI. Inline data: is convenient but rows show up in
+  # audit snapshots — keep it under ~1.5 MB or use an external URL.
+  # brand_logo_url: "https://example.com/static/logo.png"
+
+  # Support contact line shown on the login page footer + 5xx error pages.
+  support_contact: "ops@example.com"
+
+  # Optional intro paragraph shown above the sign-in form. Use it to
+  # tell the operator which SSO provider to choose, or to call out
+  # an outage. Max 2000 chars.
+  login_intro: "Sign in with your company SSO. Reach out in #dns-ops for access."
+
+  # Failed-login lockout policy. Defaults: 5 attempts in 900 seconds → 15-min
+  # lockout. Both fields are independently tunable.
+  login_lockout_threshold: 5 # int 1..100  — attempts before lockout
+  login_lockout_seconds: 900 # int 60..86400 — lockout duration
+
+# -----------------------------------------------------------------------------
+# roles  —  custom (org-specific) roles
+# -----------------------------------------------------------------------------
+# The 5 system roles (super-admin, team-owner, operator, zone-editor,
+# read-only) are seeded by `db:seed` and CANNOT be redefined here — the
+# applier will refuse a slug collision. Use this section only for the
+# custom roles your org needs on top.
+#
+# `permissions` is a list of strings drawn from lib/rbac/permissions.ts.
+# Unknown permission names are validated at sign-in (the CASL builder
+# logs + skips them). The full vocabulary, grouped:
+#
+#   Zones:        zone.read, zone.create, zone.update, zone.delete,
+#                 zone.export, zone.import
+#   Records:      record.read, record.create, record.update, record.delete
+#   DNSSEC:       dnssec.read, dnssec.configure
+#   Metadata:     metadata.read, metadata.write
+#   TSIG keys:    tsig.read, tsig.manage     (tsig.read = list-only; manage
+#                                              = create/regenerate/reveal)
+#   Autoprimary:  autoprimary.manage
+#   Templates:    template.use, template.manage
+#   Users:        user.read, user.create, user.update, user.delete,
+#                 user.disable, user.reset-password
+#   Teams:        team.read, team.create, team.update, team.delete,
+#                 team.manage-members
+#   Roles:        role.read, role.create, role.update, role.delete,
+#                 role.assign
+#   PDNS servers: server.read, server.create, server.update, server.delete
+#   API tokens:   token.read.own, token.create.own, token.delete.own,
+#                 token.read.all, token.delete.all
+#   Audit/settings: audit.read, settings.read, settings.write
+#   OIDC IdPs:    oidc.read, oidc.manage
+# -----------------------------------------------------------------------------
+roles:
+  - slug: zone-noc # lowercase kebab-case
+    name: NOC Zone Operator
+    description: "Read everything; write only records inside zones the NOC owns."
+    requires_mfa: true # forces TOTP enrollment before any action
+    permissions:
+      - zone.read
+      - record.create
+      - record.update
+      - record.delete
+      - audit.read
+
+  - slug: billing-readonly
+    name: Billing (read-only)
+    description: "Auditor access for the finance team."
+    requires_mfa: false
+    permissions:
+      - zone.read
+      - audit.read
+      - server.read
+
+# -----------------------------------------------------------------------------
+# teams  —  multi-team RBAC unit
+# -----------------------------------------------------------------------------
+# A team is a named ownership boundary inside the app. Zones can be team-
+# scoped (Phase 5); role assignments can target a team (`scope: team:<slug>`
+# in oidc/group_mappings or in admin-issued assignments).
+#
+# Adding/removing members happens via the admin UI OR indirectly via OIDC
+# group → role mappings (a `scope: team:<slug>` assignment counts as
+# membership for visibility purposes).
+# -----------------------------------------------------------------------------
+teams:
+  - slug: noc # lowercase kebab-case
+    name: Network Operations
+    description: "On-call DNS team."
+    contact: "NOC Lead <noc-lead@example.com>"
+    mail: "noc@example.com"
+
+  - slug: corp-it
+    name: Corporate IT
+    description: "Internal IT services."
+    contact: "corp-it-lead@example.com"
+    # `mail` is optional; omitted here on purpose to show it's not required.
+
+# -----------------------------------------------------------------------------
+# zone_templates  —  scaffolding for new zones
+# -----------------------------------------------------------------------------
+# Applied at zone-creation time. The create-zone form preselects a template
+# when the operator picks a backend listed in `default_for_primary_slugs`.
+# Templates carry three layers of state, applied in this order:
+#
+#   1. PDNS createZone() — wire-format kind (Master/Slave/Native), seed
+#      NS records, seed SOA via the soa_* timers.
+#   2. PUT /zones/<id>   — zone-object settings (soa_edit, soa_edit_api,
+#      api_rectify). See the PDNS docs for what each accepts.
+#   3. PUT /zones/<id>/metadata/<kind> — per-kind metadata bag.
+#
+# Failures in steps 2 + 3 are logged but don't abort the create — the zone
+# exists; the operator can fix metadata later from the Zone settings tab.
+# -----------------------------------------------------------------------------
+zone_templates:
+  - slug: internal # lowercase kebab-case
+    name: Internal corp zones
+    description: "Default scaffolding for internal-facing zones (corp.example, etc.)"
+
+    # ------- SOA timers (seconds) -------
+    # Defaults shown match the schema's. Cap is min 60 / max int32 except
+    # soa_expire which has a min of 3600.
+    soa_ttl: 3600 # TTL on the SOA record itself
+    soa_refresh: 3600 # secondary refresh interval
+    soa_retry: 900 # secondary retry on refresh failure
+    soa_expire: 604800 # secondary expiry if primary unreachable
+    soa_minimum: 3600 # negative-cache TTL (RFC 2308)
+
+    # ------- Wire-format zone kind -------
+    # PDNS still uses Master/Slave on the wire even though the modern docs
+    # call them Primary/Secondary. The applier accepts either spelling.
+    # Native means "no AXFR/IXFR to secondaries; stored locally only."
+    # Master/Primary = source of truth; Slave/Secondary = read mirror.
+    kind: Native # Native | Master | Slave | Primary | Secondary
+
+    # ------- Seeded NS records -------
+    # Two is the RFC 2182 recommendation. List MUST be fully-qualified
+    # (trailing dot). For Primary+Secondaries topologies, every Secondary's
+    # supermaster-registered hostname (SELF_NS) MUST appear here so PDNS'
+    # auto-secondary verification accepts the NOTIFY.
+    nameservers:
+      - ns1.internal.example.
+      - ns2.internal.example.
+
+    # ------- Seeded prelude records -------
+    # Applied alongside NS + SOA at create. `name` is relative to the apex
+    # ("@" = apex, "www" = www.<zone>). `type` is the record type; `ttl`
+    # in seconds; `content` is the wire-format RDATA. `disabled: true`
+    # creates the record in disabled state.
+    records:
+      - { name: "@", type: TXT, ttl: 3600, content: '"v=spf1 -all"' }
+      - {
+          name: _dmarc,
+          type: TXT,
+          ttl: 3600,
+          content: '"v=DMARC1; p=reject; rua=mailto:dmarc-reports@example.com"',
+        }
+      - { name: www, type: CNAME, ttl: 3600, content: "@" }
+      - { name: legacy, type: A, ttl: 300, content: "192.0.2.10", disabled: true }
+
+    # ------- Zone-object settings (PDNS PUT /zones/<id>) -------
+    # All optional. Omit a field to leave PDNS's default in place.
+    #
+    # soa_edit / soa_edit_api: SOA serial mutation policies. The most
+    # common combo is `INCEPTION-INCREMENT` + `DEFAULT` which keeps the
+    # serial monotonic across API edits. See:
+    #   https://doc.powerdns.com/authoritative/dnssec/operational.html#soa-edit-api
+    soa_edit: INCEPTION-INCREMENT
+    soa_edit_api: DEFAULT
+    # api_rectify: when true, PDNS rebuilds NSEC/NSEC3 + ordername after
+    # every API edit. Required for DNSSEC zones; harmless for non-DNSSEC.
+    api_rectify: true
+
+    # ------- Per-kind metadata bag (PDNS PUT /zones/<id>/metadata/<kind>) -------
+    # Free-form map: each key is a metadata kind; each value is a list of
+    # strings. Allowed kinds vary across PDNS versions — individual PUT
+    # failures are logged but never abort the apply.
+    metadata:
+      ALLOW-AXFR-FROM:
+        - "10.0.0.0/8"
+      ALSO-NOTIFY:
+        - "192.0.2.53:53"
+      # Examples of other commonly-used kinds. PDNS accepts most as
+      # multi-valued lists; some (TSIG-ALLOW-AXFR) accept multiple keys
+      # by listing each on its own line.
+      # NSEC3PARAM:    ["1 0 5 abcdef"]
+      # PRESIGNED:     ["1"]
+      # API-RECTIFY:   ["1"]                            # equivalent to api_rectify above
+      # TSIG-ALLOW-AXFR: ["zone-transfer-key"]
+
+    # ------- Auto-select on backend pick -------
+    # When the create-zone form's backend picker resolves to one of these
+    # primary slugs, this template is preselected. List the primaries
+    # whose default zone-shape this template represents.
+    default_for_primary_slugs:
+      - primary-internal
+
+  - slug: external
+    name: External / customer-facing zones
+    description: "Public DNS — longer SOA timers, 3 NS, no metadata bag."
+    soa_ttl: 86400
+    soa_refresh: 86400
+    soa_retry: 7200
+    soa_expire: 1209600
+    soa_minimum: 3600
+    kind: Master # legacy spelling accepted; "Primary" is equivalent
+    nameservers:
+      - ns1.example.com.
+      - ns2.example.com.
+      - ns3.example.com.
+    records: [] # empty list ⇒ no prelude records
+    metadata: {} # empty map ⇒ no metadata writes
+    default_for_primary_slugs:
+      - primary-public
+
+# -----------------------------------------------------------------------------
+# clusters  —  multi-primary peer groups
+# -----------------------------------------------------------------------------
+# A cluster is N writable PDNS peers backed by a replicated store (Galera,
+# Postgres logical replication, etc.). The cluster appears as ONE logical
+# backend in every operator-facing picker; the peer-selection strategy
+# (UI label) picks which peer to read from / write to per request.
+#
+# Secondaries CANNOT belong to a cluster — clusters are peer-groups of
+# primaries. Listing a cluster_slug on a secondary is a parse error.
+# -----------------------------------------------------------------------------
+clusters:
+  - slug: prod-cluster # lowercase kebab-case
+    name: "Production cluster (3 peers)"
+    description: "Three writable peers sharing one Galera-replicated MariaDB."
+    # Strategy options (column name is `write_strategy`; the UI calls it
+    # "Peer selection strategy"):
+    #
+    #   round_robin     Spread requests across peers in order. The default.
+    #   random          Uniform random choice per request.
+    #   lowest_latency  Use the peer with the lowest p50 from the sampler.
+    #                   Falls back to round_robin until the sampler has
+    #                   data.
+    #   least_load      Use the peer with the fewest zones from the sampler.
+    #                   Useful when peers are unevenly sized.
+    write_strategy: round_robin
+
+# -----------------------------------------------------------------------------
+# pdns_servers  —  the PDNS Authoritative backends
+# -----------------------------------------------------------------------------
+# Primaries are full read/write backends. Secondaries are read-only mirrors
+# we poll for sync state + stats. Cluster peers are primaries that share a
+# replicated store (see clusters: above).
+#
+# Cross-row rules enforced at parse:
+#   • role=secondary → primary_slug is required (and must resolve, in this
+#     file or to an existing primary in the DB).
+#   • role=primary   → primary_slug must NOT be set.
+#   • role=secondary → cluster_slug is forbidden.
+#   • is_default     → set on EXACTLY ONE row (the applier doesn't enforce
+#                      uniqueness; the admin UI does).
+#
+# `api_key` is the PDNS X-API-Key in plaintext; encrypted with
+# APP_ENCRYPTION_KEY before persisting. `base_url` must point at the PDNS
+# HTTP API path (`/api/v1`). The SSRF guard (APP_PDNS_ALLOW_PRIVATE_NETWORKS,
+# APP_PDNS_ALLOW_INSECURE_HTTP) gates which URLs are accepted at runtime.
+# -----------------------------------------------------------------------------
+pdns_servers:
+  # --- Standalone primary (no cluster, no secondaries) ---
+  - slug: primary-internal # lowercase kebab-case
+    name: "Internal primary (Sydney)"
+    description: "Authoritative for internal.example. and corp.example."
+    base_url: "http://pdns-internal.svc:8081/api/v1" # https:// required in prod unless APP_PDNS_ALLOW_INSECURE_HTTP=true
+    server_id: localhost # PDNS' internal server-id (almost always "localhost")
+    api_key: "REPLACE_ME_internal_pdns_api_key"
+    role: primary # primary | secondary
+    is_default: true # exactly ONE row in the file should be default
+
+  # --- Primary with three Secondaries ---
+  # The Secondaries auto-bootstrap via PDNS supermaster: on a NOTIFY from
+  # the primary they create the zone and AXFR it, provided each zone's NS
+  # list contains the receiving Secondary's `supermasters.nameserver` value.
+  - slug: primary-public
+    name: "Public primary (Sydney)"
+    description: "Authoritative for example.com and customer zones."
+    base_url: "https://pdns-public.example.com/api/v1"
+    server_id: localhost
+    api_key: "REPLACE_ME_public_pdns_api_key"
+    role: primary
+    is_default: false
+
+  - slug: secondary-public-eu
+    name: "Public secondary (Frankfurt)"
+    description: "Read-only mirror of primary-public."
+    base_url: "https://pdns-fra.example.com/api/v1"
+    server_id: localhost
+    api_key: "REPLACE_ME_fra_secondary_api_key"
+    role: secondary
+    primary_slug: primary-public # must match a primary defined above OR an existing one in the DB
+
+  - slug: secondary-public-us
+    name: "Public secondary (Ashburn)"
+    base_url: "https://pdns-iad.example.com/api/v1"
+    server_id: localhost
+    api_key: "REPLACE_ME_iad_secondary_api_key"
+    role: secondary
+    primary_slug: primary-public
+
+  # --- Cluster peers (members of prod-cluster) ---
+  # Every peer in a cluster shares the same backend store, so they all see
+  # the same zones + records. The app reads/writes through one peer per
+  # request (chosen by the cluster's peer-selection strategy). All cluster
+  # members are role=primary; cluster_slug binds them to the cluster row.
+  - slug: peer-1
+    name: "Cluster peer 1 (Sydney AZ-A)"
+    base_url: "http://pdns-peer-1:8081/api/v1"
+    server_id: localhost
+    api_key: "REPLACE_ME_peer_1_api_key"
+    role: primary
+    cluster_slug: prod-cluster # must match a cluster defined above
+
+  - slug: peer-2
+    name: "Cluster peer 2 (Sydney AZ-B)"
+    base_url: "http://pdns-peer-2:8081/api/v1"
+    server_id: localhost
+    api_key: "REPLACE_ME_peer_2_api_key"
+    role: primary
+    cluster_slug: prod-cluster
+
+  - slug: peer-3
+    name: "Cluster peer 3 (Sydney AZ-C)"
+    base_url: "http://pdns-peer-3:8081/api/v1"
+    server_id: localhost
+    api_key: "REPLACE_ME_peer_3_api_key"
+    role: primary
+    cluster_slug: prod-cluster
+
+# -----------------------------------------------------------------------------
+# demo_zones  —  generated demo zones (optional)
+# -----------------------------------------------------------------------------
+# Each entry produces N synthetic zones with realistic record content via
+# the PDNS HTTP API. Useful for showcasing the UI on a fresh stack;
+# disable in production by removing this whole block.
+#
+# Exactly one of `target_server` / `target_cluster` must be set per entry.
+# Cluster targets route through the cluster's peer-selection strategy
+# (round_robin spreads the N zones across the peers).
+# -----------------------------------------------------------------------------
+# demo_zones:
+#   - target_server: primary-internal                   # OR target_cluster: prod-cluster (not both)
+#     count: 10                                         # number of zones to create (1..500)
+#     records_per_zone: 10                              # records per zone, excluding NS+SOA (1..100)
+#     name_prefix: corp                                 # zones are <prefix>-N.<base_domain>.
+#     base_domain: example                              # apex of the generated zones (default "demo")
+#     kind: Master                                      # Native | Master | Primary
+#     nameservers:                                      # optional; defaults to ns1.<base>./ns2.<base>.
+#       - ns1.internal.example.
+#       - ns2.internal.example.
+
+# -----------------------------------------------------------------------------
+# oidc  —  identity providers
+# -----------------------------------------------------------------------------
+# Multi-provider supported. Each row is created from scratch on first
+# apply; the applier never deletes providers (only creates + updates by
+# slug). `client_secret` is plaintext here; encrypted at rest.
+#
+# Group → role materialisation:
+#   On every successful sign-in, the user's `claim_groups` claim is
+#   matched against `group_mappings`. Each match yields a role assignment
+#   tagged `provider_id = <this provider>`, so the NEXT sign-in revokes
+#   it when the user is no longer in the group. Admin-issued assignments
+#   (provider_id IS NULL) are never touched.
+#
+# `scope` syntax in group_mappings:
+#
+#   global              applies everywhere
+#   team:<slug>         applies inside the named team
+#   zone:<zone-name>    applies to a single PDNS zone (canonical fqdn)
+#   server:<slug>       applies to all zones on one backend
+#
+# Mappings whose role / team / server can't be resolved at sign-in are
+# logged + audited under auth.oidc.group_sync.mapping_unresolved and
+# skipped — the rest of the sign-in proceeds.
+# -----------------------------------------------------------------------------
+oidc:
+  - slug: company-sso # lowercase kebab-case
+    name: "Company SSO"
+    issuer_url: "https://auth.example.com/realms/example"
+    client_id: "powerdns-authadmin"
+    client_secret: "REPLACE_ME_company_sso_client_secret"
+    scopes: "openid profile email groups" # space-separated OAuth scopes; default "openid profile email"
+    # Claim names — change only if your IdP uses non-standard claim keys.
+    claim_email: email
+    claim_name: name
+    claim_groups: groups
+    enabled: true # false hides the provider from the login page
+    force_default: false # true ⇒ /login auto-redirects to this provider's initiate
+    # Optional inline logo for the login button. https:// only.
+    # icon_url: "https://auth.example.com/static/logo.png"
+    # Restrict auto-provisioning of NEW users to these email domains.
+    # Existing users keep signing in regardless. Empty/unset ⇒ no restriction.
+    allowed_email_domains:
+      - example.com
+      - contractors.example.com
+    group_mappings:
+      # global → everyone in this IdP group is super-admin everywhere
+      - group: pdns-superadmins
+        role: super-admin
+        scope: global
+
+      - group: pdns-operators
+        role: operator
+        scope: global
+
+      # team-scoped → role applies to the team (membership-equivalent for
+      # visibility). The team slug must exist (defined above or pre-existing).
+      - group: noc-zone-editors
+        role: zone-editor
+        scope: team:noc
+
+      # zone-scoped → role applies to ONE zone (canonical fqdn — trailing dot).
+      - group: corp-zone-readers
+        role: read-only
+        scope: zone:corp.example.
+
+      # server-scoped → role applies to every zone on one backend.
+      - group: public-dns-only
+        role: zone-editor
+        scope: server:primary-public
+
+      # Custom roles defined in `roles:` above are usable here by slug —
+      # the materialiser doesn't care whether the role is system-seeded
+      # or org-custom.
+      - group: dns-noc-team
+        role: zone-noc
+        scope: global
+
+  # A second provider — Google personal sign-in, defined but disabled.
+  # Flip `enabled: true` from the admin UI when you're ready.
+  - slug: google
+    name: "Google"
+    issuer_url: "https://accounts.google.com"
+    client_id: "REPLACE_ME_google_client_id.apps.googleusercontent.com"
+    client_secret: "REPLACE_ME_google_client_secret"
+    scopes: "openid profile email"
+    claim_email: email
+    claim_name: name
+    claim_groups: groups
+    enabled: false
+    force_default: false
+    group_mappings: [] # explicit empty list — no group sync

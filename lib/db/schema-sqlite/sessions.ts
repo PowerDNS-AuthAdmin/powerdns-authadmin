@@ -1,0 +1,42 @@
+/**
+ * lib/db/schema-sqlite/sessions.ts — SQLite mirror of `../schema/sessions.ts`.
+ */
+
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { users } from "./users";
+import { pk, timestamps } from "./_helpers";
+
+export const sessions = sqliteTable(
+  "sessions",
+  {
+    id: pk(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+
+    lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+
+    csrfSecret: text("csrf_secret").notNull(),
+
+    // See lib/db/schema/sessions.ts for the RP-initiated-logout rationale.
+    oidcEndSessionUrl: text("oidc_end_session_url"),
+    oidcIdToken: text("oidc_id_token"),
+    oidcClientId: text("oidc_client_id"),
+
+    ...timestamps(),
+  },
+  (t) => ({
+    userIdx: index("sessions_user_idx").on(t.userId),
+    expiresIdx: index("sessions_expires_idx").on(t.expiresAt),
+  }),
+);
+
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;

@@ -1,0 +1,14 @@
+# Generated / vendored / out-of-scope.
+.next
+node_modules
+dist
+build
+coverage
+drizzle/meta
+public/generated
+PowerDNS-Admin
+*.min.js
+*.min.css
+package-lock.json
+# Operational notes / loop status, not production source.
+memory

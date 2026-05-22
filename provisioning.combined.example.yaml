@@ -1,0 +1,202 @@
+# =============================================================================
+# provisioning.combined.example.yaml
+#
+# Provisioning file for docker-compose-combined.yml. Registers every PDNS
+# backend across all three topologies AND seeds 10 demo zones × 10 records
+# per topology = 30 zones / ~300 records total.
+#
+# Mounted at /etc/powerdns-authadmin/provisioning.yaml on the app container.
+# Re-application is gated by the `provisioned_at` sentinel in the settings
+# table — drop it to force a re-apply (`DELETE FROM settings WHERE
+# key='provisioned_at'` then restart). Demo zones already on PDNS surface
+# as `skipped` rather than `created` so re-runs are clean.
+# =============================================================================
+
+settings:
+  site_name: "PowerDNS-AuthAdmin · Combined demo"
+  login_intro: "All three topologies running in one stack. Browse /admin/servers to see the cluster, the standalone primary, and the primary+secondaries group."
+
+# -----------------------------------------------------------------------------
+# Zone templates — applied by the create-zone form + the demo_zones
+# generator below. Every field shown here maps 1:1 to what the admin UI
+# exposes under /admin/zone-templates, including the zone-object
+# settings (SOA-EDIT-API et al) that land via PUT /zones/<id> right
+# after PDNS creates the zone.
+# -----------------------------------------------------------------------------
+zone_templates:
+  - slug: standard-primary
+    name: "Standard primary"
+    description: "Default template for new primary zones: 2 NS, sensible SOA timers, SOA-EDIT-API on."
+    kind: Master
+    # SOA timers (seconds). Defaults in lib/provisioning/schema.ts.
+    soa_ttl: 3600
+    soa_refresh: 3600
+    soa_retry: 900
+    soa_expire: 604800
+    soa_minimum: 3600
+    # Authoritative NS list seeded into the zone. Two is the RFC 2182
+    # recommendation; the create-zone form warns if only one is given.
+    nameservers:
+      - ns1.demo.
+      - ns2.demo.
+    # Prelude records applied alongside the NS + SOA. `name` is relative
+    # to the zone apex; `@` (or empty string) means the apex itself.
+    records:
+      - { name: "@", type: TXT, ttl: 3600, content: '"v=spf1 -all"' }
+      - { name: "www", type: CNAME, ttl: 3600, content: "@" }
+    # Zone-object settings applied via PUT /zones/<id> after creation.
+    # These are the PDNS knobs the UI exposes under the zone's Settings
+    # tab — surfacing them on the template means every zone created from
+    # this template inherits the same SOA-EDIT-API behavior + rectify
+    # policy without operator effort.
+    soa_edit: INCEPTION-INCREMENT # tweaks SOA serial on apex updates
+    soa_edit_api: DEFAULT # SOA-EDIT-API — see https://doc.powerdns.com/authoritative/dnssec/operational.html#soa-edit-api
+    api_rectify: true # auto-rectify rrsets after API edits (needed for DNSSEC)
+    # Per-kind metadata bag — values are applied with PUT
+    # /zones/<id>/metadata/<kind>. The allowed kinds vary across PDNS
+    # versions; individual PUT failures are logged but don't abort the
+    # template apply.
+    metadata:
+      ALSO-NOTIFY:
+        - "192.0.2.53:53"
+      ALLOW-AXFR-FROM:
+        - "192.0.2.0/24"
+    # Optional: list of primary slugs for which this template is the
+    # default. The create-zone form preselects it when the operator
+    # picks one of these backends.
+    default_for_primary_slugs:
+      - standalone
+      - ps-primary
+
+# -----------------------------------------------------------------------------
+# Cluster definition (Topology 1)
+# -----------------------------------------------------------------------------
+clusters:
+  - slug: prod-cluster
+    name: "Production cluster (3 peers)"
+    description: "Three writable peers sharing a single MariaDB backend."
+    write_strategy: round_robin # Peer-selection strategy (UI label): round_robin | random | lowest_latency | least_load
+
+# -----------------------------------------------------------------------------
+# All PDNS backends across the three topologies
+# -----------------------------------------------------------------------------
+pdns_servers:
+  # Topology 1: cluster peers — all writable, all share the same MariaDB.
+  - slug: peer-1
+    name: "Cluster peer 1"
+    description: "Member of the prod-cluster (shared MariaDB backend)."
+    base_url: "http://pdns-peer-1:8081/api/v1"
+    server_id: localhost
+    api_key: "peer-1-changeme"
+    role: primary
+    cluster_slug: prod-cluster
+    is_default: false
+
+  - slug: peer-2
+    name: "Cluster peer 2"
+    description: "Member of the prod-cluster."
+    base_url: "http://pdns-peer-2:8081/api/v1"
+    server_id: localhost
+    api_key: "peer-2-changeme"
+    role: primary
+    cluster_slug: prod-cluster
+
+  - slug: peer-3
+    name: "Cluster peer 3"
+    description: "Member of the prod-cluster."
+    base_url: "http://pdns-peer-3:8081/api/v1"
+    server_id: localhost
+    api_key: "peer-3-changeme"
+    role: primary
+    cluster_slug: prod-cluster
+
+  # Topology 2: standalone primary — no replication, its own gsqlite3.
+  - slug: standalone
+    name: "Standalone primary"
+    description: "Single-instance backend. No Secondaries, no cluster."
+    base_url: "http://pdns-single:8081/api/v1"
+    server_id: localhost
+    api_key: "single-changeme"
+    role: primary
+    is_default: true
+
+  # Topology 3: primary + 3 Secondaries with classic NOTIFY/AXFR.
+  - slug: ps-primary
+    name: "Primary (with Secondaries)"
+    description: "Writable Primary; NOTIFYs the three Secondaries below on every zone change."
+    base_url: "http://pdns-ps-primary:8081/api/v1"
+    server_id: localhost
+    api_key: "ps-primary-changeme"
+    role: primary
+
+  - slug: ps-secondary-1
+    name: "Secondary 1"
+    description: "Read-only mirror of ps-primary, auto-created via supermaster + AXFR."
+    base_url: "http://pdns-ps-secondary-1:8081/api/v1"
+    server_id: localhost
+    api_key: "ps-secondary-1-changeme"
+    role: secondary
+    primary_slug: ps-primary
+
+  - slug: ps-secondary-2
+    name: "Secondary 2"
+    description: "Read-only mirror of ps-primary."
+    base_url: "http://pdns-ps-secondary-2:8081/api/v1"
+    server_id: localhost
+    api_key: "ps-secondary-2-changeme"
+    role: secondary
+    primary_slug: ps-primary
+
+  - slug: ps-secondary-3
+    name: "Secondary 3"
+    description: "Read-only mirror of ps-primary."
+    base_url: "http://pdns-ps-secondary-3:8081/api/v1"
+    server_id: localhost
+    api_key: "ps-secondary-3-changeme"
+    role: secondary
+    primary_slug: ps-primary
+
+# -----------------------------------------------------------------------------
+# Demo zones: 10 zones × 10 records per topology = 30 zones total.
+#
+# Each entry produces zones named `<name_prefix>-<i>.<base_domain>.`,
+# pre-populated with realistic A / MX / TXT / CNAME records. Existing
+# zones are skipped (idempotent re-runs).
+# -----------------------------------------------------------------------------
+demo_zones:
+  # Topology 1: cluster — peers chosen per the cluster's write_strategy
+  # (round_robin spreads the 10 zones across the 3 peers).
+  - target_cluster: prod-cluster
+    count: 10
+    records_per_zone: 10
+    name_prefix: cluster
+    base_domain: demo
+    kind: Master
+
+  # Topology 2: standalone — every zone lands on the single primary.
+  - target_server: standalone
+    count: 10
+    records_per_zone: 10
+    name_prefix: single
+    base_domain: demo
+    kind: Master
+
+  # Topology 3: primary+secondaries — created on the Primary; PDNS NOTIFY
+  # + AXFR replicates to the Secondaries automatically.
+  #
+  # The NS list MUST contain every Secondary's `SELF_NS` (set in compose
+  # as the Secondary's container hostname). PDNS' auto-secondary
+  # verification on NOTIFY checks each Secondary's
+  # `supermasters.nameserver` against the zone's NS records — if no
+  # match, the auto-create is rejected and the Secondary won't pick the
+  # zone up. Listing all three lets any of the Secondaries verify cleanly.
+  - target_server: ps-primary
+    count: 10
+    records_per_zone: 10
+    name_prefix: ps
+    base_domain: demo
+    kind: Master
+    nameservers:
+      - pdns-ps-secondary-1.
+      - pdns-ps-secondary-2.
+      - pdns-ps-secondary-3.

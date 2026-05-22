@@ -1,0 +1,21 @@
+# EditorConfig — unifies basic editor behavior across IDEs.
+# https://editorconfig.org/
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 100
+
+[*.md]
+# Markdown is space-sensitive at line ends (two trailing spaces = hard line break).
+trim_trailing_whitespace = false
+max_line_length = off
+
+[Makefile]
+indent_style = tab

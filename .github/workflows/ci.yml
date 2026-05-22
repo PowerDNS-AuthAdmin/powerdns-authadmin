@@ -1,0 +1,202 @@
+# =============================================================================
+# CI/CD — runs on every PR, every push to main, and every vX.Y.Z tag.
+#
+# Goals:
+#   • Catch lint / type / format errors before review.
+#   • Run unit + integration (real Postgres) tests on every change.
+#   • Keep PRs honest — npm audit gates on high/critical CVEs.
+#   • Build the production image on every change; PUBLISH a multi-arch
+#     (linux/amd64 + linux/arm64) image to Docker Hub once the tests pass on
+#     main / tags.
+#
+# Publishing requires two repo secrets (Settings → Secrets and variables →
+# Actions): DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (a Docker Hub access token
+# with Read & Write scope). PRs build but never push, so fork PRs are safe.
+#
+# Performance: test jobs run in parallel and reuse actions/setup-node's npm
+# cache; the image build reuses a Buildx layer cache (type=gha).
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same PR when a new push lands.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Default permissions for all jobs. Each job can request more if needed.
+# Reading is fine for almost everything; writing requires explicit grant.
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24"
+  IMAGE_NAME: jseifeddine/powerdns-authadmin
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Lint + format + typecheck
+  # -------------------------------------------------------------------------
+  static-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+  # -------------------------------------------------------------------------
+  # Unit tests
+  # -------------------------------------------------------------------------
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test
+
+  # -------------------------------------------------------------------------
+  # Integration tests — true end-to-end against a real running stack.
+  #
+  # The suite (tests/integration/setup.ts) hits a live app's /healthz + its
+  # Postgres and FAILS LOUD if either is missing, so it can't run against a
+  # bare DB. `npm run test:integration` (tests/integration/run.sh) is the
+  # self-contained runner: it boots the full multi-topology stack via docker
+  # compose (the app image is built fresh from this checkout), --waits for
+  # health, runs vitest against it, then tears the stack down. Docker +
+  # docker compose are preinstalled on GitHub-hosted runners.
+  # -------------------------------------------------------------------------
+  integration-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Integration suite (full stack via docker compose)
+        # docker-compose-combined.yml requires these two via ${VAR:?} at compose
+        # INTERPOLATION time (the test override then replaces them with
+        # deterministic per-container test values). Locally they come from a
+        # .env file; in CI we pass them here so `docker compose` can parse.
+        env:
+          APP_SECRET_KEY: kQNFuuPJLRHE1qsbUgXQDMAcgsg2kxVip34yE9ydwS8=
+          APP_ENCRYPTION_KEY: n+ZccvIUcG6XoJ2qoUtaPtk7tme1n5NbT3QXkiHBs4M=
+        run: npm run test:integration
+
+  # -------------------------------------------------------------------------
+  # Security: npm audit gate on high/critical CVEs in production deps only.
+  # Renovate handles dev-dep updates separately; we don't want a CVE in a
+  # build-time-only package to block a release.
+  # -------------------------------------------------------------------------
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit (production deps only)
+        run: npm audit --audit-level=high --omit=dev
+
+  # -------------------------------------------------------------------------
+  # Build the production image and publish it to Docker Hub.
+  #
+  #   • Pull request  → build linux/amd64 only, NO push (proves the Dockerfile
+  #     still works; fork PRs can't read secrets anyway).
+  #   • Push to main  → build linux/amd64 + linux/arm64, push `latest` + a
+  #     short-sha tag.
+  #   • Tag vX.Y.Z    → also push the semver tags `X.Y.Z` and `X.Y`.
+  #
+  # arm64 is built under QEMU emulation (one simple job); the Buildx layer
+  # cache keeps repeat runs quick. Needs DOCKERHUB_USERNAME + DOCKERHUB_TOKEN.
+  # -------------------------------------------------------------------------
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: [static-checks, test, integration-test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU (for arm64 emulation)
+        uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Derive image tags + labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # PRs validate amd64 only (fast); main/tags publish both arches.
+          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Keep the published manifest to just the two arches (no extra
+          # "unknown/unknown" attestation entries cluttering Docker Hub).
+          provenance: false
