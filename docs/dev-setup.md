@@ -12,7 +12,7 @@ be safe to copy-paste.
 ## One-time setup
 
 ```sh
-git clone https://github.com/jseifeddine/powerdns-authadmin
+git clone https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin
 cd PowerDNS-AuthAdmin
 
 nvm use            # reads .nvmrc

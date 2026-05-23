@@ -6,12 +6,12 @@
 #   • Run unit + integration (real Postgres) tests on every change.
 #   • Keep PRs honest — npm audit gates on high/critical CVEs.
 #   • Build the production image on every change; PUBLISH a multi-arch
-#     (linux/amd64 + linux/arm64) image to Docker Hub once the tests pass on
-#     main / tags.
+#     (linux/amd64 + linux/arm64) image to the GitHub Container Registry
+#     (ghcr.io) once the tests pass on main / tags.
 #
-# Publishing requires two repo secrets (Settings → Secrets and variables →
-# Actions): DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (a Docker Hub access token
-# with Read & Write scope). PRs build but never push, so fork PRs are safe.
+# Publishing needs no secrets: it authenticates to ghcr.io with the built-in
+# GITHUB_TOKEN (the docker job grants itself `packages: write`). PRs build but
+# never push, so fork PRs are safe.
 #
 # Performance: test jobs run in parallel and reuse actions/setup-node's npm
 # cache; the image build reuses a Buildx layer cache (type=gha).
@@ -38,7 +38,7 @@ permissions:
 
 env:
   NODE_VERSION: "24"
-  IMAGE_NAME: jseifeddine/powerdns-authadmin
+  IMAGE_NAME: ghcr.io/powerdns-authadmin/powerdns-authadmin
 
 jobs:
   # -------------------------------------------------------------------------
@@ -145,21 +145,26 @@ jobs:
         run: npm audit --audit-level=high --omit=dev
 
   # -------------------------------------------------------------------------
-  # Build the production image and publish it to Docker Hub.
+  # Build the production image and publish it to GHCR (ghcr.io).
   #
   #   • Pull request  → build linux/amd64 only, NO push (proves the Dockerfile
-  #     still works; fork PRs can't read secrets anyway).
+  #     still works; fork PRs can't write packages anyway).
   #   • Push to main  → build linux/amd64 + linux/arm64, push `latest` + a
   #     short-sha tag.
   #   • Tag vX.Y.Z    → also push the semver tags `X.Y.Z` and `X.Y`.
   #
   # arm64 is built under QEMU emulation (one simple job); the Buildx layer
-  # cache keeps repeat runs quick. Needs DOCKERHUB_USERNAME + DOCKERHUB_TOKEN.
+  # cache keeps repeat runs quick. Auth uses the built-in GITHUB_TOKEN — no
+  # registry secrets to manage.
   # -------------------------------------------------------------------------
   docker:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: [static-checks, test, integration-test]
+    # GITHUB_TOKEN needs package-write to push to ghcr.io; reads stay default.
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -168,12 +173,13 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
+      - name: Log in to GHCR
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Derive image tags + labels
         id: meta
@@ -198,19 +204,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           # Keep the published manifest to just the two arches (no extra
-          # "unknown/unknown" attestation entries cluttering Docker Hub).
+          # "unknown/unknown" attestation entries cluttering the package).
+          # metadata-action already sets org.opencontainers.image.source from
+          # github.repository, which links the GHCR package to this repo (so
+          # its package page shows the repo README).
           provenance: false
-
-      # Sync the Docker Hub repository overview from DOCKERHUB.md on default-branch
-      # pushes. Best-effort: a failure here (e.g. token scope) must not fail the
-      # publish, hence continue-on-error.
-      - name: Update Docker Hub overview
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        continue-on-error: true
-        uses: peter-evans/dockerhub-description@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: ${{ env.IMAGE_NAME }}
-          readme-filepath: ./DOCKERHUB.md
-          short-description: "Modern self-hosted DNS admin UI for PowerDNS Authoritative — RBAC, OIDC SSO, audit log, multi-backend."

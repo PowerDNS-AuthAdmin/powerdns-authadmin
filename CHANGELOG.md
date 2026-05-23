@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.0.2] — 2026-05-23
+
+### Changed
+
+- **Project moved to the [`PowerDNS-AuthAdmin`](https://github.com/PowerDNS-AuthAdmin) GitHub
+  organization, and container images are now published to the GitHub Container Registry (GHCR)
+  instead of Docker Hub.** Pull `ghcr.io/powerdns-authadmin/powerdns-authadmin:latest` (or a
+  `:X.Y.Z` tag). The previous Docker Hub repository is no longer updated.
+
 ## [1.0.1] — 2026-05-23
 
 ### Fixed
@@ -56,6 +65,7 @@ First production release.
 - **Distribution** — multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/jseifeddine/powerdns-authadmin/compare/v1.0.1...HEAD
-[1.0.1]: https://github.com/jseifeddine/powerdns-authadmin/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/jseifeddine/powerdns-authadmin/releases/tag/v1.0.0
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/releases/tag/v1.0.0

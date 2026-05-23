@@ -11,11 +11,10 @@
 > audit log with diffs, SSO with group-driven role mapping, optimistic concurrency in the editor,
 > and a UI built for teams that actually run multi-backend infrastructure.
 
-[![CI](https://github.com/jseifeddine/powerdns-authadmin/actions/workflows/ci.yml/badge.svg)](https://github.com/jseifeddine/powerdns-authadmin/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/jseifeddine/powerdns-authadmin)](https://github.com/jseifeddine/powerdns-authadmin/releases/latest)
-[![Docker Pulls](https://img.shields.io/docker/pulls/jseifeddine/powerdns-authadmin)](https://hub.docker.com/r/jseifeddine/powerdns-authadmin)
-[![Docker Image Size](https://img.shields.io/docker/image-size/jseifeddine/powerdns-authadmin/latest)](https://hub.docker.com/r/jseifeddine/powerdns-authadmin)
-[![License: MIT](https://img.shields.io/github/license/jseifeddine/powerdns-authadmin)](./LICENSE)
+[![CI](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/ci.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/PowerDNS-AuthAdmin/powerdns-authadmin)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/releases/latest)
+[![Container: GHCR](https://img.shields.io/badge/ghcr.io-powerdns--authadmin-2496ED?logo=docker&logoColor=white)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)
+[![License: MIT](https://img.shields.io/github/license/PowerDNS-AuthAdmin/powerdns-authadmin)](./LICENSE)
 
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)](.nvmrc)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=next.js)](https://nextjs.org)
@@ -127,7 +126,7 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
 
 ## Run it
 
-The app ships as a single image — **[`jseifeddine/powerdns-authadmin`](https://hub.docker.com/r/jseifeddine/powerdns-authadmin)**.
+The app ships as a single image — **[`ghcr.io/powerdns-authadmin/powerdns-authadmin`](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)**.
 It runs on **SQLite** (single instance: homelab, eval, small teams) or **Postgres** (multi-instance,
 write-concurrent). Migrations and the system-role seed run automatically on boot.
 
@@ -139,7 +138,7 @@ write-concurrent). Migrations and the system-role seed run automatically on boot
 A throwaway SQLite stack with a bundled PowerDNS and 10 pre-seeded demo zones:
 
 ```sh
-git clone https://github.com/jseifeddine/powerdns-authadmin.git
+git clone https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin.git
 cd powerdns-authadmin
 docker compose up -d
 #   → http://localhost:3000   (login: admin@example.com / change-me-now)
@@ -153,7 +152,7 @@ docker compose up -d
 # docker-compose.yml
 services:
   app:
-    image: jseifeddine/powerdns-authadmin:latest
+    image: ghcr.io/powerdns-authadmin/powerdns-authadmin:latest
     restart: unless-stopped
     ports: ["3000:3000"]
     environment:
@@ -184,7 +183,7 @@ Then add your PowerDNS backend(s) under **Admin → PowerDNS servers** (or via a
 # docker-compose.yml
 services:
   app:
-    image: jseifeddine/powerdns-authadmin:latest
+    image: ghcr.io/powerdns-authadmin/powerdns-authadmin:latest
     restart: unless-stopped
     ports: ["3000:3000"]
     depends_on:

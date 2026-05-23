@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/jseifeddine/powerdns-authadmin/security/advisories/new
+    url: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/security/advisories/new
     about: Report a security issue privately. See SECURITY.md for the policy.
   - name: Question / discussion
-    url: https://github.com/jseifeddine/powerdns-authadmin/discussions
+    url: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/discussions
     about: Ask a question or discuss an idea before opening an issue.

@@ -12,7 +12,7 @@ and clicking around. For a real deployment, read [Installation](./02-INSTALLATIO
 ## Run the demo stack
 
 ```sh
-git clone https://github.com/jseifeddine/powerdns-authadmin.git
+git clone https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin.git
 cd powerdns-authadmin
 docker compose up -d
 ```

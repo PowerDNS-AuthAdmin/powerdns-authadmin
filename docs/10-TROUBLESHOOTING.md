@@ -82,7 +82,7 @@ delete that row and restart — see
 ## Still stuck?
 
 Open an issue with your logs (already secret-redacted) at
-[github.com/jseifeddine/powerdns-authadmin/issues](https://github.com/jseifeddine/powerdns-authadmin/issues).
+[github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues).
 For a suspected vulnerability, follow [`SECURITY.md`](../SECURITY.md) instead.
 
 ---

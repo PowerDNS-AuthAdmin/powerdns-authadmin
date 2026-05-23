@@ -36,5 +36,5 @@ demo zones in about two minutes — then come back for the production guides.
 
 ## Getting help
 
-- **Bug or feature request:** [open an issue](https://github.com/jseifeddine/powerdns-authadmin/issues).
+- **Bug or feature request:** [open an issue](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues).
 - **Security vulnerability:** follow [`SECURITY.md`](../SECURITY.md) — please don't file a public issue.

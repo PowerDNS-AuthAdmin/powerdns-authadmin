@@ -8,7 +8,7 @@
 #     → app    http://localhost:3000      (login: admin@example.com / change-me-now)
 #     → pdns   http://localhost:8081/api/v1   (X-API-Key: demo-pdns-api-key)
 #
-# Pulls the published image jseifeddine/powerdns-authadmin (no local build). App
+# Pulls the published image ghcr.io/powerdns-authadmin/powerdns-authadmin (no local build). App
 # config is read from .env.example via `env_file` (working demo values). For
 # real deployments see the "Production" section of README.md.
 #
@@ -64,7 +64,7 @@ services:
       start_period: 10s
 
   app:
-    image: jseifeddine/powerdns-authadmin:latest
+    image: ghcr.io/powerdns-authadmin/powerdns-authadmin:latest
     restart: unless-stopped
     depends_on:
       pdns:

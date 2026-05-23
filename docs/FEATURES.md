@@ -397,7 +397,7 @@ can jump straight into the code that owns each feature.
 All stacks use the official `powerdns/pdns-auth` image — there is no custom PowerDNS build.
 
 - `docker-compose.yml` — the **minimal-demo stack**: SQLite app (published
-  `jseifeddine/powerdns-authadmin` image) + a bundled standalone PowerDNS, pre-seeded with 10 demo
+  `ghcr.io/powerdns-authadmin/powerdns-authadmin` image) + a bundled standalone PowerDNS, pre-seeded with 10 demo
   zones (via `provisioning.minimal-demo.yaml`). The fastest way to try it.
 - `docker-compose-primary-secondaries.yml` — primary + three secondaries with supermaster
   auto-bootstrap.

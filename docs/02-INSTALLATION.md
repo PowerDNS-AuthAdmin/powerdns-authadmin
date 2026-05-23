@@ -1,7 +1,7 @@
 # Installation
 
 Run PowerDNS-AuthAdmin in production. The app ships as a single image —
-[`jseifeddine/powerdns-authadmin`](https://hub.docker.com/r/jseifeddine/powerdns-authadmin) —
+[`ghcr.io/powerdns-authadmin/powerdns-authadmin`](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin) —
 that runs on **SQLite** or **Postgres**. Migrations and the system-role seed run
 automatically on boot, so a fresh container comes up ready to use.
 
@@ -40,7 +40,7 @@ placeholder (`changeme`, `secret`, …).
 # docker-compose.yml
 services:
   app:
-    image: jseifeddine/powerdns-authadmin:latest
+    image: ghcr.io/powerdns-authadmin/powerdns-authadmin:latest
     restart: unless-stopped
     ports: ["3000:3000"]
     environment:
@@ -69,7 +69,7 @@ docker compose up -d
 # docker-compose.yml
 services:
   app:
-    image: jseifeddine/powerdns-authadmin:latest
+    image: ghcr.io/powerdns-authadmin/powerdns-authadmin:latest
     restart: unless-stopped
     ports: ["3000:3000"]
     depends_on:
