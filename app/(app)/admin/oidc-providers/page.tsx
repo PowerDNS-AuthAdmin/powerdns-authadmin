@@ -1,16 +1,18 @@
 /**
  * app/(app)/admin/oidc-providers/page.tsx
  *
- * List view for OIDC identity providers. The env-driven fallback shows here
- * as an informational notice rather than a row — it isn't editable from the
- * UI; remove `OIDC_*` env vars (and add a DB-backed provider) to stop using
- * it.
+ * List view for OIDC identity providers. A provider configured via `OIDC_*`
+ * environment variables appears here as a READ-ONLY row badged "Configured by
+ * ENV", alongside DB-backed providers — not as a hidden fallback. It's edited
+ * by changing env vars, not from the UI; a DB provider with the same slug
+ * shadows it.
  */
 
 import Link from "next/link";
 import { env } from "@/lib/env";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { listAllOidcProviders } from "@/lib/db/repositories/oidc-providers";
+import { envOidcProviderSummary, type EnvOidcProviderSummary } from "@/lib/auth/providers/oidc";
 import { latestAdminEditTimestampsForOidcProviders } from "@/lib/db/repositories/audit-log";
 import { freshnessOf } from "@/lib/freshness";
 import { probeFailureLabel, type ProbeFailureReason } from "@/lib/auth/providers/oidc-probe";
@@ -45,8 +47,12 @@ export default async function OidcProvidersPage() {
     canReadAudit && providers.length > 0
       ? await latestAdminEditTimestampsForOidcProviders(providers.map((p) => p.id))
       : new Map<string, Date>();
-  const envFallbackActive =
-    providers.length === 0 && env.OIDC_ENABLED && !!env.OIDC_PROVIDER_ID && !!env.OIDC_ISSUER_URL;
+  // The env-configured provider is shown as a read-only row alongside DB
+  // providers, unless a DB provider already claims its slug (which shadows it).
+  const envProvider = envOidcProviderSummary();
+  const envShadowed = envProvider !== null && providers.some((p) => p.slug === envProvider.slug);
+  const showEnvRow = envProvider !== null && !envShadowed;
+  const hasAnyRow = providers.length > 0 || showEnvRow;
 
   return (
     <div className="space-y-6">
@@ -75,20 +81,7 @@ export default async function OidcProvidersPage() {
         </div>
       </header>
 
-      {envFallbackActive ? (
-        <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-4 text-sm">
-          <p className="font-medium">Environment-driven fallback active</p>
-          <p className="mt-1 text-[color:var(--color-fg-muted)]">
-            No DB providers configured. The legacy <code>OIDC_*</code> env vars are providing a
-            single virtual provider with slug{" "}
-            <code className="rounded bg-[color:var(--color-bg)] px-1">{env.OIDC_PROVIDER_ID}</code>.
-            Add a provider below to switch to DB-managed configuration; once you do, the env
-            fallback is ignored.
-          </p>
-        </div>
-      ) : null}
-
-      {providers.length === 0 ? (
+      {!hasAnyRow ? (
         <p className="text-sm text-[color:var(--color-fg-muted)]">No providers configured yet.</p>
       ) : (
         <div className="overflow-hidden rounded-md border border-[color:var(--color-border)]">
@@ -181,11 +174,72 @@ export default async function OidcProvidersPage() {
                   </Td>
                 </tr>
               ))}
+              {showEnvRow && envProvider ? (
+                <EnvProviderRow provider={envProvider} canReadAudit={canReadAudit} />
+              ) : null}
             </tbody>
           </table>
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Read-only row for the env-configured provider. It isn't a DB row, so it
+ * carries no edit/test/audit affordances — just the "Configured by ENV" badge
+ * making clear it's driven by `OIDC_*` and changed by editing env vars. The
+ * env provider has no group→role mapping and no discovery probe.
+ */
+function EnvProviderRow({
+  provider,
+  canReadAudit,
+}: {
+  provider: EnvOidcProviderSummary;
+  canReadAudit: boolean;
+}) {
+  return (
+    <tr className="border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)]/40">
+      <Td>
+        <span
+          className="block h-5 w-5 rounded bg-[color:var(--color-bg-muted)]"
+          title="No icon (env provider)"
+        />
+      </Td>
+      <Td>
+        <span className="inline-flex items-center gap-2">
+          {provider.name}
+          <span
+            className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-bg-muted)] px-2 py-0.5 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase"
+            title="Configured via OIDC_* environment variables. Edit by changing env vars, not the UI."
+          >
+            Configured by ENV
+          </span>
+        </span>
+      </Td>
+      <Td>
+        <code className="rounded bg-[color:var(--color-bg-subtle)] px-1">{provider.slug}</code>
+      </Td>
+      <Td className="text-[color:var(--color-fg-muted)]">{provider.issuerUrl}</Td>
+      <Td>
+        <span className="rounded-full bg-[color:var(--color-success)]/15 px-2 py-0.5 text-xs">
+          Yes
+        </span>
+      </Td>
+      <Td>
+        <DomainsCell allowedEmailDomains={provider.allowedEmailDomains} />
+      </Td>
+      <Td className="text-xs text-[color:var(--color-fg-muted)]">—</Td>
+      {canReadAudit ? <Td className="text-xs text-[color:var(--color-fg-muted)]">—</Td> : null}
+      <Td>
+        <span
+          className="text-xs text-[color:var(--color-fg-muted)]"
+          title="Read-only — edit via OIDC_* environment variables"
+        >
+          Read-only
+        </span>
+      </Td>
+    </tr>
   );
 }
 

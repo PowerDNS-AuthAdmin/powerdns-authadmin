@@ -26,7 +26,7 @@
  */
 
 import "server-only";
-import { listAllActiveBackends } from "@/lib/db/repositories/pdns-servers";
+import { listAllActiveBackends, markPdnsServersSeen } from "@/lib/db/repositories/pdns-servers";
 import { getPdnsClientForRow } from "@/lib/pdns/registry";
 import { logger } from "@/lib/logger";
 import { redact } from "@/lib/errors/redact";
@@ -309,6 +309,23 @@ export async function pollOnce(): Promise<void> {
       writeCachedZones(r.backendId, r.snapshots);
     }
   }
+
+  // Record reachability for every backend whose listZones() succeeded this
+  // cycle. The Status badge + dashboard "stale backend" attention key off
+  // `last_seen_at`, not `version_cache` (only the manual Test / Refresh-all
+  // path moves that) — so healthy continuous polling keeps both green.
+  const seenIds = pollResults.filter((r) => r.snapshots !== null).map((r) => r.backendId);
+  if (seenIds.length > 0) {
+    try {
+      await markPdnsServersSeen(seenIds, sampledAt);
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err.message : "unknown" },
+        "pdns.zone-poller.mark-seen.failed",
+      );
+    }
+  }
+
   for (const r of pollResults) {
     for (const ev of r.pendingEvents) {
       publishZoneEvent({

@@ -19,13 +19,7 @@ import { metricSamples } from "@/lib/db/schema";
 import { oidcProviders } from "@/lib/db/schema";
 import { pdnsServers } from "@/lib/db/schema";
 import { users } from "@/lib/db/schema";
-import {
-  countStar,
-  isSqlite,
-  jsonBoolField,
-  jsonStringField,
-  truncToHour,
-} from "@/lib/db/sql-dialect";
+import { countStar, isSqlite, jsonBoolField, truncToHour } from "@/lib/db/sql-dialect";
 
 // =============================================================================
 // Audit-derived
@@ -264,21 +258,23 @@ export interface UserAttentionCounts {
 
 /**
  * PDNS backend health attention counts. Mirror of
- * `userAttentionCounts`, scoped to operator-actionable probe state:
- *   - `neverProbed`: active server rows whose `version_cache` is
- *     null. Either a freshly added backend, or one that has only
- *     ever failed to probe (the cache is only written on success).
- *   - `stale`: active server rows whose probe is older than 24h.
- *     Matches the `stale` tier in `lib/freshness.ts`.
+ * `userAttentionCounts`, scoped to operator-actionable reachability:
+ *   - `neverProbed`: active server rows we've never successfully
+ *     reached (`last_seen_at` null) — a freshly added backend, or one
+ *     that has only ever failed.
+ *   - `stale`: active server rows whose last successful contact is
+ *     older than 24h. Matches the `stale` tier in `lib/freshness.ts`.
+ *
+ * Keyed off `last_seen_at`, NOT `version_cache.fetchedAt`. The version
+ * cache only moves on a manual Test / Refresh-all, so under healthy
+ * continuous polling (which never re-probes the version) `fetchedAt`
+ * goes stale within 24h and this widget would cry wolf even while every
+ * backend is being polled successfully every 30s. `last_seen_at` is
+ * bumped by the poller on each successful cycle, so it reflects live
+ * reachability.
  *
  * Disabled rows are excluded — they're operator-intentional, not
- * actionable. Single round-trip via Postgres FILTER predicates.
- *
- * NOTE on jsonb date math: the cached `fetchedAt` is an ISO string
- * inside the jsonb blob. Comparing it to a SQL timestamp via
- * `(version_cache->>'fetchedAt')::timestamptz < now() - interval
- * '24 hours'` works because Postgres parses ISO 8601 strings
- * cleanly.
+ * actionable. Single round-trip via FILTER predicates.
  */
 export interface PdnsAttentionCounts {
   neverProbed: number;
@@ -286,14 +282,17 @@ export interface PdnsAttentionCounts {
 }
 
 export async function pdnsAttentionCounts(): Promise<PdnsAttentionCounts> {
-  // Compute the 24h-stale cutoff in JS so the SQL stays dialect-neutral:
-  // the cached `fetchedAt` is an ISO 8601 string which sorts lexically.
-  const staleCutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const fetchedAt = jsonStringField(pdnsServers.versionCache, "fetchedAt");
+  const lastSeen = pdnsServers.lastSeenAt;
+  // "Stale" = no successful contact in 24h. SQLite stores the timestamp as
+  // integer ms (compare to an epoch-ms literal); PG as timestamptz (compare
+  // to now() - interval). Same dialect split as userAttentionCounts.
+  const staleCmp = isSqlite
+    ? sql`${lastSeen} < ${Date.now() - 24 * 3600 * 1000}`
+    : sql`${lastSeen} < now() - interval '24 hours'`;
   const rows = await db
     .select({
-      neverProbed: sql<number>`count(*) filter (where ${pdnsServers.disabledAt} is null and ${pdnsServers.versionCache} is null)`,
-      stale: sql<number>`count(*) filter (where ${pdnsServers.disabledAt} is null and ${pdnsServers.versionCache} is not null and ${fetchedAt} < ${staleCutoff})`,
+      neverProbed: sql<number>`count(*) filter (where ${pdnsServers.disabledAt} is null and ${lastSeen} is null)`,
+      stale: sql<number>`count(*) filter (where ${pdnsServers.disabledAt} is null and ${lastSeen} is not null and ${staleCmp})`,
     })
     .from(pdnsServers);
   const row = rows[0];

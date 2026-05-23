@@ -2,7 +2,8 @@
  * app/(app)/admin/servers/page.tsx
  *
  * Lists every PowerDNS backend the operator has configured, with a quick
- * health badge per row driven by the cached `version_cache` snapshot.
+ * health badge per row driven by `last_seen_at` — the last time the
+ * background poller (or a manual probe) successfully reached the backend.
  *
  * Permission: `server.read`. The "Add server" / row delete / row test
  * actions are additionally gated by `server.create`, `server.delete`,
@@ -164,19 +165,19 @@ export default async function PdnsServersListPage() {
 }
 
 /**
- * Per-row attention class. Active servers with no
- * version cache OR a cache older than 24h get a left-edge accent +
- * subtle tinted background, matching the dashboard PDNS attention
- * widget (T-82) tones. Same gating as `pdnsAttentionCounts` so row
- * highlights and the dashboard count agree. Disabled rows stay
+ * Per-row attention class. Active servers we've never reached OR not
+ * reached in over 24h get a left-edge accent + subtle tinted
+ * background, matching the dashboard PDNS attention widget (T-82)
+ * tones. Same gating as `pdnsAttentionCounts` (both off `last_seen_at`)
+ * so row highlights and the dashboard count agree. Disabled rows stay
  * neutral.
  */
-function serverRowAttentionClass(disabledAt: Date | null, fetchedAt: string | null): string {
+function serverRowAttentionClass(disabledAt: Date | null, lastSeenAt: Date | null): string {
   if (disabledAt) return "";
-  if (!fetchedAt) {
+  if (!lastSeenAt) {
     return "bg-[color:var(--color-warn)]/5 border-l-2 border-l-[color:var(--color-warn)]";
   }
-  const ageMs = Date.now() - Date.parse(fetchedAt);
+  const ageMs = Date.now() - lastSeenAt.getTime();
   if (Number.isFinite(ageMs) && ageMs > 24 * 60 * 60 * 1000) {
     return "bg-[color:var(--color-error)]/5 border-l-2 border-l-[color:var(--color-error)]";
   }
@@ -204,10 +205,10 @@ function EmptyState({ canCreate }: { canCreate: boolean }) {
 
 function HealthBadge({
   disabledAt,
-  fetchedAt,
+  lastSeenAt,
 }: {
   disabledAt: Date | null;
-  fetchedAt: string | null;
+  lastSeenAt: Date | null;
 }) {
   if (disabledAt) {
     return (
@@ -217,21 +218,21 @@ function HealthBadge({
       </span>
     );
   }
-  if (!fetchedAt) {
+  if (!lastSeenAt) {
     return (
       <span className="inline-flex items-center gap-1 text-xs text-[color:var(--color-fg-muted)]">
         <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-warn)]" />
-        Not yet probed
+        Not yet reached
       </span>
     );
   }
-  // Reachable + freshness label. The dot indicates *reachability* (we
-  // got a successful version probe), so it's solid green whenever a
-  // probe is cached — the "freshness" of that probe is conveyed by the
-  // "· Xh ago" label, not by tinting the indicator amber/red. Prior
-  // behavior coloured the dot off freshness, which read as "Reachable
-  // but degraded" within an hour of every page load (false alarm).
-  const fresh = freshnessOf(fetchedAt);
+  // Reachable + freshness label off `last_seen_at` — the last time the
+  // background poller (or a manual probe) successfully reached the
+  // backend, NOT the version-probe time. Under healthy polling this is
+  // always seconds old, so the label reads "· just now". The dot stays
+  // solid green whenever we've reached it at all; staleness is conveyed
+  // by the "· Xh ago" label, not by tinting the indicator.
+  const fresh = freshnessOf(lastSeenAt.toISOString());
   return (
     <span className="inline-flex items-center gap-1 text-xs">
       <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
@@ -256,7 +257,7 @@ function ServerRow({ row, indented, canReadAudit, lastEdits, syncChip }: ServerR
     <tr
       className={`border-t border-[color:var(--color-border)] ${serverRowAttentionClass(
         row.disabledAt,
-        row.versionCache?.fetchedAt ?? null,
+        row.lastSeenAt,
       )}`}
     >
       <td className={`px-4 py-3 ${indented ? "pl-10" : ""}`}>
@@ -293,7 +294,7 @@ function ServerRow({ row, indented, canReadAudit, lastEdits, syncChip }: ServerR
       </td>
       <td className="px-4 py-3 font-mono text-xs">{row.baseUrl}</td>
       <td className="px-4 py-3">
-        <HealthBadge disabledAt={row.disabledAt} fetchedAt={row.versionCache?.fetchedAt ?? null} />
+        <HealthBadge disabledAt={row.disabledAt} lastSeenAt={row.lastSeenAt} />
       </td>
       <td className="px-4 py-3 text-xs">{row.versionCache?.version ?? "—"}</td>
       <td className="px-4 py-3 text-xs">

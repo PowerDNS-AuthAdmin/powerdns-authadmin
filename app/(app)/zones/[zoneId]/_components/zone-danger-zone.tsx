@@ -37,7 +37,7 @@ export function ZoneDangerZone({ zoneIdEncoded, serverSlug, zoneName, canDelete 
 
   // The exact phrase the operator must type. Strip the trailing dot
   // from the canonical PDNS zone name so the phrase reads naturally —
-  // `yes, delete ngn.ph` rather than `yes, delete ngn.ph.`.
+  // `yes, delete example.com` rather than `yes, delete example.com.`.
   const cleanName = zoneName.replace(/\.$/, "");
   const requiredPhrase = `yes, delete ${cleanName}`;
   const phraseMatches = confirmText === requiredPhrase;

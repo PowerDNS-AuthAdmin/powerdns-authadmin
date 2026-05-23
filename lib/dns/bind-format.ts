@@ -9,9 +9,9 @@
  * Output format (one record per line, tab-separated columns):
  *
  *   $ORIGIN .
- *   ngn.ph  3600    IN      A       172.105.167.30
- *   ngn.ph  3600    IN      NS      ns1.ngn.com.au.
- *   www.ngn.ph      3600    IN      A       172.105.167.30
+ *   example.com.    3600    IN      A       192.0.2.1
+ *   example.com.    3600    IN      NS      ns1.example.com.
+ *   www.example.com.        3600    IN      A       192.0.2.1
  *
  * Notes / deliberate choices:
  *   - We emit `$ORIGIN .` so names are always absolute — no relative-label

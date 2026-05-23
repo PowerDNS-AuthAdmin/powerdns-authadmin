@@ -15,6 +15,7 @@ import { redirect } from "next/navigation";
 import { env } from "@/lib/env";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { listEnabledOidcProviders } from "@/lib/db/repositories/oidc-providers";
+import { envOidcProviderSummary } from "@/lib/auth/providers/oidc";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { LoginForm } from "./login-form";
 
@@ -44,26 +45,21 @@ export default async function LoginPage({
   } = await searchParams;
   const { loginIntro, allowPasswordReset } = await getAppSettings();
 
-  // DB-backed providers take precedence. Env-driven OIDC is the legacy
-  // fallback that only fires when no DB providers exist — once the operator
-  // adds one via /admin/oidc-providers, env is ignored. See
-  // lib/auth/providers/oidc.ts for the same precedence on the dispatcher side.
+  // The env-configured provider (read-only, "Configured by ENV") is offered
+  // alongside DB providers, not as a hidden fallback. A DB provider with the
+  // same slug shadows it. See lib/auth/providers/oidc.ts for the matching
+  // precedence on the dispatcher side.
   const dbProviders = await listEnabledOidcProviders();
-  const oidcProviders: Array<{ id: string; name: string; iconUrl: string | null }> =
-    dbProviders.length > 0
-      ? dbProviders.map((p) => ({ id: p.slug, name: p.name, iconUrl: p.iconUrl }))
-      : env.OIDC_ENABLED
-        ? [
-            {
-              id: env.OIDC_PROVIDER_ID ?? "",
-              name: env.OIDC_PROVIDER_NAME ?? "OIDC",
-              // Env-driven provider has no icon — env doesn't carry
-              // one. Operators who want an icon should add a DB
-              // provider.
-              iconUrl: null,
-            },
-          ]
-        : [];
+  const dbSlugs = new Set(dbProviders.map((p) => p.slug));
+  const envProvider = envOidcProviderSummary();
+  const oidcProviders: Array<{ id: string; name: string; iconUrl: string | null }> = [
+    ...dbProviders.map((p) => ({ id: p.slug, name: p.name, iconUrl: p.iconUrl })),
+    // Env provider has no icon (env carries none) and is skipped when a DB
+    // provider already claims its slug.
+    ...(envProvider && !dbSlugs.has(envProvider.slug)
+      ? [{ id: envProvider.slug, name: envProvider.name, iconUrl: null }]
+      : []),
+  ];
 
   // Force-default OIDC: if any DB provider is marked `forceDefault`, send the
   // user straight to its initiate URL instead of showing the form. Skipped on

@@ -6,6 +6,30 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-05-23
+
+### Fixed
+
+- The dashboard "PDNS backends needing attention" widget and the PowerDNS-servers Status column
+  no longer flag healthy backends as stale/unreachable. Reachability now tracks a `last_seen_at`
+  timestamp, bumped on every successful background poll (and on a manual Test / Refresh all),
+  instead of the version-probe timestamp — which only moved on a manual probe and so went "stale"
+  within 24h even while the backend was being polled successfully every 30s.
+
+### Changed
+
+- An OIDC provider configured via `OIDC_*` environment variables now appears as a **read-only**
+  provider badged "Configured by ENV" — shown on the login page and in **Admin → OIDC providers**
+  alongside DB-backed providers, instead of being a hidden fallback that only surfaced when no DB
+  providers existed. A DB provider with the same slug still shadows it.
+
+### Added
+
+- A documentation set under [`docs/`](./docs/): Quickstart, Installation, Configuration, Backends,
+  OIDC, Provisioning, RBAC, Hardening, Upgrading, and Troubleshooting guides.
+- Sidebar footer showing the running version (linked to its GitHub release) and a Docs link pinned
+  to the matching version's `docs/`.
+
 ## [1.0.0] — 2026-05-22
 
 First production release.
@@ -32,5 +56,6 @@ First production release.
 - **Distribution** — multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/jseifeddine/powerdns-authadmin/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/jseifeddine/powerdns-authadmin/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/jseifeddine/powerdns-authadmin/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/jseifeddine/powerdns-authadmin/releases/tag/v1.0.0

@@ -131,6 +131,9 @@ The app ships as a single image — **[`jseifeddine/powerdns-authadmin`](https:/
 It runs on **SQLite** (single instance: homelab, eval, small teams) or **Postgres** (multi-instance,
 write-concurrent). Migrations and the system-role seed run automatically on boot.
 
+> New here? The [Quickstart](./docs/01-QUICKSTART.md) gets you clicking around in ~2 minutes; the
+> [Installation guide](./docs/02-INSTALLATION.md) covers a real production deploy.
+
 ### Try it instantly — the minimal-demo stack
 
 A throwaway SQLite stack with a bundled PowerDNS and 10 pre-seeded demo zones:
@@ -225,6 +228,9 @@ Every variable is documented in [`.env.example`](./.env.example). The essentials
 | `SMTP_*`                                             | optional    | Transactional email (verify-email, password reset).                    |
 | `APP_PDNS_ALLOW_PRIVATE_NETWORKS` / `_INSECURE_HTTP` | situational | Allow internal-network / `http://` PDNS backends.                      |
 
+Full reference with every variable: **[Configuration](./docs/03-CONFIGURATION.md)**. For SSO setup
+(env vs provisioning vs UI), see **[OIDC single sign-on](./docs/05-OIDC.md)**.
+
 ### Advanced topologies
 
 To see a primary + secondaries group or a multi-primary cluster wired up end-to-end (Postgres-backed,
@@ -246,6 +252,24 @@ npm run validate                   # lint + typecheck + format + test
 Full workflow + troubleshooting in [`docs/dev-setup.md`](./docs/dev-setup.md).
 
 ## Documentation
+
+Full guides live in **[`docs/`](./docs/)** — start at the
+[documentation index](./docs/README.md).
+
+| Guide                                                 | Purpose                                                          |
+| ----------------------------------------------------- | ---------------------------------------------------------------- |
+| [Quickstart](./docs/01-QUICKSTART.md)                 | Run the demo stack end-to-end in ~2 minutes.                     |
+| [Installation](./docs/02-INSTALLATION.md)             | Production install — SQLite or Postgres, TLS, backups, upgrades. |
+| [Configuration](./docs/03-CONFIGURATION.md)           | Every environment variable, grouped and explained.               |
+| [Connecting PowerDNS backends](./docs/04-BACKENDS.md) | Primaries, secondaries, and multi-primary clusters.              |
+| [OIDC single sign-on](./docs/05-OIDC.md)              | SSO with group → role mapping (env vs provisioning vs UI).       |
+| [First-boot provisioning](./docs/06-PROVISIONING.md)  | Bring up a configured install from one YAML file.                |
+| [Roles & permissions (RBAC)](./docs/07-RBAC.md)       | Roles, the permission vocabulary, and scopes.                    |
+| [Hardening & best practices](./docs/08-HARDENING.md)  | Lock down a production deployment.                               |
+| [Upgrading](./docs/09-UPGRADING.md)                   | Move to a new version safely.                                    |
+| [Troubleshooting](./docs/10-TROUBLESHOOTING.md)       | Fix startup errors and backend connectivity.                     |
+
+### Reference
 
 | Doc                                                        | Purpose                                                              |
 | ---------------------------------------------------------- | -------------------------------------------------------------------- |

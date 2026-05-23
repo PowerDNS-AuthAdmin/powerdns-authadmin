@@ -30,6 +30,7 @@ export const pdnsServers = sqliteTable(
     serverId: text("server_id").notNull().default("localhost"),
     apiKeyEncrypted: text("api_key_encrypted").notNull(),
     versionCache: text("version_cache", { mode: "json" }).$type<PdnsVersionCache | null>(),
+    lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }),
     isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
     role: text("role").notNull().default("primary"),
     primaryId: text("primary_id").references((): AnySQLiteColumn => pdnsServers.id, {

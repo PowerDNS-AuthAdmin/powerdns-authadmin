@@ -15,6 +15,13 @@
       "when": 1779429845367,
       "tag": "0001_great_may_parker",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1779514940891,
+      "tag": "0002_real_captain_flint",
+      "breakpoints": true
     }
   ]
 }

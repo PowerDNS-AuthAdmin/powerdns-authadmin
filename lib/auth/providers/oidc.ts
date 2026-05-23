@@ -1,12 +1,14 @@
 /**
  * lib/auth/providers/oidc.ts
  *
- * OIDC provider dispatcher. TBD.5: providers are now stored in the
- * `oidc_providers` table and managed from `/admin/oidc-providers`. The legacy
- * env-driven config (`OIDC_*`) is preserved as a *fallback* — if the DB has
- * zero providers AND `OIDC_ENABLED=true`, we synthesise a single virtual
- * provider from env so existing single-IdP deployments keep working without
- * a data migration.
+ * OIDC provider dispatcher. Providers are stored in the `oidc_providers`
+ * table and managed from `/admin/oidc-providers`. The env-driven config
+ * (`OIDC_*`) is surfaced as a single, READ-ONLY provider ("Configured by
+ * ENV") that is always offered alongside DB providers — both the login page
+ * and the admin list show it. A DB provider with the same slug takes
+ * precedence (shadows the env one). The env provider is edited by changing
+ * environment variables, not through the UI, and can't carry group→role
+ * mappings (use a DB provider for those).
  *
  * Flow:
  *   1. /api/auth/oidc/<slug>/initiate → resolve provider config → build the
@@ -180,10 +182,38 @@ function fromEnv(): ResolvedOidcProvider | null {
 }
 
 /**
- * Resolve a provider config by slug. Looks up the DB first; if not found and
- * the env-fallback matches the requested slug, returns the env-synthesised
- * provider. Returns null when nothing matches — caller decides the error
- * (typically 404).
+ * Safe, secret-free descriptor of the env-configured provider for UI
+ * surfaces (the login button + the admin list row). Null when the env
+ * provider isn't configured. Unlike a DB provider it is READ-ONLY — edited
+ * by changing environment variables, not through the admin UI.
+ */
+export interface EnvOidcProviderSummary {
+  slug: string;
+  name: string;
+  issuerUrl: string;
+  scopes: string;
+  /** Env-level new-user email allow-list (empty array = no restriction). */
+  allowedEmailDomains: string[];
+}
+
+export function envOidcProviderSummary(): EnvOidcProviderSummary | null {
+  const p = fromEnv();
+  if (!p) return null;
+  return {
+    slug: p.slug,
+    name: p.name,
+    issuerUrl: p.issuerUrl,
+    scopes: p.scopes,
+    allowedEmailDomains: env.OIDC_ALLOWED_EMAIL_DOMAINS,
+  };
+}
+
+/**
+ * Resolve a provider config by slug. Looks up the DB first; if there's no
+ * enabled DB row with that slug and the env provider's slug matches, returns
+ * the env-synthesised provider. So a DB provider always shadows the env one
+ * on a slug collision. Returns null when nothing matches — caller decides the
+ * error (typically 404).
  *
  * The DB row must be `enabled=true` to be returned.
  */

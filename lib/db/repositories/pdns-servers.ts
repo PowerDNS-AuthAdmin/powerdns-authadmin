@@ -12,7 +12,7 @@
  */
 
 import "server-only";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db, type DbExecutor } from "@/lib/db";
 import {
   pdnsServers,
@@ -154,12 +154,33 @@ export async function updatePdnsServer(
   });
 }
 
-/** Persist a successful version probe back to the row. */
+/**
+ * Persist a successful version probe back to the row. A successful probe
+ * is also proof of reachability, so it bumps `last_seen_at` alongside the
+ * cache — keeps the manual Test / Refresh-all path in step with the
+ * poller's continuous `markPdnsServersSeen` updates.
+ */
 export async function setPdnsVersionCache(id: string, cache: PdnsVersionCache): Promise<void> {
+  const now = new Date();
   await db
     .update(pdnsServers)
-    .set({ versionCache: cache, updatedAt: new Date() })
+    .set({ versionCache: cache, lastSeenAt: now, updatedAt: now })
     .where(eq(pdnsServers.id, id));
+}
+
+/**
+ * Bump `last_seen_at` for every backend we just successfully reached.
+ * Called by the background poller each cycle for the backends whose
+ * zone-list fetch succeeded.
+ *
+ * Deliberately does NOT touch `updated_at`: that column gates the
+ * PdnsClient registry cache (`lib/pdns/registry.ts`), so bumping it every
+ * poll cycle would force an API-key decrypt + client rebuild every 30s.
+ * One batched UPDATE covers the whole fleet.
+ */
+export async function markPdnsServersSeen(ids: string[], at: Date = new Date()): Promise<void> {
+  if (ids.length === 0) return;
+  await db.update(pdnsServers).set({ lastSeenAt: at }).where(inArray(pdnsServers.id, ids));
 }
 
 /** Hard-delete a backend. Audit log carries the historical trail. */

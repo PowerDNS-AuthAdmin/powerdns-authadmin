@@ -86,6 +86,20 @@ export const pdnsServers = pgTable(
     versionCache: jsonb("version_cache").$type<PdnsVersionCache | null>(),
 
     /**
+     * Last time we successfully *reached* this backend — set by the
+     * background poller on every successful zone-list fetch, and by a
+     * successful version probe (Test / Refresh all). Distinct from
+     * `version_cache.fetchedAt`, which only moves when the *version* is
+     * re-probed: the poller hits `listZones`/`statistics` every 30–60s
+     * but never re-probes the version, so `fetchedAt` goes stale under
+     * healthy continuous polling. This column tracks live reachability,
+     * so the Status badge and the dashboard "stale backend" attention
+     * reflect actual polling rather than the last manual probe. Null
+     * until the first successful contact.
+     */
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+
+    /**
      * Default backend used when a request doesn't specify `?server=`. Exactly
      * zero or one row should be marked default at any time — the application
      * layer enforces this transactionally (we'd need a partial unique index
