@@ -6,7 +6,15 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-_Nothing yet._
+### Security
+
+- **OIDC `requireEmailVerified` default changed to `true` (GHSA-24hf-rxww-95cf).** The
+  `createOidcProviderSchema` previously defaulted `requireEmailVerified` to `false`, shipping
+  new DB-configured OIDC providers with the account-takeover guard disabled. The default is now
+  `true`, matching the documented intent and the env-provider behaviour. **Existing DB rows
+  keep their stored value** — operators should audit any provider where `requireEmailVerified`
+  is `false` and confirm the IdP does not emit the `email_verified` claim before retaining
+  that setting.
 
 ## [1.1.0] — 2026-05-24
 
