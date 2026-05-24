@@ -77,30 +77,65 @@ export async function recordSuccessfulLogin(id: string, ip: string | null): Prom
 }
 
 /**
+ * Decide the lockout deadline for a given (post-increment) failed-login count.
+ *
+ * Pure so the threshold→lockedUntil rule can be unit-tested without a database.
+ * Returns `null` when the count is still below the threshold (no lock yet).
+ *
+ * @param failedCount the failed-login count AFTER this attempt was recorded.
+ * @param threshold   number of failures at which the account locks (≥ this locks).
+ * @param lockoutSeconds how long the lock lasts from `now`.
+ */
+export function computeLockoutUntil(
+  failedCount: number,
+  threshold: number,
+  lockoutSeconds: number,
+  now: Date = new Date(),
+): Date | null {
+  return failedCount >= threshold ? new Date(now.getTime() + lockoutSeconds * 1000) : null;
+}
+
+/**
  * Increment the failed-login counter and, if the threshold is hit, set a
  * `lockedUntil` timestamp. Returns the new failed count for the caller's log.
+ *
+ * The increment is performed atomically in the database
+ * (`failed_login_count = failed_login_count + 1`) and read back via
+ * `.returning()`. Computing the next value in JS from a prior `SELECT` (the
+ * old read-modify-write) let two concurrent failed logins both read N and
+ * write N+1, losing an increment and letting an attacker exceed the lockout
+ * threshold (GHSA-frpq-xgm7-574x). The atomic statement makes every concurrent
+ * failure count exactly once.
+ *
+ * Both Postgres and SQLite support the `sql` increment template and
+ * `.returning()` via Drizzle. The follow-up lock write is keyed on the
+ * returned count, so it only runs once the threshold is genuinely crossed; it
+ * is idempotent (concurrent failures past the threshold all set a correct
+ * lock window).
  */
 export async function recordFailedLogin(
   id: string,
   threshold: number,
   lockoutSeconds: number,
 ): Promise<{ failedCount: number; lockedUntil: Date | null }> {
-  const user = await findUserById(id);
-  if (!user) return { failedCount: 0, lockedUntil: null };
-
-  const next = user.failedLoginCount + 1;
-  const lockedUntil = next >= threshold ? new Date(Date.now() + lockoutSeconds * 1000) : null;
-
-  await db
+  const incremented = await db
     .update(users)
     .set({
-      failedLoginCount: next,
-      lockedUntil,
+      failedLoginCount: sql`${users.failedLoginCount} + 1`,
       updatedAt: new Date(),
     })
-    .where(eq(users.id, id));
+    .where(eq(users.id, id))
+    .returning({ failedCount: users.failedLoginCount });
 
-  return { failedCount: next, lockedUntil };
+  const row = incremented[0];
+  if (!row) return { failedCount: 0, lockedUntil: null };
+
+  const lockedUntil = computeLockoutUntil(row.failedCount, threshold, lockoutSeconds);
+  if (lockedUntil) {
+    await db.update(users).set({ lockedUntil }).where(eq(users.id, id));
+  }
+
+  return { failedCount: row.failedCount, lockedUntil };
 }
 
 /** True if a user is currently locked out. */
