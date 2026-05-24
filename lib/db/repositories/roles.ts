@@ -19,6 +19,18 @@ export async function findRoleBySlug(slug: string): Promise<Role | null> {
   return rows[0] ?? null;
 }
 
+/**
+ * Load every role whose slug is in `slugs`, in one query. Used by the OIDC
+ * group→role ceiling check, which must resolve each mapping's `roleSlug` to its
+ * permission set before deciding whether the actor may persist the mapping.
+ * Missing slugs simply don't appear in the result — the caller treats an
+ * unresolved mapping as invalid.
+ */
+export async function findRolesBySlugs(slugs: readonly string[]): Promise<Role[]> {
+  if (slugs.length === 0) return [];
+  return db.select().from(roles).where(inArray(roles.slug, slugs));
+}
+
 /** Upsert a role by slug. Used by the seed script for system roles. */
 export async function upsertRole(input: NewRole): Promise<Role> {
   const rows = await db

@@ -28,6 +28,7 @@ import { updateOidcProviderSchema } from "@/lib/validators/oidc-providers";
 import { invalidateOidcConfigCache } from "@/lib/auth/providers/oidc";
 import { probeOidcDiscovery } from "@/lib/auth/providers/oidc-probe";
 import { assertSafeOidcIssuerUrl } from "@/lib/auth/providers/oidc-url-safety";
+import { assertGroupMappingsWithinCeiling } from "@/lib/rbac/oidc-mapping-ceiling";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 import { logger } from "@/lib/logger";
@@ -60,6 +61,12 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     // SSRF guard before persisting a changed issuer (it's fetched server-side).
     if (input.issuerUrl !== undefined && input.issuerUrl !== existing.issuerUrl) {
       await assertSafeOidcIssuerUrl(input.issuerUrl);
+    }
+
+    // Privilege ceiling (GHSA-wf29-rmhc-rqc9): same guard as create — a PATCH
+    // that sets/changes the mappings must stay within the actor's global grant.
+    if (input.groupMappings !== undefined) {
+      await assertGroupMappingsWithinCeiling(user.id, input.groupMappings);
     }
 
     const patch: Parameters<typeof updateOidcProvider>[1] = {};

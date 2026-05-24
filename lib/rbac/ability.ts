@@ -228,3 +228,52 @@ export function permissionsExceedingGrant(
 ): Permission[] {
   return rolePermissions.filter((p) => !actorGlobalPermissions.has(p));
 }
+
+/**
+ * One OIDC group→role mapping resolved to the permission set its target role
+ * grants. `roleSlug` is carried through so an over-ceiling rejection can name
+ * the offending mapping.
+ */
+export interface ResolvedGroupMapping {
+  group: string;
+  roleSlug: string;
+  permissions: readonly Permission[];
+}
+
+/** A mapping that would grant permissions the acting user lacks globally. */
+export interface GroupMappingViolation {
+  group: string;
+  roleSlug: string;
+  exceeding: Permission[];
+}
+
+/**
+ * The privilege ceiling for OIDC group→role mappings (GHSA-wf29-rmhc-rqc9).
+ *
+ * A `oidc.manage` holder configures rules that, at a stranger's first sign-in,
+ * mint role assignments for them. Without a ceiling, an operator who lacks
+ * (say) `user.delete` could wire a `superusers` group to the Super Admin role
+ * and then escalate by logging in through that group — laundering privilege
+ * through the IdP. So every mapping's target role must be a subset of what the
+ * acting user already holds **globally**, exactly as role assignment is gated
+ * (`permissionsExceedingGrant`). Scope on the mapping doesn't relax this: a
+ * mapping can land permissions on the user, so the global set is the basis
+ * regardless of the mapping's own scope.
+ *
+ * Returns one entry per offending mapping (empty = the whole set is within the
+ * ceiling). Reuses `permissionsExceedingGrant` so the comparison rule stays in
+ * one place.
+ */
+export function groupMappingsExceedingGrant(
+  actorGlobalPermissions: ReadonlySet<Permission>,
+  mappings: readonly ResolvedGroupMapping[],
+): GroupMappingViolation[] {
+  const violations: GroupMappingViolation[] = [];
+  for (const m of mappings) {
+    const exceeding = permissionsExceedingGrant(actorGlobalPermissions, m.permissions);
+    if (exceeding.length > 0) {
+      violations.push({ group: m.group, roleSlug: m.roleSlug, exceeding });
+    }
+  }
+  return violations;
+}
