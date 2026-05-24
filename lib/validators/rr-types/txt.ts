@@ -67,7 +67,9 @@ export const txtValidator: RRTypeValidator = {
 
     // Bare text — auto-quote, but warn if it's longer than what fits in one
     // character-string.
-    const inner = trimmed.replace(/"/g, '\\"').replace(/\\/g, "\\\\");
+    // RFC 1035 § 5.1 requires `\` to be escaped before `"` — doing it
+    // the other way around doubles the just-inserted backslash.
+    const inner = trimmed.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     if (octetLength(trimmed) > 255) {
       issues.push({
         level: "warning",
