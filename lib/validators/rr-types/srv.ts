@@ -51,11 +51,18 @@ export const srvValidator: RRTypeValidator = {
         });
       } else {
         const n = Number(value);
-        if (label === "port" && (n < 1 || n > 65535)) {
+        if (label === "port" && n > 65535) {
+          // Port is a 16-bit field (RFC 2782); values above 65535 cannot be
+          // encoded — this is a hard range violation, not just unusual usage.
+          issues.push({
+            level: "error",
+            message: "Port must be 0–65535 (16-bit unsigned, RFC 2782).",
+          });
+        } else if (label === "port" && n < 1) {
           issues.push({
             level: "warning",
             message:
-              "Port outside 1–65535. Technically the protocol field is 16-bit; 0 is reserved and unusual.",
+              "Port 0 is reserved and unusual; 1–65535 is the normal range (RFC 2782).",
           });
         } else if ((label === "priority" || label === "weight") && (n < 0 || n > 65535)) {
           issues.push({

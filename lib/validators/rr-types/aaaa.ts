@@ -127,7 +127,10 @@ function parseIpv6(input: string): number[] | null {
     groups = left;
   } else {
     const missing = 8 - left.length - right.length;
-    if (missing < 0) return null;
+    // RFC 4291 § 2.2.2: '::' must represent one or more all-zero groups.
+    // missing === 0 means the address is fully specified yet still contains
+    // '::' (e.g. 1:2:3:4:5:6:7:8::), which is malformed — reject it.
+    if (missing < 1) return null;
     groups = [...left, ...Array.from({ length: missing }, () => "0"), ...right];
   }
 
