@@ -28,6 +28,9 @@ import {
 import { updatePdnsServerSchema } from "@/lib/validators/pdns-servers";
 import { invalidatePdnsClient } from "@/lib/pdns/registry";
 import { assertSafePdnsUrl } from "@/lib/pdns/url-safety";
+import { findClusterById } from "@/lib/db/repositories/pdns-clusters";
+import { invalidateBackendObservation, scheduleImmediatePoll } from "@/lib/realtime/zone-poller";
+import { forgetBackendStatus } from "@/lib/realtime/backend-status";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -80,20 +83,32 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     if (input.disabled !== undefined) {
       patch.disabledAt = input.disabled ? new Date() : null;
     }
-    if (input.role !== undefined) {
-      patch.role = input.role;
-      // Switching to primary clears any parent reference; switching to
-      // secondary leaves `primaryId` to the explicit `primaryId` field
-      // below (validator already enforces it's set in that case).
-      if (input.role === "primary") patch.primaryId = null;
+    if (input.clusterId !== undefined) {
+      // Reject a nonexistent group with a clean 400, not an FK 500.
+      if (input.clusterId && !(await findClusterById(input.clusterId))) {
+        throw new ValidationError("Invalid input.", {
+          fieldErrors: { clusterId: ["That group no longer exists."] },
+        });
+      }
+      patch.clusterId = input.clusterId;
     }
-    if (input.primaryId !== undefined) {
-      patch.primaryId = input.primaryId;
+    if (input.advertisedAddresses !== undefined) {
+      patch.advertisedAddresses =
+        input.advertisedAddresses && input.advertisedAddresses.length > 0
+          ? input.advertisedAddresses
+          : null;
     }
 
     const updated = await updatePdnsServer(id, patch);
     if (!updated) throw new NotFoundError("PowerDNS server not found.");
     invalidatePdnsClient(id);
+
+    // baseUrl / advertisedAddresses / cluster / disabled changes all shift the
+    // derived replication topology. Invalidate the broker so the post-save
+    // redirect render re-derives at once (it out-runs the debounced poll), and
+    // schedule the poll for any other open views (ADR-0014).
+    invalidateBackendObservation();
+    scheduleImmediatePoll();
 
     const hdrs = await headers();
     await appendAudit({
@@ -137,8 +152,15 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
       );
     });
 
-    // Client-cache eviction runs only after the delete commits.
+    // Client-cache eviction + live-status forget run only after the delete commits.
     invalidatePdnsClient(id);
+    forgetBackendStatus(id);
+
+    // Removing a backend drops it (and any edges through it) from the derived
+    // topology. Invalidate the broker so the post-delete render re-derives at
+    // once, and schedule the poll for any other open views.
+    invalidateBackendObservation();
+    scheduleImmediatePoll();
 
     return Response.json({ ok: true });
   } catch (err) {

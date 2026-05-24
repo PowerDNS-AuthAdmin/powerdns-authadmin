@@ -13,6 +13,8 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/client/api-fetch";
+import { hostFromUrl } from "@/lib/net/host";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 interface ServerFormInitial {
   id: string;
@@ -23,11 +25,11 @@ interface ServerFormInitial {
   serverId: string;
   isDefault: boolean;
   disabled: boolean;
-  role: "primary" | "secondary";
-  primaryId: string | null;
+  clusterId: string | null;
+  advertisedAddresses: string[] | null;
 }
 
-interface PrimaryOption {
+interface GroupOption {
   id: string;
   name: string;
   slug: string;
@@ -36,18 +38,18 @@ interface PrimaryOption {
 interface CreateProps {
   mode: "create";
   initial?: undefined;
-  /** Existing primaries — populates the "Mirrors which primary?" picker
-   *  when the operator chooses role=secondary. */
-  primaries: PrimaryOption[];
-  /** If set, the form pre-selects role=secondary + primaryId. Used by
-   *  the "Add secondary" affordance on the primary's edit page. */
-  forSecondaryOf?: string;
+  /** Existing groups (multi-primary clusters / primary+secondary groups) —
+   *  populates the optional "Group" picker. */
+  groups: GroupOption[];
+  /** If set, pre-selects this group. Used by the "Add secondary"
+   *  affordance on a primary's edit page. */
+  forGroup?: string;
 }
 
 interface EditProps {
   mode: "edit";
   initial: ServerFormInitial;
-  primaries: PrimaryOption[];
+  groups: GroupOption[];
 }
 
 type ServerFormProps = CreateProps | EditProps;
@@ -66,8 +68,8 @@ const DEFAULTS: ServerFormInitial = {
   serverId: "localhost",
   isDefault: false,
   disabled: false,
-  role: "primary",
-  primaryId: null,
+  clusterId: null,
+  advertisedAddresses: null,
 };
 
 export function ServerForm(props: ServerFormProps) {
@@ -82,12 +84,13 @@ export function ServerForm(props: ServerFormProps) {
   const [apiKey, setApiKey] = useState("");
   const [isDefault, setIsDefault] = useState(initial.isDefault);
   const [disabled, setDisabled] = useState(props.mode === "edit" ? initial.disabled : false);
-  const [role, setRole] = useState<"primary" | "secondary">(
-    props.mode === "edit" ? initial.role : props.forSecondaryOf ? "secondary" : initial.role,
+  const [clusterId, setClusterId] = useState<string | null>(
+    props.mode === "edit" ? initial.clusterId : (props.forGroup ?? null),
   );
-  const [primaryId, setPrimaryId] = useState<string | null>(
-    props.mode === "edit" ? initial.primaryId : (props.forSecondaryOf ?? null),
-  );
+  // Explicit AXFR/DNS address overrides. Empty = derive from the API host (sent
+  // as null); a non-empty list overrides. No auto-sync magic — when the list is
+  // empty we just SHOW the derived default below the field.
+  const [addresses, setAddresses] = useState<string[]>(initial.advertisedAddresses ?? []);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,9 +98,20 @@ export function ServerForm(props: ServerFormProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
     setError(null);
     setFieldErrors({});
+
+    // Drop blank rows, then block on any malformed host/IP[:port] before submit.
+    const cleaned = addresses.map((a) => a.trim()).filter(Boolean);
+    const invalid = cleaned.filter((a) => !isValidAddress(a));
+    if (invalid.length > 0) {
+      setFieldErrors({
+        advertisedAddresses: [`Not a valid host or IP: ${invalid.join(", ")}`],
+      });
+      return;
+    }
+
+    setLoading(true);
 
     const body: {
       slug: string;
@@ -108,16 +122,18 @@ export function ServerForm(props: ServerFormProps) {
       isDefault: boolean;
       apiKey?: string;
       disabled?: boolean;
-      role: "primary" | "secondary";
-      primaryId: string | null;
+      clusterId: string | null;
+      advertisedAddresses: string[] | null;
     } = {
       slug,
       name,
       baseUrl,
       serverId,
-      isDefault: role === "primary" ? isDefault : false,
-      role,
-      primaryId: role === "secondary" ? primaryId : null,
+      isDefault,
+      clusterId,
+      // Empty → null (the server derives from the API host). Non-empty → the
+      // explicit override list.
+      advertisedAddresses: cleaned.length > 0 ? cleaned : null,
     };
     if (apiKey !== "") body.apiKey = apiKey;
     if (props.mode === "edit") body.disabled = disabled;
@@ -261,63 +277,48 @@ export function ServerForm(props: ServerFormProps) {
         />
       </Field>
 
-      <Field id="role" label="Role" errors={fieldErrors["role"]}>
-        <select
-          id="role"
-          value={role}
-          onChange={(e) => {
-            const next = e.target.value as "primary" | "secondary";
-            setRole(next);
-            if (next === "primary") {
-              setPrimaryId(null);
-            }
-          }}
-          className={inputClass}
-          // Prevent editing role on the only primary in the system to
-          // avoid orphaning secondaries — the server route will also
-          // reject; this is a UX nudge.
-          disabled={
-            props.mode === "edit" &&
-            initial.role === "primary" &&
-            props.primaries.filter((p) => p.id !== initial.id).length === 0
-          }
-        >
-          <option value="primary">Primary (writable, source of truth)</option>
-          <option value="secondary">Secondary (read-only mirror)</option>
-        </select>
+      <Field
+        id="clusterId"
+        label="Group (optional)"
+        errors={fieldErrors["clusterId"]}
+        hint="Group related backends — the writable peers of a multi-primary cluster, or a primary together with its secondaries. Grouped backends are polled together and their sync state is compared. Leave as “None” for a standalone backend. Create groups under Admin → Groups."
+      >
+        <SelectMenu
+          value={clusterId ?? ""}
+          onChange={(v) => setClusterId(v || null)}
+          ariaLabel="Group (optional)"
+          className="mt-1 w-full"
+          options={[
+            { value: "", label: "None — standalone backend" },
+            ...props.groups.map((g) => ({
+              value: g.id,
+              label: `${g.name} (${g.slug})`,
+            })),
+          ]}
+        />
       </Field>
 
-      {role === "secondary" ? (
-        <Field id="primaryId" label="Mirrors which primary?" errors={fieldErrors["primaryId"]}>
-          <select
-            id="primaryId"
-            value={primaryId ?? ""}
-            onChange={(e) => setPrimaryId(e.target.value || null)}
-            required
-            className={inputClass}
-          >
-            <option value="" disabled>
-              Select a primary…
-            </option>
-            {props.primaries
-              .filter((p) => (props.mode === "edit" ? p.id !== initial.id : true))
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.slug})
-                </option>
-              ))}
-          </select>
-        </Field>
-      ) : (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={isDefault}
-            onChange={(e) => setIsDefault(e.target.checked)}
-          />
-          Use as the default backend
-        </label>
-      )}
+      <Field
+        id="advertisedAddresses"
+        label="AXFR / DNS address(es) (optional)"
+        errors={fieldErrors["advertisedAddresses"]}
+        hint="How peers reach this server for AXFR — what a secondary lists in its zone's masters[]. On a primary, used to match a secondary's masters[] back to this server (sync, drift, metrics). Defaults to the API host; override only when the DNS address differs."
+      >
+        <AddressList
+          value={addresses}
+          onChange={setAddresses}
+          derivedDefault={hostFromUrl(baseUrl) ?? ""}
+        />
+      </Field>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={isDefault}
+          onChange={(e) => setIsDefault(e.target.checked)}
+        />
+        Use as the default backend (only a write-capable backend can be the default)
+      </label>
 
       {props.mode === "edit" ? (
         <label className="flex items-center gap-2 text-sm">
@@ -386,4 +387,123 @@ function Field({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Add/remove editor for the AXFR/DNS address overrides. An empty list means
+ * "derive from the API host" — surfaced as the muted default note rather than a
+ * blank textarea. Each row is validated as a host or IP (optional `:port`).
+ */
+function AddressList({
+  value,
+  onChange,
+  derivedDefault,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+  derivedDefault: string;
+}) {
+  const update = (i: number, next: string) =>
+    onChange(value.map((v, idx) => (idx === i ? next : v)));
+  const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i));
+  // Seed the first row with the derived API host so overriding starts from the
+  // current value instead of a blank box; later rows start empty.
+  const add = () => onChange([...value, value.length === 0 ? derivedDefault : ""]);
+
+  return (
+    <div className="mt-1 space-y-2">
+      {value.map((addr, i) => {
+        const trimmed = addr.trim();
+        const invalid = trimmed !== "" && !isValidAddress(trimmed);
+        return (
+          <div key={i}>
+            <div className="flex items-center gap-2">
+              <input
+                value={addr}
+                onChange={(e) => update(i, e.target.value)}
+                placeholder="192.0.2.10  ·  ns1.example.com  ·  [2001:db8::1]:53"
+                aria-invalid={invalid}
+                className={`block w-full rounded-md border bg-[color:var(--color-bg)] px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-[color:var(--color-accent)] focus:outline-none ${
+                  invalid
+                    ? "border-[color:var(--color-error)]"
+                    : "border-[color:var(--color-border)]"
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                aria-label={`Remove ${addr || "address"}`}
+                className="shrink-0 rounded-md border border-[color:var(--color-border)] px-2.5 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)]"
+              >
+                ✕
+              </button>
+            </div>
+            {invalid ? (
+              <p className="mt-1 text-xs text-[color:var(--color-error)]">
+                Not a valid host or IP.
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
+
+      <button
+        type="button"
+        onClick={add}
+        className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)]"
+      >
+        + Add address
+      </button>
+
+      {value.length === 0 ? (
+        <p className="text-xs text-[color:var(--color-fg-muted)]">
+          Defaults to the API host
+          {derivedDefault ? (
+            <>
+              {" "}
+              (<code className="font-mono">{derivedDefault}</code>)
+            </>
+          ) : null}
+          .
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** A host or IP with an optional `:port` — the shape a `masters[]` entry takes. */
+function isValidAddress(raw: string): boolean {
+  const s = raw.trim();
+  if (s.length === 0 || s.length > 255) return false;
+
+  // Bracketed IPv6, optional :port — e.g. [2001:db8::1]:53
+  const bracket = /^\[([0-9a-fA-F:]+)\](?::\d{1,5})?$/.exec(s);
+  if (bracket) return isIpv6(bracket[1]!);
+
+  // Bare IPv6: 2+ colons, no brackets, no port.
+  if ((s.match(/:/g) ?? []).length >= 2) return isIpv6(s);
+
+  // host or IPv4, with an optional :port.
+  const colon = s.indexOf(":");
+  const host = colon >= 0 ? s.slice(0, colon) : s;
+  if (colon >= 0 && !/^\d{1,5}$/.test(s.slice(colon + 1))) return false;
+  return isIpv4(host) || isHostname(host);
+}
+
+function isIpv4(s: string): boolean {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(s);
+  return m?.slice(1).every((o) => Number(o) <= 255) ?? false;
+}
+
+function isIpv6(s: string): boolean {
+  // Lenient — enough to catch typos without re-implementing RFC 4291.
+  return /^[0-9a-fA-F:]+$/.test(s) && (s.includes("::") || s.split(":").length === 8);
+}
+
+function isHostname(s: string): boolean {
+  const host = s.endsWith(".") ? s.slice(0, -1) : s; // tolerate a trailing dot
+  if (host.length === 0 || host.length > 253) return false;
+  return host
+    .split(".")
+    .every((label) => /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/.test(label));
 }

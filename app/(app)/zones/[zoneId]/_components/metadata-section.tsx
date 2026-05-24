@@ -4,7 +4,7 @@
  * every tab is a query-string switch.
  */
 
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { PdnsNotFoundError } from "@/lib/pdns/errors";
 import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
@@ -13,6 +13,7 @@ import type { PdnsMetadata } from "@/lib/pdns/types";
 import { AddMetadataKind } from "../metadata/_components/add-metadata-kind";
 import { KIND_SPECS, ZONE_OBJECT_KINDS } from "../metadata/_components/kind-specs";
 import { MetadataEditor } from "../metadata/_components/metadata-editor";
+import { ZoneTsigTransfer } from "./zone-tsig-transfer";
 
 interface Props {
   zoneIdEncoded: string;
@@ -22,6 +23,9 @@ interface Props {
   // a zone_grant for this server+zone) — see app/(app)/zones/[zoneId]/page.tsx.
   canRead: boolean;
   canWrite: boolean;
+  /** Authoritative (Master/Primary) zone — show the friendly TSIG transfer-key
+   *  selector. Mirror/Native zones don't serve AXFR, so it's hidden there. */
+  showTsigTransfer: boolean;
 }
 
 export async function MetadataSection({
@@ -30,6 +34,7 @@ export async function MetadataSection({
   selected,
   canRead,
   canWrite,
+  showTsigTransfer,
 }: Props) {
   if (!canRead) {
     return (
@@ -42,7 +47,7 @@ export async function MetadataSection({
   let items: PdnsMetadata[] | null = null;
   let fetchError: string | null = null;
   try {
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
     items = await client.listZoneMetadata(zoneName);
   } catch (err) {
     if (err instanceof PdnsNotFoundError) {
@@ -65,8 +70,41 @@ export async function MetadataSection({
         .sort((a, b) => a.kind.localeCompare(b.kind))
     : null;
 
+  // Friendly TSIG transfer-key selector for authoritative zones: the available
+  // keys on this backend + the current TSIG-ALLOW-AXFR selection. Fetched only
+  // when relevant. A key-list failure just hides the selector (the raw metadata
+  // editor below still works).
+  let tsigKeyNames: string[] | null = null;
+  if (showTsigTransfer && items !== null) {
+    try {
+      tsigKeyNames = (await getBackendGateway(selected).listTsigKeys()).map((k) => k.name).sort();
+    } catch (err) {
+      logger.warn(
+        {
+          server: selected.slug,
+          zone: zoneName,
+          err: err instanceof Error ? redact(err.message) : "unknown",
+        },
+        "zone.tsig.list.failed",
+      );
+    }
+  }
+  // Current transfer keys come from the (readable) TSIG-ALLOW-AXFR metadata,
+  // which PDNS populates from the zone's master_tsig_key_ids.
+  const currentTransferKeys = items?.find((m) => m.kind === "TSIG-ALLOW-AXFR")?.metadata ?? [];
+
   return (
     <div className="space-y-4">
+      {tsigKeyNames !== null ? (
+        <ZoneTsigTransfer
+          zoneIdEncoded={zoneIdEncoded}
+          serverSlug={selected.slug}
+          allKeys={tsigKeyNames}
+          currentKeys={currentTransferKeys}
+          canWrite={canWrite}
+        />
+      ) : null}
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 className="text-lg font-semibold">
           Zone metadata{" "}

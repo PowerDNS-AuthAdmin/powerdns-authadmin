@@ -20,13 +20,18 @@ import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
+import { cascadeDeleteTsigKey } from "@/lib/realtime/tsig-replication";
+import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { PdnsNotFoundError } from "@/lib/pdns/errors";
 import { errorResponse } from "@/lib/http/error-response";
 import { NotFoundError } from "@/lib/errors";
 
 const querySchema = z.object({
   serverSlug: z.string().optional(),
+  // `true` (the UI default) also strips the key from every zone using it and
+  // deletes the replicated copy from secondaries; `false`/absent = key only.
+  cascade: z.enum(["true", "false"]).optional(),
 });
 
 interface RouteContext {
@@ -42,7 +47,8 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     const keyId = decodeURIComponent(rawId);
 
     const url = new URL(request.url);
-    const { serverSlug } = querySchema.parse(Object.fromEntries(url.searchParams));
+    const { serverSlug, cascade } = querySchema.parse(Object.fromEntries(url.searchParams));
+    const doCascade = cascade === "true";
 
     const selected = serverSlug
       ? await findPdnsServerBySlug(serverSlug)
@@ -50,7 +56,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     if (selected?.disabledAt !== null) {
       throw new NotFoundError("No PDNS backend selected.");
     }
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
 
     // Best-effort "before" snapshot. Strips `key` explicitly before
     // it reaches the audit shape — the redactor would catch it too,
@@ -67,7 +73,18 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
       throw new NotFoundError("TSIG key not found.");
     }
 
-    await client.deleteTsigKey(keyId);
+    // Default delete path: strip the key from every zone using it and remove the
+    // replicated copy from the secondaries, then delete it from the primary. The
+    // zone scan reads zone names from the broker cache, so warm it first.
+    // Opt-out (`cascade !== "true"`) deletes the key from this backend only.
+    let cascadeResult: { zonesUpdated: number; secondariesCleaned: number } | null = null;
+    if (doCascade) {
+      await ensureBackendsObserved();
+      const { zonesUpdated, secondariesCleaned } = await cascadeDeleteTsigKey(selected, keyId);
+      cascadeResult = { zonesUpdated, secondariesCleaned };
+    } else {
+      await client.deleteTsigKey(keyId);
+    }
 
     const hdrs = await headers();
     await appendAudit({
@@ -75,11 +92,11 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
       action: "tsig.delete",
       resource: { type: "tsig", id: keyId },
       before: { name: nameSnapshot, algorithm: algorithmSnapshot },
-      after: null,
+      after: cascadeResult ? { cascaded: true, ...cascadeResult } : null,
       request: getRequestContext(hdrs),
     });
 
-    return Response.json({ ok: true });
+    return Response.json({ ok: true, cascade: cascadeResult });
   } catch (err) {
     return errorResponse(err, "pdns.tsig.route.error");
   }

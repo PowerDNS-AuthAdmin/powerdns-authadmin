@@ -94,6 +94,38 @@ export async function deleteRoleAssignment(
 }
 
 /**
+ * One assignment's role slug + scope, scoped to its owning user (IDOR-safe like
+ * `deleteRoleAssignment`). Lets the delete route decide whether removing it
+ * would strip the last global Super Admin before it commits.
+ */
+export async function findAssignmentWithRole(
+  assignmentId: string,
+  userId: string,
+  executor: DbExecutor = db,
+): Promise<{ roleSlug: string; scopeType: RoleAssignment["scopeType"] } | null> {
+  const rows = await executor
+    .select({ roleSlug: roles.slug, scopeType: roleAssignments.scopeType })
+    .from(roleAssignments)
+    .innerJoin(roles, eq(roleAssignments.roleId, roles.id))
+    .where(and(eq(roleAssignments.id, assignmentId), eq(roleAssignments.userId, userId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/** Count global-scope assignments of the role with `slug` (last-SuperAdmin guard). */
+export async function countGlobalAssignmentsOfRoleSlug(
+  slug: string,
+  executor: DbExecutor = db,
+): Promise<number> {
+  const rows = await executor
+    .select({ id: roleAssignments.id })
+    .from(roleAssignments)
+    .innerJoin(roles, eq(roleAssignments.roleId, roles.id))
+    .where(and(eq(roles.slug, slug), eq(roleAssignments.scopeType, "global")));
+  return rows.length;
+}
+
+/**
  * List the distinct role slugs assigned to a user — what the dashboard's
  * "Your roles" summary needs. Deduplicates across scopes.
  */

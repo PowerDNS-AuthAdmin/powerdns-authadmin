@@ -52,7 +52,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       throw err;
     }
 
-    const result = redeem({ token: input.token, actorId: actor.id });
+    const result = await redeem({ token: input.token, actorId: actor.id });
     if (!result) {
       // Audit the failed/late reveal so a leaked-token redemption attempt is
       // visible even though it returned nothing. Don't include the token

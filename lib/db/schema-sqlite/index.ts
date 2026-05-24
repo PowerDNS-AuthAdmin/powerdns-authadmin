@@ -16,6 +16,7 @@ export * from "./audit-log";
 export * from "./pdns-clusters";
 export * from "./pdns-servers";
 export * from "./metric-samples";
+export * from "./backend-advisories";
 export * from "./settings";
 export * from "./oidc-providers";
 export * from "./zone-templates";

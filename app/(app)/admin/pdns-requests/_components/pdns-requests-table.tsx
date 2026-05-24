@@ -25,6 +25,7 @@ import Link from "next/link";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { LocalTime } from "@/components/ui/local-time";
 import { useRealtimeEvent } from "@/components/realtime/realtime-provider";
 import { PdnsHttpLog } from "@/app/(app)/zones/[zoneId]/_components/pdns-http-log";
@@ -218,10 +219,8 @@ export function PdnsRequestsTable(props: Props) {
     [router],
   );
 
-  // Expandable row body — the PdnsHttpLog viewer. TanStack table
-  // doesn't expose row-detail expansion in the shared DataTable, so
-  // render a parallel list of detail panels keyed by id, controlled
-  // by a Set of expanded row ids.
+  // Expandable row body — the PdnsHttpLog viewer rendered inline beneath the
+  // row via DataTable's `renderRowDetail`, controlled by a Set of expanded ids.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   function toggle(id: string) {
@@ -272,32 +271,24 @@ export function PdnsRequestsTable(props: Props) {
         className="grid gap-3 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-3 text-xs sm:grid-cols-4"
       >
         <Field label="Server">
-          <select
+          <SelectMenu
             value={serverSlug}
-            onChange={(e) => setServerSlug(e.target.value)}
-            className="block w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs"
-          >
-            <option value="">all</option>
-            {props.slugChoices.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+            onChange={setServerSlug}
+            placeholder="all"
+            ariaLabel="Server"
+            className="w-full text-xs"
+            options={props.slugChoices.map((s) => ({ value: s, label: s }))}
+          />
         </Field>
         <Field label="Op">
-          <select
+          <SelectMenu
             value={op}
-            onChange={(e) => setOp(e.target.value)}
-            className="block w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs"
-          >
-            <option value="">all</option>
-            {props.opChoices.map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
-            ))}
-          </select>
+            onChange={setOp}
+            placeholder="all"
+            ariaLabel="Op"
+            className="w-full text-xs"
+            options={props.opChoices.map((o) => ({ value: o, label: o }))}
+          />
         </Field>
         <Field label="Status">
           <input
@@ -365,25 +356,10 @@ export function PdnsRequestsTable(props: Props) {
         noDataMessage="No PowerDNS HTTP traffic recorded yet."
         sortParam="sort"
         pageSizeParam="pageSize"
-      />
-
-      {/* Detail panels for expanded rows — keyed by row id. */}
-      {props.rows
-        .filter((r) => expanded.has(r.id))
-        .map((row) => (
-          <section
-            key={`detail-${row.id}`}
-            className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3"
-          >
-            <header className="mb-2 flex items-baseline gap-2 text-xs">
-              <code className="font-mono text-[color:var(--color-accent)]">{row.op}</code>
-              <span className="text-[color:var(--color-fg-muted)]">·</span>
-              <LocalTime
-                ts={row.ts}
-                className="font-mono text-[0.625rem] text-[color:var(--color-fg-muted)]"
-              />
-            </header>
+        renderRowDetail={(row) =>
+          expanded.has(row.id) ? (
             <PdnsHttpLog
+              collapsible={false}
               entries={[
                 {
                   id: row.id,
@@ -401,8 +377,9 @@ export function PdnsRequestsTable(props: Props) {
                 },
               ]}
             />
-          </section>
-        ))}
+          ) : null
+        }
+      />
     </div>
   );
 }

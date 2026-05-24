@@ -1,0 +1,89 @@
+# docker-compose.ha.yml — HIGH-AVAILABILITY STACK (Postgres + Redis, replicas > 1).
+#
+# The app is stateless behind a load balancer; all shared state lives in Postgres
+# (sessions, data) and Redis (cross-replica rate limiting, reveal-once tokens, and
+# the realtime SSE event bus — ADR-0016). Sessions are DB-backed (ADR-0007) so
+# they're shared by Postgres alone; Redis covers the three otherwise per-process
+# pieces. Without Redis those degrade to per-replica behaviour, so Redis is
+# REQUIRED past one replica.
+#
+#   export POSTGRES_PASSWORD=$(openssl rand -base64 24)
+#   export APP_SECRET_KEY=$(openssl rand -base64 32)
+#   export APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
+#   export BOOTSTRAP_ADMIN_PASSWORD='a-strong-password'
+#   docker compose -f docker-compose.ha.yml up -d --scale app=3
+#
+# The app has no host port — put a load balancer (nginx / Traefik / cloud LB) in
+# front of the `app` replicas on port 3000. Migrations are serialised across
+# replica boots by a Postgres advisory lock (ADR-0011), so starting N at once is
+# safe. Add your PowerDNS backend(s) under Admin → PowerDNS servers afterwards
+# (this file ships no PDNS — see the topology compose files for runnable backends).
+
+name: powerdns-authadmin-ha
+
+services:
+  app:
+    image: ghcr.io/powerdns-authadmin/powerdns-authadmin:latest
+    restart: unless-stopped
+    # No host port — your load balancer fronts the replicas on :3000.
+    expose:
+      - "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_URL: ${APP_URL:-https://dns.example.com}
+      DATABASE_URL: postgres://pdns:${POSTGRES_PASSWORD}@postgres:5432/powerdns_authadmin
+      # Enables cross-replica coordination. Required for replicas > 1.
+      REDIS_URL: redis://redis:6379
+      APP_SECRET_KEY: ${APP_SECRET_KEY}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
+    # Swarm / k8s honour this; plain compose uses `--scale app=N` on the CLI.
+    deploy:
+      replicas: 3
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/healthz').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pdns
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: powerdns_authadmin
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pdns -d powerdns_authadmin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Coordination cache, not a datastore — persistence off; nothing it holds
+    # needs to survive a restart (the in-process fallbacks cover a cold Redis).
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pg-data:

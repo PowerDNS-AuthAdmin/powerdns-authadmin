@@ -58,8 +58,9 @@ import {
 } from "@tanstack/react-table";
 import { ChevronDown, ChevronsUpDown, ChevronUp, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { parsePageSizeParam, parseSortParam, serializeSortParam } from "./data-table-url-sync";
+import { SelectMenu } from "./select-menu";
 
 // Per-column styling hook. TanStack v8.21 tightened `ColumnMeta` from a loose
 // empty interface to one that rejects unknown properties, so the `className`
@@ -134,6 +135,13 @@ export interface DataTableProps<TData> {
    * "users". Tables with no key persist nothing (default behavior).
    */
   stateKey?: string;
+  /**
+   * Render an inline detail row directly beneath a given row, spanning all
+   * columns. Return `null`/`undefined` to render nothing — the caller owns
+   * expansion state (e.g. return the panel only for expanded row ids). Used by
+   * the PDNS-requests viewer to expand a request's full HTTP log in place.
+   */
+  renderRowDetail?: (row: TData) => React.ReactNode;
 }
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -154,6 +162,7 @@ export function DataTable<TData>({
   pageSizeParam,
   stateKey,
   layout = "auto",
+  renderRowDetail,
 }: DataTableProps<TData>) {
   const router = useRouter();
   const pathname = usePathname();
@@ -391,35 +400,49 @@ export function DataTable<TData>({
                   </td>
                 </tr>
               ) : (
-                rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    // Four visually distinct row states, all token-driven so
-                    // both themes track automatically:
-                    //   header → bg-muted (the strongest neutral, anchors the top)
-                    //   odd    → transparent (page bg)
-                    //   even   → bg-subtle stripe
-                    //   hover  → faint accent wash, distinct from every neutral
-                    //            shade above (and a subtle brand cue).
-                    // The hover color is semi-transparent over the page bg, so
-                    // it reads identically on odd and even rows. Tailwind emits
-                    // the `hover:` variant after `even:`, so hover wins the
-                    // cascade on striped rows without needing `!important`.
-                    className="border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <td
-                        key={cell.id}
-                        className={[
-                          "px-4 py-3 align-top",
-                          cell.column.columnDef.meta?.className ?? "",
-                        ].join(" ")}
+                rows.map((row) => {
+                  const detail = renderRowDetail?.(row.original);
+                  return (
+                    <Fragment key={row.id}>
+                      <tr
+                        // Four visually distinct row states, all token-driven so
+                        // both themes track automatically:
+                        //   header → bg-muted (the strongest neutral, anchors the top)
+                        //   odd    → transparent (page bg)
+                        //   even   → bg-subtle stripe
+                        //   hover  → faint accent wash, distinct from every neutral
+                        //            shade above (and a subtle brand cue).
+                        // The hover color is semi-transparent over the page bg, so
+                        // it reads identically on odd and even rows. Tailwind emits
+                        // the `hover:` variant after `even:`, so hover wins the
+                        // cascade on striped rows without needing `!important`.
+                        className="border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
                       >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))
+                        {row.getVisibleCells().map((cell) => (
+                          <td
+                            key={cell.id}
+                            className={[
+                              "px-4 py-3 align-top",
+                              cell.column.columnDef.meta?.className ?? "",
+                            ].join(" ")}
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                      {detail != null ? (
+                        <tr className="border-t-0">
+                          <td
+                            colSpan={row.getVisibleCells().length}
+                            className="bg-[color:var(--color-bg-subtle)] px-4 pt-0 pb-3"
+                          >
+                            {detail}
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -435,17 +458,16 @@ export function DataTable<TData>({
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2">
               <span>Rows</span>
-              <select
-                value={pagination.pageSize}
-                onChange={(e) => table.setPageSize(Number(e.target.value))}
-                className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-1.5 py-1 text-xs"
-              >
-                {pageSizeOptionsResolved.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
+              <SelectMenu
+                value={String(pagination.pageSize)}
+                onChange={(v) => table.setPageSize(Number(v))}
+                options={pageSizeOptionsResolved.map((size) => ({
+                  value: String(size),
+                  label: String(size),
+                }))}
+                ariaLabel="Rows per page"
+                className="w-20"
+              />
             </label>
             <div className="inline-flex items-center gap-1">
               <PaginationButton

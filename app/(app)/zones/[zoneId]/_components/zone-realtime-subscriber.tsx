@@ -17,21 +17,20 @@ import { useRouter } from "next/navigation";
 import { useRealtimeEvent, useRealtimeStatus } from "@/components/realtime/realtime-provider";
 
 interface Props {
-  serverSlug: string;
   zoneName: string;
   inSync: boolean;
 }
 
-export function ZoneRealtimeSubscriber({ serverSlug, zoneName, inSync }: Props) {
+export function ZoneRealtimeSubscriber({ zoneName, inSync }: Props) {
   const router = useRouter();
   const { status, enabled, setEnabled } = useRealtimeStatus();
   const lastRefreshAt = useRef<number>(0);
 
   useRealtimeEvent(
-    (event) =>
-      event.type === "zone.updated" &&
-      event["serverSlug"] === serverSlug &&
-      event["zone"] === zoneName,
+    // Match on zone name across ANY backend slug: a derived (ungrouped)
+    // secondary's AXFR catch-up is published under its OWN slug, not the
+    // primary's, so a serverSlug filter would miss it and the chip would stick.
+    (event) => event.type === "zone.updated" && event["zone"] === zoneName,
     () => {
       const now = Date.now();
       if (now - lastRefreshAt.current < 500) return;

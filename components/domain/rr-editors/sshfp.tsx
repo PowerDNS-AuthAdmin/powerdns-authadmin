@@ -8,6 +8,7 @@
 
 import type { RREditor } from "./types";
 import { Field, inputClass } from "./_form";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 export interface SshfpStruct {
   algorithm: number;
@@ -46,30 +47,22 @@ export const sshfpEditor: RREditor<SshfpStruct> = {
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <Field label="Algorithm">
-            <select
-              value={value.algorithm}
-              onChange={(e) => onChange({ ...value, algorithm: Number(e.target.value) })}
-              className={inputClass}
-            >
-              {ALGORITHMS.map((a) => (
-                <option key={a.value} value={a.value}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
+            <SelectMenu
+              value={String(value.algorithm)}
+              onChange={(v) => onChange({ ...value, algorithm: Number(v) })}
+              options={ALGORITHMS.map((a) => ({ value: String(a.value), label: a.label }))}
+              ariaLabel="Algorithm"
+              className="w-full"
+            />
           </Field>
           <Field label="Fingerprint type">
-            <select
-              value={value.fpType}
-              onChange={(e) => onChange({ ...value, fpType: Number(e.target.value) })}
-              className={inputClass}
-            >
-              {FP_TYPES.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
+            <SelectMenu
+              value={String(value.fpType)}
+              onChange={(v) => onChange({ ...value, fpType: Number(v) })}
+              options={FP_TYPES.map((f) => ({ value: String(f.value), label: f.label }))}
+              ariaLabel="Fingerprint type"
+              className="w-full"
+            />
           </Field>
         </div>
         <Field label="Fingerprint" hint="Hex; whitespace is stripped on save.">

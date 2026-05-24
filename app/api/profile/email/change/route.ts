@@ -45,7 +45,7 @@ export async function POST(request: Request): Promise<Response> {
     const { user } = await requireUser();
     await requireCsrf(request);
 
-    const limit = sensitiveLimiter.take(`change-email:${user.id}`);
+    const limit = await sensitiveLimiter.takeShared(`change-email:${user.id}`);
     if (!limit.allowed) {
       throw new RateLimitedError(limit.retryAfterSeconds);
     }

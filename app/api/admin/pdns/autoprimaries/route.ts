@@ -18,7 +18,7 @@ import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { PdnsConflictError } from "@/lib/pdns/errors";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
@@ -66,7 +66,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const selected = await resolveServer(body.serverSlug);
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
 
     const payload = {
       ip: body.ip,
@@ -116,7 +116,7 @@ export async function DELETE(request: Request): Promise<Response> {
     }
 
     const selected = await resolveServer(parsed.serverSlug);
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
 
     await client.deleteAutoprimary({
       ip: parsed.ip,

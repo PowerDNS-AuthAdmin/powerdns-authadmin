@@ -10,7 +10,13 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildAbility, globalPermissionsOf, type AbilitySource } from "./ability";
+import {
+  buildAbility,
+  globalPermissionsOf,
+  permissionsExceedingGrant,
+  type AbilitySource,
+} from "./ability";
+import type { Permission } from "./permissions";
 
 describe("globalPermissionsOf", () => {
   it("includes permissions granted at global scope", () => {
@@ -50,6 +56,31 @@ describe("globalPermissionsOf", () => {
       { permissions: ["record.update"], scopeType: "team", scopeId: null },
     ];
     expect(globalPermissionsOf(sources).size).toBe(0);
+  });
+});
+
+describe("permissionsExceedingGrant (the role-assign privilege ceiling)", () => {
+  const actor = (perms: Permission[]): ReadonlySet<Permission> => new Set(perms);
+
+  it("allows assigning a role within the actor's global permissions", () => {
+    const exceeding = permissionsExceedingGrant(
+      actor(["zone.read", "record.update", "role.assign"]),
+      ["zone.read", "record.update"],
+    );
+    expect(exceeding).toEqual([]);
+  });
+
+  it("flags exactly the permissions the actor lacks (no SuperAdmin minting)", () => {
+    const exceeding = permissionsExceedingGrant(actor(["role.assign", "zone.read"]), [
+      "zone.read",
+      "user.delete",
+      "settings.write",
+    ]);
+    expect(exceeding).toEqual(["user.delete", "settings.write"]);
+  });
+
+  it("treats a scoped-only actor (empty global set) as able to grant nothing", () => {
+    expect(permissionsExceedingGrant(actor([]), ["zone.read"])).toEqual(["zone.read"]);
   });
 });
 

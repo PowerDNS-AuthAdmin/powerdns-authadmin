@@ -16,6 +16,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 interface ActionGroup {
   ns: string;
@@ -88,35 +89,31 @@ export function AuditFilterForm({ initial, actionGroups, hasFilters }: Props) {
     >
       <label className="space-y-1">
         <span className="block text-xs text-[color:var(--color-fg-muted)]">Action</span>
-        <select
+        <SelectMenu
           value={action}
-          onChange={(e) => setAction(e.target.value)}
-          className="block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5"
-        >
-          <option value="">All actions</option>
-          {actionGroups.map((g) => (
-            <optgroup key={g.ns} label={g.ns}>
-              {g.actions.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+          onChange={setAction}
+          placeholder="All actions"
+          ariaLabel="Action"
+          className="w-full"
+          options={actionGroups.flatMap((g) =>
+            g.actions.map((a) => ({ value: a, label: a, description: g.ns })),
+          )}
+        />
       </label>
       <label className="space-y-1">
         <span className="block text-xs text-[color:var(--color-fg-muted)]">Actor type</span>
-        <select
+        <SelectMenu
           value={actorType}
-          onChange={(e) => setActorType(e.target.value)}
-          className="block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5"
-        >
-          <option value="">Any</option>
-          <option value="user">user</option>
-          <option value="token">token</option>
-          <option value="system">system</option>
-        </select>
+          onChange={setActorType}
+          placeholder="Any"
+          ariaLabel="Actor type"
+          className="w-full"
+          options={[
+            { value: "user", label: "user" },
+            { value: "token", label: "token" },
+            { value: "system", label: "system" },
+          ]}
+        />
       </label>
       <label className="space-y-1">
         <span className="block text-xs text-[color:var(--color-fg-muted)]">Resource type</span>

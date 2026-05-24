@@ -27,19 +27,19 @@ import {
   backendSeries,
   latestBackendSamples,
   oidcAttentionCounts,
-  pdnsAttentionCounts,
   recentAudit,
   sessionsSeries,
   topActors,
   userAttentionCounts,
 } from "@/lib/db/repositories/dashboard";
 import {
-  listActiveSecondariesForPrimary,
+  listSecondariesForPrimary,
   listAllPdnsServers,
   listAllPrimaries,
 } from "@/lib/db/repositories/pdns-servers";
 import { readRecentMetrics } from "@/lib/metrics/pdns-stats-sampler";
-import { ensurePollerRunning } from "@/lib/realtime/zone-poller";
+import { ensurePollerRunning, ensureBackendsObserved } from "@/lib/realtime/zone-poller";
+import { getBackendStatus } from "@/lib/realtime/backend-status";
 import { CounterRateChart, MapPieChart, ValueLineChart } from "@/components/domain/pdns-stat-chart";
 import { Chart } from "@/components/ui/chart";
 import { LocalTime } from "@/components/ui/local-time";
@@ -83,11 +83,12 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
   const canReadUsers = ability.can("read", "User");
   const canReadOidc = ability.can("read", "Oidc");
 
-  // Kick the unified app-wide poller (zone-state + stats + metric_samples
-  // all in one) if it isn't already running. The page itself renders
-  // against whatever's in the DB *now* — the poller fills in fresh
-  // data within ~30s, picked up by router.refresh()/SSE.
-  if (canReadAudit || canReadServers) {
+  // Ask the broker to ensure a recent observation so the PDNS-attention tiles
+  // read live reachability (same source as the servers list + bell). For an
+  // audit-only viewer, just keep the poller alive for the realtime feed.
+  if (canReadServers) {
+    await ensureBackendsObserved();
+  } else if (canReadAudit) {
     ensurePollerRunning();
   }
 
@@ -104,7 +105,6 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
     recent,
     servers,
     attention,
-    pdnsAttention,
     oidcAttention,
   ] = await Promise.all([
     canReadAudit
@@ -123,13 +123,25 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
     canReadUsers
       ? userAttentionCounts()
       : Promise.resolve({ lockedOut: 0, unverifiedEmail: 0, noMfa: 0, mustChangePassword: 0 }),
-    canReadServers ? pdnsAttentionCounts() : Promise.resolve({ neverProbed: 0, stale: 0 }),
     canReadOidc ? oidcAttentionCounts() : Promise.resolve({ neverProbed: 0, failing: 0 }),
   ]);
 
+  // PDNS attention from the live reachability store (the single source of truth):
+  // an active backend the broker can't reach now, or one never observed yet.
+  // Same signal the servers list + bell read, so the dashboard agrees with them.
+  const pdnsAttention = { neverProbed: 0, unreachable: 0 };
+  if (canReadServers) {
+    for (const s of servers) {
+      if (s.disabledAt !== null) continue;
+      const status = getBackendStatus(s.id);
+      if (!status) pdnsAttention.neverProbed += 1;
+      else if (!status.reachable) pdnsAttention.unreachable += 1;
+    }
+  }
+
   // Primaries only — secondaries mirror their primary's zone set, so
   // including them here would double-count.
-  const primaryBackends = backendsLatest.filter((b) => b.serverRole === "primary");
+  const primaryBackends = backendsLatest.filter((b) => b.isWriteTarget);
   // De-duplicate cluster peers: every peer in a cluster shares the same
   // backend storage, so they report the same zone set. Counting all 3
   // peers would triple-count. Pick one peer per cluster (whichever has the
@@ -168,6 +180,19 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
           for them. This mirrors the SSO-only MFA exemption in (app)/layout. */}
       {user.emailVerifiedAt === null && user.passwordHash !== null ? (
         <UnverifiedEmailBanner />
+      ) : null}
+
+      {/* Forced password change — surfaced right below the header, above the
+          KPIs, so it's the first thing the operator acts on. */}
+      {user.mustChangePassword ? (
+        <section className="rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 p-4 text-sm">
+          <strong>Change your password.</strong> Your account was set up with a temporary password.
+          Update it from your{" "}
+          <Link href="/profile" className="underline">
+            profile
+          </Link>
+          .
+        </section>
       ) : null}
 
       {/* KPI cards — each one is conditional on the perm needed to derive it. */}
@@ -429,17 +454,6 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
           here.
         </section>
       ) : null}
-
-      {user.mustChangePassword ? (
-        <section className="rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 p-4 text-sm">
-          <strong>Change your password.</strong> Your account was set up with a temporary password.
-          Update it from your{" "}
-          <Link href="/profile" className="underline">
-            profile
-          </Link>
-          .
-        </section>
-      ) : null}
     </div>
   );
 }
@@ -625,16 +639,16 @@ function AttentionTile({
  * zero (healthy fleet doesn't see an empty alert shelf).
  *
  * Tile semantics:
- *   - "Never probed": fresh server or one that's never successfully
- *      responded — actionable via the Test button on the row.
- *   - "Stale probe": last probe > 24h ago — backend may be down or
- *      the probe pipeline broke; operator should Test to confirm.
+ *   - "Never observed": a freshly-added backend the broker hasn't reached
+ *      yet — actionable via the Test button on the row.
+ *   - "Unreachable": the broker can't reach it right now (live status) — the
+ *      same signal the servers list + bell show; operator should Test/fix.
  */
-function hasPdnsAttention(c: { neverProbed: number; stale: number }): boolean {
-  return c.neverProbed + c.stale > 0;
+function hasPdnsAttention(c: { neverProbed: number; unreachable: number }): boolean {
+  return c.neverProbed + c.unreachable > 0;
 }
 
-function PdnsAttentionWidget({ counts }: { counts: { neverProbed: number; stale: number } }) {
+function PdnsAttentionWidget({ counts }: { counts: { neverProbed: number; unreachable: number } }) {
   return (
     <section
       className="rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/5 p-4"
@@ -645,19 +659,19 @@ function PdnsAttentionWidget({ counts }: { counts: { neverProbed: number; stale:
           PDNS backends needing attention
         </h2>
         <span className="text-xs text-[color:var(--color-fg-muted)]">
-          Probe state across configured backends. Click a tile to jump to the list and Test.
+          Live reachability across configured backends. Click a tile to jump to the list and Test.
         </span>
       </header>
       <div className="grid gap-2 sm:grid-cols-2">
         <AttentionTile
-          label="Never probed"
+          label="Never observed"
           count={counts.neverProbed}
           tone="warn"
           href="/admin/servers"
         />
         <AttentionTile
-          label="Stale probe (>24h)"
-          count={counts.stale}
+          label="Unreachable"
+          count={counts.unreachable}
           tone="error"
           href="/admin/servers"
         />
@@ -762,9 +776,7 @@ async function PdnsStatsSection() {
   const secondariesByPrimary = await Promise.all(
     active.map(async (p) => ({
       primary: p,
-      secondaries: (await listActiveSecondariesForPrimary(p.id)).filter(
-        (s) => s.disabledAt === null,
-      ),
+      secondaries: await listSecondariesForPrimary(p),
     })),
   );
 

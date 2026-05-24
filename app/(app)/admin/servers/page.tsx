@@ -18,7 +18,10 @@ import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { latestAdminEditTimestampsForServers } from "@/lib/db/repositories/audit-log";
 import { freshnessOf } from "@/lib/freshness";
 import { rawCache } from "@/lib/pdns/zone-state-cache";
-import { ensurePollerRunning } from "@/lib/realtime/zone-poller";
+import { derivedParentOf } from "@/lib/pdns/topology-cache";
+import { isReadOnlyMirror, summarizeCapabilities } from "@/lib/pdns/capabilities";
+import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
+import { backendUnreachability } from "@/lib/realtime/backend-status";
 import type { PdnsServer } from "@/lib/db/schema";
 import { TestServerButton } from "./_components/test-server-button";
 import { RefreshAllButton } from "./_components/refresh-all-button";
@@ -30,30 +33,64 @@ export default async function PdnsServersListPage() {
   const { ability } = await requireUserForPage({ can: "server.read" });
   const canCreate = ability.can("create", "Server");
   const canReadAudit = ability.can("read", "Audit");
-  // Heartbeat: keep the unified poller alive while operators are on this
-  // page so sync chips stay fresh without per-request PDNS calls.
-  ensurePollerRunning();
+  // Ask the broker to ensure a recent observation, then read its store — same
+  // source the zones list + bell read, so the three never disagree.
+  await ensureBackendsObserved();
   const servers = await listAllPdnsServers();
   const lastEdits =
     canReadAudit && servers.length > 0
       ? await latestAdminEditTimestampsForServers(servers.map((s) => s.id))
       : new Map<string, Date>();
-
-  // Build a primary→secondaries tree. Orphan secondaries (parent disabled
-  // or deleted) sort to the bottom as their own group so they remain
-  // visible + editable.
-  const primaries = servers.filter((s) => s.role === "primary");
-  const secondariesByPrimary = new Map<string, PdnsServer[]>();
-  const orphanSecondaries: PdnsServer[] = [];
+  // Live reachability per backend from the shared status store (the single
+  // source of truth for "reachable now"). Only down/auth entries are kept.
+  const reachability = new Map<string, "down" | "auth">();
   for (const s of servers) {
-    if (s.role !== "secondary") continue;
-    if (s.primaryId && primaries.some((p) => p.id === s.primaryId)) {
-      const arr = secondariesByPrimary.get(s.primaryId) ?? [];
-      arr.push(s);
-      secondariesByPrimary.set(s.primaryId, arr);
-    } else {
-      orphanSecondaries.push(s);
+    const u = backendUnreachability(s.id);
+    if (u) reachability.set(s.id, u);
+  }
+
+  // Build a primary→secondaries tree (ADR-0014). A secondary nests under its
+  // primary via EITHER explicit group membership OR the site-wide derived
+  // topology (poller-computed from masters[]) — so an ungrouped secondary that
+  // mirrors a managed primary still renders as its child, exactly as if grouped.
+  // Two kinds of "loose" secondary sort to the bottom as their own sections so
+  // they stay visible + editable:
+  //   - standalone — mirrors an external/unmanaged primary, NOT an error;
+  //   - orphaned — grouped but the group has no resolvable primary.
+  const primaries = servers.filter((s) => !isReadOnlyMirror(s.capabilities));
+  const primaryById = new Map(primaries.map((p) => [p.id, p]));
+  // First write target of each group represents it in the tree (multi-primary
+  // groups share storage, so any peer is an equivalent sync reference).
+  const primaryByCluster = new Map<string, PdnsServer>();
+  for (const p of primaries) {
+    if (p.clusterId && !primaryByCluster.has(p.clusterId)) primaryByCluster.set(p.clusterId, p);
+  }
+  const secondariesByPrimary = new Map<string, PdnsServer[]>();
+  const standaloneSecondaries: PdnsServer[] = [];
+  const orphanSecondaries: PdnsServer[] = [];
+  const nestUnder = (primaryId: string, s: PdnsServer): void => {
+    const arr = secondariesByPrimary.get(primaryId) ?? [];
+    arr.push(s);
+    secondariesByPrimary.set(primaryId, arr);
+  };
+  for (const s of servers) {
+    if (!isReadOnlyMirror(s.capabilities)) continue;
+    // 1. Explicit group membership.
+    const groupRep = s.clusterId ? primaryByCluster.get(s.clusterId) : undefined;
+    if (groupRep) {
+      nestUnder(groupRep.id, s);
+      continue;
     }
+    // 2. Derived parent from the site-wide topology (masters[]-based).
+    const derivedParentId = derivedParentOf(s.id);
+    const derivedParent = derivedParentId ? primaryById.get(derivedParentId) : undefined;
+    if (derivedParent) {
+      nestUnder(derivedParent.id, s);
+      continue;
+    }
+    // 3. Loose: grouped-but-unresolved → orphan; otherwise standalone.
+    if (s.clusterId) orphanSecondaries.push(s);
+    else standaloneSecondaries.push(s);
   }
 
   // Precompute sync chips for secondaries off the zone-state cache —
@@ -120,6 +157,7 @@ export default async function PdnsServersListPage() {
                       canReadAudit={canReadAudit}
                       lastEdits={lastEdits}
                       syncChip={null}
+                      reachability={reachability.get(primary.id)}
                     />
                     {kids.map((s) => (
                       <ServerRow
@@ -129,11 +167,35 @@ export default async function PdnsServersListPage() {
                         canReadAudit={canReadAudit}
                         lastEdits={lastEdits}
                         syncChip={syncBySecondary.get(s.id) ?? null}
+                        reachability={reachability.get(s.id)}
                       />
                     ))}
                   </Fragment>
                 );
               })}
+              {standaloneSecondaries.length > 0 ? (
+                <Fragment>
+                  <tr className="border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)]">
+                    <td
+                      colSpan={canReadAudit ? 7 : 6}
+                      className="px-4 py-1.5 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase"
+                    >
+                      Standalone secondaries (mirror an external / unmanaged primary)
+                    </td>
+                  </tr>
+                  {standaloneSecondaries.map((s) => (
+                    <ServerRow
+                      key={s.id}
+                      row={s}
+                      indented={true}
+                      canReadAudit={canReadAudit}
+                      lastEdits={lastEdits}
+                      syncChip={null}
+                      reachability={reachability.get(s.id)}
+                    />
+                  ))}
+                </Fragment>
+              ) : null}
               {orphanSecondaries.length > 0 ? (
                 <Fragment>
                   <tr className="border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)]">
@@ -152,6 +214,7 @@ export default async function PdnsServersListPage() {
                       canReadAudit={canReadAudit}
                       lastEdits={lastEdits}
                       syncChip={null}
+                      reachability={reachability.get(s.id)}
                     />
                   ))}
                 </Fragment>
@@ -165,21 +228,22 @@ export default async function PdnsServersListPage() {
 }
 
 /**
- * Per-row attention class. Active servers we've never reached OR not
- * reached in over 24h get a left-edge accent + subtle tinted
- * background, matching the dashboard PDNS attention widget (T-82)
- * tones. Same gating as `pdnsAttentionCounts` (both off `last_seen_at`)
- * so row highlights and the dashboard count agree. Disabled rows stay
- * neutral.
+ * Per-row attention tint, matching the row's status badge (and the dashboard
+ * attention widget) off the live reachability store: unreachable/auth → error,
+ * never-reached → warn, healthy/disabled → neutral. Keeping it on the same
+ * signal as the badge means the tint and the badge can't disagree.
  */
-function serverRowAttentionClass(disabledAt: Date | null, lastSeenAt: Date | null): string {
+function serverRowAttentionClass(
+  disabledAt: Date | null,
+  lastSeenAt: Date | null,
+  reachability: "down" | "auth" | undefined,
+): string {
   if (disabledAt) return "";
+  if (reachability) {
+    return "bg-[color:var(--color-error)]/5 border-l-2 border-l-[color:var(--color-error)]";
+  }
   if (!lastSeenAt) {
     return "bg-[color:var(--color-warn)]/5 border-l-2 border-l-[color:var(--color-warn)]";
-  }
-  const ageMs = Date.now() - lastSeenAt.getTime();
-  if (Number.isFinite(ageMs) && ageMs > 24 * 60 * 60 * 1000) {
-    return "bg-[color:var(--color-error)]/5 border-l-2 border-l-[color:var(--color-error)]";
   }
   return "";
 }
@@ -206,15 +270,30 @@ function EmptyState({ canCreate }: { canCreate: boolean }) {
 function HealthBadge({
   disabledAt,
   lastSeenAt,
+  reachability,
 }: {
   disabledAt: Date | null;
   lastSeenAt: Date | null;
+  /** Live reachability from the advisory signal — same source as the bell. */
+  reachability: "down" | "auth" | undefined;
 }) {
   if (disabledAt) {
     return (
       <span className="inline-flex items-center gap-1 text-xs">
         <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-fg-subtle)]" />
         Disabled
+      </span>
+    );
+  }
+  // Live unreachable/auth state from the (debounced) advisory signal takes
+  // precedence over the last-contact label — a backend the poller can no longer
+  // reach must read red here exactly as it does in the bell, never a stale
+  // "Reachable". Cleared the moment the poll reaches it again.
+  if (reachability) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-[color:var(--color-error)]">
+        <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-error)]" />
+        {reachability === "auth" ? "API rejected" : "Unreachable"}
       </span>
     );
   }
@@ -226,12 +305,9 @@ function HealthBadge({
       </span>
     );
   }
-  // Reachable + freshness label off `last_seen_at` — the last time the
-  // background poller (or a manual probe) successfully reached the
-  // backend, NOT the version-probe time. Under healthy polling this is
-  // always seconds old, so the label reads "· just now". The dot stays
-  // solid green whenever we've reached it at all; staleness is conveyed
-  // by the "· Xh ago" label, not by tinting the indicator.
+  // Reachable + a "last contact" label off `last_seen_at`. Under healthy polling
+  // this is always seconds old ("· just now"); the red state above (not this
+  // label) is what conveys an outage.
   const fresh = freshnessOf(lastSeenAt.toISOString());
   return (
     <span className="inline-flex items-center gap-1 text-xs">
@@ -250,14 +326,23 @@ interface ServerRowProps {
   canReadAudit: boolean;
   lastEdits: Map<string, Date>;
   syncChip: SyncVerdict | null;
+  reachability: "down" | "auth" | undefined;
 }
 
-function ServerRow({ row, indented, canReadAudit, lastEdits, syncChip }: ServerRowProps) {
+function ServerRow({
+  row,
+  indented,
+  canReadAudit,
+  lastEdits,
+  syncChip,
+  reachability,
+}: ServerRowProps) {
   return (
     <tr
       className={`border-t border-[color:var(--color-border)] ${serverRowAttentionClass(
         row.disabledAt,
         row.lastSeenAt,
+        reachability,
       )}`}
     >
       <td className={`px-4 py-3 ${indented ? "pl-10" : ""}`}>
@@ -270,12 +355,12 @@ function ServerRow({ row, indented, canReadAudit, lastEdits, syncChip }: ServerR
           <div className="font-medium">{row.name}</div>
           <span
             className={
-              row.role === "secondary"
-                ? "rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-1.5 py-0.5 text-[0.6rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase"
-                : "rounded-full border border-[color:var(--color-accent)] bg-[color-mix(in_oklch,var(--color-accent)_12%,transparent)] px-1.5 py-0.5 text-[0.6rem] font-medium tracking-wide text-[color:var(--color-accent)] uppercase"
+              isReadOnlyMirror(row.capabilities)
+                ? "rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-1.5 py-0.5 font-mono text-[0.6rem] font-medium text-[color:var(--color-fg-muted)]"
+                : "rounded-full border border-[color:var(--color-accent)] bg-[color-mix(in_oklch,var(--color-accent)_12%,transparent)] px-1.5 py-0.5 font-mono text-[0.6rem] font-medium text-[color:var(--color-accent)]"
             }
           >
-            {row.role}
+            {summarizeCapabilities(row.capabilities)}
           </span>
         </div>
         <div className="mt-0.5 text-xs text-[color:var(--color-fg-muted)]">
@@ -294,11 +379,15 @@ function ServerRow({ row, indented, canReadAudit, lastEdits, syncChip }: ServerR
       </td>
       <td className="px-4 py-3 font-mono text-xs">{row.baseUrl}</td>
       <td className="px-4 py-3">
-        <HealthBadge disabledAt={row.disabledAt} lastSeenAt={row.lastSeenAt} />
+        <HealthBadge
+          disabledAt={row.disabledAt}
+          lastSeenAt={row.lastSeenAt}
+          reachability={reachability}
+        />
       </td>
       <td className="px-4 py-3 text-xs">{row.versionCache?.version ?? "—"}</td>
       <td className="px-4 py-3 text-xs">
-        <SyncChip verdict={syncChip} role={row.role} />
+        <SyncChip verdict={syncChip} isMirror={isReadOnlyMirror(row.capabilities)} />
       </td>
       {canReadAudit ? (
         <td className="px-4 py-3 text-xs text-[color:var(--color-fg-muted)]">
@@ -326,8 +415,8 @@ function ServerRow({ row, indented, canReadAudit, lastEdits, syncChip }: ServerR
   );
 }
 
-function SyncChip({ verdict, role }: { verdict: SyncVerdict | null; role: string }) {
-  if (role !== "secondary") return <span className="text-[color:var(--color-fg-subtle)]">—</span>;
+function SyncChip({ verdict, isMirror }: { verdict: SyncVerdict | null; isMirror: boolean }) {
+  if (!isMirror) return <span className="text-[color:var(--color-fg-subtle)]">—</span>;
   if (verdict === null || verdict === "unknown") {
     return <span className="text-[color:var(--color-fg-muted)]">unknown</span>;
   }

@@ -1,0 +1,22 @@
+# PowerDNS Authoritative 4.8 compatibility. One workflow per version so each
+# gets its own live badge.svg (no committed JSON). Delegates to the reusable
+# pdns-compat-run.yml. Runs on minor/major release tags (vX.Y.0), monthly to
+# catch upstream `:latest` drift, and on demand.
+
+name: PowerDNS 4.8
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*.*.0"]
+  schedule:
+    - cron: "40 4 1 * *"
+
+permissions:
+  contents: read
+
+jobs:
+  compat:
+    uses: ./.github/workflows/pdns-compat-run.yml
+    with:
+      pdns_image: powerdns/pdns-auth-48:latest

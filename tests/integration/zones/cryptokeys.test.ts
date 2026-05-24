@@ -2,15 +2,16 @@
  * tests/integration/zones/cryptokeys.test.ts
  *
  * POST/PUT/DELETE /api/admin/pdns/zones/[zoneId]/cryptokeys — DNSSEC
- * key management. The test PDNS images don't have DNSSEC enabled at
- * the backend layer (`g*-dnssec=yes` is off in docker/pdns/*.conf),
- * so the happy-path "create a real key" assertion can't run here.
- * Instead we exercise:
+ * key management. DNSSEC is enabled on the test backends
+ * (`g*-dnssec=yes` in docker/pdns/*.conf), so this covers real key
+ * creation plus the permission + validation surface:
+ *   - POST generates an active key that PDNS then lists,
  *   - permission-gated 403 for under-privileged users,
- *   - the validation surface (bad cryptokey id → 400),
- *   - the 502 contract the route surfaces when PDNS refuses,
- *   - the direct-PDNS cryptokey listing (always empty here, but the
- *     plumbing is covered for completeness).
+ *   - the validation surface (bad cryptokey id / missing flags → 400).
+ *
+ * Full end-to-end signing — DNSKEY/RRSIG served over DNS and the
+ * presigned AXFR to a Secondary — lives in
+ * tests/integration/dns/dnssec.test.ts.
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
@@ -63,7 +64,7 @@ describe("DNSSEC cryptokeys route", () => {
     expect(keys).toEqual([]);
   }, 15_000);
 
-  it("POST surfaces PDNS' DNSSEC-disabled error as 502 (test stack has DNSSEC off)", async () => {
+  it("POST generates an active cryptokey that PDNS then lists", async () => {
     const admin = await loginAsBootstrap();
     const zone = randomZone();
     await createZone(admin, zone);
@@ -71,9 +72,20 @@ describe("DNSSEC cryptokeys route", () => {
       method: "POST",
       json: { serverSlug: "standalone", keytype: "ksk", algorithm: "ecdsa256" },
     });
-    expect(res.status).toBe(502);
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toMatch(/PDNS|DNSSEC/i);
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      ok: boolean;
+      cryptokey: { id: number; keytype: string; active: boolean };
+    };
+    expect(body.ok).toBe(true);
+    // PDNS reports a lone SEP key that signs the whole zone as a "csk"
+    // (it does both KSK + ZSK duty), even though we asked for "ksk" — so
+    // accept either. The point is a real, active key was generated.
+    expect(["ksk", "csk"]).toContain(body.cryptokey.keytype);
+    expect(body.cryptokey.active).toBe(true);
+
+    const keys = await pdnsListCryptokeys(zone);
+    expect(keys.some((k) => k.id === body.cryptokey.id)).toBe(true);
   }, 15_000);
 
   it("PUT with an invalid cryptokey id returns 400", async () => {

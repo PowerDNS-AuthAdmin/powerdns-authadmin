@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/client/api-fetch";
 import { SUPPORTED_TYPES, getRRTypeValidator } from "@/lib/validators/rr-types";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 interface TemplateRecord {
   name: string;
@@ -343,18 +344,14 @@ export function ZoneTemplateForm(props: Props) {
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Zone Type">
-            <select
+            <SelectMenu
               value={kind}
-              onChange={(e) => setKind(e.target.value)}
+              onChange={(v) => setKind(v)}
               disabled={!canEdit}
-              className={inputClass}
-            >
-              {ZONE_KIND_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              ariaLabel="Zone Type"
+              options={ZONE_KIND_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+              className="w-full"
+            />
           </Field>
           <Field label="API-RECTIFY">
             <label className="flex items-center gap-2">
@@ -368,32 +365,30 @@ export function ZoneTemplateForm(props: Props) {
             </label>
           </Field>
           <Field label="SOA-EDIT" hint="Algorithm for serials sent to secondaries.">
-            <select
+            <SelectMenu
               value={soaEdit}
-              onChange={(e) => setSoaEdit(e.target.value)}
+              onChange={(v) => setSoaEdit(v)}
               disabled={!canEdit}
-              className={inputClass}
-            >
-              {SOA_EDIT_OPTIONS.map((o) => (
-                <option key={o || "_unset"} value={o}>
-                  {o || "(server default)"}
-                </option>
-              ))}
-            </select>
+              ariaLabel="SOA-EDIT"
+              options={SOA_EDIT_OPTIONS.map((o) => ({
+                value: o,
+                label: o || "(server default)",
+              }))}
+              className="w-full"
+            />
           </Field>
           <Field label="SOA-EDIT-API" hint="Algorithm for serial bumps after API edits.">
-            <select
+            <SelectMenu
               value={soaEditApi}
-              onChange={(e) => setSoaEditApi(e.target.value)}
+              onChange={(v) => setSoaEditApi(v)}
               disabled={!canEdit}
-              className={inputClass}
-            >
-              {SOA_EDIT_API_OPTIONS.map((o) => (
-                <option key={o || "_unset"} value={o}>
-                  {o || "(server default)"}
-                </option>
-              ))}
-            </select>
+              ariaLabel="SOA-EDIT-API"
+              options={SOA_EDIT_API_OPTIONS.map((o) => ({
+                value: o,
+                label: o || "(server default)",
+              }))}
+              className="w-full"
+            />
           </Field>
         </div>
       </Section>
@@ -482,18 +477,14 @@ export function ZoneTemplateForm(props: Props) {
                     placeholder="@"
                     className={`${inputClass} font-mono`}
                   />
-                  <select
+                  <SelectMenu
                     value={r.type}
-                    onChange={(e) => setRecord(i, { type: e.target.value, content: "" })}
+                    onChange={(v) => setRecord(i, { type: v, content: "" })}
                     disabled={!canEdit}
-                    className={inputClass}
-                  >
-                    {SUPPORTED_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
+                    ariaLabel="Record type"
+                    options={SUPPORTED_TYPES.map((t) => ({ value: t, label: t }))}
+                    className="w-full"
+                  />
                   <input
                     type="number"
                     min={0}

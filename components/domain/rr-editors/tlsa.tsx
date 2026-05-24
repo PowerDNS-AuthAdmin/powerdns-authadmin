@@ -9,6 +9,7 @@
 
 import type { RREditor } from "./types";
 import { Field, inputClass } from "./_form";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 export interface TlsaStruct {
   usage: number;
@@ -54,43 +55,31 @@ function tlsaImpl(type: "TLSA" | "SMIMEA"): RREditor<TlsaStruct> {
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
             <Field label="Usage">
-              <select
-                value={value.usage}
-                onChange={(e) => onChange({ ...value, usage: Number(e.target.value) })}
-                className={inputClass}
-              >
-                {USAGE.map((u) => (
-                  <option key={u.value} value={u.value}>
-                    {u.label}
-                  </option>
-                ))}
-              </select>
+              <SelectMenu
+                value={String(value.usage)}
+                onChange={(v) => onChange({ ...value, usage: Number(v) })}
+                options={USAGE.map((u) => ({ value: String(u.value), label: u.label }))}
+                ariaLabel="Usage"
+                className="w-full"
+              />
             </Field>
             <Field label="Selector">
-              <select
-                value={value.selector}
-                onChange={(e) => onChange({ ...value, selector: Number(e.target.value) })}
-                className={inputClass}
-              >
-                {SELECTOR.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
+              <SelectMenu
+                value={String(value.selector)}
+                onChange={(v) => onChange({ ...value, selector: Number(v) })}
+                options={SELECTOR.map((s) => ({ value: String(s.value), label: s.label }))}
+                ariaLabel="Selector"
+                className="w-full"
+              />
             </Field>
             <Field label="Matching type">
-              <select
-                value={value.matchingType}
-                onChange={(e) => onChange({ ...value, matchingType: Number(e.target.value) })}
-                className={inputClass}
-              >
-                {MATCHING.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+              <SelectMenu
+                value={String(value.matchingType)}
+                onChange={(v) => onChange({ ...value, matchingType: Number(v) })}
+                options={MATCHING.map((m) => ({ value: String(m.value), label: m.label }))}
+                ariaLabel="Matching type"
+                className="w-full"
+              />
             </Field>
           </div>
           <Field label="Certificate association data" hint="Hex.">

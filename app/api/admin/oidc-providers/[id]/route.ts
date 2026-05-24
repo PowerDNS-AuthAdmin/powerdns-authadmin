@@ -27,6 +27,7 @@ import {
 import { updateOidcProviderSchema } from "@/lib/validators/oidc-providers";
 import { invalidateOidcConfigCache } from "@/lib/auth/providers/oidc";
 import { probeOidcDiscovery } from "@/lib/auth/providers/oidc-probe";
+import { assertSafeOidcIssuerUrl } from "@/lib/auth/providers/oidc-url-safety";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 import { logger } from "@/lib/logger";
@@ -54,6 +55,11 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
         });
       }
       throw err;
+    }
+
+    // SSRF guard before persisting a changed issuer (it's fetched server-side).
+    if (input.issuerUrl !== undefined && input.issuerUrl !== existing.issuerUrl) {
+      await assertSafeOidcIssuerUrl(input.issuerUrl);
     }
 
     const patch: Parameters<typeof updateOidcProvider>[1] = {};

@@ -14,7 +14,7 @@
  */
 
 import "server-only";
-import { and, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { auditLog } from "@/lib/db/schema";
 import { users } from "@/lib/db/schema";
@@ -36,13 +36,27 @@ import { escapeLikePattern } from "./audit-like";
  * explicit `ESCAPE '\'` so the escaping is honored on SQLite (no default escape
  * char) and a no-op on Postgres (backslash is already its default).
  */
-function zoneResourceScope(serverSlug: string, zoneName: string): SQL {
-  const prefix = `${serverSlug}:${zoneName}`;
-  const childPattern = `${escapeLikePattern(prefix)}:%`;
-  return or(
-    eq(auditLog.resourceId, prefix),
-    sql`${auditLog.resourceId} LIKE ${childPattern} ESCAPE '\\'`,
-  )!;
+/**
+ * Match audit rows for a zone across one or more backend slugs. Multiple slugs
+ * matter for a multi-primary cluster: writes route through a rotating peer
+ * (`choosePeer`), so a zone's edits are scattered across every peer's slug —
+ * scoping to a single one would show an empty / partial change history.
+ */
+function zoneResourceScope(serverSlugs: readonly string[], zoneName: string): SQL {
+  const scopes = serverSlugs.map((slug) => {
+    const prefix = `${slug}:${zoneName}`;
+    const childPattern = `${escapeLikePattern(prefix)}:%`;
+    return or(
+      eq(auditLog.resourceId, prefix),
+      sql`${auditLog.resourceId} LIKE ${childPattern} ESCAPE '\\'`,
+    )!;
+  });
+  return (scopes.length === 1 ? scopes[0] : or(...scopes))!;
+}
+
+/** Normalize a single-slug-or-list argument to a non-empty slug array. */
+function toSlugs(serverSlug: string | readonly string[]): readonly string[] {
+  return typeof serverSlug === "string" ? [serverSlug] : serverSlug;
 }
 
 /**
@@ -87,7 +101,7 @@ export interface ZoneAuditEntry {
  * null email + name.
  */
 export async function zoneAuditLog(
-  serverSlug: string,
+  serverSlug: string | readonly string[],
   zoneName: string,
   limit = 100,
 ): Promise<ZoneAuditEntry[]> {
@@ -111,7 +125,7 @@ export async function zoneAuditLog(
     .where(
       and(
         or(eq(auditLog.resourceType, "rrset"), eq(auditLog.resourceType, "zone")),
-        zoneResourceScope(serverSlug, zoneName),
+        zoneResourceScope(toSlugs(serverSlug), zoneName),
       ),
     )
     .orderBy(desc(auditLog.ts))
@@ -137,7 +151,7 @@ export async function zoneAuditLog(
  * sent / DNSSEC ops" without a separate query per category.
  */
 export async function zoneAuditCounts7d(
-  serverSlug: string,
+  serverSlug: string | readonly string[],
   zoneName: string,
 ): Promise<{
   recordCreate: number;
@@ -155,9 +169,11 @@ export async function zoneAuditCounts7d(
     .from(auditLog)
     .where(
       and(
-        sql`${auditLog.ts} >= ${new Date(sinceMs)}`,
+        // Use gte() (not a raw sql`` template) so the column's encoder maps the
+        // Date for each dialect — SQLite can't bind a raw Date object.
+        gte(auditLog.ts, new Date(sinceMs)),
         or(eq(auditLog.resourceType, "rrset"), eq(auditLog.resourceType, "zone")),
-        zoneResourceScope(serverSlug, zoneName),
+        zoneResourceScope(toSlugs(serverSlug), zoneName),
       ),
     )
     .groupBy(auditLog.action);
@@ -185,7 +201,7 @@ export async function zoneAuditCounts7d(
 }
 
 export async function latestZoneEdit(
-  serverSlug: string,
+  serverSlug: string | readonly string[],
   zoneName: string,
 ): Promise<ZoneAuditEntry | null> {
   const rows = await db
@@ -208,7 +224,7 @@ export async function latestZoneEdit(
     .where(
       and(
         or(eq(auditLog.resourceType, "rrset"), eq(auditLog.resourceType, "zone")),
-        zoneResourceScope(serverSlug, zoneName),
+        zoneResourceScope(toSlugs(serverSlug), zoneName),
         // Exclude the notify side-effect rows from "what was the
         // last real edit" — they aren't operator actions, just
         // automated downstream effects of the actual writes.

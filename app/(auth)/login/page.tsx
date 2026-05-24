@@ -17,6 +17,7 @@ import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { listEnabledOidcProviders } from "@/lib/db/repositories/oidc-providers";
 import { envOidcProviderSummary } from "@/lib/auth/providers/oidc";
 import { getAppSettings } from "@/lib/settings/app-settings";
+import { safeNextPath } from "@/lib/auth/safe-redirect";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -44,6 +45,11 @@ export default async function LoginPage({
     "force-local": forceLocal,
   } = await searchParams;
   const { loginIntro, allowPasswordReset } = await getAppSettings();
+
+  // Validate the attempted-destination param once (open-redirect guard, L-2).
+  // Carried through the local + OIDC flows; empty when it's just the default.
+  const safeNext = safeNextPath(next);
+  const nextParam = safeNext !== "/dashboard" ? `?next=${encodeURIComponent(safeNext)}` : "";
 
   // The env-configured provider (read-only, "Configured by ENV") is offered
   // alongside DB providers, not as a hidden fallback. A DB provider with the
@@ -75,9 +81,7 @@ export default async function LoginPage({
       .filter((p) => p.forceDefault)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
     if (forceProvider) {
-      const target = `/api/auth/oidc/${forceProvider.slug}/initiate${
-        next ? `?next=${encodeURIComponent(next)}` : ""
-      }`;
+      const target = `/api/auth/oidc/${forceProvider.slug}/initiate${nextParam}`;
       redirect(target);
     }
   }
@@ -116,9 +120,7 @@ export default async function LoginPage({
           {oidcProviders.map((p) => (
             <a
               key={p.id}
-              href={`/api/auth/oidc/${p.id}/initiate${
-                next ? `?next=${encodeURIComponent(next)}` : ""
-              }`}
+              href={`/api/auth/oidc/${p.id}/initiate${nextParam}`}
               className="flex w-full items-center justify-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-4 py-2 text-sm font-medium hover:bg-[color:var(--color-bg-muted)]"
             >
               {p.iconUrl ? (
@@ -148,7 +150,7 @@ export default async function LoginPage({
 
       {env.LOCAL_AUTH_ENABLED ? (
         <>
-          <LoginForm turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined} />
+          <LoginForm turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined} next={safeNext} />
           {allowPasswordReset ? (
             <p className="mt-3 text-xs text-[color:var(--color-fg-muted)]">
               <Link href="/reset-password" className="underline">

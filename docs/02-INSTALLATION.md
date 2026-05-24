@@ -9,6 +9,8 @@ automatically on boot, so a fresh container comes up ready to use.
   separate database service.
 - **Postgres** — multi-instance, write-concurrent, the production default for
   teams. Boots are serialised by an advisory lock so multiple replicas are safe.
+  For replicas > 1 also set `REDIS_URL` (cross-replica rate limiting, reveal
+  tokens, and live updates) — see [High availability](../README.md#high-availability-replicas--1).
 
 Switching dialects later is a fresh install — the two schema histories don't
 share migrations. Pick one up front.

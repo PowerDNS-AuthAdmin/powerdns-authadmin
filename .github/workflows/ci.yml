@@ -101,6 +101,11 @@ jobs:
   integration-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Every-push integration runs against ONE pinned PowerDNS image (the same
+    # one the demo stack ships) to keep PR/main CI fast. The FULL supported
+    # range (4.6 → 5.0) is exercised by the separate `pdns-compat.yml` workflow
+    # on minor/major releases (+ monthly + manual), which also publishes the
+    # per-version compatibility badges. See that workflow for the why.
     steps:
       - uses: actions/checkout@v4
 
@@ -112,14 +117,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Integration suite (full stack via docker compose)
-        # docker-compose-combined.yml requires these two via ${VAR:?} at compose
-        # INTERPOLATION time (the test override then replaces them with
-        # deterministic per-container test values). Locally they come from a
-        # .env file; in CI we pass them here so `docker compose` can parse.
+      - name: Integration suite (full stack via docker compose, PDNS 4.9)
+        # docker-compose-combined.yml requires the two secrets via ${VAR:?} at
+        # compose INTERPOLATION time (the test override then replaces them with
+        # deterministic per-container test values). PDNS_AUTH_IMAGE selects the
+        # PowerDNS image.
         env:
           APP_SECRET_KEY: kQNFuuPJLRHE1qsbUgXQDMAcgsg2kxVip34yE9ydwS8=
           APP_ENCRYPTION_KEY: n+ZccvIUcG6XoJ2qoUtaPtk7tme1n5NbT3QXkiHBs4M=
+          PDNS_AUTH_IMAGE: powerdns/pdns-auth-49:latest
         run: npm run test:integration
 
   # -------------------------------------------------------------------------

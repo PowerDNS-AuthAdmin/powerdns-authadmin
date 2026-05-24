@@ -38,6 +38,7 @@ import * as pgAuditLog from "./audit-log";
 import * as pgPdnsServers from "./pdns-servers";
 import * as pgPdnsClusters from "./pdns-clusters";
 import * as pgMetricSamples from "./metric-samples";
+import * as pgBackendAdvisories from "./backend-advisories";
 import * as pgSettings from "./settings";
 import * as pgOidcProviders from "./oidc-providers";
 import * as pgZoneTemplates from "./zone-templates";
@@ -56,6 +57,7 @@ import * as sqliteAuditLog from "@/lib/db/schema-sqlite/audit-log";
 import * as sqlitePdnsServers from "@/lib/db/schema-sqlite/pdns-servers";
 import * as sqlitePdnsClusters from "@/lib/db/schema-sqlite/pdns-clusters";
 import * as sqliteMetricSamples from "@/lib/db/schema-sqlite/metric-samples";
+import * as sqliteBackendAdvisories from "@/lib/db/schema-sqlite/backend-advisories";
 import * as sqliteSettings from "@/lib/db/schema-sqlite/settings";
 import * as sqliteOidcProviders from "@/lib/db/schema-sqlite/oidc-providers";
 import * as sqliteZoneTemplates from "@/lib/db/schema-sqlite/zone-templates";
@@ -119,7 +121,6 @@ export type NewAuditEntry = pgAuditLog.NewAuditEntry;
 
 // --- pdns_servers ---
 export const pdnsServers = pick(pgPdnsServers.pdnsServers, sqlitePdnsServers.pdnsServers);
-export const pdnsServerRoleEnum = pgPdnsServers.pdnsServerRoleEnum;
 
 // --- pdns_clusters ---
 export const pdnsClusters = pick(pgPdnsClusters.pdnsClusters, sqlitePdnsClusters.pdnsClusters);
@@ -129,12 +130,20 @@ export type NewPdnsCluster = pgPdnsClusters.NewPdnsCluster;
 export type PdnsClusterWriteStrategy = pgPdnsClusters.PdnsClusterWriteStrategy;
 export type PdnsServer = pgPdnsServers.PdnsServer;
 export type NewPdnsServer = pgPdnsServers.NewPdnsServer;
-export type { PdnsVersionCache } from "@/lib/pdns/types";
+export type { PdnsVersionCache, PdnsDaemonCapabilities } from "@/lib/pdns/types";
 
 // --- metric_samples ---
 export const metricSamples = pick(pgMetricSamples.metricSamples, sqliteMetricSamples.metricSamples);
 export type MetricSample = pgMetricSamples.MetricSample;
 export type NewMetricSample = pgMetricSamples.NewMetricSample;
+
+// --- backend_advisories ---
+export const backendAdvisories = pick(
+  pgBackendAdvisories.backendAdvisories,
+  sqliteBackendAdvisories.backendAdvisories,
+);
+export type BackendAdvisory = pgBackendAdvisories.BackendAdvisory;
+export type NewBackendAdvisory = pgBackendAdvisories.NewBackendAdvisory;
 
 // --- settings ---
 export const settings = pick(pgSettings.settings, sqliteSettings.settings);

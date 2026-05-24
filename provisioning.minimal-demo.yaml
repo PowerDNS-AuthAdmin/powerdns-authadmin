@@ -18,7 +18,6 @@ pdns_servers:
     server_id: localhost
     # Must match the pdns service's --api-key in docker-compose.yml.
     api_key: demo-pdns-api-key
-    role: primary
     is_default: true
 
 demo_zones:

@@ -21,7 +21,7 @@ import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { mint } from "@/lib/auth/temp-reveal-store";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { errorResponse } from "@/lib/http/error-response";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 
@@ -69,7 +69,7 @@ export async function POST(request: Request): Promise<Response> {
     if (selected?.disabledAt !== null) {
       throw new NotFoundError("No PDNS backend selected.");
     }
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
 
     // The created detail carries the freshly generated secret in `key`.
     // We destructure it out before any audit / log / response path
@@ -83,7 +83,7 @@ export async function POST(request: Request): Promise<Response> {
 
     // Mint a reveal token bound to this operator's user-id. The token
     // is single-use, actor-bound, and expires in 300s.
-    const { token: revealToken, expiresInSec } = mint({
+    const { token: revealToken, expiresInSec } = await mint({
       plaintext: plaintextSecret,
       allowedActorId: actor.id,
     });

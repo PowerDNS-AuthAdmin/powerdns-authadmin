@@ -20,6 +20,8 @@ import { checkMfaCompliance } from "@/lib/auth/mfa-compliance";
 import { listRoleMfaStatesForUser } from "@/lib/db/repositories/roles";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UserMenu } from "@/components/ui/user-menu";
+import { HealthBell } from "@/components/domain/health-bell";
+import { listActiveAdvisories } from "@/lib/db/repositories/backend-advisories";
 import { BrandMark } from "@/components/ui/brandmark";
 import { DialogProvider } from "@/components/ui/dialog";
 import { FlashListener } from "@/components/ui/flash-listener";
@@ -41,7 +43,11 @@ const MFA_REQUIRED_ALLOWLIST: readonly string[] = [
 export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const current = await getCurrentUser();
   if (!current) {
-    redirect("/login");
+    // Remember where they were headed so login can shunt them straight there
+    // (L-2). The middleware forwards the pathname via `x-pathname`.
+    const attempted = (await headers()).get("x-pathname");
+    const next = attempted && attempted !== "/" ? `?next=${encodeURIComponent(attempted)}` : "";
+    redirect(`/login${next}`);
   }
 
   // Required-MFA-per-role enforcement. When any of the
@@ -80,6 +86,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   const canReadZones = current.ability.can("read", "Zone");
   const canReadServers = current.ability.can("read", "Server");
+  const canReadTsig = current.ability.can("read", "Tsig");
+  const canManageAutoprimary = current.ability.can("manage", "Autoprimary");
   const canReadUsers = current.ability.can("read", "User");
   const canReadRoles = current.ability.can("read", "Role");
   const canReadTeams = current.ability.can("read", "Team");
@@ -87,15 +95,27 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const canReadSettings = current.ability.can("read", "Settings");
   const canReadOidc = current.ability.can("read", "Oidc");
   const canUseTemplates = current.ability.can("use", "Template");
-  const hasAdminSection =
-    canReadServers ||
-    canReadUsers ||
-    canReadRoles ||
-    canReadTeams ||
-    canReadAudit ||
-    canReadSettings ||
-    canReadOidc ||
-    canUseTemplates;
+
+  // Health-bell advisories (ADR-0015) — only for users who can read backends.
+  const advisories = canReadServers
+    ? (await listActiveAdvisories()).map((a) => ({
+        id: a.id,
+        backendId: a.backendId,
+        backendName: a.backendName,
+        severity: a.severity,
+        title: a.title,
+        detail: a.detail,
+        acknowledged: a.acknowledgedAt !== null,
+      }))
+    : [];
+
+  // Sidebar is grouped by function (Infrastructure / Access / System) rather
+  // than one flat "Admin" pile. Each group renders only when the user can see
+  // at least one of its children.
+  const hasInfrastructure =
+    canReadServers || canReadTsig || canManageAutoprimary || canUseTemplates;
+  const hasAccess = canReadUsers || canReadRoles || canReadTeams || canReadOidc;
+  const hasSystem = canReadSettings || canReadAudit;
 
   return (
     <DialogProvider>
@@ -123,27 +143,46 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             <nav className="flex-1 space-y-1 overflow-y-auto p-3 text-sm">
               <NavLink href="/dashboard" label="Dashboard" />
               {canReadZones ? <NavLink href="/zones" label="Zones" /> : null}
-              {hasAdminSection ? (
-                <NavSection label="Admin">
-                  {canReadUsers ? <NavLink href="/admin/users" label="Users" /> : null}
-                  {canReadRoles ? <NavLink href="/admin/roles" label="Roles" /> : null}
-                  {canReadTeams ? <NavLink href="/admin/teams" label="Teams" /> : null}
+
+              {hasInfrastructure ? (
+                <NavSection label="Infrastructure">
                   {canReadServers ? (
-                    <NavLink href="/admin/servers" label="PowerDNS servers" />
+                    <NavLink nested href="/admin/servers" label="PowerDNS servers" />
                   ) : null}
                   {canReadServers ? (
-                    <NavLink href="/admin/pdns-clusters" label="PowerDNS clusters" />
+                    <NavLink nested href="/admin/pdns-clusters" label="Groups" />
                   ) : null}
-                  {canReadOidc ? (
-                    <NavLink href="/admin/oidc-providers" label="OIDC providers" />
+                  {canReadTsig ? (
+                    <NavLink nested href="/admin/tsig-keys" label="TSIG keys" />
+                  ) : null}
+                  {canManageAutoprimary ? (
+                    <NavLink nested href="/admin/autoprimaries" label="Autoprimaries" />
                   ) : null}
                   {canUseTemplates ? (
-                    <NavLink href="/admin/zone-templates" label="Zone templates" />
+                    <NavLink nested href="/admin/zone-templates" label="Zone templates" />
                   ) : null}
-                  {canReadSettings ? <NavLink href="/admin/settings" label="Settings" /> : null}
-                  {canReadAudit ? <NavLink href="/admin/audit" label="Audit log" /> : null}
+                </NavSection>
+              ) : null}
+
+              {hasAccess ? (
+                <NavSection label="Access">
+                  {canReadUsers ? <NavLink nested href="/admin/users" label="Users" /> : null}
+                  {canReadTeams ? <NavLink nested href="/admin/teams" label="Teams" /> : null}
+                  {canReadRoles ? <NavLink nested href="/admin/roles" label="Roles" /> : null}
+                  {canReadOidc ? (
+                    <NavLink nested href="/admin/oidc-providers" label="OIDC providers" />
+                  ) : null}
+                </NavSection>
+              ) : null}
+
+              {hasSystem ? (
+                <NavSection label="System">
+                  {canReadSettings ? (
+                    <NavLink nested href="/admin/settings" label="Settings" />
+                  ) : null}
+                  {canReadAudit ? <NavLink nested href="/admin/audit" label="Audit log" /> : null}
                   {canReadAudit ? (
-                    <NavLink href="/admin/pdns-requests" label="PowerDNS requests" />
+                    <NavLink nested href="/admin/pdns-requests" label="Request log" />
                   ) : null}
                 </NavSection>
               ) : null}
@@ -152,6 +191,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           </aside>
 
           <header className="flex h-14 items-center justify-end gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4">
+            {canReadServers ? <HealthBell advisories={advisories} /> : null}
             <ThemeToggle />
             <UserMenu email={current.user.email} name={current.user.name} />
           </header>
@@ -165,11 +205,11 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
 function NavSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="pt-4">
-      <div className="px-3 pb-1 text-xs font-medium tracking-wide text-[color:var(--color-fg-subtle)] uppercase">
+    <div className="pt-5">
+      <div className="px-3 pb-1 text-[0.7rem] font-semibold tracking-wider text-[color:var(--color-fg)] uppercase">
         {label}
       </div>
-      <div className="space-y-1">{children}</div>
+      <div className="space-y-0.5">{children}</div>
     </div>
   );
 }

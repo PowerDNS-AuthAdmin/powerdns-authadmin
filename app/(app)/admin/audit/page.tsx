@@ -15,6 +15,7 @@ import { queryAuditLog } from "@/lib/db/repositories/audit";
 import { AUDIT_ACTIONS } from "@/lib/audit/actions";
 import { auditQuerySchema } from "@/lib/validators/audit";
 import { BareDiff } from "@/app/(app)/zones/[zoneId]/_components/bare-diff";
+import { Disclosure } from "@/components/ui/disclosure";
 import {
   PdnsHttpLog,
   type PdnsHttpLogEntry,
@@ -406,18 +407,17 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
                   </td>
                   <td className="px-4 py-3 text-xs">
                     {entry.before || entry.after ? (
-                      <details className="space-y-1">
-                        <summary className="cursor-pointer text-[color:var(--color-accent)] hover:underline">
-                          before/after
-                        </summary>
-                        <div className="mt-1 max-w-md overflow-hidden rounded border border-[color:var(--color-border)]">
-                          <BareDiff
-                            removed={jsonToDiffLines(entry.before)}
-                            added={jsonToDiffLines(entry.after)}
-                            layout="stacked"
-                          />
-                        </div>
-                      </details>
+                      <Disclosure
+                        label="before/after"
+                        className="space-y-1"
+                        bodyClassName="mt-1 max-w-md overflow-hidden rounded border border-[color:var(--color-border)]"
+                      >
+                        <BareDiff
+                          removed={jsonToDiffLines(entry.before)}
+                          added={jsonToDiffLines(entry.after)}
+                          layout="stacked"
+                        />
+                      </Disclosure>
                     ) : null}
                     {(() => {
                       const httpEntries = httpEntriesFor(entry.requestId, entry.action);

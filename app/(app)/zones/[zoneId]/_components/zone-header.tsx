@@ -59,7 +59,7 @@ export function ZoneHeader({
       <header className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h1 className="font-mono text-2xl font-semibold tracking-tight">{zone.name}</h1>
-          <ZoneRealtimeSubscriber serverSlug={server.slug} zoneName={zone.name} inSync={inSync} />
+          <ZoneRealtimeSubscriber zoneName={zone.name} inSync={inSync} />
         </div>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
           <Stat label="Kind" value={zone.kind} />

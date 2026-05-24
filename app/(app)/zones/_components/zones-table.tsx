@@ -13,6 +13,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
+import { Lock, Unlock } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { freshnessOf, freshnessOfDay } from "@/lib/freshness";
 import { isReverseZone } from "@/lib/dns/zone-kind";
@@ -22,6 +23,31 @@ const SCOPE_STORAGE_KEY = "pda.zones.scope";
 
 function isValidScope(s: unknown): s is ScopeFilter {
   return s === "all" || s === "forward" || s === "reverse";
+}
+
+/**
+ * DNSSEC status cell: a green closed padlock when the zone is signed, a
+ * muted open padlock when it isn't — quicker to scan down the column than
+ * "on"/"off" text. Title + sr-only text keep it accessible.
+ */
+function DnssecCell({ on }: { on: boolean }) {
+  return on ? (
+    <span
+      className="inline-flex items-center gap-1 text-xs text-[color:var(--color-success)]"
+      title="DNSSEC signed"
+    >
+      <Lock aria-hidden className="h-3.5 w-3.5" />
+      <span className="sr-only">DNSSEC on</span>
+    </span>
+  ) : (
+    <span
+      className="inline-flex items-center gap-1 text-xs text-[color:var(--color-fg-subtle)]"
+      title="DNSSEC off"
+    >
+      <Unlock aria-hidden className="h-3.5 w-3.5" />
+      <span className="sr-only">DNSSEC off</span>
+    </span>
+  );
 }
 
 export interface ZoneRow {
@@ -77,6 +103,9 @@ export interface ZoneRow {
   /** Worst sync state across peers (drives the column's color). Null
    *  means "no peers to compare" → the Sync cell renders "—". */
   syncWorst: "in-sync" | "ahead" | "lagging" | "missing" | "error" | null;
+  /** True when this row is a read-only mirror (an unpinned secondary's zone
+   *  that no primary serves). The row links to a read-only zone detail. */
+  readOnly?: boolean;
 }
 
 interface ZonesTableProps {
@@ -126,6 +155,14 @@ export function ZonesTable({ zones, showLastEdit }: ZonesTableProps) {
                   cluster
                 </span>
               ) : null}
+              {row.readOnly ? (
+                <span
+                  className="ml-2 rounded bg-[color:var(--color-bg-muted)] px-1 py-0.5 font-mono text-[0.625rem] tracking-wide text-[color:var(--color-fg-muted)] uppercase"
+                  title="Read-only mirror — unpinned secondary"
+                >
+                  read-only
+                </span>
+              ) : null}
             </span>
           );
         },
@@ -149,7 +186,7 @@ export function ZonesTable({ zones, showLastEdit }: ZonesTableProps) {
       {
         accessorKey: "dnssec",
         header: "DNSSEC",
-        cell: (ctx) => <span className="text-xs">{ctx.getValue<boolean>() ? "on" : "off"}</span>,
+        cell: (ctx) => <DnssecCell on={ctx.getValue<boolean>()} />,
         meta: { className: "w-[8%]" },
       },
       {

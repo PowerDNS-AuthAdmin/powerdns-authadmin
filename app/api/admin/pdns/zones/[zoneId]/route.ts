@@ -19,7 +19,7 @@ import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { PdnsError, PdnsNotFoundError } from "@/lib/pdns/errors";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { redact } from "@/lib/errors/redact";
@@ -60,7 +60,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
       throw new NotFoundError("No PDNS backend selected.");
     }
 
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
     const zoneName = decodeURIComponent(zoneId);
 
     if (

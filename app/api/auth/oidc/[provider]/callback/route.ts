@@ -30,6 +30,7 @@ import {
   resolveOidcProvider,
 } from "@/lib/auth/providers/oidc";
 import { applyGroupSync } from "@/lib/auth/providers/oidc-group-sync";
+import { safeNextPath } from "@/lib/auth/safe-redirect";
 import { startSession } from "@/lib/auth/session";
 import { findUserByEmail, insertUser, recordSuccessfulLogin } from "@/lib/db/repositories/users";
 
@@ -37,6 +38,7 @@ const OIDC_STATE_COOKIE = "pda_oidc_state";
 const OIDC_PKCE_COOKIE = "pda_oidc_pkce";
 const OIDC_NONCE_COOKIE = "pda_oidc_nonce";
 const OIDC_SLUG_COOKIE = "pda_oidc_slug";
+const OIDC_NEXT_COOKIE = "pda_oidc_next";
 
 function failRedirect(reason: string): Response {
   const target = new URL(`${env.APP_URL}/login`);
@@ -55,11 +57,14 @@ export async function GET(
   const codeVerifier = cookieStore.get(OIDC_PKCE_COOKIE)?.value;
   const nonce = cookieStore.get(OIDC_NONCE_COOKIE)?.value;
   const slugFromCookie = cookieStore.get(OIDC_SLUG_COOKIE)?.value;
+  // Attempted destination (L-2), validated below before use.
+  const nextFromCookie = cookieStore.get(OIDC_NEXT_COOKIE)?.value;
   // Clear the short-lived cookies immediately, regardless of outcome.
   cookieStore.delete(OIDC_STATE_COOKIE);
   cookieStore.delete(OIDC_PKCE_COOKIE);
   cookieStore.delete(OIDC_NONCE_COOKIE);
   cookieStore.delete(OIDC_SLUG_COOKIE);
+  cookieStore.delete(OIDC_NEXT_COOKIE);
 
   // The slug we trust is the one we stored at initiate-time, not the path
   // segment — defends against an attacker swapping `<provider>` in the URL
@@ -282,5 +287,5 @@ export async function GET(
     "auth.oidc.success",
   );
 
-  return Response.redirect(`${env.APP_URL}/dashboard`, 302);
+  return Response.redirect(`${env.APP_URL}${safeNextPath(nextFromCookie)}`, 302);
 }

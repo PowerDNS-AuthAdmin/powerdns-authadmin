@@ -37,7 +37,8 @@ import { errorResponse } from "@/lib/http/error-response";
 import { logger } from "@/lib/logger";
 import { redact } from "@/lib/errors/redact";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { assertEditableZoneKind } from "@/lib/pdns/writable-kind";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { normalizeZoneId } from "@/lib/pdns/client";
 import { deleteRRset, replaceRRset, zonePatchBody, type RRsetPatch } from "@/lib/pdns/rrsets";
 import { detectRRsetConflicts } from "@/lib/pdns/rrset-hash";
@@ -47,6 +48,27 @@ import { patchRRsetsSchema } from "@/lib/validators/rrsets";
 
 interface RouteContext {
   params: Promise<{ zoneId: string }>;
+}
+
+/**
+ * Drop duplicate-content records from an RRset. PowerDNS rejects an RRset that
+ * carries the same content twice ("Duplicate record in RRset …"), which happens
+ * naturally when an operator edits one record to a value another record in the
+ * same RRset already holds. Deduping makes that edit MERGE — the same net result
+ * the Review-changes diff already shows — instead of failing on apply. First
+ * occurrence wins (preserves order); a present `disabled:false` beats a later
+ * disabled duplicate so a merge doesn't silently disable the record.
+ */
+function dedupeRecordsByContent<T extends { content: string; disabled?: boolean }>(
+  records: readonly T[],
+): T[] {
+  const byContent = new Map<string, T>();
+  for (const r of records) {
+    const existing = byContent.get(r.content);
+    if (!existing) byContent.set(r.content, r);
+    else if (existing.disabled && !r.disabled) byContent.set(r.content, r);
+  }
+  return [...byContent.values()];
 }
 
 export async function PATCH(request: Request, context: RouteContext): Promise<Response> {
@@ -103,7 +125,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       throw new ForbiddenError("Missing record.delete.");
     }
 
-    const client = getPdnsClientForRow(server);
+    const client = getBackendGateway(server);
     let zoneBefore;
     try {
       zoneBefore = await client.getZone(zoneName);
@@ -116,6 +138,11 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       }
       throw err;
     }
+
+    // Read-only-by-kind: a Slave/Secondary/Consumer zone's records are owned by
+    // its primary over AXFR, so reject content edits regardless of the backend's
+    // role (a primary box can still host mirror zones).
+    assertEditableZoneKind(zoneBefore.kind);
 
     // NOTE: zone-level edited_serial concurrency check was removed — it had
     // the wrong granularity (every successful edit advances the zone's serial
@@ -186,12 +213,15 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
           : liveComments;
 
       if (change.kind === "upsert") {
+        // Merge duplicate content so editing a record to a sibling's value
+        // doesn't trip PDNS' "Duplicate record in RRset" rejection.
+        const records = dedupeRecordsByContent(change.records);
         patches.push(
           replaceRRset({
             name,
             type,
             ttl: change.ttl,
-            records: change.records,
+            records,
             comments: outgoingComments,
           }),
         );
@@ -205,7 +235,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
             name,
             type,
             ttl: change.ttl,
-            records: change.records,
+            records,
             comments: outgoingComments,
           },
         });

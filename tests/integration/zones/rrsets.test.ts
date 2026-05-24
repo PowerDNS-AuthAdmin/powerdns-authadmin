@@ -71,6 +71,28 @@ describe("PATCH /api/admin/pdns/zones/[zoneId]/rrsets", () => {
     expect(rrset!.ttl).toBe(300);
   }, 15_000);
 
+  it("merges duplicate content in an upsert instead of failing (PDNS rejects dups)", async () => {
+    // Editing one record of a multi-record RRset to a value a sibling already
+    // holds yields duplicate content; PDNS would 422 with "Duplicate record in
+    // RRset". The route dedupes so the edit merges to the single value.
+    const admin = await loginAsBootstrap();
+    const zone = randomZone();
+    await createZone(admin, zone);
+    const rrName = `dup.${zone}`;
+    const res = await patchRRsets(admin, zone, [
+      {
+        kind: "upsert",
+        name: rrName,
+        type: "A",
+        ttl: 300,
+        records: [{ content: "10.0.4.2" }, { content: "10.0.4.2" }],
+      },
+    ]);
+    expect(res.status).toBe(200);
+    const rrset = await findRRset(zone, rrName, "A");
+    expect(rrset!.records.map((r) => r.content)).toEqual(["10.0.4.2"]);
+  }, 15_000);
+
   it("replaces an existing A record with new content", async () => {
     const admin = await loginAsBootstrap();
     const zone = randomZone();

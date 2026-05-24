@@ -14,6 +14,7 @@
 
 import type { RREditor } from "./types";
 import { Field, uintInput, inputClass } from "./_form";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 type ParamShape = "comma-list" | "uint16" | "boolean" | "base64" | "string";
 
@@ -173,25 +174,22 @@ function svcbImpl(type: "SVCB" | "HTTPS"): RREditor<SvcbStruct> {
                 return (
                   <div key={i} className="grid grid-cols-[10rem_1fr_auto] gap-2">
                     <div>
-                      <select
+                      <SelectMenu
                         value={isKnown ? p.key : "__custom"}
-                        onChange={(e) => {
-                          const v = e.target.value;
+                        onChange={(v) => {
                           if (v === "__custom") {
                             setParam(i, { key: "", value: "" });
                           } else {
                             setParam(i, { key: v, value: "" });
                           }
                         }}
-                        className={`${inputClass} mt-0`}
-                      >
-                        {KNOWN_KEYS.map((k) => (
-                          <option key={k.key} value={k.key}>
-                            {k.key}
-                          </option>
-                        ))}
-                        <option value="__custom">Custom…</option>
-                      </select>
+                        options={[
+                          ...KNOWN_KEYS.map((k) => ({ value: k.key, label: k.key })),
+                          { value: "__custom", label: "Custom…" },
+                        ]}
+                        ariaLabel="Parameter key"
+                        className="w-full"
+                      />
                       {!isKnown ? (
                         <input
                           value={p.key}

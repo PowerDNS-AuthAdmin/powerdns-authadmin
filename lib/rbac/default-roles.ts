@@ -11,6 +11,9 @@
 import "server-only";
 import type { Permission } from "./permissions";
 
+/** Slug of the seeded all-permissions role. Used by the last-SuperAdmin guard. */
+export const SUPER_ADMIN_SLUG = "super-admin";
+
 export interface DefaultRoleSpec {
   slug: string;
   name: string;
@@ -62,6 +65,11 @@ const OPERATOR: Permission[] = [
 const TEAM_OWNER: Permission[] = [
   ...OPERATOR,
   "dnssec.configure",
+  // `tsig.read` (list keys) is granted alongside `tsig.manage` — managing
+  // implies seeing the list, and the /admin/tsig-keys page guards on
+  // `tsig.read`. Without this pairing the page is unreachable even for
+  // SuperAdmin (which spreads this list).
+  "tsig.read",
   "tsig.manage",
   "autoprimary.manage",
   "team.update",
@@ -95,7 +103,7 @@ const SUPER_ADMIN: Permission[] = [
 
 export const DEFAULT_ROLES: readonly DefaultRoleSpec[] = [
   {
-    slug: "super-admin",
+    slug: SUPER_ADMIN_SLUG,
     name: "Super Admin",
     description: "Full access to everything: users, roles, servers, settings, audit.",
     permissions: SUPER_ADMIN,

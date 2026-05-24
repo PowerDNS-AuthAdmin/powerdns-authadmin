@@ -117,25 +117,15 @@ const pdnsServerEntry = z
     server_id: z.string().min(1).default("localhost"),
     /** PDNS X-API-Key, plaintext in YAML. Encrypted before write. */
     api_key: z.string().min(1),
-    role: z.enum(["primary", "secondary"]).default("primary"),
     is_default: z.boolean().default(false),
-    /** For role=secondary, the SLUG of the primary this mirrors. */
-    primary_slug: z.string().min(1).optional(),
-    /** Multi-primary cluster membership. References a cluster slug from
-     *  the `clusters:` section above. Secondaries can't belong to a
-     *  cluster — clusters are peer-groups of primaries. */
+    /** Group membership (ADR-0014). References a cluster slug from the
+     *  `clusters:` section above. A backend's primary/secondary nature is
+     *  OBSERVED from its `/config`, not declared here: group the writable
+     *  peers of a multi-primary cluster, or a primary together with its
+     *  secondaries. The precise edges are derived from each zone's masters. */
     cluster_slug: z.string().min(1).optional(),
   })
-  .strict()
-  .refine((s) => s.role === "primary" || (s.role === "secondary" && !!s.primary_slug), {
-    message: "secondaries must set primary_slug",
-  })
-  .refine((s) => !(s.role === "primary" && s.primary_slug), {
-    message: "primaries must not set primary_slug",
-  })
-  .refine((s) => !(s.role === "secondary" && s.cluster_slug), {
-    message: "secondaries can't belong to a cluster — clusters are peer-groups of primaries",
-  });
+  .strict();
 
 /**
  * Demo-zone generator. Produces N synthetic zones, each with a handful of

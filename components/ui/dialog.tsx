@@ -34,6 +34,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 
 // =============================================================================
@@ -82,14 +83,32 @@ function unlockBodyScroll(): void {
 
 export type DialogVariant = "default" | "danger";
 
+/** Optional checkbox rendered between the description and the action row. */
+export interface ConfirmCheckbox {
+  label: string;
+  /** Initial checked state. Default false. */
+  defaultChecked?: boolean;
+  /** Alert shown (in a warning style) ONLY while the box is unchecked. */
+  warningWhenUnchecked?: string;
+}
+
+export interface ConfirmCheckboxResult {
+  confirmed: boolean;
+  /** The checkbox's final state (only meaningful when `confirmed`). */
+  checked: boolean;
+}
+
 export interface ConfirmOptions {
   title: string;
-  description?: string;
+  /** Body text. Accepts a node so callers can prepend an icon, bold a phrase, etc. */
+  description?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: DialogVariant;
   /** When true (default), backdrop click cancels. Disable for high-stakes prompts. */
   dismissOnBackdrop?: boolean;
+  /** Adds a checkbox; `confirm` then resolves `{ confirmed, checked }`. */
+  checkbox?: ConfirmCheckbox;
 }
 
 export interface PromptOptions {
@@ -124,7 +143,10 @@ export interface ToastOptions {
 }
 
 interface DialogApi {
-  confirm: (opts: ConfirmOptions) => Promise<boolean>;
+  confirm: {
+    (opts: ConfirmOptions & { checkbox: ConfirmCheckbox }): Promise<ConfirmCheckboxResult>;
+    (opts: ConfirmOptions): Promise<boolean>;
+  };
   /**
    * Prompt for a single text value. Resolves with the trimmed input
    * on confirm, or `null` on cancel / dismiss. Replaces the browser's
@@ -154,7 +176,7 @@ export function useDialog(): DialogApi {
 
 interface ConfirmState extends ConfirmOptions {
   id: number;
-  resolve: (value: boolean) => void;
+  resolve: (value: ConfirmCheckboxResult) => void;
 }
 
 interface PromptState extends PromptOptions {
@@ -172,13 +194,22 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastState[]>([]);
   const nextId = useRef(1);
 
-  const confirm = useCallback((opts: ConfirmOptions): Promise<boolean> => {
-    return new Promise<boolean>((resolve) => {
-      setConfirmStack((stack) => [...stack, { ...opts, id: nextId.current++, resolve }]);
+  const confirm = useCallback((opts: ConfirmOptions): Promise<boolean | ConfirmCheckboxResult> => {
+    return new Promise<boolean | ConfirmCheckboxResult>((resolve) => {
+      setConfirmStack((stack) => [
+        ...stack,
+        {
+          ...opts,
+          id: nextId.current++,
+          // Callers without a checkbox keep the historical boolean contract;
+          // callers with one get the richer { confirmed, checked }.
+          resolve: (r: ConfirmCheckboxResult) => resolve(opts.checkbox ? r : r.confirmed),
+        },
+      ]);
     });
-  }, []);
+  }, []) as DialogApi["confirm"];
 
-  const resolveTop = useCallback((value: boolean) => {
+  const resolveTop = useCallback((value: ConfirmCheckboxResult) => {
     setConfirmStack((stack) => {
       const top = stack[stack.length - 1];
       if (!top) return stack;
@@ -264,10 +295,13 @@ function ConfirmModal({
 }: {
   state: ConfirmState;
   isTopMost: boolean;
-  onResolve: (value: boolean) => void;
+  onResolve: (value: ConfirmCheckboxResult) => void;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  const [checked, setChecked] = useState(state.checkbox?.defaultChecked ?? false);
+  // Cancel paths (escape / backdrop / Cancel) don't act on the checkbox.
+  const cancel = useCallback(() => onResolve({ confirmed: false, checked: false }), [onResolve]);
 
   // Capture the element that triggered the dialog so we can restore focus.
   useEffect(() => {
@@ -292,7 +326,7 @@ function ConfirmModal({
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        onResolve(false);
+        cancel();
         return;
       }
       if (event.key === "Tab") {
@@ -314,7 +348,7 @@ function ConfirmModal({
       document.removeEventListener("keydown", onKey);
       unlockBodyScroll();
     };
-  }, [isTopMost, onResolve]);
+  }, [isTopMost, cancel]);
 
   const titleId = `dialog-title-${state.id}`;
   const descriptionId = state.description ? `dialog-description-${state.id}` : undefined;
@@ -328,7 +362,7 @@ function ConfirmModal({
     <div className="fixed inset-0 z-[100] !mt-0 overflow-y-auto" aria-hidden={!isTopMost}>
       <div
         className="absolute inset-0 bg-black/50"
-        onClick={() => dismissOnBackdrop && onResolve(false)}
+        onClick={() => dismissOnBackdrop && cancel()}
         aria-hidden
       />
       <div className="relative flex min-h-full items-center justify-center p-4">
@@ -348,10 +382,31 @@ function ConfirmModal({
               {state.description}
             </p>
           ) : null}
+          {state.checkbox ? (
+            <div className="mt-4">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => setChecked(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>{state.checkbox.label}</span>
+              </label>
+              {!checked && state.checkbox.warningWhenUnchecked ? (
+                <div
+                  role="alert"
+                  className="mt-3 rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 px-3 py-2 text-sm text-[color:var(--color-error)]"
+                >
+                  {state.checkbox.warningWhenUnchecked}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <div className="mt-6 flex items-center justify-end gap-3">
             <button
               type="button"
-              onClick={() => onResolve(false)}
+              onClick={cancel}
               className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)]"
             >
               {state.cancelLabel ?? "Cancel"}
@@ -359,7 +414,7 @@ function ConfirmModal({
             <button
               type="button"
               data-dialog-focus="true"
-              onClick={() => onResolve(true)}
+              onClick={() => onResolve({ confirmed: true, checked })}
               className={[
                 "rounded-md px-4 py-2 text-sm font-medium",
                 variant === "danger"

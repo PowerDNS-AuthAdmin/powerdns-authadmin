@@ -121,7 +121,7 @@ export async function POST(request: Request): Promise<Response> {
     // Minted before the tx so its `expiresInSec` can ride the audit snapshot;
     // if the tx rolls back the unused reveal token expires on its own and
     // reveals a plaintext that was never persisted (so it can't authenticate).
-    const { token: revealToken, expiresInSec } = mint({
+    const { token: revealToken, expiresInSec } = await mint({
       plaintext: material.plaintext,
       allowedActorId: user.id,
     });

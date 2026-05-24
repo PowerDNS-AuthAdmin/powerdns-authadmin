@@ -8,9 +8,10 @@
  * backend's version_cache + capability flags to reflect the new
  * state immediately, without clicking Test on each row.
  *
- * Wraps `refreshAllPdnsVersionsNow()` (T-110 / `lib/pdns/registry`).
- * The wrapper runs probes in parallel + catches per-server failures;
- * this route owns auth / CSRF / audit / response shape.
+ * Wraps `refreshAllBackendsHealth()` — the central per-backend health op run for
+ * every backend in parallel (live probe + advisory re-sync, debounce bypassed),
+ * so the inline status badges + bell reflect the fleet's true state at once.
+ * This route owns auth / CSRF / audit / response shape.
  *
  * Permission: `server.read` — same as the per-server Test route.
  */
@@ -20,7 +21,7 @@ import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext, getRequestId } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
-import { refreshAllPdnsVersionsNow } from "@/lib/pdns/registry";
+import { refreshAllBackendsHealth } from "@/lib/realtime/backend-health";
 import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 
@@ -32,7 +33,7 @@ export async function POST(request: Request): Promise<Response> {
     const hdrs = await headers();
     const requestId = getRequestId(hdrs);
 
-    const { probed, failed } = await refreshAllPdnsVersionsNow();
+    const { probed, failed } = await refreshAllBackendsHealth();
 
     // One fleet-level audit row — per-server cache writes don't
     // audit individually (same reasoning as T-107).

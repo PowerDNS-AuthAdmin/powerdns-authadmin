@@ -40,7 +40,8 @@ import {
 import { encrypt } from "@/lib/crypto/encryption";
 import { logger } from "@/lib/logger";
 import { appendAudit } from "@/lib/audit/log";
-import { getPdnsClientForRow, refreshAllPdnsVersionsNow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
+import { refreshAllBackendsHealth } from "@/lib/realtime/backend-health";
 import { sampleAllOidcDiscoveryNow } from "@/lib/auth/providers/oidc-discovery-sampler";
 import { createZoneAndNotify, notifyEveryZoneBestEffort } from "@/lib/pdns/operations";
 import { choosePeer } from "@/lib/pdns/cluster-picker";
@@ -254,13 +255,10 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
     for (const c of existing) clusterIdsBySlug.set(c.slug, c.id);
   }
 
-  // 5. pdns_servers — primaries first
-  const primaryIdsBySlug = new Map<string, string>();
+  // 5. pdns_servers — any role joins a group via cluster_slug (ADR-0014).
+  const serverIdsBySlug = new Map<string, string>();
   if (config.pdns_servers) {
-    const primaries = config.pdns_servers.filter((s) => s.role === "primary");
-    const secondaries = config.pdns_servers.filter((s) => s.role === "secondary");
-
-    for (const s of primaries) {
+    for (const s of config.pdns_servers) {
       const apiKeyEncrypted = encrypt(s.api_key, "pdns-api-key");
       let clusterId: string | null = null;
       if (s.cluster_slug) {
@@ -281,9 +279,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
           baseUrl: s.base_url,
           serverId: s.server_id,
           apiKeyEncrypted,
-          role: "primary",
           isDefault: s.is_default,
-          primaryId: null,
           clusterId,
         })
         .onConflictDoUpdate({
@@ -294,79 +290,37 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
             baseUrl: s.base_url,
             serverId: s.server_id,
             apiKeyEncrypted,
-            role: "primary",
             isDefault: s.is_default,
-            primaryId: null,
             clusterId,
             updatedAt: new Date(),
           },
         })
         .returning({ id: pdnsServers.id, slug: pdnsServers.slug });
       const row = rows[0];
-      if (row) primaryIdsBySlug.set(row.slug, row.id);
+      if (row) serverIdsBySlug.set(row.slug, row.id);
       result.pdnsServersUpserted += 1;
     }
 
-    // Look up primaries that already existed but weren't in this file's
-    // primaries[] (e.g. operator adding only secondaries on a re-provision).
-    const missing = secondaries
-      .map((s) => s.primary_slug!)
-      .filter((slug) => !primaryIdsBySlug.has(slug));
-    if (missing.length > 0) {
-      const existingPrimaries = await db
-        .select({ id: pdnsServers.id, slug: pdnsServers.slug })
-        .from(pdnsServers);
-      for (const p of existingPrimaries) primaryIdsBySlug.set(p.slug, p.id);
-    }
-
-    for (const s of secondaries) {
-      const primaryId = primaryIdsBySlug.get(s.primary_slug!);
-      if (!primaryId) {
-        throw new Error(
-          `provisioning: secondary "${s.slug}" references primary_slug "${s.primary_slug}" which is not defined in this file and was not found in the database.`,
-        );
-      }
-      const apiKeyEncrypted = encrypt(s.api_key, "pdns-api-key");
-      await db
-        .insert(pdnsServers)
-        .values({
-          slug: s.slug,
-          name: s.name,
-          description: s.description ?? null,
-          baseUrl: s.base_url,
-          serverId: s.server_id,
-          apiKeyEncrypted,
-          role: "secondary",
-          isDefault: false,
-          primaryId,
-        })
-        .onConflictDoUpdate({
-          target: pdnsServers.slug,
-          set: {
-            name: s.name,
-            description: s.description ?? null,
-            baseUrl: s.base_url,
-            serverId: s.server_id,
-            apiKeyEncrypted,
-            role: "secondary",
-            isDefault: false,
-            primaryId,
-            updatedAt: new Date(),
-          },
-        });
-      result.pdnsServersUpserted += 1;
-    }
-
-    // After primaries are settled, resolve any zone template `default_for_
-    // primary_slugs` entries (still stored as slugs above) into their
-    // canonical ids. Drizzle's onConflict above wrote slugs, so we
-    // rewrite once primaries exist.
+    // Resolve zone-template `default_for_primary_slugs` (server slugs) into
+    // ids. Pull in any referenced server already in the DB but absent from
+    // this file.
     if (config.zone_templates) {
+      const hasUnknown = config.zone_templates
+        .flatMap((z) => z.default_for_primary_slugs)
+        .some((slug) => !serverIdsBySlug.has(slug));
+      if (hasUnknown) {
+        const existing = await db
+          .select({ id: pdnsServers.id, slug: pdnsServers.slug })
+          .from(pdnsServers);
+        for (const p of existing) {
+          if (!serverIdsBySlug.has(p.slug)) serverIdsBySlug.set(p.slug, p.id);
+        }
+      }
       for (const z of config.zone_templates) {
         if (z.default_for_primary_slugs.length === 0) continue;
         const ids: string[] = [];
         for (const slug of z.default_for_primary_slugs) {
-          const id = primaryIdsBySlug.get(slug);
+          const id = serverIdsBySlug.get(slug);
           if (id) ids.push(id);
           else
             logger.warn({ template: z.slug, slug }, "provisioning.zone-template.unknown-primary");
@@ -537,7 +491,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
   // are logged inside `notifyEveryZoneBestEffort` and never bubble.
   for (const server of touchedPrimaries.values()) {
     try {
-      const client = getPdnsClientForRow(server);
+      const client = getBackendGateway(server);
       const sweep = await notifyEveryZoneBestEffort(client);
       logger.info({ server: server.slug, ...sweep }, "provisioning.demo_zones.notify-sweep");
     } catch (err) {
@@ -552,12 +506,12 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
   // version_cache + capability flags are populated by the time the
   // operator opens the admin UI. Without this, every backend renders as
   // "never probed" until the operator clicks Refresh all manually.
-  // Per-server failures are caught inside `refreshAllPdnsVersionsNow`;
+  // Per-server failures are caught inside `refreshAllBackendsHealth`;
   // a global failure (e.g. PDNS not actually reachable) just logs +
   // doesn't abort the provisioning audit.
   if (result.pdnsServersUpserted > 0) {
     try {
-      const { probed, failed } = await refreshAllPdnsVersionsNow();
+      const { probed, failed } = await refreshAllBackendsHealth();
       logger.info({ probed, failed }, "provisioning.pdns-version-refresh.complete");
     } catch (err) {
       logger.warn(
@@ -662,7 +616,7 @@ async function applyDemoZonesEntry(
     }
 
     try {
-      const client = getPdnsClientForRow(server);
+      const client = getBackendGateway(server);
       await createZoneAndNotify(client, {
         name: z.name,
         kind: spec.kind,

@@ -104,6 +104,16 @@ export const pdnsZoneSummarySchema = z.object({
   soa_edit: z.string().optional(),
   soa_edit_api: z.string().optional(),
   api_rectify: z.boolean().optional(),
+  /**
+   * TSIG keys securing AXFR, as zone-object fields (NOT the read-only
+   * TSIG-ALLOW-AXFR / AXFR-MASTER-TSIG metadata kinds, which the per-kind API
+   * rejects). `master_tsig_key_ids` = keys allowed to AXFR when this server is
+   * primary; `slave_tsig_key_ids` = the key it signs AXFR with when secondary.
+   * Values are TSIG key ids (= the key name on the gsqlite3/gmysql/gpgsql
+   * backends). Set via `PUT /zones/{id}`. Optional — absent on older list rows.
+   */
+  master_tsig_key_ids: z.array(z.string()).optional(),
+  slave_tsig_key_ids: z.array(z.string()).optional(),
 });
 
 export type PdnsZoneSummary = z.infer<typeof pdnsZoneSummarySchema>;
@@ -302,6 +312,59 @@ export type PdnsAutoprimary = z.infer<typeof pdnsAutoprimarySchema>;
 export const pdnsAutoprimaryListSchema = z.array(pdnsAutoprimarySchema);
 
 // =============================================================================
+// Daemon config (read-only) — GET /servers/{id}/config
+// =============================================================================
+
+/**
+ * One global daemon setting as PowerDNS reports it on the read-only `/config`
+ * endpoint (the file-based `pdns.conf` values; the API can't change them).
+ * Values are always strings (`"yes"`, `"localhost"`, …).
+ */
+export const pdnsConfigSettingSchema = z.object({
+  type: z.string(),
+  name: z.string(),
+  value: z.string(),
+});
+export type PdnsConfigSetting = z.infer<typeof pdnsConfigSettingSchema>;
+export const pdnsConfigSchema = z.array(pdnsConfigSettingSchema);
+
+/**
+ * What a backend's daemon is OBSERVED to be willing/able to do, derived from
+ * its read-only `/config` on each version probe (ADR-0014). This is the
+ * per-daemon truth the app uses instead of an operator-declared `role`: a
+ * single daemon can be primary AND secondary at once. `null` in storage means
+ * "never observed yet".
+ *
+ * Lives here (the PDNS protocol layer), like `PdnsVersionCache`, so the DB
+ * schema can import it for its `.$type<>()` without crossing the
+ * `lib/pdns → lib/db` boundary.
+ */
+export interface PdnsDaemonCapabilities {
+  /** `api=yes` — the HTTP API is enabled (definitionally true if we read this). */
+  api: boolean;
+  /** `primary`/`master`=yes — sends NOTIFY + serves AXFR for its master zones. */
+  primary: boolean;
+  /** `secondary`/`slave`=yes — initiates AXFR for its slave zones. */
+  secondary: boolean;
+  /** `autosecondary`/`superslave`=yes — auto-creates slave zones from NOTIFY. */
+  autosecondary: boolean;
+  /** Storage backends parsed from `launch`, e.g. ["gsqlite3", "lmdb"]. */
+  backends: string[];
+  /** Whether DNSSEC is enabled on any backend (`*-dnssec=yes`, or lmdb). */
+  dnssec: boolean;
+  /**
+   * Count of configured autoprimaries (PowerDNS "supermasters") observed from
+   * `GET /autoprimaries`. Refreshed alongside the rest of the snapshot. Lets the
+   * health evaluator flag an `autosecondary`/autoprimary intent mismatch without
+   * an extra per-cycle API call. Optional: absent on snapshots taken before this
+   * field existed, or when the autoprimary read failed.
+   */
+  autoprimaryCount?: number;
+  /** When this snapshot was taken (ISO timestamp). */
+  fetchedAt: string;
+}
+
+// =============================================================================
 // Cached version snapshot (lives in the pdns_servers.version_cache JSON column)
 // =============================================================================
 
@@ -331,6 +394,12 @@ export interface PdnsVersionCache {
     supportsCatalogZones: boolean;
     /** Views / Networks split-horizon (≥ 5.0). */
     supportsViews: boolean;
+    /**
+     * TSIG-key management over the HTTP API — list/get (incl. the secret),
+     * create with an imported `key`, delete (≥ 4.1). Gates the API-driven
+     * "install on secondaries" flow; older daemons fall back to manual pdnsutil.
+     */
+    supportsTsigApi: boolean;
   };
   /** When this snapshot was taken (ISO timestamp). */
   fetchedAt: string;

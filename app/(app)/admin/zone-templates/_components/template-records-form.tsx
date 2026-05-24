@@ -12,6 +12,7 @@ import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
 import { SUPPORTED_TYPES, getRRTypeValidator } from "@/lib/validators/rr-types";
 import { NumberInput } from "@/app/(app)/zones/[zoneId]/_components/number-input";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 interface TemplateRecord {
   name: string;
@@ -154,18 +155,14 @@ export function TemplateRecordsForm({ templateId, initial, canEdit }: Props) {
                     placeholder="@"
                     className={inputClass + " font-mono"}
                   />
-                  <select
+                  <SelectMenu
                     value={r.type}
-                    onChange={(e) => setRecord(i, { type: e.target.value, content: "" })}
+                    onChange={(v) => setRecord(i, { type: v, content: "" })}
                     disabled={!canEdit}
-                    className={inputClass}
-                  >
-                    {SUPPORTED_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
+                    ariaLabel="Record type"
+                    options={SUPPORTED_TYPES.map((t) => ({ value: t, label: t }))}
+                    className="w-full text-xs"
+                  />
                   <NumberInput
                     value={r.ttl}
                     onChange={(n) => setRecord(i, { ttl: n })}

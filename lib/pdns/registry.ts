@@ -26,15 +26,10 @@
    See ADR-0013. */
 import "server-only";
 import { decrypt } from "@/lib/crypto/encryption";
-import {
-  findPdnsServerById,
-  listAllActiveBackends,
-  setPdnsVersionCache,
-} from "@/lib/db/repositories/pdns-servers";
+import { findPdnsServerById } from "@/lib/db/repositories/pdns-servers";
 import type { PdnsServer } from "@/lib/db/schema";
 
 import { NotFoundError } from "@/lib/errors";
-import { logger } from "@/lib/logger";
 import { PdnsClient } from "./client";
 
 interface CachedEntry {
@@ -43,7 +38,20 @@ interface CachedEntry {
   builtFrom: number;
 }
 
+/**
+ * Probe clients (the background poll + explicit Test/Refresh health checks) fail
+ * fast: a SINGLE attempt with a short timeout. An unreachable backend then
+ * resolves to "down" in ~5s instead of the ~30s a write-path client spends on
+ * 3 attempts × 10s — which otherwise wedges the zones/servers pages (they await
+ * the poll) and stalls the Test toast. Interactive reads/writes (via
+ * `backend-gateway`) keep the default resilience; the poll cadence is the retry
+ * for a transient blip here.
+ */
+const PROBE_TIMEOUT_MS = 5_000;
+const PROBE_MAX_ATTEMPTS = 1;
+
 const registry = new Map<string, CachedEntry>();
+const probeRegistry = new Map<string, CachedEntry>();
 
 /**
  * Return the `PdnsClient` for a given server row id. Builds + caches on
@@ -64,6 +72,28 @@ export async function getPdnsClient(id: string): Promise<PdnsClient> {
  * Useful when the caller has the row in hand (e.g., from `listActivePdnsServers`)
  * and shouldn't re-fetch it.
  */
+function buildClient(row: PdnsServer, probe: boolean): PdnsClient {
+  const apiKey = decrypt(row.apiKeyEncrypted, "pdns-api-key");
+  return new PdnsClient({
+    baseUrl: row.baseUrl,
+    apiKey,
+    serverSlug: row.slug,
+    serverId: row.serverId,
+    serverDbId: row.id,
+    initialVersionCache: row.versionCache ?? null,
+    // Probe clients (the background poll) also route their READS through the
+    // per-backend lock, so the poll takes turns with the request path's writes
+    // instead of contending on the backend's store (ADR-0017 follow-up).
+    ...(probe
+      ? {
+          maxAttempts: PROBE_MAX_ATTEMPTS,
+          timeoutMs: PROBE_TIMEOUT_MS,
+          coordinateAllRequests: true,
+        }
+      : {}),
+  });
+}
+
 export function getPdnsClientForRow(row: PdnsServer): PdnsClient {
   const rowUpdatedAt = row.updatedAt.getTime();
   const cached = registry.get(row.id);
@@ -71,96 +101,46 @@ export function getPdnsClientForRow(row: PdnsServer): PdnsClient {
     return cached.client;
   }
 
-  const apiKey = decrypt(row.apiKeyEncrypted, "pdns-api-key");
-  const client = new PdnsClient({
-    baseUrl: row.baseUrl,
-    apiKey,
-    serverSlug: row.slug,
-    serverId: row.serverId,
-    serverDbId: row.id,
-    initialVersionCache: row.versionCache ?? null,
-  });
+  const client = buildClient(row, false);
   registry.set(row.id, { client, builtFrom: rowUpdatedAt });
   return client;
 }
 
 /**
- * Evict a server's cached client. Call after any write to the row (slug,
- * url, key, default flag). Safe to call when the entry doesn't exist.
+ * Fast-fail client for observation/health probes (the background poll + the
+ * explicit Test/Refresh). Single attempt, short timeout — see `PROBE_TIMEOUT_MS`.
+ * NEVER use for a user-initiated read/write; those go through `backend-gateway`
+ * and keep the default retry resilience.
+ */
+export function getPdnsProbeClientForRow(row: PdnsServer): PdnsClient {
+  const rowUpdatedAt = row.updatedAt.getTime();
+  const cached = probeRegistry.get(row.id);
+  if (cached?.builtFrom === rowUpdatedAt) {
+    return cached.client;
+  }
+
+  const client = buildClient(row, true);
+  probeRegistry.set(row.id, { client, builtFrom: rowUpdatedAt });
+  return client;
+}
+
+/**
+ * Evict a server's cached clients (both the write and probe variants). Call
+ * after any write to the row (slug, url, key, default flag). Safe to call when
+ * the entry doesn't exist.
  */
 export function invalidatePdnsClient(id: string): void {
   registry.delete(id);
+  probeRegistry.delete(id);
 }
 
 /** Test-only: drop every cached client. */
 export function clearPdnsClientRegistry(): void {
   registry.clear();
+  probeRegistry.clear();
 }
 
-/**
- * Convenience for "fetch the version, persist if refreshed". Used by the
- * admin connection-test action and by background health checks.
- *
- * @returns the version snapshot and a `persisted` flag.
- */
-export async function refreshAndPersistVersion(
-  id: string,
-): Promise<{ cache: Awaited<ReturnType<PdnsClient["version"]>>["cache"]; persisted: boolean }> {
-  const client = await getPdnsClient(id);
-  const { cache, refreshed } = await client.version();
-  if (refreshed) {
-    await setPdnsVersionCache(id, cache);
-  }
-  return { cache, persisted: refreshed };
-}
-
-/**
- * Force-refresh every active PDNS backend's version cache in
- * parallel. Mirror of the OIDC
- * `sampleAllOidcDiscoveryNow` (T-103). Returns `{probed, failed}` —
- * `probed` is the total number of active servers attempted,
- * `failed` is how many threw during refresh. Per-server failures
- * are caught and logged (the operator-facing Refresh-all route
- * doesn't need to know which specific row failed; the dashboard's
- * PDNS-attention widget + per-row highlight from T-109 surface
- * that).
- *
- * Useful after a backend fleet upgrade — operator clicks Refresh
- * all, every server's version_cache reflects the new state without
- * having to click Test on each row individually.
- */
-export async function refreshAllPdnsVersionsNow(): Promise<{
-  probed: number;
-  failed: number;
-}> {
-  // Include every active backend regardless of role — Secondaries (and
-  // multi-primary peers, which are role='primary' but conceptually part
-  // of a cluster) all benefit from a fresh version_cache. Previously
-  // this used `listActivePdnsServers()` which filters role='primary',
-  // so the "Refresh all" button silently skipped Secondaries; the toast
-  // would report "Re-probed 1 backend" on a 1-primary + 3-secondaries
-  // stack, which read like a bug to operators.
-  const servers = await listAllActiveBackends();
-  const outcomes = await Promise.all(
-    servers.map((s) =>
-      refreshAndPersistVersion(s.id).then(
-        () => true as const,
-        (err: unknown) => {
-          logger.warn(
-            {
-              serverId: s.id,
-              serverSlug: s.slug,
-              err: err instanceof Error ? err.message : "unknown",
-            },
-            "pdns.version.refresh-all.server-failed",
-          );
-          return false as const;
-        },
-      ),
-    ),
-  );
-  return {
-    probed: servers.length,
-    failed: outcomes.filter((ok) => !ok).length,
-  };
-}
+// The per-backend daemon snapshot refresh (version + capabilities + reachability
+// + advisory) lives in `lib/realtime/backend-health.ts` — the ONE central health
+// op shared by the poll and every explicit refresh. The registry stays a pure
+// client cache; it no longer owns a separate probe path.

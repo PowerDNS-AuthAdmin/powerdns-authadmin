@@ -19,9 +19,10 @@ const OIDC_STATE_COOKIE = "pda_oidc_state";
 const OIDC_PKCE_COOKIE = "pda_oidc_pkce";
 const OIDC_NONCE_COOKIE = "pda_oidc_nonce";
 const OIDC_SLUG_COOKIE = "pda_oidc_slug";
+const OIDC_NEXT_COOKIE = "pda_oidc_next";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ provider: string }> },
 ): Promise<Response> {
   const { provider: slug } = await context.params;
@@ -57,6 +58,10 @@ export async function GET(
   // the route segment is already authoritative, but storing the slug
   // separately defends against URL tampering during the round-trip.
   cookieStore.set(OIDC_SLUG_COOKIE, provider.slug, cookieOpts);
+  // Carry the attempted destination (L-2) across the IdP round-trip so the
+  // callback can return the user there. Validated on read (callback).
+  const next = new URL(request.url).searchParams.get("next");
+  if (next) cookieStore.set(OIDC_NEXT_COOKIE, next, cookieOpts);
 
   return Response.redirect(url.toString(), 302);
 }

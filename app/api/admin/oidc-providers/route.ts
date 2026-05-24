@@ -22,6 +22,7 @@ import {
 } from "@/lib/db/repositories/oidc-providers";
 import { createOidcProviderSchema } from "@/lib/validators/oidc-providers";
 import { probeOidcDiscovery } from "@/lib/auth/providers/oidc-probe";
+import { assertSafeOidcIssuerUrl } from "@/lib/auth/providers/oidc-url-safety";
 import { ConflictError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 import { logger } from "@/lib/logger";
@@ -59,6 +60,10 @@ export async function POST(request: Request): Promise<Response> {
     if (existing) {
       throw new ConflictError(`An OIDC provider with slug "${input.slug}" already exists.`);
     }
+
+    // SSRF guard: the issuer is fetched server-side (probe + sign-in discovery),
+    // so it must resolve to a public address (link-local/metadata always blocked).
+    await assertSafeOidcIssuerUrl(input.issuerUrl);
 
     const clientSecretEncrypted = encrypt(input.clientSecret, "oidc-client-secret");
 

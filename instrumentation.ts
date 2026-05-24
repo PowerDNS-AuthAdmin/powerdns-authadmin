@@ -26,18 +26,16 @@ export function register() {
   // doesn't run our route handlers anyway.
   if (process.env["NEXT_RUNTIME"] !== "nodejs") return;
 
-  // REDIS_URL is accepted by env validation and reserved for a future HA
-  // setup, but nothing consumes it yet — the rate limiter, the realtime
-  // event-bus, and the reveal-once token store are all in-process. Warn so a
-  // configured-but-ignored REDIS_URL isn't mistaken for HA-readiness: across
-  // more than one replica none of that state is shared.
-  if (process.env["REDIS_URL"]) {
-    console.warn(
-      "[startup] REDIS_URL is set but Redis is not wired up yet — rate limiting, " +
-        "realtime SSE fan-out, and reveal-once tokens run in-process (per-replica, " +
-        "not shared). Fine for a single instance; not HA-safe across replicas.",
-    );
-  }
+  // Redis is the cross-replica coordination layer (ADR-0016): rate limiting,
+  // realtime SSE fan-out, and reveal-once tokens go through it when set. When
+  // unset everything runs in-process — correct for a single instance, but a
+  // multi-replica deploy MUST set REDIS_URL (and share a Postgres DATABASE_URL)
+  // or replicas won't share login throttling, SSE events, or reveal tokens.
+  console.info(
+    process.env["REDIS_URL"]
+      ? "[startup] REDIS_URL set — rate limiting, realtime SSE fan-out, and reveal tokens are coordinated across replicas (HA-ready)."
+      : "[startup] REDIS_URL not set — running single-instance (rate limiting, SSE fan-out, and reveal tokens are per-process). Set REDIS_URL + a shared Postgres for HA with >1 replica.",
+  );
 
   // `register()` runs before the HTTP server is necessarily listening,
   // so we defer the kick by a short delay. Five seconds is generous —

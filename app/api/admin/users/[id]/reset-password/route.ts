@@ -49,7 +49,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     // Minted before the tx so its `expiresInSec` can ride the audit snapshot;
     // if the tx rolls back the operator gets a 500 and the unused token simply
     // expires — it reveals a password that was never persisted.
-    const { token: revealToken, expiresInSec } = mint({
+    const { token: revealToken, expiresInSec } = await mint({
       plaintext: temporary,
       allowedActorId: actor.id,
     });

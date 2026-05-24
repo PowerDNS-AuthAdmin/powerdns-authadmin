@@ -19,15 +19,15 @@ export function DeleteClusterButton({
   return (
     <ConfirmDeleteButton
       endpoint={`/api/admin/pdns/clusters/${clusterId}`}
-      confirmTitle={`Delete cluster "${clusterName}"?`}
+      confirmTitle={`Delete group "${clusterName}"?`}
       confirmDescription={
         memberCount > 0
-          ? `${memberCount} server${memberCount === 1 ? "" : "s"} will be detached from this cluster and revert to standalone-primary semantics. Their rows stay; only cluster_id is nulled.`
-          : "The cluster has no members. Deleting it is a clean no-op for the servers list."
+          ? `${memberCount} server${memberCount === 1 ? "" : "s"} will be detached from this group and revert to standalone semantics. The server rows themselves stay.`
+          : "The group has no members. Deleting it is a clean no-op for the servers list."
       }
-      confirmLabel="Delete cluster"
-      successMessage="Cluster deleted."
-      label="Delete cluster"
+      confirmLabel="Delete group"
+      successMessage="Group deleted."
+      label="Delete group"
       redirectTo="/admin/pdns-clusters"
     />
   );

@@ -7,13 +7,19 @@
  * peers don't get their own listing because they all see the same
  * data).
  *
+ * SINGLE SOURCE OF TRUTH: this page does NOT call PowerDNS itself. It asks the
+ * app-wide broker to ensure a recent observation (`ensureBackendsObserved`) and
+ * then reads the shared store — the zone-state cache for zones, the live
+ * reachability store for up/down, the (cache-backed) sync helper for sync state.
+ * So this page and the servers list + bell always agree, and a backend the
+ * broker can't reach surfaces here exactly as it does there (no per-page probe,
+ * no raw connection error leaked to the UI).
+ *
  * Per-row Sync state:
  *   • Standalone primary (no Secondaries)  → "—"
- *   • Primary + Secondaries                → all Secondaries' serials
- *                                            vs the primary's
+ *   • Primary + Secondaries                → all Secondaries' serials vs primary
  *   • Cluster                              → all peers' serials vs the
- *                                            representative peer's; any
- *                                            mismatch ⇒ desynced
+ *                                            representative peer's
  *
  * Permission: `zone.read`.
  */
@@ -26,18 +32,18 @@ import {
   listSelectableBackends,
   type SelectableBackend,
 } from "@/lib/db/repositories/selectable-backends";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
-import { choosePeer } from "@/lib/pdns/cluster-picker";
+import { listUngroupedSecondaries } from "@/lib/db/repositories/pdns-servers";
+import { isReadOnlyZoneKind } from "@/lib/pdns/writable-kind";
 import { latestEditTimestampsByZone } from "@/lib/db/repositories/audit-log";
 import { checkZonesSyncBatch, type SecondarySyncStatus } from "@/lib/pdns/sync";
 import { parseSoaSerialDate } from "@/lib/dns/soa-serial";
-import { logger } from "@/lib/logger";
-import { redact } from "@/lib/errors/redact";
+import { readCachedZones, type CachedZoneSnapshot } from "@/lib/pdns/zone-state-cache";
+import { derivedParentOf } from "@/lib/pdns/topology-cache";
+import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
+import { backendUnreachability } from "@/lib/realtime/backend-status";
 import type { PdnsServer } from "@/lib/db/schema";
 import { ZonesTable, type ZoneRow } from "./_components/zones-table";
 import { ServerRealtimeSubscriber } from "./_components/server-realtime-subscriber";
-import { ensurePollerRunning } from "@/lib/realtime/zone-poller";
-import type { PdnsZoneSummary } from "@/lib/pdns/types";
 
 export const metadata: Metadata = { title: "Zones" };
 
@@ -58,18 +64,21 @@ export default async function ZonesPage() {
   const canCreateZone = globalPermissions.has("zone.create");
   const canReadAudit = globalPermissions.has("audit.read");
 
-  // Heartbeat: keep the unified app-wide poller alive so SSE + zone
-  // cache + sync chips stay fresh without per-request PDNS calls.
-  ensurePollerRunning();
+  // Ask the broker to ensure a recent observation, then read its store. Serves
+  // from the warm store on a hot path; runs/joins one poll when cold or stale.
+  await ensureBackendsObserved();
 
   const backends = await listSelectableBackends();
-  if (backends.length === 0) {
+  // Unpinned secondaries (mirrors of an external/unmanaged primary) are
+  // browsable read-only, so they count as "a backend exists" even when no
+  // primary or cluster is configured.
+  const readOnlySecondaries = await listUngroupedSecondaries();
+  if (backends.length === 0 && readOnlySecondaries.length === 0) {
     return <NoServersState canCreateServer={canCreateServer} />;
   }
 
-  // Fetch zones from every logical backend in parallel. Each fetch is
-  // best-effort: one unreachable backend doesn't blank the whole page.
-  const fetched = await Promise.all(backends.map((b) => fetchFromBackend(b)));
+  // Build the amalgamated list from the broker store — no PDNS calls here.
+  const fetched = await Promise.all(backends.map((b) => rowsFromBackend(b)));
 
   const errors: Array<{ backendName: string; message: string }> = [];
   const allRows: ZoneRow[] = [];
@@ -103,13 +112,82 @@ export default async function ZonesPage() {
     );
   }
 
+  // Unpinned secondaries (mirroring an external/unmanaged primary) contribute
+  // their zones read-only. They join the amalgamated list and are de-duped with
+  // everything else below. Display-only; writes to a secondary are blocked
+  // server-side.
+  for (const s of readOnlySecondaries) {
+    const r = readOnlySecondaryRows(s);
+    if (r.error) {
+      errors.push({ backendName: r.label, message: r.error });
+      continue;
+    }
+    for (const row of r.rows) allRows.push(row);
+  }
+
+  // De-dup by zone name. The SAME zone surfaces from multiple backends — a
+  // primary plus its mirrors, two primaries seeded with the same name, or two
+  // secondaries of one external primary. Keep ONE row per name: an authoritative
+  // (writable) row always wins over a read-only mirror; within the same tier the
+  // first wins (backends arrive name-ordered). So a zone always resolves to its
+  // primary, or — if none is managed — to the first secondary that serves it.
+  const { kept: dedupedRows, hidden: hiddenRows } = dedupeZonesByName(allRows);
+
   // Restrict the amalgamated list to zones the viewer may actually read.
   // Global zone.read sees all; otherwise only granted zone names. (The
   // zone detail page + API enforce per-(server,zone) precisely; this list
   // filter is the display-side counterpart.)
   const visibleRows = globalZoneRead
-    ? allRows
-    : allRows.filter((r) => grantedZoneNames.has(r.name));
+    ? dedupedRows
+    : dedupedRows.filter((r) => grantedZoneNames.has(r.name));
+
+  // Surface what de-dup collapsed (scoped to zones the viewer can see), so an
+  // operator knows the same zone is served by a backend that ISN'T shown — but
+  // ONLY when that's surprising. A read-only secondary that mirrors a managed
+  // primary is normal replication, not a duplicate worth flagging. The app knows
+  // a secondary belongs to a primary two ways (ADR-0014), and BOTH must silence:
+  //   • grouped — these never reach `hiddenRows` at all (folded into the group's
+  //     single primary row, so they don't produce a separate row here); and
+  //   • derived — ungrouped, but the poller resolved its masters[] to a managed
+  //     primary, so the servers page nests it under that primary. `hiddenRows`
+  //     DOES contain these (they come in via `readOnlySecondaryRows`), so we
+  //     filter them out by the same signal the servers page uses for nesting:
+  //     `derivedParentOf` must resolve to a primary that is STILL PRESENT. (A
+  //     parent that's been deleted leaves a stale mapping; the servers page drops
+  //     it to "Standalone secondaries", and so must we — otherwise an orphaned
+  //     secondary would silently stop warning.)
+  // What remains — truly orphaned secondaries (no managed primary, grouped or
+  // derived) and authoritative name-collisions (the same zone on two primaries) —
+  // is exactly what should warn.
+  const managedPrimaryIds = new Set<string>();
+  for (const b of backends) {
+    if (b.kind === "server") managedPrimaryIds.add(b.server.id);
+    else for (const p of b.peers) managedPrimaryIds.add(p.id);
+  }
+  const derivedSecondarySlugs = new Set(
+    readOnlySecondaries
+      .filter((s) => {
+        const parent = derivedParentOf(s.id);
+        return parent !== null && managedPrimaryIds.has(parent);
+      })
+      .map((s) => s.slug),
+  );
+  const visibleHidden = (
+    globalZoneRead ? hiddenRows : hiddenRows.filter((r) => grantedZoneNames.has(r.name))
+  ).filter((r) => !derivedSecondarySlugs.has(r.backend.serverSlug ?? ""));
+  const hiddenBackends = new Map<string, { name: string; type: string }>();
+  for (const r of visibleHidden) {
+    const type = r.readOnly
+      ? "secondary"
+      : r.backend.kind === "cluster"
+        ? "cluster peer"
+        : "primary";
+    hiddenBackends.set(`${r.backend.name} ${type}`, { name: r.backend.name, type });
+  }
+  const hiddenSummary =
+    visibleHidden.length > 0
+      ? { count: visibleHidden.length, backends: [...hiddenBackends.values()] }
+      : null;
 
   // Collect every channel slug events for this page may arrive on. For
   // primary+secondary topologies the poller pumps events on the
@@ -121,6 +199,7 @@ export default async function ZonesPage() {
     if (b.kind === "server") channelSlugs.push(b.server.slug);
     else for (const p of b.peers) channelSlugs.push(p.slug);
   }
+  for (const s of readOnlySecondaries) channelSlugs.push(s.slug);
 
   // "anyLagging" drives the chip's fast-mode color — true when ANY row
   // on the amalgamated list isn't fully in-sync. Standalone primaries
@@ -164,6 +243,24 @@ export default async function ZonesPage() {
         </div>
       ) : null}
 
+      {hiddenSummary ? (
+        <div className="rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 p-3 text-xs">
+          <strong>
+            {hiddenSummary.count} duplicate zone{hiddenSummary.count === 1 ? "" : "s"} hidden.
+          </strong>{" "}
+          Each zone is listed once (resolved to its primary, or the first secondary when no primary
+          is managed). These copies are on backends with no managed primary — standalone secondaries
+          mirroring an unmanaged primary, or the same name on another primary. Also served by:{" "}
+          {hiddenSummary.backends.map((b, i) => (
+            <span key={`${b.name} ${b.type}`}>
+              {i > 0 ? ", " : ""}
+              <code className="font-mono">{b.name}</code> ({b.type})
+            </span>
+          ))}
+          .
+        </div>
+      ) : null}
+
       <ZonesTable zones={visibleRows} showLastEdit={canReadAudit} />
     </div>
   );
@@ -176,49 +273,56 @@ interface FetchResult {
   error: string | null;
 }
 
+/** Generic, non-leaky reachability message (no raw connect error — S-12). */
+function unreachableMessage(kind: "down" | "auth"): string {
+  return kind === "auth"
+    ? "API rejected the configured key (401/403)."
+    : "Backend unreachable — the app hasn't reached its API recently.";
+}
+
 /**
- * Fetch zones + sync state from one logical backend. Errors are
- * captured into the returned envelope so a single broken backend
- * doesn't fail the whole page render.
+ * Build zone rows for one logical backend from the broker store (zone-state
+ * cache + live reachability). For a cluster, reads from the first reachable peer
+ * (peers share data); a backend the broker can't reach yields an error envelope
+ * so it surfaces consistently with the servers list + bell.
  */
-async function fetchFromBackend(backend: SelectableBackend): Promise<FetchResult> {
+async function rowsFromBackend(backend: SelectableBackend): Promise<FetchResult> {
   const label = backend.kind === "cluster" ? backend.cluster.name : backend.server.name;
 
-  // For cluster backends the cluster's peer-selection strategy picks
-  // which peer to read from — round_robin spreads requests across
-  // peers, lowest_latency / least_load route to the healthiest. For
-  // standalone servers there's only one choice.
+  // The peer whose cached zone set we read. Any reachable peer is equivalent for
+  // a cluster (shared storage); fall back to the representative for the slug.
   const readPeer =
     backend.kind === "cluster"
-      ? ((await choosePeer(backend.cluster, backend.peers)) ?? backend.representativeServer)
+      ? (backend.peers.find((p) => backendUnreachability(p.id) === null) ??
+        backend.representativeServer)
       : backend.server;
   const lastEditServerSlug = readPeer.slug;
 
-  let zones: PdnsZoneSummary[];
-  try {
-    const client = getPdnsClientForRow(readPeer);
-    zones = await client.listZones();
-  } catch (err) {
-    const msg = err instanceof Error ? redact(err.message) : "unknown";
-    logger.warn({ backend: label, kind: backend.kind, error: msg }, "zones.list.backend-failed");
-    return { label, lastEditServerSlug, rows: [], error: msg };
+  const unreach = backendUnreachability(readPeer.id);
+  const cached = readCachedZones(readPeer.id);
+  if (unreach || !cached) {
+    return {
+      label,
+      lastEditServerSlug,
+      rows: [],
+      error: unreachableMessage(unreach ?? "down"),
+    };
   }
+  const zones = [...cached.zones.values()];
 
-  // Sync state — branches on backend kind.
+  // Sync state — branches on the group's composition (ADR-0014). All variants
+  // read serials from the cache (poller-maintained), never live.
   let syncByZone: Map<string, SecondarySyncStatus[]>;
-  if (backend.kind === "server") {
-    // Primary + Secondaries (when Secondaries exist) → batched probe.
-    // Empty map for standalone primaries, which is exactly the "—"
-    // rendering signal the SyncCell already understands.
+  const zoneSerials = zones.map((z) => ({ name: z.name, serial: z.serial }));
+  if (backend.kind === "server" || backend.secondaries.length > 0) {
+    // Standalone primary, or a primary + its secondaries → primary→secondary.
     syncByZone = await checkZonesSyncBatch(
-      backend.server,
-      zones.map((z) => ({ name: z.name, serial: z.serial ?? null })),
+      backend.kind === "cluster" ? backend.representativeServer : backend.server,
+      zoneSerials,
     );
   } else {
-    // Cluster — probe every peer for the full zone list and compare
-    // serials against the read peer's. Same operator-facing question:
-    // are all peers serving the same view.
-    syncByZone = await probeClusterSync(backend, readPeer, zones);
+    // True multi-primary cluster — compare every peer's cached serials.
+    syncByZone = clusterSyncFromCache(backend, readPeer, zones);
   }
 
   const rowsBackend: ZoneRow["backend"] = {
@@ -228,60 +332,107 @@ async function fetchFromBackend(backend: SelectableBackend): Promise<FetchResult
     serverSlug: readPeer.slug,
   };
 
-  const rows: ZoneRow[] = zones.map((z) => toZoneRow(z, rowsBackend, syncByZone.get(z.name) ?? []));
+  const rows = zones.map((z) => toZoneRow(z, rowsBackend, syncByZone.get(z.name) ?? []));
   return { label, lastEditServerSlug, rows, error: null };
 }
 
 /**
- * Probe every peer in a cluster and produce a SecondarySyncStatus[]
- * keyed on zone name. The representative peer (the one the page
- * already read from) is the source-of-truth; the other peers' serials
- * are compared against it.
- *
- * Mirrors the per-zone shape of `checkZonesSyncBatch` so the table's
- * Sync cell renders identically across topologies. "in-sync" means
- * the peer's serial matches the representative's.
+ * One row per zone name across the whole fleet. An authoritative (writable) row
+ * beats a read-only mirror of the same name; among rows of the same tier the
+ * first wins (rows arrive in a stable, name-ordered backend sequence). Net: a
+ * zone resolves to its primary, or to the first secondary when no primary serves
+ * it. Map preserves first-insertion order, so an in-place replacement keeps the
+ * row's original position.
  */
-async function probeClusterSync(
-  backend: Extract<SelectableBackend, { kind: "cluster" }>,
-  /** The peer whose zone list the table is showing — its serials are
-   *  the per-zone source-of-truth for the sync comparison. */
-  readPeer: PdnsServer,
-  primaryZones: readonly PdnsZoneSummary[],
-): Promise<Map<string, SecondarySyncStatus[]>> {
-  // Serials by (peer, zoneName). One listZones call per peer, then
-  // per-zone lookups in memory.
-  const peerSerials = await Promise.all(
-    backend.peers.map(async (p) => {
-      try {
-        const client = getPdnsClientForRow(p);
-        const list = await client.listZones();
-        const m = new Map<string, number | null>();
-        for (const z of list) m.set(z.name, z.serial ?? null);
-        return { peer: p, serials: m, error: null as string | null };
-      } catch (err) {
-        return {
-          peer: p,
-          serials: new Map<string, number | null>(),
-          error: err instanceof Error ? redact(err.message) : "unknown",
-        };
-      }
-    }),
-  );
+function dedupeZonesByName(rows: readonly ZoneRow[]): { kept: ZoneRow[]; hidden: ZoneRow[] } {
+  const byName = new Map<string, ZoneRow>();
+  const hidden: ZoneRow[] = [];
+  for (const row of rows) {
+    const existing = byName.get(row.name);
+    if (!existing) {
+      byName.set(row.name, row);
+      continue;
+    }
+    // Prefer an authoritative row over a read-only mirror; the displaced one is
+    // hidden. Otherwise this duplicate is the one hidden.
+    if (existing.readOnly && !row.readOnly) {
+      byName.set(row.name, row);
+      hidden.push(existing);
+    } else {
+      hidden.push(row);
+    }
+  }
+  return { kept: [...byName.values()], hidden };
+}
 
-  const repSerialByZone = new Map<string, number | null>();
-  for (const z of primaryZones) repSerialByZone.set(z.name, z.serial ?? null);
+/**
+ * Read-only rows for an unpinned secondary — a mirror of a primary the app
+ * doesn't manage — from the broker store. Every cached zone is emitted; the
+ * caller's `dedupeZonesByName` drops any a primary (or an earlier secondary)
+ * already covers. An unreachable mirror reports an error envelope. No sync
+ * column (no app-side primary to compare); "last edit" falls back to the
+ * SOA-serial date.
+ */
+function readOnlySecondaryRows(secondary: PdnsServer): {
+  label: string;
+  rows: ZoneRow[];
+  error: string | null;
+} {
+  const label = secondary.name;
+  const unreach = backendUnreachability(secondary.id);
+  const cached = readCachedZones(secondary.id);
+  if (unreach || !cached) {
+    return { label, rows: [], error: unreachableMessage(unreach ?? "down") };
+  }
+  const rows: ZoneRow[] = [];
+  for (const z of cached.zones.values()) {
+    const fold = foldLastEdit(z.serial, null);
+    rows.push({
+      id: z.id,
+      name: z.name,
+      kind: z.kind,
+      serial: z.serial,
+      dnssec: z.dnssec,
+      backend: { kind: "server", name: label, clusterSlug: null, serverSlug: secondary.slug },
+      lastEditIso: fold.iso,
+      lastEditSource: fold.source,
+      syncStates: [],
+      syncWorst: null,
+      readOnly: isReadOnlyZoneKind(z.kind),
+    });
+  }
+  return { label, rows, error: null };
+}
+
+/**
+ * Multi-primary cluster sync from the zone-state cache — the representative
+ * peer's serial is the per-zone source of truth; every other peer's cached
+ * serial is compared against it. No PDNS calls (mirrors `checkZonesSyncBatch`).
+ */
+function clusterSyncFromCache(
+  backend: Extract<SelectableBackend, { kind: "cluster" }>,
+  readPeer: PdnsServer,
+  primaryZones: readonly CachedZoneSnapshot[],
+): Map<string, SecondarySyncStatus[]> {
+  // Per-peer cached serials, in memory.
+  const peerSerials = backend.peers.map((p) => {
+    const entry = readCachedZones(p.id);
+    const serials = new Map<string, number | null>();
+    if (entry) for (const z of entry.zones.values()) serials.set(z.name, z.serial);
+    return { peer: p, serials, reachable: backendUnreachability(p.id) === null && entry !== null };
+  });
 
   const out = new Map<string, SecondarySyncStatus[]>();
   for (const z of primaryZones) {
-    const repSerial = repSerialByZone.get(z.name) ?? null;
+    const repSerial = z.serial;
     const entries: SecondarySyncStatus[] = [];
     for (const ps of peerSerials) {
       if (ps.peer.id === readPeer.id) continue;
       let state: SecondarySyncStatus["state"];
       let observed: number | null = ps.serials.get(z.name) ?? null;
-      if (ps.error !== null) {
+      if (!ps.reachable) {
         state = "error";
+        observed = null;
       } else if (!ps.serials.has(z.name)) {
         state = "missing";
         observed = null;
@@ -299,7 +450,7 @@ async function probeClusterSync(
         state,
         primarySerial: repSerial,
         secondarySerial: observed,
-        error: ps.error,
+        error: null,
       });
     }
     out.set(z.name, entries);
@@ -308,7 +459,7 @@ async function probeClusterSync(
 }
 
 function toZoneRow(
-  zone: PdnsZoneSummary,
+  zone: CachedZoneSnapshot,
   backend: ZoneRow["backend"],
   sync: SecondarySyncStatus[],
 ): ZoneRow {
@@ -330,8 +481,11 @@ function toZoneRow(
     id: zone.id,
     name: zone.name,
     kind: zone.kind,
-    serial: zone.serial ?? null,
-    dnssec: zone.dnssec ?? false,
+    serial: zone.serial,
+    dnssec: zone.dnssec,
+    // Read-only by zone kind — a Slave/Secondary/Consumer zone is an AXFR
+    // mirror even when it lives on an otherwise-writable (primary) backend.
+    readOnly: isReadOnlyZoneKind(zone.kind),
     backend,
     lastEditIso: null,
     lastEditSource: null,

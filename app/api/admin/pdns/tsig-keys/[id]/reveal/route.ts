@@ -46,7 +46,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       throw err;
     }
 
-    const result = redeem({ token: input.token, actorId: actor.id });
+    const result = await redeem({ token: input.token, actorId: actor.id });
     if (!result) {
       await appendAudit({
         actor: { type: "user", id: actor.id },

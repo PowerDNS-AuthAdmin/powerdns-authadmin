@@ -71,6 +71,18 @@ remove_conflicting_projects() {
 }
 
 teardown() {
+  local status=$?
+  # On failure, dump app + every PDNS container's logs before teardown so CI
+  # has the backend-side reason (e.g. a gsqlite3 500) — vitest only shows the
+  # client-side "HTTP 500".
+  if [ "$status" -ne 0 ]; then
+    echo "[run.sh] ===== FAILURE (exit $status): dumping container logs ====="
+    compose logs --tail=80 app 2>&1 || true
+    for svc in $(compose ps --services 2>/dev/null | grep -E '^pdns' || true); do
+      echo "[run.sh] ----- logs: $svc -----"
+      compose logs --tail=60 "$svc" 2>&1 || true
+    done
+  fi
   if [ "${KEEP_STACK:-0}" = "1" ]; then
     echo "[run.sh] KEEP_STACK=1 — leaving stack running"
     return

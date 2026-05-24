@@ -14,6 +14,8 @@
 [![CI](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/ci.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/PowerDNS-AuthAdmin/powerdns-authadmin)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/releases/latest)
 [![Container: GHCR](https://img.shields.io/badge/ghcr.io-powerdns--authadmin-2496ED?logo=docker&logoColor=white)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)
+[![GHCR version](https://ghcr-badge.egpl.dev/powerdns-authadmin/powerdns-authadmin/latest_tag?ignore=latest,edge&label=ghcr.io&color=%232ea44f)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)
+[![GHCR image size](https://ghcr-badge.egpl.dev/powerdns-authadmin/powerdns-authadmin/size?tag=latest&label=image%20size&color=%232ea44f)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)
 [![License: MIT](https://img.shields.io/github/license/PowerDNS-AuthAdmin/powerdns-authadmin)](./LICENSE)
 
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)](.nvmrc)
@@ -212,6 +214,73 @@ volumes:
   pg-data:
 ```
 
+### High availability (replicas > 1)
+
+To run more than one app replica, use **Postgres + Redis** and put a load balancer
+in front. Sessions are already shared (they live in Postgres); setting `REDIS_URL`
+makes the three remaining per-process pieces — auth rate limiting, one-time reveal
+tokens, and the realtime SSE event bus — coordinate across replicas. Without Redis
+those degrade to per-replica behaviour (looser rate limits, reveal tokens that only
+work on their origin replica, live updates that don't cross replicas), so Redis is
+**required** past one replica. See [ADR-0016](./docs/adr/0016-redis-horizontal-scale.md).
+
+> SQLite is single-instance only — a file-backed DB isn't shared storage. HA means
+> Postgres. The boot log says so if it detects the combination.
+
+```yaml
+# docker-compose.ha.yml — Postgres + Redis, app fronted by your load balancer.
+services:
+  app:
+    image: ghcr.io/powerdns-authadmin/powerdns-authadmin:latest
+    restart: unless-stopped
+    # No host port — your load balancer (nginx/Traefik/cloud LB) fronts the replicas.
+    expose: ["3000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      APP_URL: https://dns.example.com
+      DATABASE_URL: postgres://pdns:${POSTGRES_PASSWORD}@postgres:5432/powerdns_authadmin
+      REDIS_URL: redis://redis:6379 # ← enables cross-replica coordination
+      APP_SECRET_KEY: ${APP_SECRET_KEY}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
+      BOOTSTRAP_ADMIN_EMAIL: admin@example.com
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
+    # Plain compose: `docker compose -f docker-compose.ha.yml up -d --scale app=3`.
+    # Swarm / k8s: set replicas in your orchestrator instead.
+    deploy:
+      replicas: 3
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pdns
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: powerdns_authadmin
+    volumes: ["pg-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pdns -d powerdns_authadmin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  pg-data:
+```
+
+> Migrations are serialized across replica boots by a Postgres advisory lock
+> (ADR-0011), so starting N replicas at once is safe — only one applies migrations.
+> Redis here is a coordination cache, not a datastore: persistence is off
+> (`--save "" --appendonly no`) because nothing it holds needs to survive a restart.
+
 ### Configuration
 
 Every variable is documented in [`.env.example`](./.env.example). The essentials:
@@ -222,10 +291,12 @@ Every variable is documented in [`.env.example`](./.env.example). The essentials
 | `APP_SECRET_KEY`                                     | ✅          | Session / CSRF / token HMAC secret. `openssl rand -base64 32`.         |
 | `APP_ENCRYPTION_KEY`                                 | ✅          | AES-256 key (base64, decodes to ≥32 bytes). `openssl rand -base64 32`. |
 | `DATABASE_URL`                                       | ✅          | `file:/data/powerdns_authadmin.db` (SQLite) or `postgres://…`.         |
+| `REDIS_URL`                                          | optional    | Enables cross-replica coordination — **required** for replicas > 1.    |
 | `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD`                | ⭐          | First SuperAdmin (password ≥12 chars).                                 |
 | `OIDC_*`                                             | optional    | SSO — or add providers in the UI instead.                              |
 | `SMTP_*`                                             | optional    | Transactional email (verify-email, password reset).                    |
 | `APP_PDNS_ALLOW_PRIVATE_NETWORKS` / `_INSECURE_HTTP` | situational | Allow internal-network / `http://` PDNS backends.                      |
+| `APP_OIDC_ALLOW_PRIVATE_NETWORKS` / `_INSECURE_HTTP` | situational | Allow internal-network / `http://` OIDC issuers (SSRF guard).          |
 
 Full reference with every variable: **[Configuration](./docs/03-CONFIGURATION.md)**. For SSO setup
 (env vs provisioning vs UI), see **[OIDC single sign-on](./docs/05-OIDC.md)**.
@@ -249,6 +320,26 @@ npm run validate                   # lint + typecheck + format + test
 ```
 
 Full workflow + troubleshooting in [`docs/dev-setup.md`](./docs/dev-setup.md).
+
+## PowerDNS Authoritative compatibility
+
+The full end-to-end suite runs against every supported official PowerDNS
+Authoritative image — one workflow per version, so each badge below is the **live**
+GitHub Actions status of that version's last run (no manual updates). They run on
+every minor/major release tag (`vX.Y.0`), monthly to catch upstream `:latest` drift,
+and on demand — not on every push, so the matrix stays honest without slowing PR CI.
+
+[![PowerDNS 4.6](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-46.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-46.yml)
+[![PowerDNS 4.7](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-47.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-47.yml)
+[![PowerDNS 4.8](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-48.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-48.yml)
+[![PowerDNS 4.9](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-49.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-49.yml)
+[![PowerDNS 5.0](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-50.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-50.yml)
+
+The same modern-name INI configs and gsqlite3/gmysql schema work unchanged across
+4.6 → 5.0 (4.5 renamed replication settings to primary/secondary, which we use; 5.0
+only dropped the legacy master/slave aliases and added an optional YAML config it
+still reads old-style INI alongside). Older majors aren't tested; newer ones are
+added to the matrix as they ship.
 
 ## Documentation
 

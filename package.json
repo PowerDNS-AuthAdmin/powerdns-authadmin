@@ -1,6 +1,6 @@
 {
   "name": "powerdns-authadmin",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "private": true,
   "description": "Modern, self-hosted DNS administration UI for PowerDNS — multi-team RBAC, real audit, real SSO. From-scratch rebuild of PowerDNS-Admin in Node.js + TypeScript.",
   "license": "MIT",
@@ -52,6 +52,7 @@
     "drizzle-orm": "0.45.2",
     "echarts": "6.1.0",
     "echarts-for-react": "3.0.6",
+    "ioredis": "5.10.1",
     "jose": "6.2.3",
     "js-yaml": "4.1.1",
     "lucide-react": "1.16.0",

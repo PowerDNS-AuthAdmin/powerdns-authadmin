@@ -1,0 +1,44 @@
+# Reusable PowerDNS-compatibility run: boots the full end-to-end stack against
+# ONE official PowerDNS Authoritative image and runs the integration suite.
+# Invoked by the per-version caller workflows (pdns-compat-<ver>.yml) so each
+# version gets its own native workflow-status badge (badge.svg) — no committed
+# JSON, no badge commit-back. See the callers for the trigger schedule.
+
+name: PDNS compat (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      pdns_image:
+        description: Official PowerDNS Authoritative image to test against.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  compat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Integration suite (full stack via docker compose, ${{ inputs.pdns_image }})
+        # docker-compose-combined.yml requires the two secrets via ${VAR:?} at
+        # compose INTERPOLATION time (the test override then replaces them with
+        # deterministic per-container test values). PDNS_AUTH_IMAGE selects the
+        # PowerDNS image under test.
+        env:
+          APP_SECRET_KEY: kQNFuuPJLRHE1qsbUgXQDMAcgsg2kxVip34yE9ydwS8=
+          APP_ENCRYPTION_KEY: n+ZccvIUcG6XoJ2qoUtaPtk7tme1n5NbT3QXkiHBs4M=
+          PDNS_AUTH_IMAGE: ${{ inputs.pdns_image }}
+        run: npm run test:integration

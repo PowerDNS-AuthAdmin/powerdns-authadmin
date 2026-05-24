@@ -19,7 +19,8 @@ import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
 import { normalizeZoneId } from "@/lib/pdns/client";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
+import { assertEditableZoneKind } from "@/lib/pdns/writable-kind";
 import { PdnsNotFoundError } from "@/lib/pdns/errors";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
@@ -79,7 +80,20 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
       throw new ForbiddenError("Missing dnssec.configure for this zone.");
     }
 
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
+    // DNSSEC key state lives on the primary; a mirror serves presigned RRSIGs it
+    // received over AXFR, so key management (toggle/delete) is read-only there —
+    // gate by the zone's kind, same as create (ADR-0014).
+    let zone;
+    try {
+      zone = await client.getZone(zoneName);
+    } catch (err) {
+      if (err instanceof PdnsNotFoundError) {
+        throw new NotFoundError(`Zone "${zoneName}" not found on backend.`);
+      }
+      throw err;
+    }
+    assertEditableZoneKind(zone.kind);
     let before;
     try {
       before = await client.getCryptokey(zoneName, cryptokeyId);
@@ -149,7 +163,20 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
       throw new ForbiddenError("Missing dnssec.configure for this zone.");
     }
 
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
+    // DNSSEC key state lives on the primary; a mirror serves presigned RRSIGs it
+    // received over AXFR, so key management (toggle/delete) is read-only there —
+    // gate by the zone's kind, same as create (ADR-0014).
+    let zone;
+    try {
+      zone = await client.getZone(zoneName);
+    } catch (err) {
+      if (err instanceof PdnsNotFoundError) {
+        throw new NotFoundError(`Zone "${zoneName}" not found on backend.`);
+      }
+      throw err;
+    }
+    assertEditableZoneKind(zone.kind);
     let before;
     try {
       before = await client.getCryptokey(zoneName, cryptokeyId);

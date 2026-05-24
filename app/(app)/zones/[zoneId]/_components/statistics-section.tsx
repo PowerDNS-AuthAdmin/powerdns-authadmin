@@ -8,15 +8,15 @@
  */
 
 import { zoneAuditCounts7d } from "@/lib/db/repositories/audit-log";
-import type { PdnsServer } from "@/lib/db/schema";
 
 interface Props {
-  selected: PdnsServer;
+  /** Backend slug(s) — multiple for a cluster (edits scatter across peers). */
+  serverSlugs: readonly string[];
   zoneName: string;
 }
 
-export async function ZoneStatisticsSection({ selected, zoneName }: Props) {
-  const zoneCounts = await zoneAuditCounts7d(selected.slug, zoneName);
+export async function ZoneStatisticsSection({ serverSlugs, zoneName }: Props) {
+  const zoneCounts = await zoneAuditCounts7d(serverSlugs, zoneName);
 
   return (
     <div className="space-y-6">

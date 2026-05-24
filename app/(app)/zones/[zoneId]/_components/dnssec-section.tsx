@@ -6,7 +6,7 @@
  */
 
 import { recentDnssecAuditForZone } from "@/lib/db/repositories/audit-log";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { PdnsNotFoundError } from "@/lib/pdns/errors";
 import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
@@ -43,7 +43,7 @@ export async function DnssecSection({
   let keys: PdnsCryptokeySummary[] | null = null;
   let fetchError: string | null = null;
   try {
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
     keys = await client.listCryptokeys(zoneName);
   } catch (err) {
     if (err instanceof PdnsNotFoundError) {

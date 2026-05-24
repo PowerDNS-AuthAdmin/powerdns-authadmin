@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { loginAsBootstrap } from "../helpers/auth";
 import { getZone, PDNS_BACKENDS, PDNS_BY_TOPOLOGY } from "../helpers/pdns";
 import { resetState } from "../helpers/reset";
+import { dbQuery } from "../helpers/db";
 import { type TestHttp } from "../helpers/http";
 
 const NS = ["ns1.example.com.", "ns2.example.com."] as const;
@@ -128,5 +129,32 @@ describe("PDNS client behavior across topologies", () => {
     );
     const seen = hits.find((r) => r?.records?.[0]?.content === "192.0.2.9");
     expect(seen).toBeDefined();
+  }, 20_000);
+
+  it("cluster: zone audit entries scatter across peer slugs — history must aggregate them", async () => {
+    // Root cause of the empty cluster change-history: writes route through a
+    // rotating peer, so edits land under different `${peer}:${zone}` audit
+    // resource_ids. Reading a single peer's slug misses the rest; the fix ORs
+    // the scope across every peer. Here we edit the SAME cluster zone through
+    // two peers and confirm both slugs hold audit rows.
+    const admin = await loginAsBootstrap();
+    const zone = randomZone("cluster-audit");
+    await createZoneOn(admin, { clusterSlug: "prod-cluster" }, zone);
+
+    await patchRRset(admin, "peer-1", zone, `a.${zone}`, "192.0.2.11");
+    await patchRRset(admin, "peer-2", zone, `b.${zone}`, "192.0.2.12");
+
+    const countFor = async (slug: string): Promise<number> => {
+      const rows = await dbQuery<{ n: number }>(
+        `SELECT count(*)::int AS n FROM audit_log WHERE resource_id LIKE $1`,
+        [`${slug}:${zone}%`],
+      );
+      return Number(rows[0]?.n ?? 0);
+    };
+
+    // Each peer slug holds only its own edit (the scatter); aggregating across
+    // peers is what surfaces both in the change history.
+    expect(await countFor("peer-1")).toBeGreaterThan(0);
+    expect(await countFor("peer-2")).toBeGreaterThan(0);
   }, 20_000);
 });

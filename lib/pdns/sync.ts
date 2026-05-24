@@ -15,10 +15,14 @@
    primary's active secondaries (a DB read) and fans probes across them. See
    ADR-0013. Future work: relocate above lib/pdns (e.g. a lib/cluster/ module). */
 import "server-only";
-import { listActiveSecondariesForPrimary } from "@/lib/db/repositories/pdns-servers";
+import {
+  listAllActiveBackends,
+  listSecondariesForPrimary,
+} from "@/lib/db/repositories/pdns-servers";
 import { canonicalTxtContent } from "@/lib/dns/txt";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
-import { PdnsNotFoundError } from "@/lib/pdns/errors";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
+import { readCachedZone } from "@/lib/pdns/zone-state-cache";
+import { derivedMirrorsForPrimary } from "@/lib/pdns/topology-cache";
 import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
 
@@ -40,145 +44,113 @@ export interface SecondarySyncStatus {
   error: string | null;
 }
 
+interface MirrorBackend {
+  server: PdnsServer;
+  /** A member of the primary's group — the explicit-grouping fallback. */
+  inGroup: boolean;
+  /** Zone names this backend mirrors of `primary` (derived, from the cache). */
+  derivedZones: Set<string>;
+}
+
 /**
- * Compare a zone's serial on a primary vs. each of its active secondaries.
- * Doesn't fetch full rrsets — that's `compareZoneRecords` below.
+ * The backends that mirror `primary`, read from caches (ADR-0014). The masters[]
+ * derive is computed site-wide by the poller (lib/pdns/topology-cache); here we
+ * just read it, union it with the primary's group members, and compare serials
+ * from the zone-state cache — NO per-call PDNS fetch or DNS. A backend mirrors a
+ * given zone if it's a group member OR the cached topology says its copy of that
+ * zone points at this primary (so one secondary can mirror different primaries
+ * per zone).
+ */
+async function discoverMirrors(primary: PdnsServer): Promise<MirrorBackend[]> {
+  const [allBackends, groupSecondaries] = await Promise.all([
+    listAllActiveBackends(),
+    listSecondariesForPrimary(primary),
+  ]);
+  const byId = new Map(allBackends.map((b) => [b.id, b]));
+  const groupIds = new Set(groupSecondaries.map((s) => s.id));
+  const derivedBySecondary = derivedMirrorsForPrimary(primary.id);
+
+  const out: MirrorBackend[] = [];
+  for (const id of new Set([...groupIds, ...derivedBySecondary.keys()])) {
+    if (id === primary.id) continue;
+    const server = byId.get(id);
+    if (!server) continue;
+    out.push({
+      server,
+      inGroup: groupIds.has(id),
+      derivedZones: derivedBySecondary.get(id) ?? new Set(),
+    });
+  }
+  return out;
+}
+
+/** Does this mirror cover the primary's given zone (group member, or derived)? */
+function mirrorsZone(m: MirrorBackend, zoneName: string): boolean {
+  return m.inGroup || m.derivedZones.has(zoneName);
+}
+
+/** Serial-comparison status for one mirror's zone, read from the zone-state cache. */
+function statusFromCache(
+  m: MirrorBackend,
+  zoneName: string,
+  primarySerial: number | null,
+): SecondarySyncStatus {
+  const snap = readCachedZone(m.server.id, zoneName);
+  if (!snap) {
+    return {
+      server: m.server,
+      state: "missing",
+      primarySerial,
+      secondarySerial: null,
+      error: null,
+    };
+  }
+  const secondarySerial = snap.serial;
+  let state: SyncState;
+  if (primarySerial === null || secondarySerial === null) state = "error";
+  else if (primarySerial === secondarySerial) state = "in-sync";
+  else if (secondarySerial < primarySerial) state = "lagging";
+  else state = "ahead";
+  return { server: m.server, state, primarySerial, secondarySerial, error: null };
+}
+
+/**
+ * Compare a zone's serial on a primary vs. each backend that mirrors it. Reads
+ * mirror serials from the zone-state cache (poller-maintained) — the same source
+ * the zones list uses, so the two never disagree. Doesn't fetch full rrsets —
+ * that's `compareZoneRecords` below.
  */
 export async function checkZoneSync(
   primary: PdnsServer,
   zoneName: string,
   primarySerial: number | null,
 ): Promise<SecondarySyncStatus[]> {
-  const secondaries = await listActiveSecondariesForPrimary(primary.id);
-  if (secondaries.length === 0) return [];
-
-  return Promise.all(secondaries.map(async (s) => probeSecondary(s, zoneName, primarySerial)));
-}
-
-async function probeSecondary(
-  s: PdnsServer,
-  zoneName: string,
-  primarySerial: number | null,
-): Promise<SecondarySyncStatus> {
-  try {
-    const client = getPdnsClientForRow(s);
-    // Plain getZone — the `?rrsets=false` summary fetch was returning
-    // stale/buggy serials on some PDNS versions (chip stuck on
-    // "syncing" with the Sync tab body simultaneously showing IN SYNC).
-    // The full fetch costs us bandwidth but is the source-of-truth.
-    const zone = await client.getZone(zoneName);
-    const secondarySerial = zone.serial ?? null;
-    let state: SyncState;
-    if (primarySerial === null || secondarySerial === null) state = "error";
-    else if (primarySerial === secondarySerial) state = "in-sync";
-    else if (secondarySerial < primarySerial) state = "lagging";
-    else state = "ahead";
-    return {
-      server: s,
-      state,
-      primarySerial,
-      secondarySerial,
-      error: null,
-    };
-  } catch (err) {
-    if (err instanceof PdnsNotFoundError) {
-      return {
-        server: s,
-        state: "missing",
-        primarySerial,
-        secondarySerial: null,
-        error: null,
-      };
-    }
-    const message = err instanceof Error ? redact(err.message) : "unknown";
-    logger.warn({ server: s.slug, zone: zoneName, error: message }, "pdns.sync.probe.failed");
-    return {
-      server: s,
-      state: "error",
-      primarySerial,
-      secondarySerial: null,
-      error: message,
-    };
-  }
+  const mirrors = await discoverMirrors(primary);
+  return mirrors
+    .filter((m) => mirrorsZone(m, zoneName))
+    .map((m) => statusFromCache(m, zoneName, primarySerial));
 }
 
 /**
- * Batched variant for the zones-list page. Probes every secondary for
- * every zone — cap at concurrency=8 per secondary so a long zone list
- * doesn't open hundreds of sockets at once.
- *
- * Returns a Map keyed by zone name; value is the per-secondary sync
- * statuses. Zones absent from the map indicate "no secondaries
- * configured" (nothing to compare).
+ * Batched variant for the zones-list page. Reads the mirror set + serials from
+ * the caches (poller-maintained) — no per-zone PDNS calls. Returns a Map keyed
+ * by zone name; zones absent from the map have no mirror (render "—").
  */
 export async function checkZonesSyncBatch(
   primary: PdnsServer,
   zones: ReadonlyArray<{ name: string; serial: number | null }>,
 ): Promise<Map<string, SecondarySyncStatus[]>> {
-  const secondaries = await listActiveSecondariesForPrimary(primary.id);
-  if (secondaries.length === 0 || zones.length === 0) return new Map();
-
-  // For each secondary, fetch the whole zone list once. Way cheaper
-  // than per-zone GET /zones/{id} N×M times.
-  const secondaryZoneMaps = await Promise.all(
-    secondaries.map(async (s) => {
-      try {
-        const client = getPdnsClientForRow(s);
-        const list = await client.listZones();
-        const m = new Map<string, number | null>();
-        for (const z of list) m.set(z.name, z.serial ?? null);
-        return { server: s, map: m, error: null as string | null };
-      } catch (err) {
-        const message = err instanceof Error ? redact(err.message) : "unknown";
-        logger.warn({ server: s.slug, error: message }, "pdns.sync.list.failed");
-        return {
-          server: s,
-          map: new Map<string, number | null>(),
-          error: message,
-        };
-      }
-    }),
-  );
+  const mirrors = await discoverMirrors(primary);
+  if (mirrors.length === 0 || zones.length === 0) return new Map();
 
   const out = new Map<string, SecondarySyncStatus[]>();
   for (const z of zones) {
-    const entries: SecondarySyncStatus[] = [];
-    for (const sm of secondaryZoneMaps) {
-      if (sm.error !== null) {
-        entries.push({
-          server: sm.server,
-          state: "error",
-          primarySerial: z.serial,
-          secondarySerial: null,
-          error: sm.error,
-        });
-        continue;
-      }
-      if (!sm.map.has(z.name)) {
-        entries.push({
-          server: sm.server,
-          state: "missing",
-          primarySerial: z.serial,
-          secondarySerial: null,
-          error: null,
-        });
-        continue;
-      }
-      const secondarySerial = sm.map.get(z.name) ?? null;
-      let state: SyncState;
-      if (z.serial === null || secondarySerial === null) state = "error";
-      else if (secondarySerial === z.serial) state = "in-sync";
-      else if (secondarySerial < z.serial) state = "lagging";
-      else state = "ahead";
-      entries.push({
-        server: sm.server,
-        state,
-        primarySerial: z.serial,
-        secondarySerial,
-        error: null,
-      });
-    }
-    out.set(z.name, entries);
+    const relevant = mirrors.filter((m) => mirrorsZone(m, z.name));
+    if (relevant.length === 0) continue;
+    out.set(
+      z.name,
+      relevant.map((m) => statusFromCache(m, z.name, z.serial)),
+    );
   }
   return out;
 }
@@ -203,10 +175,11 @@ export async function compareZoneRecords(
   primary: PdnsServer,
   primaryZone: PdnsZoneDetail,
 ): Promise<SecondaryRrsetDiff[]> {
-  const secondaries = await listActiveSecondariesForPrimary(primary.id);
-  if (secondaries.length === 0) return [];
+  const mirrors = await discoverMirrors(primary);
+  const relevant = mirrors.filter((m) => mirrorsZone(m, primaryZone.name));
+  if (relevant.length === 0) return [];
 
-  return Promise.all(secondaries.map(async (s) => probeRrsetDiff(s, primaryZone)));
+  return Promise.all(relevant.map((m) => probeRrsetDiff(m.server, primaryZone)));
 }
 
 async function probeRrsetDiff(
@@ -214,7 +187,7 @@ async function probeRrsetDiff(
   primaryZone: PdnsZoneDetail,
 ): Promise<SecondaryRrsetDiff> {
   try {
-    const client = getPdnsClientForRow(s);
+    const client = getBackendGateway(s);
     const secondaryZone = await client.getZone(primaryZone.name);
     const primaryLines = rrsetsToCanonicalLines(primaryZone.rrsets ?? []);
     const secondaryLines = rrsetsToCanonicalLines(secondaryZone.rrsets ?? []);
@@ -306,7 +279,7 @@ export async function compareClusterPeerRecords(
   const fetched = await Promise.all(
     peers.map(async (p) => {
       try {
-        const client = getPdnsClientForRow(p);
+        const client = getBackendGateway(p);
         const zone = await client.getZone(zoneName);
         return { peer: p, zone, error: null as string | null };
       } catch (err) {

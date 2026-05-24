@@ -6,6 +6,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { apiFetch } from "@/lib/client/api-fetch";
 
 interface RoleOption {
@@ -106,19 +107,16 @@ export function CreateUserForm({ roles = [] }: { roles?: RoleOption[] }) {
           errors={fieldErrors["roleId"]}
           hint="Assigned at global scope. You can change or add scoped assignments after creation."
         >
-          <select
-            id="roleId"
+          <SelectMenu
             value={roleId}
-            onChange={(e) => setRoleId(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">(no role)</option>
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name} ({r.slug})
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setRoleId(v)}
+            options={[
+              { value: "", label: "(no role)" },
+              ...roles.map((r) => ({ value: r.id, label: `${r.name} (${r.slug})` })),
+            ]}
+            ariaLabel="Initial role (optional)"
+            className="mt-1 w-full text-sm"
+          />
         </Field>
       ) : null}
 

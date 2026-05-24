@@ -20,20 +20,24 @@ durability, not exhaustiveness.
 
 ## Index
 
-| #    | Title                                                                                     | Status                     |
-| ---- | ----------------------------------------------------------------------------------------- | -------------------------- |
-| 0001 | [Choose Next.js 15 + RSC as the framework](./0001-framework-choice.md)                    | Accepted                   |
-| 0002 | [License under MIT](./0002-mit-license.md)                                                | Accepted                   |
-| 0004 | [Three-layer architecture (auth → RBAC → business)](./0004-three-layer-architecture.md)   | Accepted                   |
-| 0005 | [Migrations require explicit operator action](./0005-migrations-explicit.md)              | Superseded by 0011         |
-| 0006 | [Per-request CSP nonce](./0006-csp-nonce.md)                                              | Accepted                   |
-| 0007 | [DB-backed sessions over JWTs](./0007-db-backed-sessions.md)                              | Accepted                   |
-| 0008 | [Argon2id for password hashing](./0008-argon2id-passwords.md)                             | Accepted                   |
-| 0009 | [Custom auth core, not Auth.js](./0009-custom-auth-core.md)                               | Accepted                   |
-| 0010 | [Per-RRset optimistic concurrency](./0010-per-rrset-optimistic-concurrency.md)            | Accepted                   |
-| 0011 | [Migrations run at app-container boot](./0011-migrate-on-app-boot.md)                     | Accepted (supersedes 0005) |
-| 0012 | [First-boot provisioning + OIDC group→role mapping](./0012-first-boot-provisioning.md)    | Accepted                   |
-| 0013 | [PDNS client's sanctioned DB bridge + boundary enforcement fix](./0013-pdns-db-bridge.md) | Accepted                   |
+| #    | Title                                                                                                            | Status                     |
+| ---- | ---------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| 0001 | [Choose Next.js 15 + RSC as the framework](./0001-framework-choice.md)                                           | Accepted                   |
+| 0002 | [License under MIT](./0002-mit-license.md)                                                                       | Accepted                   |
+| 0004 | [Three-layer architecture (auth → RBAC → business)](./0004-three-layer-architecture.md)                          | Accepted                   |
+| 0005 | [Migrations require explicit operator action](./0005-migrations-explicit.md)                                     | Superseded by 0011         |
+| 0006 | [Per-request CSP nonce](./0006-csp-nonce.md)                                                                     | Accepted                   |
+| 0007 | [DB-backed sessions over JWTs](./0007-db-backed-sessions.md)                                                     | Accepted                   |
+| 0008 | [Argon2id for password hashing](./0008-argon2id-passwords.md)                                                    | Accepted                   |
+| 0009 | [Custom auth core, not Auth.js](./0009-custom-auth-core.md)                                                      | Accepted                   |
+| 0010 | [Per-RRset optimistic concurrency](./0010-per-rrset-optimistic-concurrency.md)                                   | Accepted                   |
+| 0011 | [Migrations run at app-container boot](./0011-migrate-on-app-boot.md)                                            | Accepted (supersedes 0005) |
+| 0012 | [First-boot provisioning + OIDC group→role mapping](./0012-first-boot-provisioning.md)                           | Accepted                   |
+| 0013 | [PDNS client's sanctioned DB bridge + boundary enforcement fix](./0013-pdns-db-bridge.md)                        | Accepted                   |
+| 0014 | [Per-zone authority + observed daemon capabilities (retire per-server role)](./0014-backend-capability-model.md) | Accepted                   |
+| 0015 | [Backend health advisories (the notification bell)](./0015-backend-health-advisories.md)                         | Accepted                   |
+| 0016 | [Optional Redis for horizontal scale (replicas > 1)](./0016-redis-horizontal-scale.md)                           | Accepted                   |
+| 0017 | [Squash the 1.1.0 schema deltas into one migration per dialect](./0017-migration-squash-1.1.0.md)                | Accepted                   |
 
 > **Numbering note:** there is no ADR 0003 — that number was reserved for a decision that was
 > withdrawn before it was written. The gap is intentional; numbers are never reused.

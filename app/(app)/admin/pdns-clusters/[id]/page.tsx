@@ -3,10 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { findClusterById, listAllServersForCluster } from "@/lib/db/repositories/pdns-clusters";
+import { classifyGroup } from "@/lib/pdns/capabilities";
 import { ClusterForm } from "../_components/cluster-form";
 import { DeleteClusterButton } from "./_components/delete-cluster-button";
 
-export const metadata: Metadata = { title: "Cluster" };
+export const metadata: Metadata = { title: "Group" };
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -22,6 +23,7 @@ export default async function ClusterDetailPage({ params }: PageProps) {
   const canDelete = ability.can("delete", "Server");
 
   const members = await listAllServersForCluster(id);
+  const composition = classifyGroup(members);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -30,17 +32,22 @@ export default async function ClusterDetailPage({ params }: PageProps) {
           href="/admin/pdns-clusters"
           className="text-sm text-[color:var(--color-accent)] hover:underline"
         >
-          ← Back to clusters
+          ← Back to groups
         </Link>
       </div>
 
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">{cluster.name}</h1>
-        <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
+        <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[color:var(--color-fg-muted)]">
           <code className="font-mono">{cluster.slug}</code>
-          <span className="ml-2 rounded bg-[color:var(--color-accent)]/15 px-1.5 py-0.5 font-mono text-[0.625rem] tracking-wide text-[color:var(--color-accent)] uppercase">
-            {cluster.writeStrategy.replace("_", " ")}
+          <span className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-1.5 py-0.5 text-[0.625rem] tracking-wide uppercase">
+            {composition.typeLabel}
           </span>
+          {composition.isMultiPrimary ? (
+            <span className="rounded bg-[color:var(--color-accent)]/15 px-1.5 py-0.5 font-mono text-[0.625rem] tracking-wide text-[color:var(--color-accent)] uppercase">
+              {cluster.writeStrategy.replace("_", " ")}
+            </span>
+          ) : null}
         </p>
       </header>
 
@@ -51,6 +58,7 @@ export default async function ClusterDetailPage({ params }: PageProps) {
           </h2>
           <ClusterForm
             mode="edit"
+            showStrategy={composition.isMultiPrimary}
             clusterId={cluster.id}
             initialSlug={cluster.slug}
             initialName={cluster.name}
@@ -101,8 +109,8 @@ export default async function ClusterDetailPage({ params }: PageProps) {
           </h2>
           <div className="mt-3 flex items-start justify-between gap-4 rounded-md border border-[color:var(--color-error)]/40 bg-[color:var(--color-error)]/5 p-4">
             <p className="flex-1 text-sm text-[color:var(--color-fg-muted)]">
-              Delete this cluster. Members are detached (their <code>cluster_id</code> is set to
-              NULL) and revert to standalone-primary semantics; the server rows themselves stay.
+              Delete this group. Members are detached from the group and revert to standalone
+              semantics; the server rows themselves stay.
             </p>
             <DeleteClusterButton
               clusterId={cluster.id}

@@ -76,6 +76,11 @@ settings:
   login_lockout_threshold: 5 # int 1..100  — attempts before lockout
   login_lockout_seconds: 900 # int 60..86400 — lockout duration
 
+  # Self-service password reset (the login page "Forgot password?" link).
+  # Default true. Set false to hide the link and make the endpoint a no-op —
+  # local accounts only; SSO users always reset through their IdP.
+  allow_password_reset: true
+
 # -----------------------------------------------------------------------------
 # roles  —  custom (org-specific) roles
 # -----------------------------------------------------------------------------
@@ -279,8 +284,9 @@ zone_templates:
 # backend in every operator-facing picker; the peer-selection strategy
 # (UI label) picks which peer to read from / write to per request.
 #
-# Secondaries CANNOT belong to a cluster — clusters are peer-groups of
-# primaries. Listing a cluster_slug on a secondary is a parse error.
+# A "group" (cluster row) relates backends that replicate together — the
+# writable peers of a multi-primary cluster, OR a primary together with its
+# secondaries (ADR-0014). Any role may join a group via `cluster_slug`.
 # -----------------------------------------------------------------------------
 clusters:
   - slug: prod-cluster # lowercase kebab-case
@@ -298,6 +304,12 @@ clusters:
     #                   Useful when peers are unevenly sized.
     write_strategy: round_robin
 
+  # A primary + its secondaries also form a group. The single writable Primary
+  # is the group's peer; the Secondaries ride along as read-only members.
+  - slug: public-group
+    name: "Public group (primary + 2 secondaries)"
+    description: "One writable Primary mirrored by two read-only Secondaries."
+
 # -----------------------------------------------------------------------------
 # pdns_servers  —  the PDNS Authoritative backends
 # -----------------------------------------------------------------------------
@@ -306,12 +318,12 @@ clusters:
 # replicated store (see clusters: above).
 #
 # Cross-row rules enforced at parse:
-#   • role=secondary → primary_slug is required (and must resolve, in this
-#     file or to an existing primary in the DB).
-#   • role=primary   → primary_slug must NOT be set.
-#   • role=secondary → cluster_slug is forbidden.
-#   • is_default     → set on EXACTLY ONE row (the applier doesn't enforce
-#                      uniqueness; the admin UI does).
+#   • cluster_slug   → optional on ANY role; must resolve to a cluster defined
+#                      in this file or already in the DB. Group a primary with
+#                      its secondaries, or the peers of a multi-primary cluster.
+#   • is_default     → only a primary may be the default; set on EXACTLY ONE
+#                      row (the applier doesn't enforce uniqueness; the admin
+#                      UI does).
 #
 # `api_key` is the PDNS X-API-Key in plaintext; encrypted with
 # APP_ENCRYPTION_KEY before persisting. `base_url` must point at the PDNS
@@ -326,7 +338,6 @@ pdns_servers:
     base_url: "http://pdns-internal.svc:8081/api/v1" # https:// required in prod unless APP_PDNS_ALLOW_INSECURE_HTTP=true
     server_id: localhost # PDNS' internal server-id (almost always "localhost")
     api_key: "REPLACE_ME_internal_pdns_api_key"
-    role: primary # primary | secondary
     is_default: true # exactly ONE row in the file should be default
 
   # --- Primary with three Secondaries ---
@@ -339,8 +350,8 @@ pdns_servers:
     base_url: "https://pdns-public.example.com/api/v1"
     server_id: localhost
     api_key: "REPLACE_ME_public_pdns_api_key"
-    role: primary
     is_default: false
+    cluster_slug: public-group # group this primary with its secondaries below
 
   - slug: secondary-public-eu
     name: "Public secondary (Frankfurt)"
@@ -348,16 +359,14 @@ pdns_servers:
     base_url: "https://pdns-fra.example.com/api/v1"
     server_id: localhost
     api_key: "REPLACE_ME_fra_secondary_api_key"
-    role: secondary
-    primary_slug: primary-public # must match a primary defined above OR an existing one in the DB
+    cluster_slug: public-group # join the same group as the primary it mirrors
 
   - slug: secondary-public-us
     name: "Public secondary (Ashburn)"
     base_url: "https://pdns-iad.example.com/api/v1"
     server_id: localhost
     api_key: "REPLACE_ME_iad_secondary_api_key"
-    role: secondary
-    primary_slug: primary-public
+    cluster_slug: public-group
 
   # --- Cluster peers (members of prod-cluster) ---
   # Every peer in a cluster shares the same backend store, so they all see
@@ -369,7 +378,6 @@ pdns_servers:
     base_url: "http://pdns-peer-1:8081/api/v1"
     server_id: localhost
     api_key: "REPLACE_ME_peer_1_api_key"
-    role: primary
     cluster_slug: prod-cluster # must match a cluster defined above
 
   - slug: peer-2
@@ -377,7 +385,6 @@ pdns_servers:
     base_url: "http://pdns-peer-2:8081/api/v1"
     server_id: localhost
     api_key: "REPLACE_ME_peer_2_api_key"
-    role: primary
     cluster_slug: prod-cluster
 
   - slug: peer-3
@@ -385,7 +392,6 @@ pdns_servers:
     base_url: "http://pdns-peer-3:8081/api/v1"
     server_id: localhost
     api_key: "REPLACE_ME_peer_3_api_key"
-    role: primary
     cluster_slug: prod-cluster
 
 # -----------------------------------------------------------------------------

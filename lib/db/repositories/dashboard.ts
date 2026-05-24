@@ -20,6 +20,7 @@ import { oidcProviders } from "@/lib/db/schema";
 import { pdnsServers } from "@/lib/db/schema";
 import { users } from "@/lib/db/schema";
 import { countStar, isSqlite, jsonBoolField, truncToHour } from "@/lib/db/sql-dialect";
+import { isWriteCapable } from "@/lib/pdns/capabilities";
 
 // =============================================================================
 // Audit-derived
@@ -142,7 +143,8 @@ export interface BackendStat {
   serverId: string;
   serverSlug: string;
   serverName: string;
-  serverRole: "primary" | "secondary";
+  /** Whether this backend is a write target (ADR-0014, observed capability). */
+  isWriteTarget: boolean;
   /** Cluster membership — when set, all peers in the cluster see the same
    *  zone set (backend-level replication), so the dashboard collapses them
    *  to one row when computing totals. Null for standalone primaries. */
@@ -173,7 +175,7 @@ export async function latestBackendSamples(): Promise<BackendStat[]> {
       serverId: pdnsServers.id,
       serverSlug: pdnsServers.slug,
       serverName: pdnsServers.name,
-      serverRole: pdnsServers.role,
+      capabilities: pdnsServers.capabilities,
       clusterId: pdnsServers.clusterId,
       zoneCount: metricSamples.zoneCount,
       latencyP50Ms: metricSamples.latencyP50Ms,
@@ -193,7 +195,7 @@ export async function latestBackendSamples(): Promise<BackendStat[]> {
     serverId: row.serverId,
     serverSlug: row.serverSlug,
     serverName: row.serverName,
-    serverRole: row.serverRole,
+    isWriteTarget: isWriteCapable(row.capabilities),
     clusterId: row.clusterId ?? null,
     zoneCount: row.zoneCount ?? null,
     latencyP50Ms: row.latencyP50Ms ?? null,
@@ -256,48 +258,10 @@ export interface UserAttentionCounts {
   mustChangePassword: number;
 }
 
-/**
- * PDNS backend health attention counts. Mirror of
- * `userAttentionCounts`, scoped to operator-actionable reachability:
- *   - `neverProbed`: active server rows we've never successfully
- *     reached (`last_seen_at` null) — a freshly added backend, or one
- *     that has only ever failed.
- *   - `stale`: active server rows whose last successful contact is
- *     older than 24h. Matches the `stale` tier in `lib/freshness.ts`.
- *
- * Keyed off `last_seen_at`, NOT `version_cache.fetchedAt`. The version
- * cache only moves on a manual Test / Refresh-all, so under healthy
- * continuous polling (which never re-probes the version) `fetchedAt`
- * goes stale within 24h and this widget would cry wolf even while every
- * backend is being polled successfully every 30s. `last_seen_at` is
- * bumped by the poller on each successful cycle, so it reflects live
- * reachability.
- *
- * Disabled rows are excluded — they're operator-intentional, not
- * actionable. Single round-trip via FILTER predicates.
- */
-export interface PdnsAttentionCounts {
-  neverProbed: number;
-  stale: number;
-}
-
-export async function pdnsAttentionCounts(): Promise<PdnsAttentionCounts> {
-  const lastSeen = pdnsServers.lastSeenAt;
-  // "Stale" = no successful contact in 24h. SQLite stores the timestamp as
-  // integer ms (compare to an epoch-ms literal); PG as timestamptz (compare
-  // to now() - interval). Same dialect split as userAttentionCounts.
-  const staleCmp = isSqlite
-    ? sql`${lastSeen} < ${Date.now() - 24 * 3600 * 1000}`
-    : sql`${lastSeen} < now() - interval '24 hours'`;
-  const rows = await db
-    .select({
-      neverProbed: sql<number>`count(*) filter (where ${pdnsServers.disabledAt} is null and ${lastSeen} is null)`,
-      stale: sql<number>`count(*) filter (where ${pdnsServers.disabledAt} is null and ${lastSeen} is not null and ${staleCmp})`,
-    })
-    .from(pdnsServers);
-  const row = rows[0];
-  return { neverProbed: Number(row?.neverProbed ?? 0), stale: Number(row?.stale ?? 0) };
-}
+// PDNS-backend attention is computed on the dashboard from the live reachability
+// store (`lib/realtime/backend-status`), not the DB — see app/(app)/dashboard.
+// The old `last_seen_at`-derived counter lived here; it's gone so there's one
+// reachability source.
 
 /**
  * OIDC discovery health attention counts. Mirror of

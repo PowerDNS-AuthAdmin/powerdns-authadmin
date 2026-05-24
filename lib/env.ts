@@ -100,11 +100,11 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url("DATABASE_URL must be a valid connection URL"),
   DATABASE_POOL_SIZE: z.coerce.number().int().positive().max(100).default(10),
 
-  // --- Redis (RESERVED — not wired up yet) ---
-  // Accepted + validated, but nothing reads it: the rate limiter, the realtime
-  // event-bus, and the reveal-once store are all in-process today. Reserved for
-  // a future HA setup. Setting it does NOT enable Redis or make the app HA-safe
-  // across replicas (instrumentation.ts warns at boot when it's set).
+  // --- Redis (optional — enables HA across replicas, ADR-0016) ---
+  // When set, the rate limiter, the realtime SSE event-bus, and the reveal-once
+  // token store coordinate through Redis so they work across >1 replica. Unset =
+  // single-instance (all three run in-process). A multi-replica deploy needs
+  // BOTH this and a shared Postgres `DATABASE_URL`; SQLite is single-instance.
   REDIS_URL: z.string().url().optional(),
 
   // --- Sessions ---
@@ -208,6 +208,25 @@ const envSchema = z.object({
   // governed by `APP_PDNS_ALLOW_PRIVATE_NETWORKS`. Both must be opted in
   // for an http://internal-host:port URL to be accepted.
   APP_PDNS_ALLOW_INSECURE_HTTP: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .optional(),
+
+  // --- OIDC issuer connectivity (SSRF guard, mirrors the PDNS pair) ---
+  // The OIDC issuer/discovery URL is operator-supplied and fetched server-side
+  // (probe + live discovery), so it runs through the same outbound-URL guard.
+  // When false (default in prod) the guard refuses an issuer that resolves to a
+  // private address; link-local / cloud-metadata is always blocked. Set true for
+  // an internal IdP reached over a private network.
+  APP_OIDC_ALLOW_PRIVATE_NETWORKS: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .optional(),
+  // Relax the https-in-production scheme check for the OIDC issuer URL. Set true
+  // only for an internal IdP without TLS at the endpoint.
+  APP_OIDC_ALLOW_INSECURE_HTTP: z
     .string()
     .transform((s) => s.toLowerCase() === "true")
     .pipe(z.boolean())
@@ -336,6 +355,8 @@ const ENV_KEYS = [
   "TURNSTILE_SECRET_KEY",
   "APP_PDNS_ALLOW_PRIVATE_NETWORKS",
   "APP_PDNS_ALLOW_INSECURE_HTTP",
+  "APP_OIDC_ALLOW_PRIVATE_NETWORKS",
+  "APP_OIDC_ALLOW_INSECURE_HTTP",
   "SMTP_HOST",
   "SMTP_PORT",
   "SMTP_SECURE",

@@ -10,7 +10,12 @@ import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { db } from "@/lib/db";
-import { deleteRoleAssignment } from "@/lib/db/repositories/roles";
+import {
+  countGlobalAssignmentsOfRoleSlug,
+  deleteRoleAssignment,
+  findAssignmentWithRole,
+} from "@/lib/db/repositories/roles";
+import { SUPER_ADMIN_SLUG } from "@/lib/rbac/default-roles";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "@/lib/errors";
 
 interface RouteContext {
@@ -25,6 +30,18 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
 
     const hdrs = await headers();
     await db.transaction(async (tx) => {
+      // Last-SuperAdmin guard (L-3): removing the final global Super Admin would
+      // lock everyone out of user/role/settings management. Checked inside the
+      // tx so a concurrent delete can't race past it.
+      const assignment = await findAssignmentWithRole(assignmentId, userId, tx);
+      if (!assignment) throw new NotFoundError("Role assignment not found.");
+      if (assignment.roleSlug === SUPER_ADMIN_SLUG && assignment.scopeType === "global") {
+        const remaining = await countGlobalAssignmentsOfRoleSlug(SUPER_ADMIN_SLUG, tx);
+        if (remaining <= 1) {
+          throw new ForbiddenError("Cannot remove the last global Super Admin assignment.");
+        }
+      }
+
       // Scope the delete to this user — guards against deleting another
       // user's assignment by supplying a mismatched [id]/[assignmentId] pair.
       const deleted = await deleteRoleAssignment(assignmentId, userId, tx);

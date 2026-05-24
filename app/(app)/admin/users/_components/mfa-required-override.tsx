@@ -10,6 +10,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useDialog } from "@/components/ui/dialog";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { mutate } from "@/lib/client/api-fetch";
 
 type Choice = "inherit" | "require" | "exempt";
@@ -62,16 +63,18 @@ export function MfaRequiredOverride({
           Supersedes this user&apos;s roles and the SSO exemption. “Inherit” falls back to the role
           policy.
         </span>
-        <select
+        <SelectMenu
           value={choice}
-          onChange={(e) => setChoice(e.target.value as Choice)}
+          onChange={(v) => setChoice(v)}
+          options={[
+            { value: "inherit", label: "Inherit from roles" },
+            { value: "require", label: "Always require" },
+            { value: "exempt", label: "Never require (exempt)" },
+          ]}
           disabled={busy}
-          className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-1.5 text-sm disabled:opacity-50"
-        >
-          <option value="inherit">Inherit from roles</option>
-          <option value="require">Always require</option>
-          <option value="exempt">Never require (exempt)</option>
-        </select>
+          ariaLabel="Require MFA (per-user override)"
+          className="text-sm"
+        />
       </label>
       <button
         type="button"

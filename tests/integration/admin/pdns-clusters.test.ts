@@ -103,6 +103,60 @@ describe("/api/admin/pdns/clusters", () => {
     expect(res.status).toBe(404);
   });
 
+  it("POST assigns initial members and writes a server.update audit per member", async () => {
+    const admin = await loginAsBootstrap();
+    const { servers } = await admin.getJson<{
+      servers: Array<{ id: string; slug: string; clusterId: string | null }>;
+    }>("/api/admin/pdns-servers");
+    const free = servers.find((s) => s.clusterId === null);
+    expect(free, "seed should include at least one ungrouped server").toBeTruthy();
+
+    const slug = uniqueSlug("members");
+    const { cluster } = await admin.sendJson<{ cluster: ClusterRow }>(
+      "POST",
+      "/api/admin/pdns/clusters",
+      { slug, name: "With members", memberServerIds: [free!.id] },
+    );
+
+    // The picked server now points at the new group.
+    const detail = await admin.getJson<{ members: Array<{ id: string }> }>(
+      `/api/admin/pdns/clusters/${cluster.id}`,
+    );
+    expect(detail.members.map((m) => m.id)).toContain(free!.id);
+
+    // The membership change is traceable as a server.update audit row.
+    const audit = await dbQuery<{ action: string }>(
+      "SELECT action FROM audit_log WHERE resource_id = $1 AND action = 'server.update' ORDER BY ts DESC",
+      [free!.id],
+    );
+    expect(audit.length).toBeGreaterThan(0);
+
+    // Cleanup — deleting the cluster NULLs the member's cluster_id (FK SET NULL).
+    await admin.sendJson("DELETE", `/api/admin/pdns/clusters/${cluster.id}`);
+  });
+
+  it("POST rejects a server that already belongs to another group", async () => {
+    const admin = await loginAsBootstrap();
+    const { servers } = await admin.getJson<{
+      servers: Array<{ id: string; clusterId: string | null }>;
+    }>("/api/admin/pdns-servers");
+    const grouped = servers.find((s) => s.clusterId !== null);
+    expect(grouped, "seed should include a grouped server (prod-cluster peer)").toBeTruthy();
+
+    const slug = uniqueSlug("reject");
+    const res = await admin.call("/api/admin/pdns/clusters", {
+      method: "POST",
+      json: { slug, name: "Should fail", memberServerIds: [grouped!.id] },
+    });
+    expect(res.status).toBe(400);
+
+    // And no orphan group was created.
+    const { clusters } = await admin.getJson<{ clusters: ClusterRow[] }>(
+      "/api/admin/pdns/clusters",
+    );
+    expect(clusters.some((c) => c.slug === slug)).toBe(false);
+  });
+
   it("audit log records cluster.create on creation", async () => {
     const admin = await loginAsBootstrap();
     const slug = uniqueSlug("audit");

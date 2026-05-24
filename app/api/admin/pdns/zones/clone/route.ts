@@ -27,7 +27,7 @@ import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
 import { normalizeZoneId } from "@/lib/pdns/client";
 import { rewriteRRsetsForClone } from "@/lib/pdns/clone";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { createZoneAndNotify } from "@/lib/pdns/operations";
 import { PdnsConflictError } from "@/lib/pdns/errors";
 import { errorResponse } from "@/lib/http/error-response";
@@ -78,7 +78,7 @@ export async function POST(request: Request): Promise<Response> {
     if (selected?.disabledAt !== null) {
       throw new NotFoundError("No PDNS backend selected.");
     }
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
 
     const sourceZone = await client.getZone(source);
     if (!isCloneableKind(sourceZone.kind)) {

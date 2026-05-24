@@ -26,6 +26,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/client/api-fetch";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 /**
  * Operator-facing backend option. A logical backend is either a
@@ -366,18 +367,16 @@ export function CreateZoneForm(props: Props) {
             label="Template (optional)"
             hint="Templates prefill name servers + SOA timers below — you can still override before submitting."
           >
-            <select
+            <SelectMenu
               value={templateId}
-              onChange={(e) => applyTemplate(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">— none —</option>
-              {props.templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => applyTemplate(v)}
+              ariaLabel="Template (optional)"
+              options={[
+                { value: "", label: "— none —" },
+                ...props.templates.map((t) => ({ value: t.id, label: t.name })),
+              ]}
+              className="mt-1 w-full"
+            />
             {selectedTemplate ? (
               <div className="mt-1 space-y-1 text-xs text-[color:var(--color-fg-muted)]">
                 <p>
@@ -408,17 +407,13 @@ export function CreateZoneForm(props: Props) {
           </p>
         )}
         <Field label="Kind">
-          <select
+          <SelectMenu
             value={kind}
-            onChange={(e) => setKind(e.target.value as (typeof KINDS)[number]["value"])}
-            className={inputClass}
-          >
-            {KINDS.map((k) => (
-              <option key={k.value} value={k.value}>
-                {k.label}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setKind(v)}
+            ariaLabel="Kind"
+            options={KINDS.map((k) => ({ value: k.value, label: k.label }))}
+            className="mt-1 w-full"
+          />
           <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
             {KINDS.find((k) => k.value === kind)?.hint}
           </p>
@@ -435,19 +430,18 @@ export function CreateZoneForm(props: Props) {
       >
         {props.backends.length > 1 ? (
           <Field label="PowerDNS server / cluster">
-            <select
+            <SelectMenu
               value={backendKey}
-              onChange={(e) => setBackendKey(e.target.value as BackendKey)}
-              className={inputClass}
-            >
-              {props.backends.map((b) => (
-                <option key={keyOf(b)} value={keyOf(b)}>
-                  {b.name}
-                  {b.isDefault && b.kind === "server" ? " (default)" : ""}
-                  {b.kind === "cluster" ? " (cluster)" : ""}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setBackendKey(v)}
+              ariaLabel="PowerDNS server / cluster"
+              options={props.backends.map((b) => ({
+                value: keyOf(b),
+                label: `${b.name}${b.isDefault && b.kind === "server" ? " (default)" : ""}${
+                  b.kind === "cluster" ? " (cluster)" : ""
+                }`,
+              }))}
+              className="mt-1 w-full"
+            />
             {selectedBackend ? <SecondariesList secondaries={selectedBackend.secondaries} /> : null}
           </Field>
         ) : selectedBackend ? (

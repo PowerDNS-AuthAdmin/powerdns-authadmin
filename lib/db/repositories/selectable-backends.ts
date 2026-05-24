@@ -28,6 +28,7 @@ import "server-only";
 import { isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { pdnsClusters, pdnsServers, type PdnsCluster, type PdnsServer } from "@/lib/db/schema";
+import { isReadOnlyMirror, isWriteCapable } from "@/lib/pdns/capabilities";
 
 export type SelectableBackend =
   | {
@@ -45,8 +46,11 @@ export type SelectableBackend =
   | {
       kind: "cluster";
       cluster: PdnsCluster;
+      /** Writable members of the group (primaries). Never includes secondaries. */
       peers: PdnsServer[];
       representativeServer: PdnsServer;
+      /** Read-only secondary members of the same group. */
+      secondaries: PdnsServer[];
     };
 
 /**
@@ -63,9 +67,12 @@ export async function listSelectableBackends(): Promise<SelectableBackend[]> {
   const out: SelectableBackend[] = [];
   const seenClusters = new Set<string>();
 
-  // Each cluster collapses to ONE entry with all its peers.
+  // Each group collapses to ONE entry. Peers are its WRITABLE members
+  // (primaries) — never secondaries, so a write is never routed to a mirror.
+  // Secondary members ride along for topology display.
   for (const c of clusters) {
-    const peers = allServers.filter((s) => s.clusterId === c.id);
+    const members = allServers.filter((s) => s.clusterId === c.id);
+    const peers = members.filter((s) => isWriteCapable(s.capabilities));
     if (peers.length === 0) continue;
     seenClusters.add(c.id);
     out.push({
@@ -73,28 +80,20 @@ export async function listSelectableBackends(): Promise<SelectableBackend[]> {
       cluster: c,
       peers,
       representativeServer: peers[0]!,
+      secondaries: members.filter((s) => isReadOnlyMirror(s.capabilities)),
     });
   }
 
-  // Standalone primaries (no cluster) appear as-is. Secondaries don't
-  // appear at all — they're read mirrors of their primary — but they
-  // ride along on the primary's entry so callers can show topology.
-  const secondariesByPrimary = new Map<string, PdnsServer[]>();
+  // Standalone write targets (not in a group). A backend's managed secondaries
+  // are group members, so a write target outside any group has none here.
   for (const s of allServers) {
-    if (s.role === "secondary" && s.primaryId) {
-      const arr = secondariesByPrimary.get(s.primaryId) ?? [];
-      arr.push(s);
-      secondariesByPrimary.set(s.primaryId, arr);
-    }
-  }
-  for (const s of allServers) {
-    if (s.role !== "primary") continue;
+    if (!isWriteCapable(s.capabilities)) continue;
     if (s.clusterId && seenClusters.has(s.clusterId)) continue;
     out.push({
       kind: "server",
       server: s,
       representativeServer: s,
-      secondaries: secondariesByPrimary.get(s.id) ?? [],
+      secondaries: [],
     });
   }
 

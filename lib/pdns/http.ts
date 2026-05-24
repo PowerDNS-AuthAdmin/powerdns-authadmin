@@ -23,6 +23,7 @@ import { redact } from "@/lib/errors/redact";
 import { PdnsError, PdnsUpstreamError, classifyPdnsHttpError } from "./errors";
 import { pdnsDispatcher } from "./dispatcher";
 import { recordPdnsLatency } from "./observations";
+import { withBackendLock } from "./backend-lock";
 import { checkPdnsUrlSafe } from "./url-safety";
 import type { PdnsRequestLogInput } from "./request-log";
 
@@ -55,6 +56,14 @@ export interface PdnsHttpConfig {
    * constructed outside the registry (tests, scripts) don't have one.
    */
   serverDbId?: string;
+  /**
+   * Route EVERY request (not just writes) through the per-backend lock
+   * (`lib/pdns/backend-lock.ts`). Set on the background-poll's probe client so
+   * its reads take turns with the request path's writes instead of contending
+   * on the backend's store. Interactive clients leave this off, so user reads
+   * keep full concurrency; their writes still coordinate (see `pdnsRequest`).
+   */
+  coordinateAllRequests?: boolean;
 }
 
 export interface PdnsRequestInit {
@@ -108,47 +117,58 @@ export async function pdnsRequest<T>(config: PdnsHttpConfig, init: PdnsRequestIn
     op: init.op,
   };
 
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const start = Date.now();
-    try {
-      const result = await singleRequest<T>({
-        url,
-        method,
-        body: init.body,
-        apiKey: config.apiKey,
-        timeoutMs,
-        externalSignal: init.signal,
-        log: logCtx,
-      });
-      const elapsed = Date.now() - start;
-      recordPdnsLatency(config.serverSlug, elapsed);
-      log.info({ attempt, ms: elapsed, status: 200 }, "pdns.request.ok");
-      return result;
-    } catch (err) {
-      const elapsed = Date.now() - start;
-      // Record failures too — they still consume wall-time + their latency is
-      // an early signal that the backend is hurting.
-      recordPdnsLatency(config.serverSlug, elapsed);
-      lastError = err;
-      const retryable = isRetryable(err);
-      log.warn(
-        {
-          attempt,
-          ms: elapsed,
-          retryable,
-          status: err instanceof PdnsError ? err.status : 0,
-          error: err instanceof Error ? redact(err.message) : "unknown",
-        },
-        "pdns.request.failed",
-      );
-      if (!retryable || attempt === maxAttempts) break;
-      await sleepWithJitter(attempt);
+  const runWithRetries = async (): Promise<T> => {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const start = Date.now();
+      try {
+        const result = await singleRequest<T>({
+          url,
+          method,
+          body: init.body,
+          apiKey: config.apiKey,
+          timeoutMs,
+          externalSignal: init.signal,
+          log: logCtx,
+        });
+        const elapsed = Date.now() - start;
+        recordPdnsLatency(config.serverSlug, elapsed);
+        log.info({ attempt, ms: elapsed, status: 200 }, "pdns.request.ok");
+        return result;
+      } catch (err) {
+        const elapsed = Date.now() - start;
+        // Record failures too — they still consume wall-time + their latency is
+        // an early signal that the backend is hurting.
+        recordPdnsLatency(config.serverSlug, elapsed);
+        lastError = err;
+        const retryable = isRetryable(err);
+        log.warn(
+          {
+            attempt,
+            ms: elapsed,
+            retryable,
+            status: err instanceof PdnsError ? err.status : 0,
+            error: err instanceof Error ? redact(err.message) : "unknown",
+          },
+          "pdns.request.failed",
+        );
+        if (!retryable || attempt === maxAttempts) break;
+        await sleepWithJitter(attempt);
+      }
     }
-  }
-  // After retries exhaust, re-throw the last error. Already classified by
-  // `singleRequest` — no double-wrap.
-  throw lastError;
+    // After retries exhaust, re-throw the last error. Already classified by
+    // `singleRequest` — no double-wrap.
+    throw lastError;
+  };
+
+  // Coordinate per backend so the app doesn't read + write the same store at
+  // once (notably gsqlite3, where a concurrent reader can stall a writer into a
+  // 500). WRITES always take the lock; reads only when the caller opts in (the
+  // poll's probe client) — interactive reads stay fully concurrent. Keyed by
+  // the backend's DB id, falling back to its slug for registry-less clients.
+  const coordinate = method !== "GET" || config.coordinateAllRequests === true;
+  if (!coordinate) return runWithRetries();
+  return withBackendLock(config.serverDbId ?? config.serverSlug, runWithRetries);
 }
 
 interface SingleRequestArgs {

@@ -1,37 +1,31 @@
 /**
  * lib/auth/temp-reveal-store.ts
  *
- * Single-use, short-lived in-memory store for plaintext secrets that an
- * operator generated and needs to retrieve **exactly once** out-of-band.
+ * Single-use, short-lived store for plaintext secrets an operator generated and
+ * needs to retrieve **exactly once** out-of-band (admin password reset S-8, TSIG
+ * key secret, PAT, TOTP secret). The minting route stashes the plaintext keyed
+ * by a random opaque token; the operator's browser fetches it via a dedicated
+ * reveal endpoint that returns text/plain and the entry is deleted on first read.
  *
- * Used by the admin password-reset flow (S-8): the POST response no longer
- * carries the temp password. Instead the route stores it here keyed by a
- * random opaque token, and the operator's browser fetches the plaintext via
- * a second call to a dedicated reveal endpoint that returns text/plain. The
- * entry is deleted on first read so any captured log line / cached body of
- * that reveal call yields nothing on replay.
+ * Defenses (identical across both backends below):
+ *   1. **Single-use** — `redeem()` deletes before returning. A second call → null.
+ *   2. **Allowed-actor binding** — entries record the minting user-id; a leaked
+ *      token can only be redeemed by a session for that same operator.
+ *   3. **TTL** — entries auto-expire after `DEFAULT_TTL_SEC`.
+ *   4. **Bounded size** — the in-memory map is capped (Redis self-expires).
  *
- * Defenses layered into the design:
- *   1. **Single-use** — `redeem()` deletes the entry before returning. A
- *      second call gets `null`.
- *   2. **Allowed-actor binding** — entries record the user-id that minted
- *      them. Even if the token leaks (proxy access log, browser history),
- *      it can only be redeemed by a session for that same operator. A
- *      different signed-in operator gets `null`.
- *   3. **TTL** — entries auto-expire after `DEFAULT_TTL_SEC` whether
- *      redeemed or not. The cleanup tick runs lazily on writes.
- *   4. **Bounded size** — the map is capped at `MAX_ENTRIES`. When full,
- *      writes evict the oldest entry. The cap is well above any
- *      realistic concurrent admin reset.
- *
- * Multi-replica caveat: this is process-local. For a multi-replica deploy
- * the operator must hit the same replica that minted the token within the
- * TTL window. future work will swap in a Redis-backed implementation behind
- * the same interface.
+ * Backend (ADR-0016): when `REDIS_URL` is set the entry lives in Redis (atomic
+ * `SET … PX` + single-use `GETDEL`), so a token minted on replica A is
+ * redeemable on replica B — essential for HA, where the reveal call may land on
+ * a different replica than the mint. Without Redis (single instance) it's an
+ * in-process Map. A Redis error degrades to the in-process Map (same-replica
+ * only) rather than failing the mint outright.
  */
 
 import "server-only";
 import { randomBytes } from "node:crypto";
+import { getRedis } from "@/lib/redis";
+import { logger } from "@/lib/logger";
 
 interface Entry {
   plaintext: string;
@@ -41,63 +35,99 @@ interface Entry {
 
 const DEFAULT_TTL_SEC = 300;
 const MAX_ENTRIES = 1024;
+const REDIS_PREFIX = "reveal:";
 
 const store = new Map<string, Entry>();
 
 /**
- * Generate a fresh opaque token (32 bytes, base64url) and stash the
- * plaintext bound to `allowedActorId`. Returns `{ token, expiresInSec }`.
- *
- * Side effect: opportunistically evicts expired entries on each call so the
- * map self-prunes without a background timer.
+ * Generate a fresh opaque token (32 bytes, base64url) and stash the plaintext
+ * bound to `allowedActorId`. Uses Redis when configured (cross-replica), else
+ * the in-process map; a Redis failure falls back to the map.
  */
-export function mint(input: { plaintext: string; allowedActorId: string; ttlSec?: number }): {
-  token: string;
-  expiresInSec: number;
-} {
-  pruneExpired();
-  enforceCap();
-
+export async function mint(input: {
+  plaintext: string;
+  allowedActorId: string;
+  ttlSec?: number;
+}): Promise<{ token: string; expiresInSec: number }> {
   const ttl = input.ttlSec ?? DEFAULT_TTL_SEC;
   const token = randomBytes(32).toString("base64url");
-  store.set(token, {
-    plaintext: input.plaintext,
-    allowedActorId: input.allowedActorId,
-    expiresAtMs: Date.now() + ttl * 1000,
-  });
+
+  const redis = getRedis();
+  if (redis) {
+    try {
+      await redis.set(
+        REDIS_PREFIX + token,
+        JSON.stringify({ plaintext: input.plaintext, allowedActorId: input.allowedActorId }),
+        "PX",
+        ttl * 1000,
+      );
+      return { token, expiresInSec: ttl };
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err.message : "unknown" },
+        "reveal-store.redis.mint.failed",
+      );
+      // fall through to the in-process map (same-replica only)
+    }
+  }
+
+  mintLocal(token, input.plaintext, input.allowedActorId, ttl);
   return { token, expiresInSec: ttl };
 }
 
 /**
- * Look up `token`, verify it was minted for `actorId`, delete the entry,
- * and return the plaintext. Returns `null` when:
- *   - the token doesn't exist (already redeemed, expired, or fabricated),
- *   - the token exists but was minted for a different operator,
- *   - the entry has expired (also deleted as a side effect).
- *
- * Constant-time on success/missing-token: callers should not branch on the
- * return shape in ways that leak timing — but this is admin-only flow
- * where the threat is lower than e.g. login enumeration.
+ * Look up `token`, verify it was minted for `actorId`, delete the entry, and
+ * return the plaintext. Returns `null` for a missing/expired/already-redeemed
+ * token or an actor mismatch. The token is burned on any attempt (wrong actor
+ * included), so a leaked token can't be retried after a failed steal.
  */
-export function redeem(input: { token: string; actorId: string }): { plaintext: string } | null {
-  const entry = store.get(input.token);
-  if (!entry) return null;
-
-  // Always remove on lookup — whether or not the actor matches. A wrong-actor
-  // attempt burns the token, which is fine: the legitimate operator can
-  // re-trigger a reset cheaply, but a leaked token can't be retried after a
-  // failed steal.
-  store.delete(input.token);
-
-  if (entry.expiresAtMs <= Date.now()) return null;
-  if (entry.allowedActorId !== input.actorId) return null;
-
-  return { plaintext: entry.plaintext };
+export async function redeem(input: {
+  token: string;
+  actorId: string;
+}): Promise<{ plaintext: string } | null> {
+  const redis = getRedis();
+  if (redis) {
+    try {
+      const raw = await redis.getdel(REDIS_PREFIX + input.token); // atomic single-use
+      if (raw !== null) {
+        const entry = JSON.parse(raw) as { plaintext: string; allowedActorId: string };
+        if (entry.allowedActorId !== input.actorId) return null;
+        return { plaintext: entry.plaintext };
+      }
+      // Not in Redis — may be a same-replica fallback entry from a mint-time blip.
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err.message : "unknown" },
+        "reveal-store.redis.redeem.failed",
+      );
+    }
+  }
+  return redeemLocal(input.token, input.actorId);
 }
 
-/** Test-only: drop everything. Not exported through any barrel. */
+/** Test-only: drop the in-process map. Not exported through any barrel. */
 export function _resetForTests(): void {
   store.clear();
+}
+
+// ---------------------------------------------------------------------------
+// In-process backend (single instance / Redis-outage fallback)
+// ---------------------------------------------------------------------------
+
+function mintLocal(token: string, plaintext: string, allowedActorId: string, ttlSec: number): void {
+  pruneExpired();
+  enforceCap();
+  store.set(token, { plaintext, allowedActorId, expiresAtMs: Date.now() + ttlSec * 1000 });
+}
+
+function redeemLocal(token: string, actorId: string): { plaintext: string } | null {
+  const entry = store.get(token);
+  if (!entry) return null;
+  // Always remove on lookup — a wrong-actor attempt still burns the token.
+  store.delete(token);
+  if (entry.expiresAtMs <= Date.now()) return null;
+  if (entry.allowedActorId !== actorId) return null;
+  return { plaintext: entry.plaintext };
 }
 
 function pruneExpired(): void {

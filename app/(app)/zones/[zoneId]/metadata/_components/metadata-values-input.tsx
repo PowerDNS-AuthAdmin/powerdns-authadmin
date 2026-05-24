@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getKindSpec, isBoolTrue } from "./kind-specs";
+import { Switch } from "@/components/ui/switch";
 
 interface Props {
   kind: string;
@@ -28,21 +29,11 @@ export function MetadataValuesInput({ kind, values, onChange }: Props) {
     const on = isBoolTrue(current);
     return (
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={on}
-          onClick={() => onChange([on ? "0" : "1"])}
-          className={`inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            on ? "bg-[color:var(--color-accent)]" : "bg-[color:var(--color-bg-muted)]"
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-              on ? "translate-x-5" : "translate-x-0.5"
-            }`}
-          />
-        </button>
+        <Switch
+          checked={on}
+          onChange={(next) => onChange([next ? "1" : "0"])}
+          ariaLabel="Toggle value"
+        />
         <span className="font-mono text-xs">{on ? "1 (enabled)" : "0 (disabled)"}</span>
       </div>
     );

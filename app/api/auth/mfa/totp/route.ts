@@ -48,7 +48,7 @@ export async function POST(request: Request): Promise<Response> {
   const userAgent = hdrs.get("user-agent");
 
   {
-    const limit = loginLimiter.take(`mfa:${ip ?? "unknown"}`);
+    const limit = await loginLimiter.takeShared(`mfa:${ip ?? "unknown"}`);
     if (!limit.allowed) {
       return jsonError(429, "Too many MFA attempts.", {
         retryAfterSeconds: limit.retryAfterSeconds,
@@ -66,7 +66,7 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError(400, "Invalid request body.");
   }
 
-  const revealed = redeemRevealToken({
+  const revealed = await redeemRevealToken({
     token: body.challengeToken,
     actorId: "_mfa-pending",
   });

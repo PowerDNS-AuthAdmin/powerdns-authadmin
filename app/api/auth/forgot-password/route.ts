@@ -54,7 +54,7 @@ export async function POST(request: Request): Promise<Response> {
   // Rate-limit by IP (same bucket family as login). Falls back to a shared
   // bucket when no IP is available so the limiter always applies.
   {
-    const limit = loginLimiter.take(`forgot:${ip ?? "unknown"}`);
+    const limit = await loginLimiter.takeShared(`forgot:${ip ?? "unknown"}`);
     if (!limit.allowed) {
       return Response.json(
         { error: "Too many requests.", retryAfterSeconds: limit.retryAfterSeconds },

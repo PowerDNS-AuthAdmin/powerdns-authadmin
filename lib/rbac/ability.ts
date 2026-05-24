@@ -211,3 +211,20 @@ export function globalPermissionsOf(sources: readonly AbilitySource[]): Readonly
   }
   return out;
 }
+
+/**
+ * The privilege ceiling for role assignment (L-3): the permissions a role would
+ * grant that the actor does NOT already hold globally. An actor may only assign
+ * a role whose permission set is a subset of their own global permissions —
+ * otherwise a holder of `role.assign` could grant SuperAdmin (or any permission
+ * they lack) to others or themselves, escalating past their own authority. The
+ * assignment route is global-only (`requireUser` checks the global grant), so
+ * the actor's *global* permission set is the correct comparison basis. An empty
+ * result means the assignment is within the ceiling.
+ */
+export function permissionsExceedingGrant(
+  actorGlobalPermissions: ReadonlySet<Permission>,
+  rolePermissions: readonly Permission[],
+): Permission[] {
+  return rolePermissions.filter((p) => !actorGlobalPermissions.has(p));
+}

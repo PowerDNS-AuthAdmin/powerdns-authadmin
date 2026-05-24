@@ -58,10 +58,20 @@ zone_templates:
       - primary
 
 # -----------------------------------------------------------------------------
+# Groups — relate backends that replicate together (ADR-0014). The primary and
+# its secondaries share one group, so the app polls them together and compares
+# their sync state. (Multi-primary clusters use the same mechanism.)
+# -----------------------------------------------------------------------------
+clusters:
+  - slug: syd
+    name: "Sydney group (primary + secondaries)"
+    description: "One writable primary mirrored by three read-only secondaries."
+
+# -----------------------------------------------------------------------------
 # PowerDNS backends. The container hostnames (`pdns-primary`, etc.) are
-# reachable on the compose network; the app uses these URLs to talk to
-# PDNS. Each Secondary references the Primary by slug; the applier resolves
-# the FK at write time.
+# reachable on the compose network; the app uses these URLs to talk to PDNS.
+# Every backend joins the `syd` group via `cluster_slug`; authority is per
+# zone (the secondaries hold Slave-kind zones), not per server.
 # -----------------------------------------------------------------------------
 pdns_servers:
   - slug: primary
@@ -70,8 +80,8 @@ pdns_servers:
     base_url: "http://pdns-primary:8081/api/v1"
     server_id: localhost
     api_key: "primary-changeme"
-    role: primary
     is_default: true
+    cluster_slug: syd
 
   - slug: secondary-1
     name: "Secondary 1"
@@ -79,8 +89,7 @@ pdns_servers:
     base_url: "http://pdns-secondary-1:8081/api/v1"
     server_id: localhost
     api_key: "secondary-1-changeme"
-    role: secondary
-    primary_slug: primary
+    cluster_slug: syd
 
   - slug: secondary-2
     name: "Secondary 2"
@@ -88,8 +97,7 @@ pdns_servers:
     base_url: "http://pdns-secondary-2:8081/api/v1"
     server_id: localhost
     api_key: "secondary-2-changeme"
-    role: secondary
-    primary_slug: primary
+    cluster_slug: syd
 
   - slug: secondary-3
     name: "Secondary 3"
@@ -97,5 +105,4 @@ pdns_servers:
     base_url: "http://pdns-secondary-3:8081/api/v1"
     server_id: localhost
     api_key: "secondary-3-changeme"
-    role: secondary
-    primary_slug: primary
+    cluster_slug: syd

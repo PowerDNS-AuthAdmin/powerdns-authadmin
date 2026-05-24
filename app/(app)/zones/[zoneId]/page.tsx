@@ -14,7 +14,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { hasZonePermissionViaGrant } from "@/lib/rbac/zone-permissions";
-import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
+import {
+  findDefaultPdnsServer,
+  findPdnsServerById,
+  findPdnsServerBySlug,
+} from "@/lib/db/repositories/pdns-servers";
 import {
   findClusterById,
   findClusterBySlug,
@@ -26,11 +30,15 @@ import { latestZoneEdit, zoneAuditLog } from "@/lib/db/repositories/audit-log";
 import { findPdnsRequestsByRequestIds } from "@/lib/db/repositories/pdns-requests";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { normalizeZoneId } from "@/lib/pdns/client";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { zoneCapabilities } from "@/lib/pdns/writable-kind";
+import { normalizeMaster } from "@/lib/pdns/topology";
+import { derivedUpstreamFor } from "@/lib/pdns/topology-cache";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { PdnsNotFoundError } from "@/lib/pdns/errors";
 import { logger } from "@/lib/logger";
 import { redact } from "@/lib/errors/redact";
 import { parseSoaContent, type SoaFields } from "@/lib/validators/soa";
+import { Lock } from "lucide-react";
 import { RecordTable } from "@/components/domain/record-table";
 import { EditableRecordTable } from "./_components/editable-record-table";
 import { SoaPanel } from "./_components/soa-panel";
@@ -183,6 +191,12 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   const decoded = decodeURIComponent(zoneId);
   const canonical = normalizeZoneId(decoded);
 
+  // Audit/history is scoped by backend slug. For a cluster, writes route
+  // through a rotating peer (choosePeer), so a zone's edits are scattered
+  // across every peer's slug — aggregate them all (ADR-0014). Otherwise just
+  // the selected backend.
+  const auditSlugs = clusterContext ? clusterContext.peers.map((p) => p.slug) : [selected.slug];
+
   // Per-zone authorization: a permission is held if it's granted at GLOBAL
   // scope OR a zone_grant covers THIS (server, zone). We deliberately avoid a
   // type-level `ability.can(action, "Type")` — it returns true for a
@@ -199,7 +213,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   // needs it to compute the verdict (passing `null` made every
   // secondary come back as state="error" → chip stuck on "syncing").
   // audit + sync still run in parallel below.
-  const client = getPdnsClientForRow(selected);
+  const client = getBackendGateway(selected);
   let zone: PdnsZoneDetail | null = null;
   let fetchError: string | null = null;
   try {
@@ -238,10 +252,32 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   const soaFields = parseSoaSafely(soaRrset?.records[0]?.content ?? null);
   const soaTtl = soaRrset?.ttl ?? 3600;
 
-  const canCreate = zoneCan("record.create");
-  const canUpdate = zoneCan("record.update");
-  const canDelete = zoneCan("record.delete");
+  // Read-only-by-KIND: a Slave/Secondary/Consumer zone's records + DNSSEC are
+  // owned by its primary over AXFR, so they're read-only regardless of the
+  // backend's role — a "primary" box can host mirror zones, and vice-versa.
+  // Mirrors the server-side guard (lib/pdns/writable-kind.ts). Replication
+  // config (masters via settings, transfer metadata) + removing the mirror
+  // (zone.delete) stay available.
+  const ops = zoneCapabilities(zone.kind);
+  const isReadOnlyZone = !ops.rrsets;
+  // For a mirror zone, its upstream is read from the site-wide derived topology
+  // (poller-computed from masters[], ADR-0014) — no per-page deriving. Matched →
+  // the managed primary; otherwise the raw masters render as external.
+  let mirrorUpstream: { id: string; name: string } | null = null;
+  let mirrorExternal: string[] = [];
+  if (isReadOnlyZone && (zone.masters?.length ?? 0) > 0) {
+    const upstreamId = derivedUpstreamFor(selected.id, zone.name);
+    const upstream = upstreamId ? await findPdnsServerById(upstreamId) : null;
+    if (upstream) mirrorUpstream = { id: upstream.id, name: upstream.name };
+    else mirrorExternal = (zone.masters ?? []).map(normalizeMaster);
+  }
+  const canCreate = ops.rrsets && zoneCan("record.create");
+  const canUpdate = ops.rrsets && zoneCan("record.update");
+  const canDelete = ops.rrsets && zoneCan("record.delete");
   const canEdit = canCreate || canUpdate || canDelete;
+  // `masters` (which primaries a mirror pulls from) is editable on a read-only
+  // zone, so the settings panel stays writable there for users with zone.update.
+  const canEditSettings = canUpdate || (isReadOnlyZone && zoneCan("zone.update"));
   // Zone creation isn't grantable per-zone — it's a global capability.
   const canCreateZone = globalPermissions.has("zone.create");
   const canDeleteZone = zoneCan("zone.delete");
@@ -272,7 +308,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   // know primary's serial so the sync probe returns valid verdicts.
   const auditEntriesPromise: Promise<ZoneAuditEntryClient[]> =
     tab === "history" && canReadAudit
-      ? zoneAuditLog(selected.slug, zone.name, 100).then((rows) =>
+      ? zoneAuditLog(auditSlugs, zone.name, 100).then((rows) =>
           rows
             .filter((e) => e.action !== "zone.notify")
             .map((e) => ({
@@ -292,7 +328,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
       : Promise.resolve([]);
 
   const lastEditPromise = canReadAudit
-    ? latestZoneEdit(selected.slug, zone.name)
+    ? latestZoneEdit(auditSlugs, zone.name)
     : Promise.resolve(null);
 
   const secondaryStatusesPromise = checkZoneSync(selected, zone.name, zone.serial ?? null);
@@ -320,6 +356,31 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
         canCreateZone={canCreateZone}
         inSync={syncVerdict.inSync}
       />
+
+      {isReadOnlyZone ? (
+        <div className="flex items-start gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-3 text-sm">
+          <Lock
+            aria-hidden
+            className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--color-fg-muted)]"
+          />
+          <p>
+            <strong>Read-only mirror.</strong> This is a {zone.kind} zone — its records and DNSSEC
+            are served from its primary over AXFR and can&apos;t be edited here. Replication
+            settings (masters, transfer metadata) remain editable.
+            {mirrorUpstream ? (
+              <span className="text-[color:var(--color-fg-muted)]">
+                {" "}
+                Mirrors {mirrorUpstream.name}.
+              </span>
+            ) : mirrorExternal.length > 0 ? (
+              <span className="text-[color:var(--color-fg-muted)]">
+                {" "}
+                Mirrors external {mirrorExternal.join(", ")}.
+              </span>
+            ) : null}
+          </p>
+        </div>
+      ) : null}
 
       <ZoneTabs
         active={tab}
@@ -396,7 +457,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
                 ...(zone.soa_edit_api !== undefined ? { soa_edit_api: zone.soa_edit_api } : {}),
                 ...(zone.api_rectify !== undefined ? { api_rectify: zone.api_rectify } : {}),
               }}
-              canEdit={canUpdate}
+              canEdit={canEditSettings}
             />
             <ZoneDangerZone
               zoneIdEncoded={encodeURIComponent(zone.id)}
@@ -411,7 +472,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
             zoneName={zone.name}
             selected={selected}
             canRead={canReadDnssec}
-            canConfigure={zoneCan("dnssec.configure")}
+            canConfigure={ops.dnssec && zoneCan("dnssec.configure")}
           />
         ) : tab === "metadata" ? (
           <MetadataSection
@@ -420,11 +481,18 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
             selected={selected}
             canRead={canReadMetadata}
             canWrite={zoneCan("metadata.write")}
+            // Authoritative kinds serve AXFR — only they get the friendly TSIG
+            // transfer-key selector (mirrors manage AXFR-MASTER-TSIG via the raw editor).
+            showTsigTransfer={zone.kind === "Master" || zone.kind === "Primary"}
           />
         ) : tab === "statistics" ? (
-          <ZoneStatisticsSection selected={selected} zoneName={zone.name} />
+          <ZoneStatisticsSection serverSlugs={auditSlugs} zoneName={zone.name} />
         ) : tab === "sync" ? (
-          clusterContext ? (
+          // Cluster (peer) comparison only for a TRUE multi-primary group — ≥2
+          // write-capable peers and no secondaries. A primary+secondaries group
+          // (one writable peer mirrored by secondaries) uses primary→secondary
+          // sync, which compares `selected` against its group's mirrors.
+          clusterContext && clusterContext.peers.length >= 2 && secondaryStatuses.length === 0 ? (
             <SyncSection
               mode="cluster"
               peers={clusterContext.peers}

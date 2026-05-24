@@ -49,7 +49,7 @@ import {
 } from "@/lib/auth/token-scope-narrowing";
 import { globalPermissionsOf } from "@/lib/rbac/ability";
 import { hasZonePermissionViaGrant } from "@/lib/rbac/zone-permissions";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { replaceRRset, zonePatchBody } from "@/lib/pdns/rrsets";
 import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
@@ -140,7 +140,7 @@ export async function GET(request: Request): Promise<Response> {
   // ── Zone resolution: scan every active backend, find the longest match
   const servers = await listActivePdnsServers();
   for (const server of servers) {
-    const client = getPdnsClientForRow(server);
+    const client = getBackendGateway(server);
     let zoneList;
     try {
       zoneList = await client.listZones();

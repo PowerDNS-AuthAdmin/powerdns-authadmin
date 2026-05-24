@@ -10,14 +10,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUserForPage } from "@/lib/auth/require-user";
-import {
-  findPdnsServerById,
-  listActiveSecondariesForPrimary,
-  listAllPrimaries,
-} from "@/lib/db/repositories/pdns-servers";
+import { findPdnsServerById, listSecondariesForPrimary } from "@/lib/db/repositories/pdns-servers";
+import { listAllClusters } from "@/lib/db/repositories/pdns-clusters";
 import { latestServerAdminEdit, recentAdminEditsForServer } from "@/lib/db/repositories/audit-log";
 import { freshnessOf } from "@/lib/freshness";
+import { isWriteCapable, summarizeCapabilities } from "@/lib/pdns/capabilities";
+import { type SafeConfigRow } from "@/lib/pdns/config-advice";
+import { readDaemonConfig } from "@/lib/pdns/daemon-config-cache";
+import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
+import { backendUnreachability } from "@/lib/realtime/backend-status";
 import { AdminAuditPanel } from "@/components/domain/admin-audit-panel";
+import { PdnsConfView } from "@/components/domain/pdns-conf-view";
 import { ServerForm } from "../_components/server-form";
 import { ServerActions } from "../_components/server-actions";
 
@@ -33,17 +36,17 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
   const row = await findPdnsServerById(id);
   if (!row) notFound();
 
-  // Available primaries the operator can attach a secondary to. Used
-  // by the form's "Mirrors which primary?" dropdown when role=secondary.
-  const primaries = (await listAllPrimaries()).map((p) => ({
-    id: p.id,
-    name: p.name,
-    slug: p.slug,
+  // Groups the operator can place this backend in — populates the form's
+  // optional "Group" picker (ADR-0014).
+  const groups = (await listAllClusters()).map((c) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
   }));
 
-  // For primaries, list attached secondaries — surfaced as a section
-  // beneath the form so operators can manage the mirror set inline.
-  const secondaries = row.role === "primary" ? await listActiveSecondariesForPrimary(row.id) : [];
+  // For primaries, list the secondaries that share its group — surfaced as a
+  // section beneath the form so operators can see the mirror set inline.
+  const secondaries = isWriteCapable(row.capabilities) ? await listSecondariesForPrimary(row) : [];
 
   // Audit-derived last-edit line. Gated by audit.read since it
   // leaks "X did Y at Z time" — matches the zone-detail page
@@ -52,21 +55,55 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
   const [lastEdit, recentEdits] = canReadAudit
     ? await Promise.all([latestServerAdminEdit(row.id), recentAdminEditsForServer(row.id, 10)])
     : [null, []];
-  const probeFresh = row.versionCache ? freshnessOf(row.versionCache.fetchedAt) : null;
+  // Ask the broker to ensure a recent observation, then read the shared store —
+  // same source as the servers list + bell, so all three agree. No PDNS call
+  // from this page.
+  await ensureBackendsObserved();
+  // Reachability from the live status store; `lastSeenAt` only supplies the
+  // "last contact" label for a reachable backend.
+  const reachability: "down" | "auth" | null = backendUnreachability(row.id);
+  const reachFresh = row.lastSeenAt ? freshnessOf(row.lastSeenAt.toISOString()) : null;
+
+  // Read-only daemon config for the "Daemon configuration" section, served from
+  // the broker's display-safe config cache (allowlisted, secret-stripped — the
+  // poll populated it). Capability-vs-config advisories live in the health bell
+  // (ADR-0015), not here.
+  const daemonSettings: SafeConfigRow[] =
+    row.disabledAt === null ? (readDaemonConfig(row.id) ?? []) : [];
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">{row.name}</h1>
         <p className="text-sm text-[color:var(--color-fg-muted)]">
-          {probeFresh ? (
+          {row.disabledAt ? (
+            <>Disabled.</>
+          ) : reachability === "auth" ? (
+            <span className="text-[color:var(--color-error)]">
+              API rejected the key — check the X-API-Key and the webserver/api ACL.
+            </span>
+          ) : reachability === "down" ? (
+            <span className="text-[color:var(--color-error)]">
+              Unreachable — the app hasn&apos;t reached this backend&apos;s API recently.
+            </span>
+          ) : reachFresh ? (
             <>
-              Last probed {probeFresh.label} — PDNS {row.versionCache?.version ?? "?"}.
+              Reachable · {reachFresh.label} — PDNS {row.versionCache?.version ?? "?"}.
             </>
           ) : (
-            <>Never probed.</>
+            <>Not yet reached.</>
           )}
         </p>
+        {row.capabilities ? (
+          <p className="text-xs text-[color:var(--color-fg-muted)]">
+            <span className="font-medium text-[color:var(--color-fg)]">Observed:</span>{" "}
+            {summarizeCapabilities(row.capabilities)}
+            {row.capabilities.backends.length > 0 ? (
+              <> · {row.capabilities.backends.join(", ")}</>
+            ) : null}
+            {row.capabilities.dnssec ? <> · DNSSEC</> : null}
+          </p>
+        ) : null}
         {canReadAudit ? (
           <p className="text-xs text-[color:var(--color-fg-muted)]">
             {lastEdit ? (
@@ -95,7 +132,7 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
 
       <ServerForm
         mode="edit"
-        primaries={primaries}
+        groups={groups}
         initial={{
           id: row.id,
           slug: row.slug,
@@ -105,12 +142,27 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
           serverId: row.serverId,
           isDefault: row.isDefault,
           disabled: row.disabledAt !== null,
-          role: row.role,
-          primaryId: row.primaryId,
+          clusterId: row.clusterId,
+          advertisedAddresses: row.advertisedAddresses,
         }}
       />
 
-      {row.role === "primary" ? (
+      {daemonSettings.length > 0 ? (
+        <section className="rounded-md border border-[color:var(--color-border)] p-4">
+          <header className="mb-3">
+            <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+              Daemon configuration
+            </h2>
+            <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
+              Read-only, from the server&apos;s <code>/config</code>. PowerDNS settings are
+              file-based — change them in <code>pdns.conf</code>, not here. Secrets are redacted.
+            </p>
+          </header>
+          <PdnsConfView rows={daemonSettings} />
+        </section>
+      ) : null}
+
+      {isWriteCapable(row.capabilities) ? (
         <section className="rounded-md border border-[color:var(--color-border)] p-4">
           <header className="mb-3 flex items-center justify-between">
             <div>
@@ -118,11 +170,15 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
                 Secondaries ({secondaries.length})
               </h2>
               <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
-                Read-only mirrors of this primary — polled for stats + sync state.
+                Read-only mirrors sharing this primary&apos;s group — polled for stats + sync state.
               </p>
             </div>
             <Link
-              href={`/admin/servers/new?secondaryOf=${encodeURIComponent(row.id)}`}
+              href={
+                row.clusterId
+                  ? `/admin/servers/new?group=${encodeURIComponent(row.clusterId)}`
+                  : "/admin/servers/new"
+              }
               className="rounded-md bg-[color:var(--color-accent)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
             >
               + Add secondary
@@ -130,8 +186,9 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
           </header>
           {secondaries.length === 0 ? (
             <p className="text-xs text-[color:var(--color-fg-muted)]">
-              No secondaries attached. Add one to enable sync-status checks + per-server stat
-              graphs.
+              {row.clusterId
+                ? "No secondaries in this group yet. Add one to enable sync-status checks + per-server stat graphs."
+                : "Put this primary in a group (above), then add secondaries to that group to enable sync-status checks."}
             </p>
           ) : (
             <ul className="divide-y divide-[color:var(--color-border)] text-sm">

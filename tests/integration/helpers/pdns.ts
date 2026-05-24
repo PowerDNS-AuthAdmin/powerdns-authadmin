@@ -16,6 +16,17 @@
  * a host port with the api-key set via the compose `command:` override.
  */
 
+/**
+ * Drop a single trailing dot from a PDNS name. Mirrors `lib/pdns/tsig.ts`'s
+ * helper — the integration suite deliberately runs on plain Node without the
+ * app's module resolution, so it can't import `lib/*` (no `@/` alias here).
+ * Used to normalize the trailing-dot zone key-id fields PDNS returns before
+ * comparing against the dot-less names the app stores.
+ */
+export function stripTrailingDot(name: string): string {
+  return name.endsWith(".") ? name.slice(0, -1) : name;
+}
+
 export interface PdnsBackend {
   /** Stable slug used in test error messages and assertions. */
   slug: string;
@@ -126,15 +137,41 @@ export async function getZone(backend: PdnsBackend, zoneId: string): Promise<Pdn
   return (await res.json()) as PdnsZone;
 }
 
+export interface PdnsConfigSetting {
+  type: string;
+  name: string;
+  value: string;
+}
+
+/** Read-only daemon config — the source the capability snapshot derives from. */
+export async function getConfig(backend: PdnsBackend): Promise<PdnsConfigSetting[]> {
+  const res = await pdnsCall(backend, "/servers/localhost/config");
+  if (!res.ok) throw new Error(`[pdns] ${backend.slug} get config → HTTP ${res.status}`);
+  return (await res.json()) as PdnsConfigSetting[];
+}
+
 export async function deleteZone(backend: PdnsBackend, zoneId: string): Promise<void> {
-  const res = await pdnsCall(backend, `/servers/localhost/zones/${zoneId}`, { method: "DELETE" });
-  // 404 = already gone; 422 = "DNSSEC keys present" or another upstream
-  // refusal (sometimes seen on shared-backend multi-primary clusters when
-  // two peers race the same delete). Both are non-fatal for test cleanup —
-  // the next test's own setup will write what it needs.
-  if (!res.ok && res.status !== 404 && res.status !== 422 && res.status !== 409) {
-    throw new Error(`[pdns] ${backend.slug} delete zone ${zoneId} → HTTP ${res.status}`);
+  // This cleanup hits PDNS DIRECTLY (bypassing the app's per-backend
+  // coordination), so it can still race the background poll on a single-file
+  // gsqlite3 store and get a TRANSIENT 5xx. We retry only to ride out that
+  // transient — a 5xx that PERSISTS through every retry is a genuine failure and
+  // is thrown, never swallowed.
+  const MAX_ATTEMPTS = 4;
+  let lastStatus = 0;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const res = await pdnsCall(backend, `/servers/localhost/zones/${zoneId}`, { method: "DELETE" });
+    // 404 = already gone; 422 = "DNSSEC keys present" or another upstream refusal
+    // (seen on shared-backend multi-primary clusters when two peers race the same
+    // delete); 409 = conflict. All non-fatal for cleanup.
+    if (res.ok || res.status === 404 || res.status === 422 || res.status === 409) return;
+    lastStatus = res.status;
+    // Only a 5xx is transient (store contention) and worth retrying; a 4xx is
+    // final. Stop retrying once attempts are exhausted.
+    if (res.status < 500 || attempt === MAX_ATTEMPTS) break;
+    await new Promise((r) => setTimeout(r, 150 * attempt));
   }
+  // Reached only when no attempt succeeded — fail loudly with the last status.
+  throw new Error(`[pdns] ${backend.slug} delete zone ${zoneId} → HTTP ${lastStatus}`);
 }
 
 /**

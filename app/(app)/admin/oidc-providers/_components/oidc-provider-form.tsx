@@ -11,6 +11,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/client/api-fetch";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 interface FormInitial {
   id: string;
@@ -490,73 +491,74 @@ export function OidcProviderForm(props: Props) {
                 </label>
                 <label className="text-xs">
                   Role
-                  <select
+                  <SelectMenu
                     value={m.roleSlug}
-                    onChange={(e) => updateGroupMapping(i, { roleSlug: e.target.value })}
+                    onChange={(v) => updateGroupMapping(i, { roleSlug: v })}
                     disabled={!canEdit}
-                    className={`${inputClass} text-xs`}
-                  >
-                    {props.pickers.roles.map((r) => (
-                      <option key={r.slug} value={r.slug}>
-                        {r.name} ({r.slug})
-                      </option>
-                    ))}
-                  </select>
+                    ariaLabel="Role"
+                    options={props.pickers.roles.map((r) => ({
+                      value: r.slug,
+                      label: `${r.name} (${r.slug})`,
+                    }))}
+                    className="mt-1 w-full text-xs"
+                  />
                 </label>
                 <label className="text-xs">
                   Scope
-                  <select
+                  <SelectMenu
                     value={m.scopeType}
-                    onChange={(e) =>
+                    onChange={(v) =>
                       updateGroupMapping(i, {
-                        scopeType: e.target.value as GroupMappingForm["scopeType"],
+                        scopeType: v,
                       })
                     }
                     disabled={!canEdit}
-                    className={`${inputClass} text-xs`}
-                  >
-                    <option value="global">global</option>
-                    <option value="team">team</option>
-                    <option value="server">server</option>
-                    <option value="zone">zone</option>
-                  </select>
+                    ariaLabel="Scope"
+                    options={[
+                      { value: "global", label: "global" },
+                      { value: "team", label: "team" },
+                      { value: "server", label: "server" },
+                      { value: "zone", label: "zone" },
+                    ]}
+                    className="mt-1 w-full text-xs"
+                  />
                 </label>
                 <label className="text-xs">
                   Target
                   {m.scopeType === "global" ? (
                     <input value="" disabled placeholder="—" className={`${inputClass} text-xs`} />
                   ) : m.scopeType === "team" ? (
-                    <select
+                    <SelectMenu
                       value={m.scopeId ?? ""}
-                      onChange={(e) => updateGroupMapping(i, { scopeId: e.target.value })}
+                      onChange={(v) => updateGroupMapping(i, { scopeId: v })}
                       disabled={!canEdit}
-                      className={`${inputClass} text-xs`}
-                    >
-                      {props.pickers.teams.length === 0 ? (
-                        <option value="">(no teams defined)</option>
-                      ) : null}
-                      {props.pickers.teams.map((t) => (
-                        <option key={t.slug} value={t.slug}>
-                          {t.name} ({t.slug})
-                        </option>
-                      ))}
-                    </select>
+                      ariaLabel="Target team"
+                      options={
+                        props.pickers.teams.length === 0
+                          ? [{ value: "", label: "(no teams defined)" }]
+                          : props.pickers.teams.map((t) => ({
+                              value: t.slug,
+                              label: `${t.name} (${t.slug})`,
+                            }))
+                      }
+                      className="mt-1 w-full text-xs"
+                    />
                   ) : m.scopeType === "server" ? (
-                    <select
+                    <SelectMenu
                       value={m.scopeId ?? ""}
-                      onChange={(e) => updateGroupMapping(i, { scopeId: e.target.value })}
+                      onChange={(v) => updateGroupMapping(i, { scopeId: v })}
                       disabled={!canEdit}
-                      className={`${inputClass} text-xs`}
-                    >
-                      {props.pickers.servers.length === 0 ? (
-                        <option value="">(no servers defined)</option>
-                      ) : null}
-                      {props.pickers.servers.map((s) => (
-                        <option key={s.slug} value={s.slug}>
-                          {s.name} ({s.slug})
-                        </option>
-                      ))}
-                    </select>
+                      ariaLabel="Target server"
+                      options={
+                        props.pickers.servers.length === 0
+                          ? [{ value: "", label: "(no servers defined)" }]
+                          : props.pickers.servers.map((s) => ({
+                              value: s.slug,
+                              label: `${s.name} (${s.slug})`,
+                            }))
+                      }
+                      className="mt-1 w-full text-xs"
+                    />
                   ) : (
                     <input
                       value={m.scopeId ?? ""}

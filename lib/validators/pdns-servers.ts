@@ -73,43 +73,23 @@ const descriptionSchema = z
   .max(500, "Description must be 500 characters or fewer.")
   .transform((s) => s.trim());
 
-const roleSchema = z.enum(["primary", "secondary"]).default("primary");
-
-export const createPdnsServerSchema = z
-  .object({
-    slug: slugSchema,
-    name: z.string().min(1, "Name is required.").max(120),
-    description: descriptionSchema.optional(),
-    baseUrl: baseUrlSchema,
-    serverId: z.string().min(1).max(120).default("localhost"),
-    apiKey: z.string().min(1, "API key is required.").max(2048, "API key is unexpectedly long."),
-    isDefault: z.boolean().default(false),
-    role: roleSchema,
-    primaryId: z.string().uuid().optional().nullable(),
-  })
-  .superRefine((v, ctx) => {
-    if (v.role === "secondary" && !v.primaryId) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["primaryId"],
-        message: "Secondaries must reference a primary.",
-      });
-    }
-    if (v.role === "primary" && v.primaryId) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["primaryId"],
-        message: "Primaries cannot reference a parent primary.",
-      });
-    }
-    if (v.role === "secondary" && v.isDefault) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["isDefault"],
-        message: "Secondaries can't be the default backend — only primaries.",
-      });
-    }
-  });
+export const createPdnsServerSchema = z.object({
+  slug: slugSchema,
+  name: z.string().min(1, "Name is required.").max(120),
+  description: descriptionSchema.optional(),
+  baseUrl: baseUrlSchema,
+  serverId: z.string().min(1).max(120).default("localhost"),
+  apiKey: z.string().min(1, "API key is required.").max(2048, "API key is unexpectedly long."),
+  isDefault: z.boolean().default(false),
+  // Optional group (ADR-0014): the multi-primary cluster a peer belongs to, or
+  // the group a secondary shares with its primary. null = stands alone. A
+  // backend's primary/secondary nature is observed from /config, not declared.
+  clusterId: z.string().uuid().optional().nullable(),
+  // DNS addresses this backend serves on, for masters[]-based topology matching
+  // (ADR-0014). null/omitted = derive from the base URL host. Bounded — a
+  // backend advertises a handful of addresses, not an unbounded list.
+  advertisedAddresses: z.array(z.string().min(1).max(255)).max(32).optional().nullable(),
+});
 
 export type CreatePdnsServerInput = z.infer<typeof createPdnsServerSchema>;
 
@@ -130,11 +110,12 @@ export const updatePdnsServerSchema = z.object({
   apiKey: z.string().min(1).max(2048).optional(),
   isDefault: z.boolean().optional(),
   disabled: z.boolean().optional(),
-  // Role / primaryId can be flipped on the edit form; the route
-  // re-validates the same primary↔secondary invariants the create
-  // schema enforces.
-  role: z.enum(["primary", "secondary"]).optional(),
-  primaryId: z.string().uuid().optional().nullable(),
+  // Group membership (ADR-0014). Send null to leave the group, a uuid to join
+  // one, omit to leave unchanged.
+  clusterId: z.string().uuid().optional().nullable(),
+  // DNS addresses for topology matching. null clears (derive from URL host),
+  // an array sets, omit to leave unchanged. Bounded for the same reason as create.
+  advertisedAddresses: z.array(z.string().min(1).max(255)).max(32).optional().nullable(),
 });
 
 export type UpdatePdnsServerInput = z.infer<typeof updatePdnsServerSchema>;

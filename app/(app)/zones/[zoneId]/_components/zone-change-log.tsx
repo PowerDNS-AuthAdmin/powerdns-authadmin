@@ -25,6 +25,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { colorForAuditAction } from "@/lib/audit/action-color";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { BareDiff } from "./bare-diff";
 import { PdnsHttpLog, type PdnsHttpLogEntry } from "./pdns-http-log";
 
@@ -366,32 +367,24 @@ function Filters({
         />
       </FilterField>
       <FilterField label="Action">
-        <select
+        <SelectMenu
           value={actionFilter}
-          onChange={(e) => onActionFilter(e.target.value)}
-          className="block rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs"
-        >
-          <option value="">all</option>
-          {actionChoices.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </select>
+          onChange={onActionFilter}
+          placeholder="all"
+          ariaLabel="Action"
+          className="w-44 text-xs"
+          options={actionChoices.map((a) => ({ value: a, label: a }))}
+        />
       </FilterField>
       <FilterField label="Actor">
-        <select
+        <SelectMenu
           value={actorFilter}
-          onChange={(e) => onActorFilter(e.target.value)}
-          className="block rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs"
-        >
-          <option value="">all</option>
-          {actorChoices.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </select>
+          onChange={onActorFilter}
+          placeholder="all"
+          ariaLabel="Actor"
+          className="w-44 text-xs"
+          options={actorChoices.map((a) => ({ value: a, label: a }))}
+        />
       </FilterField>
       <FilterField label="From">
         <DateTimePicker
@@ -444,20 +437,16 @@ interface PaginationProps {
 function Pagination({ page, totalPages, pageSize, onPageChange, onPageSize }: PaginationProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 text-[0.6875rem]">
-      <label className="flex items-center gap-2">
+      <div className="flex items-center gap-2">
         <span className="text-[color:var(--color-fg-muted)]">Rows per page</span>
-        <select
-          value={pageSize}
-          onChange={(e) => onPageSize(Number(e.target.value) as (typeof PAGE_SIZES)[number])}
-          className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs"
-        >
-          {PAGE_SIZES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </label>
+        <SelectMenu
+          value={String(pageSize)}
+          onChange={(v) => onPageSize(Number(v) as (typeof PAGE_SIZES)[number])}
+          ariaLabel="Rows per page"
+          className="w-20 text-xs"
+          options={PAGE_SIZES.map((s) => ({ value: String(s), label: String(s) }))}
+        />
+      </div>
       <div className="flex items-center gap-2">
         <span className="text-[color:var(--color-fg-muted)]">
           Page {page + 1} of {totalPages}

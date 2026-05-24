@@ -49,6 +49,7 @@ function gte(a: ParsedVersion, b: ParsedVersion): boolean {
  *   - EXTEND/PRUNE: PDNS ≥ 4.9.12 *or* ≥ 5.0.2 ().
  *   - Catalog zones: PDNS ≥ 4.7.
  *   - Views/Networks: PDNS ≥ 5.0.
+ *   - TSIG API (import/get-secret): PDNS ≥ 4.1.
  */
 export function buildVersionCache(rawVersion: string, serverId: string): PdnsVersionCache {
   const parsed = parseVersion(rawVersion) ?? { major: 0, minor: 0, patch: 0 };
@@ -58,6 +59,7 @@ export function buildVersionCache(rawVersion: string, serverId: string): PdnsVer
     parsed.major > 5;
   const supportsCatalogZones = gte(parsed, { major: 4, minor: 7, patch: 0 });
   const supportsViews = gte(parsed, { major: 5, minor: 0, patch: 0 });
+  const supportsTsigApi = gte(parsed, { major: 4, minor: 1, patch: 0 });
 
   return {
     version: rawVersion,
@@ -67,6 +69,7 @@ export function buildVersionCache(rawVersion: string, serverId: string): PdnsVer
       supportsExtendPrune,
       supportsCatalogZones,
       supportsViews,
+      supportsTsigApi,
     },
     fetchedAt: new Date().toISOString(),
   };

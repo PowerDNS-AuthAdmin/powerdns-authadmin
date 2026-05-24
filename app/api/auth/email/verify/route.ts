@@ -45,7 +45,7 @@ export async function POST(request: Request): Promise<Response> {
     const { user } = await requireUser();
     await requireCsrf(request);
 
-    const limit = sensitiveLimiter.take(`verify:${user.id}`);
+    const limit = await sensitiveLimiter.takeShared(`verify:${user.id}`);
     if (!limit.allowed) {
       return Response.json(
         {

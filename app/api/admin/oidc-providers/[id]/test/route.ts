@@ -24,7 +24,12 @@ import { getRequestContext, getRequestId } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { findOidcProviderById, setOidcDiscoveryCache } from "@/lib/db/repositories/oidc-providers";
-import { probeFailureLabel, probeOidcDiscovery } from "@/lib/auth/providers/oidc-probe";
+import {
+  probeFailureLabel,
+  probeOidcDiscovery,
+  type ProbeResult,
+} from "@/lib/auth/providers/oidc-probe";
+import { checkOidcIssuerUrlSafe } from "@/lib/auth/providers/oidc-url-safety";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 
@@ -43,7 +48,17 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     const provider = await findOidcProviderById(id);
     if (!provider) throw new NotFoundError("OIDC provider not found.");
 
-    const result = await probeOidcDiscovery(provider.issuerUrl);
+    // Re-validate the (persisted) issuer URL before fetching — DNS-rebind
+    // defense, and surfaces a now-unsafe URL as a normal in-band test failure.
+    const safety = await checkOidcIssuerUrlSafe(provider.issuerUrl);
+    const result: ProbeResult = safety.safe
+      ? await probeOidcDiscovery(provider.issuerUrl)
+      : { ok: false, reason: "transport" };
+    const failureHint = result.ok
+      ? undefined
+      : safety.safe
+        ? probeFailureLabel(result.reason)
+        : safety.reason;
     const fetchedAt = new Date().toISOString();
     await setOidcDiscoveryCache(id, {
       fetchedAt,
@@ -71,7 +86,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
         {
           ok: false,
           reason: result.reason,
-          hint: probeFailureLabel(result.reason),
+          hint: failureHint,
           requestId,
         },
         { status: 200 },

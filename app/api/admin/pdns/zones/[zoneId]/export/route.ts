@@ -12,7 +12,7 @@
 import { z, ZodError } from "zod";
 import { requireUser } from "@/lib/auth/require-user";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { PdnsError, PdnsNotFoundError } from "@/lib/pdns/errors";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { redact } from "@/lib/errors/redact";
@@ -65,7 +65,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
       throw new ForbiddenError("Missing zone.read for this zone.");
     }
 
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
     let zone;
     try {
       zone = await client.getZone(zoneName);

@@ -10,6 +10,7 @@
 
 import type { RREditor } from "./types";
 import { Field, uintInput, inputClass } from "./_form";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 export interface CaaStruct {
   flags: number;
@@ -60,22 +61,19 @@ export const caaEditor: RREditor<CaaStruct> = {
           {uintInput(value.flags, 255, (n) => onChange({ ...value, flags: n }))}
         </Field>
         <Field label="Tag">
-          <select
+          <SelectMenu
             value={tagIsKnown ? value.tag : "__custom"}
-            onChange={(e) => {
-              const v = e.target.value;
+            onChange={(v) => {
               if (v === "__custom") return; // keep current
               onChange({ ...value, tag: v });
             }}
-            className={inputClass}
-          >
-            {KNOWN_TAGS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-            <option value="__custom">Custom…</option>
-          </select>
+            options={[
+              ...KNOWN_TAGS.map((t) => ({ value: t, label: t })),
+              { value: "__custom", label: "Custom…" },
+            ]}
+            ariaLabel="Tag"
+            className="w-full"
+          />
           {!tagIsKnown ? (
             <input
               value={value.tag}

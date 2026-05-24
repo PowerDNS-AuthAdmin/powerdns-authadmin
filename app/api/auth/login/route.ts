@@ -118,7 +118,7 @@ export async function POST(request: Request): Promise<Response> {
   // against a known account and it's tight enough to make brute-force
   // online cred-spray uneconomical (max 96 attempts/day per account at
   // 10 attempts / 15 min).
-  const ipLimit = loginLimiter.take(`ip:${ip ?? "unknown"}`);
+  const ipLimit = await loginLimiter.takeShared(`ip:${ip ?? "unknown"}`);
   if (!ipLimit.allowed) {
     return jsonError(429, "Too many login attempts.", {
       retryAfterSeconds: ipLimit.retryAfterSeconds,
@@ -158,7 +158,7 @@ export async function POST(request: Request): Promise<Response> {
   // is the bearer credential). The browser's MFA step posts the
   // token + the 6-digit code to /api/auth/mfa/totp to finish.
   if (outcome.user.totpSecretEncrypted) {
-    const { token: challengeToken, expiresInSec } = mintRevealToken({
+    const { token: challengeToken, expiresInSec } = await mintRevealToken({
       plaintext: outcome.user.id,
       allowedActorId: "_mfa-pending",
       ttlSec: 5 * 60,

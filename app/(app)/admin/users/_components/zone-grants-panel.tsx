@@ -15,6 +15,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useDialog } from "@/components/ui/dialog";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { mutate } from "@/lib/client/api-fetch";
 
 interface Grant {
@@ -202,18 +203,13 @@ export function ZoneGrantsPanel({ userId, canManage, grants, servers, permission
               <label htmlFor="zg-server" className="block text-xs font-medium">
                 Server
               </label>
-              <select
-                id="zg-server"
+              <SelectMenu
                 value={serverId}
-                onChange={(e) => setServerId(e.target.value)}
-                className="mt-1 w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-sm"
-              >
-                {servers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setServerId(v)}
+                options={servers.map((s) => ({ value: s.id, label: s.name }))}
+                ariaLabel="Server"
+                className="mt-1 w-full text-sm"
+              />
             </div>
             <div>
               <label htmlFor="zg-zone" className="block text-xs font-medium">

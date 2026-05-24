@@ -21,9 +21,17 @@ interface PdnsServerRow {
   serverId: string;
   isDefault: boolean;
   disabledAt: string | null;
-  role: "primary" | "secondary";
-  primaryId: string | null;
+  clusterId: string | null;
   versionCache?: unknown;
+  capabilities?: {
+    api: boolean;
+    primary: boolean;
+    secondary: boolean;
+    autosecondary: boolean;
+    backends: string[];
+    dnssec: boolean;
+    fetchedAt: string;
+  } | null;
 }
 
 const SEEDED_SLUGS = [
@@ -55,6 +63,25 @@ describe("/api/admin/pdns-servers", () => {
     for (const expected of SEEDED_SLUGS) {
       expect(slugs).toContain(expected);
     }
+  });
+
+  it("classifies backends from observed /config capabilities (ADR-0014)", async () => {
+    // Provisioning probes each backend's /config at boot, so capabilities are
+    // populated. This validates the whole chain: deriveCapabilities → persist →
+    // expose, and the write-target vs read-only-mirror classification that
+    // replaced the dropped `role` column.
+    const admin = await loginAsBootstrap();
+    const { servers } = await admin.getJson<{ servers: PdnsServerRow[] }>(
+      "/api/admin/pdns-servers",
+    );
+    const bySlug = new Map(servers.map((s) => [s.slug, s]));
+
+    const primary = bySlug.get("ps-primary");
+    expect(primary?.capabilities?.primary).toBe(true);
+
+    const secondary = bySlug.get("ps-secondary-1");
+    expect(secondary?.capabilities?.secondary).toBe(true);
+    expect(secondary?.capabilities?.primary).toBe(false);
   });
 
   it("POST creates a new server even when the URL is unreachable", async () => {

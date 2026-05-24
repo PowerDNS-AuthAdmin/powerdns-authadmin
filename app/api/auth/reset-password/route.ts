@@ -42,7 +42,7 @@ export async function POST(request: Request): Promise<Response> {
   const ip = getClientIp(hdrs);
 
   {
-    const limit = loginLimiter.take(`reset:${ip ?? "unknown"}`);
+    const limit = await loginLimiter.takeShared(`reset:${ip ?? "unknown"}`);
     if (!limit.allowed) {
       return Response.json(
         { error: "Too many requests.", retryAfterSeconds: limit.retryAfterSeconds },

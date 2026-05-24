@@ -41,12 +41,19 @@ describe("buildVersionCache", () => {
     expect(buildVersionCache("4.9.12", "localhost").capabilities.supportsViews).toBe(false);
   });
 
+  it("flags the TSIG API on 4.1+", () => {
+    expect(buildVersionCache("4.1.0", "localhost").capabilities.supportsTsigApi).toBe(true);
+    expect(buildVersionCache("4.6.0", "localhost").capabilities.supportsTsigApi).toBe(true);
+    expect(buildVersionCache("4.0.5", "localhost").capabilities.supportsTsigApi).toBe(false);
+  });
+
   it("falls back to all-off on an unparseable version string", () => {
     const cache = buildVersionCache("garbage", "localhost");
     expect(cache.parsed).toEqual({ major: 0, minor: 0, patch: 0 });
     expect(cache.capabilities.supportsExtendPrune).toBe(false);
     expect(cache.capabilities.supportsCatalogZones).toBe(false);
     expect(cache.capabilities.supportsViews).toBe(false);
+    expect(cache.capabilities.supportsTsigApi).toBe(false);
   });
 
   it("tolerates suffixes (commit hash, dev tag)", () => {

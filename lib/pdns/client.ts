@@ -22,6 +22,8 @@ import "server-only";
 import { pdnsRequest, type PdnsHttpConfig, type PdnsRequestInit } from "./http";
 import {
   pdnsAutoprimaryListSchema,
+  pdnsConfigSchema,
+  type PdnsConfigSetting,
   pdnsCryptokeyDetailSchema,
   pdnsCryptokeyListSchema,
   pdnsMetadataListSchema,
@@ -47,7 +49,12 @@ import {
 import { buildVersionCache, isVersionCacheFresh } from "./version";
 import type { ZoneRRsetPatchBody } from "./rrsets";
 
-const VERSION_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+// Backstop only. Every real caller forces a live probe now: the poller
+// re-reads the version on its 60 s daemon refresh, and an explicit
+// Test / Refresh-all passes `{ force: true }`. This short TTL just guards
+// any future non-forcing caller from hammering /servers on a tight loop —
+// reachability/version must reflect the live poll, never a long-lived blob.
+const VERSION_CACHE_TTL_MS = 60 * 1000;
 
 export interface PdnsClientConfig extends PdnsHttpConfig {
   /** PDNS server-id (path segment after `/servers/`), e.g. "localhost". */
@@ -78,6 +85,9 @@ export class PdnsClient {
       ...(config.serverDbId !== undefined ? { serverDbId: config.serverDbId } : {}),
       ...(config.maxAttempts !== undefined ? { maxAttempts: config.maxAttempts } : {}),
       ...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
+      ...(config.coordinateAllRequests !== undefined
+        ? { coordinateAllRequests: config.coordinateAllRequests }
+        : {}),
     };
     this.versionCache = config.initialVersionCache ?? null;
   }
@@ -112,15 +122,35 @@ export class PdnsClient {
   }
 
   /**
-   * Cached capability snapshot. Refreshes when the cache is older than
-   * `VERSION_CACHE_TTL_MS`. Returns both the snapshot and a `refreshed` flag
-   * so the caller can decide whether to persist it back to the row.
+   * `GET /servers/{id}/config` — the daemon's global (file-based) settings.
+   * Read-only: PowerDNS doesn't let the API change these. Used for advisory
+   * checks ("you marked this secondary, but it reports secondary=no") and a
+   * read-only daemon-settings view. Callers MUST filter to non-sensitive
+   * settings before display — this returns everything, including any
+   * secret-shaped values (api-key, *-password) the daemon reports.
    */
-  public async version(): Promise<{
+  public async getConfig(): Promise<PdnsConfigSetting[]> {
+    const body = await this.request<unknown>({
+      method: "GET",
+      path: `/servers/${this.serverId}/config`,
+      op: "server.config",
+    });
+    return pdnsConfigSchema.parse(body);
+  }
+
+  /**
+   * Resolve the daemon version + capability snapshot. Pass `{ force: true }` to
+   * always hit the network — required for any path that asserts reachability
+   * (an explicit Test, the poll's daemon refresh): honoring a cached snapshot
+   * would let a dead daemon report "reachable" with a stale version. Without
+   * `force`, a snapshot newer than `VERSION_CACHE_TTL_MS` is reused. Returns a
+   * `refreshed` flag so the caller can decide whether to persist it back.
+   */
+  public async version(opts?: { force?: boolean }): Promise<{
     cache: PdnsVersionCache;
     refreshed: boolean;
   }> {
-    if (isVersionCacheFresh(this.versionCache, VERSION_CACHE_TTL_MS)) {
+    if (!opts?.force && isVersionCacheFresh(this.versionCache, VERSION_CACHE_TTL_MS)) {
       return { cache: this.versionCache, refreshed: false };
     }
     const info = await this.serverInfo();
@@ -248,6 +278,12 @@ export class PdnsClient {
       soa_edit?: string;
       soa_edit_api?: string;
       api_rectify?: boolean;
+      // TSIG-secured AXFR — the WRITABLE path for what surfaces read-only as the
+      // TSIG-ALLOW-AXFR / AXFR-MASTER-TSIG metadata kinds. Send the full desired
+      // array (PDNS replaces it), so callers must read-modify-write to add/remove
+      // a single key without clobbering others.
+      master_tsig_key_ids?: readonly string[];
+      slave_tsig_key_ids?: readonly string[];
     },
   ): Promise<void> {
     // PDNS Authoritative still requires Master/Slave for the wire `kind`
@@ -600,6 +636,12 @@ export class PdnsClient {
   public async createTsigKey(input: {
     name: string;
     algorithm?: string;
+    /**
+     * Base64 HMAC secret to IMPORT. Omit to have PDNS generate a fresh one.
+     * Supplying it lets us replicate a primary's exact key onto a secondary so
+     * AXFR authenticates (both ends must hold the identical secret).
+     */
+    key?: string;
   }): Promise<PdnsTsigKeyDetail> {
     const body = await this.request<unknown>({
       method: "POST",
@@ -608,6 +650,9 @@ export class PdnsClient {
       body: {
         name: input.name,
         algorithm: input.algorithm ?? "hmac-sha256",
+        // PDNS imports the provided secret when `key` is non-empty; an empty/
+        // absent `key` triggers server-side generation.
+        ...(input.key ? { key: input.key } : {}),
       },
     });
     return pdnsTsigKeyDetailSchema.parse(body);

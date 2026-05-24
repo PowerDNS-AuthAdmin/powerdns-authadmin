@@ -20,7 +20,14 @@
 import { useState, type FormEvent } from "react";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
 
-export function LoginForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) {
+export function LoginForm({
+  turnstileSiteKey,
+  next = "/dashboard",
+}: {
+  turnstileSiteKey?: string;
+  /** Validated (same-origin) post-login destination — see lib/auth/safe-redirect. */
+  next?: string;
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -68,7 +75,7 @@ export function LoginForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) {
         setPassword("");
         return;
       }
-      window.location.assign("/dashboard");
+      window.location.assign(next);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -132,7 +139,7 @@ export function LoginForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) {
         setCode("");
         return;
       }
-      window.location.assign("/dashboard");
+      window.location.assign(next);
     } catch {
       setError("Network error. Please try again.");
     } finally {

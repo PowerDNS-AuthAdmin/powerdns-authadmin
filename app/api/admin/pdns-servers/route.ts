@@ -27,9 +27,11 @@ import {
   listAllPdnsServers,
 } from "@/lib/db/repositories/pdns-servers";
 import { createPdnsServerSchema } from "@/lib/validators/pdns-servers";
-import { refreshAndPersistVersion } from "@/lib/pdns/registry";
+import { refreshBackendHealth } from "@/lib/realtime/backend-health";
 import { assertSafePdnsUrl } from "@/lib/pdns/url-safety";
 import { ConflictError } from "@/lib/errors";
+import { findClusterById } from "@/lib/db/repositories/pdns-clusters";
+import { invalidateBackendObservation, scheduleImmediatePoll } from "@/lib/realtime/zone-poller";
 
 export async function GET(): Promise<Response> {
   try {
@@ -71,6 +73,14 @@ export async function POST(request: Request): Promise<Response> {
     // against DNS rebinding.
     await assertSafePdnsUrl(input.baseUrl);
 
+    // Reject a nonexistent group with a clean 400 rather than letting the FK
+    // constraint surface as a 500.
+    if (input.clusterId && !(await findClusterById(input.clusterId))) {
+      throw new ValidationError("Invalid input.", {
+        fieldErrors: { clusterId: ["That group no longer exists."] },
+      });
+    }
+
     const apiKeyEncrypted = encrypt(input.apiKey, "pdns-api-key");
     const row = await insertPdnsServer({
       slug: input.slug,
@@ -80,8 +90,11 @@ export async function POST(request: Request): Promise<Response> {
       serverId: input.serverId,
       apiKeyEncrypted,
       isDefault: input.isDefault,
-      role: input.role,
-      primaryId: input.role === "secondary" ? (input.primaryId ?? null) : null,
+      clusterId: input.clusterId ?? null,
+      advertisedAddresses:
+        input.advertisedAddresses && input.advertisedAddresses.length > 0
+          ? input.advertisedAddresses
+          : null,
       createdBy: user.id,
     });
 
@@ -101,9 +114,10 @@ export async function POST(request: Request): Promise<Response> {
       request: getRequestContext(hdrs),
     });
 
-    // Best-effort version probe so the list view shows health on first paint.
-    // Failures are logged and surfaced via the row's empty `versionCache`.
-    refreshAndPersistVersion(row.id).catch((err: unknown) => {
+    // Best-effort first health probe so the list view shows real status +
+    // version + capabilities on first paint. Failures are logged; the row's
+    // status reflects them on the next poll regardless.
+    refreshBackendHealth(row, { immediate: true }).catch((err: unknown) => {
       logger.warn(
         {
           server: row.slug,
@@ -112,6 +126,13 @@ export async function POST(request: Request): Promise<Response> {
         "pdns.server.first-probe.failed",
       );
     });
+
+    // A new backend changes the replication topology (it may be a primary that
+    // others mirror, or a secondary that derives from one). Invalidate the
+    // broker so the post-create render re-derives at once (the redirect out-runs
+    // the debounced poll), and schedule the poll for any other open views.
+    invalidateBackendObservation();
+    scheduleImmediatePoll();
 
     const { apiKeyEncrypted: _strip, ...safe } = row;
     return Response.json({ server: safe }, { status: 201 });

@@ -97,6 +97,9 @@ export const AUDIT_ACTIONS = [
   "tsig.create",
   "tsig.delete",
   "tsig.reveal",
+  "tsig.install-secondaries",
+  "tsig.manual-reveal",
+  "zone.tsig-transfer.set",
 
   // Autoprimaries
   "autoprimary.create",

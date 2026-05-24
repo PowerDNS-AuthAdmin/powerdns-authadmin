@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { useDialog } from "@/components/ui/dialog";
 import { LocalTime } from "@/components/ui/local-time";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { apiFetch, mutate } from "@/lib/client/api-fetch";
 
 interface Member {
@@ -130,16 +131,16 @@ export function TeamMembersPanel(props: PanelProps) {
                   </td>
                   <td className="px-4 py-3 text-xs">
                     {props.canManage ? (
-                      <select
+                      <SelectMenu
                         value={m.teamRole}
-                        onChange={(e) =>
-                          handleSetRole(m.userId, e.target.value as "owner" | "member")
-                        }
-                        className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs"
-                      >
-                        <option value="member">member</option>
-                        <option value="owner">owner</option>
-                      </select>
+                        onChange={(v) => handleSetRole(m.userId, v)}
+                        options={[
+                          { value: "member", label: "member" },
+                          { value: "owner", label: "owner" },
+                        ]}
+                        ariaLabel="Team role"
+                        className="w-32 text-xs"
+                      />
                     ) : (
                       m.teamRole
                     )}
@@ -183,14 +184,16 @@ export function TeamMembersPanel(props: PanelProps) {
               placeholder="user@example.com"
               className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm"
             />
-            <select
+            <SelectMenu
               value={teamRole}
-              onChange={(e) => setTeamRole(e.target.value as "owner" | "member")}
-              className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm"
-            >
-              <option value="member">member</option>
-              <option value="owner">owner</option>
-            </select>
+              onChange={(v) => setTeamRole(v)}
+              options={[
+                { value: "member", label: "member" },
+                { value: "owner", label: "owner" },
+              ]}
+              ariaLabel="Team role"
+              className="w-32 text-sm"
+            />
             <button
               type="submit"
               disabled={adding}

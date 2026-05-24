@@ -24,7 +24,12 @@ export function ServersPageHeartbeat({ inSync }: Props) {
   const lastRefreshAt = useRef<number>(0);
 
   useRealtimeEvent(
-    (event) => event.type === "zone.updated" || event.type === "zone.sync.changed",
+    (event) =>
+      event.type === "zone.updated" ||
+      event.type === "zone.sync.changed" ||
+      // A backend going (un)reachable flips its status badge — refresh on the
+      // same health nudge the bell uses so the list reflects it without a reload.
+      event.type === "health.updated",
     () => {
       const now = Date.now();
       if (now - lastRefreshAt.current < 500) return;

@@ -8,6 +8,7 @@
 
 import type { RREditor } from "./types";
 import { Field, uintInput, inputClass } from "./_form";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 export interface DsStruct {
   keyTag: number;
@@ -55,30 +56,22 @@ export const dsEditor: RREditor<DsStruct> = {
             {uintInput(value.keyTag, 65535, (n) => onChange({ ...value, keyTag: n }))}
           </Field>
           <Field label="Algorithm">
-            <select
-              value={value.algorithm}
-              onChange={(e) => onChange({ ...value, algorithm: Number(e.target.value) })}
-              className={inputClass}
-            >
-              {ALGORITHMS.map((a) => (
-                <option key={a.value} value={a.value}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
+            <SelectMenu
+              value={String(value.algorithm)}
+              onChange={(v) => onChange({ ...value, algorithm: Number(v) })}
+              options={ALGORITHMS.map((a) => ({ value: String(a.value), label: a.label }))}
+              ariaLabel="Algorithm"
+              className="w-full"
+            />
           </Field>
           <Field label="Digest type">
-            <select
-              value={value.digestType}
-              onChange={(e) => onChange({ ...value, digestType: Number(e.target.value) })}
-              className={inputClass}
-            >
-              {DIGEST_TYPES.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
+            <SelectMenu
+              value={String(value.digestType)}
+              onChange={(v) => onChange({ ...value, digestType: Number(v) })}
+              options={DIGEST_TYPES.map((d) => ({ value: String(d.value), label: d.label }))}
+              ariaLabel="Digest type"
+              className="w-full"
+            />
           </Field>
         </div>
         <Field label="Digest" hint="Hex.">

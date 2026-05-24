@@ -16,15 +16,13 @@ import {
   boolean,
   index,
   jsonb,
-  pgEnum,
   pgTable,
   text,
   timestamp,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import type { PdnsVersionCache } from "@/lib/pdns/types";
+import type { PdnsDaemonCapabilities, PdnsVersionCache } from "@/lib/pdns/types";
 import { pdnsClusters } from "./pdns-clusters";
 import { users } from "./users";
 import { pk, timestamps } from "./_helpers";
@@ -33,16 +31,7 @@ import { pk, timestamps } from "./_helpers";
 // adapter doesn't have to cross the import-boundary rule that forbids
 // `lib/pdns → lib/db`. Re-exported here so existing callers that import
 // the type from this file (the historical location) keep working.
-export type { PdnsVersionCache } from "@/lib/pdns/types";
-
-/**
- * Whether a backend is the authoritative source we write to (`primary`)
- * or a read-only mirror we poll for sync state + stats (`secondary`).
- * Secondaries reference a primary via `primary_id`. The application
- * routes all writes (record edits, zone create/delete, notify,
- * settings, metadata) to primaries only; secondaries are observed.
- */
-export const pdnsServerRoleEnum = pgEnum("pdns_server_role", ["primary", "secondary"]);
+export type { PdnsVersionCache, PdnsDaemonCapabilities } from "@/lib/pdns/types";
 
 export const pdnsServers = pgTable(
   "pdns_servers",
@@ -86,6 +75,24 @@ export const pdnsServers = pgTable(
     versionCache: jsonb("version_cache").$type<PdnsVersionCache | null>(),
 
     /**
+     * OBSERVED daemon capabilities from the read-only `/config` (ADR-0014):
+     * primary/secondary/autosecondary, launch backends, DNSSEC. Refreshed on
+     * each version probe. This is the per-daemon truth that supersedes the
+     * operator-declared `role`. Null until first observed; carries its own
+     * `fetchedAt` like `version_cache`.
+     */
+    capabilities: jsonb("capabilities").$type<PdnsDaemonCapabilities | null>(),
+
+    /**
+     * Operator-declared DNS addresses this backend serves on — the values
+     * other backends list in a slave zone's `masters[]` (ADR-0014). Used to
+     * derive replication edges by matching `masters[]` against this set. NULL
+     * means "derive from the API base URL host"; an explicit array overrides
+     * (for setups where the API host ≠ the DNS address).
+     */
+    advertisedAddresses: jsonb("advertised_addresses").$type<string[] | null>(),
+
+    /**
      * Last time we successfully *reached* this backend — set by the
      * background poller on every successful zone-list fetch, and by a
      * successful version probe (Test / Refresh all). Distinct from
@@ -108,30 +115,15 @@ export const pdnsServers = pgTable(
     isDefault: boolean("is_default").notNull().default(false),
 
     /**
-     * Backend role — see `pdnsServerRoleEnum`. Defaults to `primary` so
-     * existing rows pre-migration are interpreted as writable. New rows
-     * inserted via the admin UI must choose explicitly.
-     */
-    role: pdnsServerRoleEnum("role").notNull().default("primary"),
-
-    /**
-     * For `role='secondary'`: the primary this secondary mirrors.
-     * NULL for primaries. Deleting the primary cascades to its
-     * secondaries — they have no meaning without their primary.
-     */
-    primaryId: uuid("primary_id").references((): AnyPgColumn => pdnsServers.id, {
-      onDelete: "cascade",
-    }),
-
-    /**
-     * Multi-primary cluster membership (peer mode). When set, this row is
-     * one of N writable peers whose underlying storage replicates
-     * via the backend (Galera, Postgres logical replication, etc.). All
-     * peers in a cluster have `role='primary'`; the cluster groups them.
-     * NULL means this server is either a standalone primary or a
-     * traditional secondary mirror. ON DELETE SET NULL keeps the row
-     * around if the cluster goes away — the server just falls back to
-     * standalone-primary semantics.
+     * Group membership (ADR-0014). A group is any set of related backends —
+     * the writable peers of a multi-primary cluster, OR a primary together
+     * with its secondaries. NULL means the backend stands alone. A primary's
+     * secondaries are the secondary-capable members of its group; the precise
+     * primary→secondary edges are derived from each mirror zone's `masters[]`.
+     * ON DELETE SET NULL keeps the row if the group goes away.
+     *
+     * (Historically named `cluster_id`; kept for migration stability. The
+     * table is `pdns_clusters`.)
      */
     clusterId: uuid("cluster_id").references(() => pdnsClusters.id, {
       onDelete: "set null",
@@ -151,8 +143,6 @@ export const pdnsServers = pgTable(
     slugIdx: uniqueIndex("pdns_servers_slug_idx").on(t.slug),
     defaultIdx: index("pdns_servers_default_idx").on(t.isDefault),
     disabledIdx: index("pdns_servers_disabled_idx").on(t.disabledAt),
-    roleIdx: index("pdns_servers_role_idx").on(t.role),
-    primaryIdx: index("pdns_servers_primary_id_idx").on(t.primaryId),
     clusterIdx: index("pdns_servers_cluster_id_idx").on(t.clusterId),
   }),
 );

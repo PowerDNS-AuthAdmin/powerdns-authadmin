@@ -64,7 +64,7 @@ export async function POST(request: Request): Promise<Response> {
     // Stash the unencrypted secret in the reveal-store (in-memory,
     // 300s TTL, actor-bound). The encrypted version only lands in
     // the DB if the operator confirms with a valid code.
-    const { token: revealToken, expiresInSec } = mint({
+    const { token: revealToken, expiresInSec } = await mint({
       plaintext: secret,
       allowedActorId: user.id,
     });
@@ -99,7 +99,7 @@ export async function PUT(request: Request): Promise<Response> {
       throw err;
     }
 
-    const revealed = redeem({ token: input.revealToken, actorId: user.id });
+    const revealed = await redeem({ token: input.revealToken, actorId: user.id });
     if (!revealed) {
       throw new NotFoundError("Enrollment token unknown, already used, or expired.");
     }

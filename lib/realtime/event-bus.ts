@@ -1,21 +1,27 @@
 /**
  * lib/realtime/event-bus.ts
  *
- * In-process event bus. Mutation routes call `publish*` after
- * writing; the single app-wide SSE endpoint (`/api/realtime`)
- * subscribes via `subscribeAll` and forwards everything to the
- * browser, which filters client-side via the `RealtimeProvider`
- * context.
+ * App-wide event bus. Mutation routes call `publish*` after writing; the single
+ * SSE endpoint (`/api/realtime`) subscribes via `subscribeAll` and forwards
+ * everything to the browser, which filters client-side via `RealtimeProvider`.
  *
- * Single-process only — for an HA deployment this needs to be backed
- * by Redis pub/sub or similar. The contract is intentionally tiny so
- * swapping the implementation later is a one-file change.
+ * HA (ADR-0016): with `REDIS_URL` set, every event is ALSO published to a Redis
+ * channel so a mutation on replica A reaches the SSE subscribers on replica B.
+ * Each event carries the publishing instance's id; the Redis subscriber skips
+ * its own messages, so the origin replica keeps an immediate in-process
+ * fast-path (no Redis round-trip for its own clients) and remote replicas
+ * deliver exactly once — no duplicates. Without Redis (single instance) it's
+ * pure in-process; a Redis outage degrades to in-process (origin clients still
+ * get events, cross-replica fan-out pauses until Redis returns).
  *
- * Listeners are stored on `globalThis` so HMR doesn't strand
- * subscribers across module reloads in dev.
+ * Listeners + the subscription flag live on `globalThis` so HMR / Next's
+ * route-bundle duplication don't strand subscribers or double-subscribe.
  */
 
 import "server-only";
+import { randomUUID } from "node:crypto";
+import { getRedis, getRedisSubscriber, isRedisEnabled } from "@/lib/redis";
+import { logger } from "@/lib/logger";
 
 export type RealtimeEvent =
   | { type: "zone.updated"; zone: string; serverSlug: string; actor: string | null; at: string }
@@ -42,30 +48,45 @@ export type RealtimeEvent =
       method: string;
       responseStatus: number | null;
       at: string;
+    }
+  | {
+      // Backend-health advisory set changed (ADR-0015). Carries no detail — it's
+      // a nudge for the health bell to re-render against the freshly-computed,
+      // permission-scoped set. Published only when the visible set actually moved.
+      type: "health.updated";
+      at: string;
     };
 
 type Listener = (event: RealtimeEvent) => void;
 
+const REDIS_CHANNEL = "pda:realtime";
+
 declare global {
-  var __pdnsRealtimeBus: { listeners: Set<Listener> } | undefined;
+  var __pdnsRealtimeBus:
+    | { listeners: Set<Listener>; instanceId: string; redisSubscribed: boolean }
+    | undefined;
 }
-const bus = (globalThis.__pdnsRealtimeBus ??= { listeners: new Set<Listener>() });
+const bus = (globalThis.__pdnsRealtimeBus ??= {
+  listeners: new Set<Listener>(),
+  instanceId: randomUUID(),
+  redisSubscribed: false,
+});
 
 /**
- * Subscribe to every event published anywhere on the bus. Used by the
- * single app-wide SSE endpoint. Returns an unsubscribe function — the
- * SSE endpoint MUST call it on disconnect (request.signal abort) or
- * stranded listeners will fan-out into dead controllers and grow the
- * set unbounded.
+ * Subscribe to every event published anywhere on the bus (local + cross-replica
+ * via Redis). Used by the single app-wide SSE endpoint. Returns an unsubscribe
+ * function the endpoint MUST call on disconnect, or stranded listeners fan out
+ * into dead controllers and grow the set unbounded.
  */
 export function subscribeAll(listener: Listener): () => void {
+  ensureRedisSubscription();
   bus.listeners.add(listener);
   return () => {
     bus.listeners.delete(listener);
   };
 }
 
-/** Internal fan-out. Listener exceptions never break the publisher. */
+/** Local fan-out. Listener exceptions never break the publisher. */
 function deliver(event: RealtimeEvent): void {
   for (const fn of bus.listeners) {
     try {
@@ -76,17 +97,66 @@ function deliver(event: RealtimeEvent): void {
   }
 }
 
+/** Deliver locally now, and fan out to other replicas via Redis (best-effort). */
+function emit(event: RealtimeEvent): void {
+  deliver(event);
+  if (!isRedisEnabled()) return;
+  const redis = getRedis();
+  if (!redis) return;
+  void redis
+    .publish(REDIS_CHANNEL, JSON.stringify({ instanceId: bus.instanceId, event }))
+    .catch((err: unknown) =>
+      logger.warn(
+        { err: err instanceof Error ? err.message : "unknown" },
+        "realtime.redis.publish.failed",
+      ),
+    );
+}
+
+/**
+ * Subscribe this process to the Redis channel once, so events published by other
+ * replicas reach this replica's SSE clients. Idempotent; messages from our own
+ * instance are skipped (already delivered in-process by `emit`).
+ */
+function ensureRedisSubscription(): void {
+  if (bus.redisSubscribed || !isRedisEnabled()) return;
+  const sub = getRedisSubscriber();
+  if (!sub) return;
+  bus.redisSubscribed = true;
+  sub.subscribe(REDIS_CHANNEL).catch((err: unknown) => {
+    bus.redisSubscribed = false; // allow a later retry
+    logger.warn(
+      { err: err instanceof Error ? err.message : "unknown" },
+      "realtime.redis.subscribe.failed",
+    );
+  });
+  sub.on("message", (channel: string, message: string) => {
+    if (channel !== REDIS_CHANNEL) return;
+    try {
+      const parsed = JSON.parse(message) as { instanceId: string; event: RealtimeEvent };
+      if (parsed.instanceId === bus.instanceId) return; // our own publish — already delivered
+      deliver(parsed.event);
+    } catch {
+      // Malformed payload on the channel — ignore.
+    }
+  });
+}
+
 export function publishZoneEvent(event: RealtimeEvent): void {
   if (event.type !== "zone.updated" && event.type !== "zone.sync.changed") return;
-  deliver(event);
+  emit(event);
 }
 
 export function publishAuditEvent(event: RealtimeEvent): void {
   if (event.type !== "audit.appended") return;
-  deliver(event);
+  emit(event);
 }
 
 export function publishPdnsRequestEvent(event: RealtimeEvent): void {
   if (event.type !== "pdns.request.appended") return;
-  deliver(event);
+  emit(event);
+}
+
+export function publishHealthEvent(): void {
+  emit({ type: "health.updated", at: new Date().toISOString() });
 }

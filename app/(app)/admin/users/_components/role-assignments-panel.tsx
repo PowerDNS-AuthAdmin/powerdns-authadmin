@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useDialog } from "@/components/ui/dialog";
 import { LocalTime } from "@/components/ui/local-time";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { apiFetch, mutate } from "@/lib/client/api-fetch";
 
 interface Assignment {
@@ -191,45 +192,38 @@ export function RoleAssignmentsPanel(props: PanelProps) {
             Add assignment
           </p>
           <div className="grid gap-3 sm:grid-cols-3">
-            <select
+            <SelectMenu
               value={roleId}
-              onChange={(e) => setRoleId(e.target.value)}
-              className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm"
-              aria-label="Role"
-            >
-              {props.roles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                  {r.isSystem ? " (system)" : ""}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setRoleId(v)}
+              options={props.roles.map((r) => ({
+                value: r.id,
+                label: `${r.name}${r.isSystem ? " (system)" : ""}`,
+              }))}
+              ariaLabel="Role"
+              className="text-sm"
+            />
 
-            <select
+            <SelectMenu
               value={scopeType}
-              onChange={(e) => setScopeType(e.target.value as "global" | "team" | "server")}
-              className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm"
-              aria-label="Scope"
-            >
-              <option value="global">Global</option>
-              <option value="team">Team</option>
-              <option value="server">PowerDNS server</option>
-            </select>
+              onChange={(v) => setScopeType(v)}
+              options={[
+                { value: "global", label: "Global" },
+                { value: "team", label: "Team" },
+                { value: "server", label: "PowerDNS server" },
+              ]}
+              ariaLabel="Scope"
+              className="text-sm"
+            />
 
             {scopeType !== "global" ? (
-              <select
+              <SelectMenu
                 value={scopeId}
-                onChange={(e) => setScopeId(e.target.value)}
-                className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm"
-                aria-label="Scope target"
-              >
-                <option value="">Pick a {scopeType}…</option>
-                {scopeOptions.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setScopeId(v)}
+                options={scopeOptions.map((row) => ({ value: row.id, label: row.name }))}
+                placeholder={`Pick a ${scopeType}…`}
+                ariaLabel="Scope target"
+                className="text-sm"
+              />
             ) : (
               <div />
             )}

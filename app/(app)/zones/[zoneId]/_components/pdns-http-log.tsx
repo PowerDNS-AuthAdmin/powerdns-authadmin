@@ -15,7 +15,7 @@
  */
 
 import Link from "next/link";
-import { useState } from "react";
+import { Disclosure } from "@/components/ui/disclosure";
 
 export interface PdnsHttpLogEntry {
   id: string;
@@ -36,11 +36,15 @@ export interface PdnsHttpLogEntry {
 
 interface Props {
   entries: PdnsHttpLogEntry[];
+  /**
+   * When true (default) the log is wrapped in a `<details>` dropdown — used in
+   * the change-history feed. When false it renders flat (no nested dropdown) —
+   * used where the surrounding row is already expanded (the PDNS-requests page).
+   */
+  collapsible?: boolean;
 }
 
-export function PdnsHttpLog({ entries }: Props) {
-  const [open, setOpen] = useState(false);
-
+export function PdnsHttpLog({ entries, collapsible = true }: Props) {
   if (entries.length === 0) return null;
 
   const count = entries.length;
@@ -48,26 +52,33 @@ export function PdnsHttpLog({ entries }: Props) {
     (e) => e.error !== null || (e.responseStatus !== null && e.responseStatus >= 400),
   ).length;
 
+  // Flat list — one header line + raw HTTP per entry, no per-entry boxes.
+  const body = (
+    <div className="space-y-4">
+      {entries.map((entry) => (
+        <HttpBlock key={entry.id} entry={entry} />
+      ))}
+    </div>
+  );
+
+  // Rendered where the surrounding row is already expanded (the PDNS-requests
+  // page): no nested disclosure, just a little breathing room above the first op.
+  if (!collapsible) return <div className="pt-3">{body}</div>;
+
   return (
-    <details
-      open={open}
-      onToggle={(e) => setOpen(e.currentTarget.open)}
+    <Disclosure
       className="border-t border-[color:var(--color-border)]"
+      summaryClassName="px-4 py-2 text-[0.6875rem]"
+      bodyClassName="px-4 pt-1 pb-3"
+      label={`PowerDNS HTTP requests (${count})`}
+      accessory={
+        failures > 0 ? (
+          <span className="text-[color:var(--color-error)]">{failures} failed</span>
+        ) : null
+      }
     >
-      <summary className="cursor-pointer list-none px-4 py-2 text-[0.6875rem] text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-subtle)]">
-        <span className="text-[color:var(--color-accent)]">
-          {open ? "▾" : "▸"} PowerDNS HTTP requests ({count})
-        </span>
-        {failures > 0 ? (
-          <span className="ml-2 text-[color:var(--color-error)]">{failures} failed</span>
-        ) : null}
-      </summary>
-      <div className="space-y-3 border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-3">
-        {entries.map((entry) => (
-          <HttpBlock key={entry.id} entry={entry} />
-        ))}
-      </div>
-    </details>
+      {body}
+    </Disclosure>
   );
 }
 
@@ -75,19 +86,19 @@ function HttpBlock({ entry }: { entry: PdnsHttpLogEntry }) {
   const isFailure =
     entry.error !== null || (entry.responseStatus !== null && entry.responseStatus >= 400);
   return (
-    <div
-      className={`overflow-hidden rounded border ${
-        isFailure ? "border-[color:var(--color-error)]" : "border-[color:var(--color-border)]"
-      } bg-[color:var(--color-bg)]`}
-    >
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[color:var(--color-border)] px-3 py-1.5 text-[0.625rem] tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+    <div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2 py-1 text-[0.625rem] tracking-wide text-[color:var(--color-fg-muted)] uppercase">
         <span>
-          <span className="font-mono">{entry.op}</span>
+          <span
+            className={`font-mono ${isFailure ? "text-[color:var(--color-error)]" : "text-[color:var(--color-fg)]"}`}
+          >
+            {entry.op}
+          </span>
           <ServerBadge entry={entry} />
         </span>
         <time className="font-mono normal-case">{entry.ts}</time>
       </div>
-      <pre className="overflow-x-auto p-3 font-mono text-[0.6875rem] leading-relaxed whitespace-pre text-[color:var(--color-fg)]">
+      <pre className="overflow-x-auto font-mono text-[0.6875rem] leading-relaxed whitespace-pre text-[color:var(--color-fg)]">
         {renderHttp(entry)}
       </pre>
     </div>

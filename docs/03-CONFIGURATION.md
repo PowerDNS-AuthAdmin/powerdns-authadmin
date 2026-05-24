@@ -111,6 +111,15 @@ defense. Link-local addresses (incl. the `169.254.169.254` cloud-metadata IP) ar
 | `APP_PDNS_ALLOW_PRIVATE_NETWORKS` | `false` in production, `true` otherwise | Allow PDNS URLs that resolve to loopback/RFC1918/CGNAT/ULA. Needed for in-cluster/compose PDNS.     |
 | `APP_PDNS_ALLOW_INSECURE_HTTP`    | requires `https://` in production       | Allow `http://` PDNS base URLs. Both flags must be opted in for an internal `http://host:port` URL. |
 
+The OIDC issuer/discovery URL is operator-supplied and fetched server-side (provider
+test + live discovery), so it runs through the same outbound-URL guard with its own
+pair of flags. Same rule: link-local / cloud-metadata is always blocked.
+
+| Variable                          | Default                                 | Notes                                                                                                |
+| --------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `APP_OIDC_ALLOW_PRIVATE_NETWORKS` | `false` in production, `true` otherwise | Allow an OIDC issuer that resolves to a private-network address (internal IdP).                      |
+| `APP_OIDC_ALLOW_INSECURE_HTTP`    | requires `https://` in production       | Allow an `http://` issuer URL. Both flags must be opted in for an internal `http://idp:port` issuer. |
+
 ## Email / SMTP (optional)
 
 With `SMTP_HOST` unset, mail is skipped (logged) — verify-email, password reset,
@@ -148,11 +157,20 @@ Set both for a public-facing login.
 | `METRICS_TOKEN`               | unset   | Require `Authorization: Bearer <token>` (≥ 16 chars) to scrape. Unset = open; rely on network ACLs. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | unset   | OTLP traces endpoint.                                                                               |
 
-## Redis (reserved — not used yet)
+## Redis — horizontal scale (optional)
 
-| Variable    | Notes                                                                                                                                                                                                                 |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `REDIS_URL` | **Validated but not consumed.** Rate limiting, the realtime event-bus, and reveal-once tokens are all in-process today. Setting it does **not** make the app HA across replicas; the app warns at boot when it's set. |
+Setting `REDIS_URL` makes three otherwise per-process pieces of state coordinate
+across replicas: auth rate limiting, the realtime SSE event-bus, and reveal-once
+tokens. Sessions are already shared (they live in Postgres). Each piece falls back
+to its in-process path if Redis is unset **or** a command fails, so a single node
+needs no Redis and a Redis blip degrades coordination rather than causing an outage.
+
+| Variable    | Default | Notes                                                                                                                                                   |
+| ----------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `REDIS_URL` | unset   | Enables cross-replica coordination. **Required** for replicas > 1, alongside a shared Postgres `DATABASE_URL`. SQLite is single-instance. See ADR-0016. |
+
+See the [High availability](../README.md#high-availability-replicas--1) section for a
+Postgres + Redis compose example.
 
 ---
 

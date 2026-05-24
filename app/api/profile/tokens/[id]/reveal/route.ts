@@ -39,7 +39,7 @@ export async function POST(request: Request): Promise<Response> {
       throw err;
     }
 
-    const result = redeem({ token: input.token, actorId: user.id });
+    const result = await redeem({ token: input.token, actorId: user.id });
     if (!result) {
       throw new NotFoundError("Token unknown, already used, or expired.");
     }

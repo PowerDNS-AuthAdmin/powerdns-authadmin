@@ -23,6 +23,7 @@ import { useMemo, useRef, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Dialog, useDialog } from "@/components/ui/dialog";
 import { DataTable } from "@/components/ui/data-table";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { mutate } from "@/lib/client/api-fetch";
 import {
   defaultTypeForZone,
@@ -589,10 +590,14 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                     : undefined
                 }
               >
-                <select
+                {/* Allow-list narrowed by zone kind (reverse zones drop A,
+                    MX, SRV, … forward zones drop PTR). If we're editing
+                    an existing record whose type sits outside that menu
+                    (legacy data), thread it back in as the first option
+                    so the operator can still see + save the row. */}
+                <SelectMenu
                   value={editor.type}
-                  onChange={(e) => {
-                    const nextType = e.target.value;
+                  onChange={(nextType) => {
                     if (nextType === editor.type) return;
                     // Park the current type's value, restore the next type's
                     // (or "" if we've never visited it during this session).
@@ -606,26 +611,17 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                       valueTouched: restored !== "",
                     });
                   }}
-                  className={inputClass}
-                >
-                  {/* Allow-list narrowed by zone kind (reverse zones drop A,
-                      MX, SRV, … forward zones drop PTR). If we're editing
-                      an existing record whose type sits outside that menu
-                      (legacy data), thread it back in as the first option
-                      so the operator can still see + save the row. */}
-                  {(() => {
+                  options={(() => {
                     const allowed = typesForZone(props.zoneName);
                     const opts =
                       editor.mode === "edit" && !allowed.includes(editor.type)
                         ? [editor.type, ...allowed]
                         : allowed;
-                    return opts.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ));
+                    return opts.map((t) => ({ value: t, label: t }));
                   })()}
-                </select>
+                  ariaLabel="Type"
+                  className="mt-1 w-full"
+                />
               </Field>
             </div>
 

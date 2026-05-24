@@ -100,7 +100,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     // Rate-limit per user to make brute-force / harvested-session abuse loud.
-    const limit = sensitiveLimiter.take(`change-password:${user.id}`);
+    const limit = await sensitiveLimiter.takeShared(`change-password:${user.id}`);
     if (!limit.allowed) {
       throw new RateLimitedError(limit.retryAfterSeconds);
     }

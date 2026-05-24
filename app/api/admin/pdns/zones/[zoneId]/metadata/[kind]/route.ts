@@ -23,7 +23,7 @@ import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
@@ -76,7 +76,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
     }
 
     const selected = await resolveServer(body.serverSlug);
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
     const zoneName = decodeURIComponent(zoneId);
 
     if (
@@ -135,7 +135,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     const { serverSlug } = deleteQuerySchema.parse(Object.fromEntries(url.searchParams));
 
     const selected = await resolveServer(serverSlug);
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
     const zoneName = decodeURIComponent(zoneId);
 
     if (
@@ -186,7 +186,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
  * kind truly isn't set.
  */
 async function snapshotKind(
-  client: ReturnType<typeof getPdnsClientForRow>,
+  client: ReturnType<typeof getBackendGateway>,
   zoneName: string,
   kind: string,
 ): Promise<{ kind: string; metadata: string[] } | null> {

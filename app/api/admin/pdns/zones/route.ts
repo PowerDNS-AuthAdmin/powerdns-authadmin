@@ -24,7 +24,7 @@ import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
 import { findClusterBySlug, listActivePeersForCluster } from "@/lib/db/repositories/pdns-clusters";
 import { findZoneTemplateById } from "@/lib/db/repositories/zone-templates";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { choosePeer } from "@/lib/pdns/cluster-picker";
 import { expandTemplateName } from "@/lib/validators/zone-templates";
 import { serializeSoaContent } from "@/lib/validators/soa";
@@ -249,7 +249,7 @@ export async function POST(request: Request): Promise<Response> {
     const rrsets = Array.from(rrsetsByKey.values());
 
     // ── Create on PDNS ─────────────────────────────────────────────────────
-    const client = getPdnsClientForRow(server);
+    const client = getBackendGateway(server);
     let createdZone;
     try {
       createdZone = await client.createZone({

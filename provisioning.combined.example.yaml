@@ -76,6 +76,11 @@ clusters:
     name: "Production cluster (3 peers)"
     description: "Three writable peers sharing a single MariaDB backend."
     write_strategy: round_robin # Peer-selection strategy (UI label): round_robin | random | lowest_latency | least_load
+  # A primary + its secondaries also form a group (ADR-0014). The single peer
+  # is the writable Primary; the Secondaries ride along as read-only members.
+  - slug: ps-group
+    name: "Primary + Secondaries group"
+    description: "One writable Primary mirrored by three read-only Secondaries."
 
 # -----------------------------------------------------------------------------
 # All PDNS backends across the three topologies
@@ -88,7 +93,6 @@ pdns_servers:
     base_url: "http://pdns-peer-1:8081/api/v1"
     server_id: localhost
     api_key: "peer-1-changeme"
-    role: primary
     cluster_slug: prod-cluster
     is_default: false
 
@@ -98,7 +102,6 @@ pdns_servers:
     base_url: "http://pdns-peer-2:8081/api/v1"
     server_id: localhost
     api_key: "peer-2-changeme"
-    role: primary
     cluster_slug: prod-cluster
 
   - slug: peer-3
@@ -107,7 +110,6 @@ pdns_servers:
     base_url: "http://pdns-peer-3:8081/api/v1"
     server_id: localhost
     api_key: "peer-3-changeme"
-    role: primary
     cluster_slug: prod-cluster
 
   # Topology 2: standalone primary — no replication, its own gsqlite3.
@@ -117,7 +119,6 @@ pdns_servers:
     base_url: "http://pdns-single:8081/api/v1"
     server_id: localhost
     api_key: "single-changeme"
-    role: primary
     is_default: true
 
   # Topology 3: primary + 3 Secondaries with classic NOTIFY/AXFR.
@@ -127,7 +128,7 @@ pdns_servers:
     base_url: "http://pdns-ps-primary:8081/api/v1"
     server_id: localhost
     api_key: "ps-primary-changeme"
-    role: primary
+    cluster_slug: ps-group
 
   - slug: ps-secondary-1
     name: "Secondary 1"
@@ -135,8 +136,7 @@ pdns_servers:
     base_url: "http://pdns-ps-secondary-1:8081/api/v1"
     server_id: localhost
     api_key: "ps-secondary-1-changeme"
-    role: secondary
-    primary_slug: ps-primary
+    cluster_slug: ps-group
 
   - slug: ps-secondary-2
     name: "Secondary 2"
@@ -144,8 +144,7 @@ pdns_servers:
     base_url: "http://pdns-ps-secondary-2:8081/api/v1"
     server_id: localhost
     api_key: "ps-secondary-2-changeme"
-    role: secondary
-    primary_slug: ps-primary
+    cluster_slug: ps-group
 
   - slug: ps-secondary-3
     name: "Secondary 3"
@@ -153,8 +152,7 @@ pdns_servers:
     base_url: "http://pdns-ps-secondary-3:8081/api/v1"
     server_id: localhost
     api_key: "ps-secondary-3-changeme"
-    role: secondary
-    primary_slug: ps-primary
+    cluster_slug: ps-group
 
 # -----------------------------------------------------------------------------
 # Demo zones: 10 zones × 10 records per topology = 30 zones total.

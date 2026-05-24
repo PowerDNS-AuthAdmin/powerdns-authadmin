@@ -3,32 +3,23 @@
 /**
  * app/(app)/admin/tsig-keys/_components/tsig-actions.tsx
  *
- * "Add key" form + per-row Delete button + shown-once secret panel
- * after a successful create. All routes the component talks to are
- * CSRF-gated by `apiFetch`.
+ * Per-backend TSIG key table + the entry points that mutate it:
+ *   • "Create key" — opens the wizard (generate → install → secure zones).
+ *   • per-row "Set up" — re-opens the wizard at the install step for an existing
+ *     key (e.g. after adding a secondary).
+ *   • per-row "Delete" — cascade-deletes by default (strips the key from zones +
+ *     secondaries), or key-only when the operator opts out.
  *
- * The fresh-from-create secret follows the S-8 reveal pattern:
- *   1. POST /api/admin/pdns/tsig-keys → server returns a reveal
- *      token (no plaintext key in the JSON body).
- *   2. POST /api/admin/pdns/tsig-keys/[id]/reveal with the token →
- *      server returns the plaintext HMAC as `text/plain` exactly
- *      once. We display it in the "shown once" panel and discard
- *      the variable as soon as the panel is dismissed.
+ * The one-time secret is never shown here — it lives only inside the wizard's
+ * manual step (re-fetched server-side as text/plain). Routes are CSRF-gated by
+ * `apiFetch`/`mutate`.
  */
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useDialog } from "@/components/ui/dialog";
-import { apiFetch, mutate } from "@/lib/client/api-fetch";
-
-const ALGORITHMS = [
-  "hmac-sha256",
-  "hmac-sha512",
-  "hmac-sha384",
-  "hmac-sha224",
-  "hmac-sha1",
-  "hmac-md5",
-] as const;
+import { mutate } from "@/lib/client/api-fetch";
+import { TsigKeyWizard, type InstallSecondary } from "./tsig-key-wizard";
 
 interface Row {
   id: string;
@@ -38,95 +29,64 @@ interface Row {
 
 interface Props {
   serverSlug: string;
-  rows: Row[];
+  /** The backend's keys, or null when the list couldn't be fetched (the page
+   *  shows the error separately — we suppress the table in that case). */
+  rows: Row[] | null;
+  /** This backend is a write-target primary (replication makes sense here). */
+  isPrimary: boolean;
+  /** The primary's secondaries (for API install) — empty unless `isPrimary`. */
+  secondaries: InstallSecondary[];
+  /** The primary's authoritative zone names (for in-flow key activation). */
+  zones: string[];
 }
 
-export function TsigActions({ serverSlug, rows }: Props) {
+type WizardState = { mode: "create" } | { mode: "existing"; keyId: string; keyName: string };
+
+export function TsigActions({ serverSlug, rows, isPrimary, secondaries, zones }: Props) {
   const router = useRouter();
   const { confirm, toast } = useDialog();
-  const [name, setName] = useState("");
-  const [algorithm, setAlgorithm] = useState<(typeof ALGORITHMS)[number]>("hmac-sha256");
-  const [creating, setCreating] = useState(false);
-  const [revealed, setRevealed] = useState<{
-    name: string;
-    algorithm: string;
-    secret: string;
-  } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [wizard, setWizard] = useState<WizardState | null>(null);
 
-  async function handleCreate() {
-    if (!name.trim()) {
-      toast({ kind: "error", description: "Enter a name." });
-      return;
-    }
-    setCreating(true);
-    setRevealed(null);
-    try {
-      const result = await mutate(`/api/admin/pdns/tsig-keys`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serverSlug, name: name.trim(), algorithm }),
-      });
-      if (!result.ok) {
-        toast({
-          kind: "error",
-          title: "Create failed",
-          description: result.error,
-        });
-        return;
-      }
-      const minted = result.data as {
-        tsigKey: { id: string; name: string; algorithm: string };
-        revealToken: string;
-      };
-
-      // Immediately redeem the reveal token. The plaintext lives only
-      // in the `revealed` state until the operator dismisses the panel.
-      const revealRes = await apiFetch(
-        `/api/admin/pdns/tsig-keys/${encodeURIComponent(minted.tsigKey.id)}/reveal`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: minted.revealToken }),
-        },
-      );
-      if (!revealRes.ok) {
-        toast({
-          kind: "error",
-          title: "Reveal failed",
-          description:
-            "Key created but the one-time secret could not be retrieved. Delete and re-create.",
-        });
-        router.refresh();
-        return;
-      }
-      const secret = await revealRes.text();
-      setRevealed({
-        name: minted.tsigKey.name,
-        algorithm: minted.tsigKey.algorithm,
-        secret,
-      });
-      setName("");
-      toast({
-        kind: "success",
-        description: "Key created. Secret shown below.",
-      });
-      router.refresh();
-    } finally {
-      setCreating(false);
-    }
-  }
+  // Per-row "Set up" only makes sense from a primary with somewhere to install
+  // (managed secondaries) or zones to activate the key for.
+  const canInstall = isPrimary && (secondaries.length > 0 || zones.length > 0);
 
   async function handleDelete(row: Row) {
-    const ok = await confirm({
+    const { confirmed, checked: cascade } = await confirm({
       title: `Delete TSIG key ${row.name}?`,
-      description:
-        "Any zone metadata that references this key by name (TSIG-ALLOW-AXFR, AXFR-MASTER-TSIG) will start rejecting transfers. This cannot be undone.",
+      description: (
+        <span className="flex items-start gap-2">
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden
+            className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--color-warn)]"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <span>
+            All zone transfers (AXFR) for zones using this key will not be secure. This cannot be
+            undone, a new key will have to be generated.
+          </span>
+        </span>
+      ),
       confirmLabel: "Delete key",
       variant: "danger",
       dismissOnBackdrop: false,
+      checkbox: {
+        label: "Also delete key from all zones configured to use it, and cleanup secondaries",
+        defaultChecked: true,
+        warningWhenUnchecked: "Zones still referencing this key will reject transfers",
+      },
     });
-    if (!ok) return;
+    if (!confirmed) return;
     setDeletingId(row.id);
     try {
       const url = new URL(
@@ -134,102 +94,44 @@ export function TsigActions({ serverSlug, rows }: Props) {
         window.location.origin,
       );
       url.searchParams.set("serverSlug", serverSlug);
+      url.searchParams.set("cascade", cascade ? "true" : "false");
       const result = await mutate(url.pathname + url.search, { method: "DELETE" });
       if (!result.ok) {
-        toast({
-          kind: "error",
-          title: "Delete failed",
-          description: result.error,
-        });
+        toast({ kind: "error", title: "Delete failed", description: result.error });
         return;
       }
-      toast({ kind: "success", description: `Deleted ${row.name}.` });
+      const summary = result.data as {
+        cascade?: { zonesUpdated: number; secondariesCleaned: number } | null;
+      };
+      toast({
+        kind: "success",
+        description: summary.cascade
+          ? `Deleted ${row.name} — cleaned ${summary.cascade.zonesUpdated} zone(s) and ${summary.cascade.secondariesCleaned} secondary(ies).`
+          : `Deleted ${row.name}.`,
+      });
       router.refresh();
     } finally {
       setDeletingId(null);
     }
   }
 
+  // null rows = the list couldn't be fetched (the page shows the error); the
+  // table is suppressed in that case, but "Create key" stays available.
+  const keys = rows ?? [];
+
   return (
-    <section className="space-y-6">
-      <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-5">
-        <h2 className="text-sm font-medium">Add a key</h2>
-        <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
-          PDNS generates the HMAC secret server-side. The plaintext is shown once after creation and
-          never again.
-        </p>
-        <div className="mt-3 flex flex-wrap items-end gap-3">
-          <div className="grow basis-64">
-            <label htmlFor="tsig-name" className="block text-xs font-medium">
-              Name
-            </label>
-            <input
-              id="tsig-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="primary-to-secondary"
-              className="mt-1 block w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 font-mono text-sm"
-            />
-          </div>
-          <div>
-            <label htmlFor="tsig-algo" className="block text-xs font-medium">
-              Algorithm
-            </label>
-            <select
-              id="tsig-algo"
-              value={algorithm}
-              onChange={(e) => setAlgorithm(e.target.value as (typeof ALGORITHMS)[number])}
-              className="mt-1 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 font-mono text-sm"
-            >
-              {ALGORITHMS.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={creating}
-            className="rounded bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
-          >
-            {creating ? "Generating…" : "Generate"}
-          </button>
-        </div>
+    <section className="space-y-4">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setWizard({ mode: "create" })}
+          className="rounded-md bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
+        >
+          Create key
+        </button>
       </div>
 
-      {revealed ? (
-        <div className="rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 p-4 text-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="font-medium">Generated TSIG key — shown once</p>
-              <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
-                Copy now and store in your secondary's config. Reloading this page will not show it
-                again.
-              </p>
-            </div>
-            <button type="button" onClick={() => setRevealed(null)} className="text-xs underline">
-              Dismiss
-            </button>
-          </div>
-          <dl className="mt-3 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-xs">
-            <dt className="text-[color:var(--color-fg-muted)]">Name</dt>
-            <dd className="font-mono">{revealed.name}</dd>
-            <dt className="text-[color:var(--color-fg-muted)]">Algorithm</dt>
-            <dd className="font-mono">{revealed.algorithm}</dd>
-            <dt className="text-[color:var(--color-fg-muted)]">Secret</dt>
-            <dd>
-              <code className="block rounded bg-[color:var(--color-bg)] p-2 font-mono text-xs break-all">
-                {revealed.secret}
-              </code>
-            </dd>
-          </dl>
-        </div>
-      ) : null}
-
-      {rows.length > 0 ? (
+      {rows !== null ? (
         <div className="overflow-hidden rounded-md border border-[color:var(--color-border)]">
           <table className="w-full text-sm">
             <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
@@ -240,7 +142,7 @@ export function TsigActions({ serverSlug, rows }: Props) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {keys.map((row) => (
                 <tr key={row.id} className="border-t border-[color:var(--color-border)]">
                   <td className="px-4 py-3 font-mono text-xs">{row.name}</td>
                   <td className="px-4 py-3">
@@ -249,20 +151,62 @@ export function TsigActions({ serverSlug, rows }: Props) {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(row)}
-                      disabled={deletingId === row.id}
-                      className="rounded border border-[color:var(--color-error)] px-2 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
-                    >
-                      {deletingId === row.id ? "Deleting…" : "Delete"}
-                    </button>
+                    <div className="flex justify-end gap-1.5">
+                      {canInstall ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setWizard({ mode: "existing", keyId: row.id, keyName: row.name })
+                          }
+                          className="rounded border border-[color:var(--color-border)] px-2 py-1 text-xs hover:bg-[color:var(--color-bg-muted)]"
+                        >
+                          Set up
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(row)}
+                        disabled={deletingId === row.id}
+                        className="rounded border border-[color:var(--color-error)] px-2 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+                      >
+                        {deletingId === row.id ? "Deleting…" : "Delete"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
+              {keys.length === 0 ? (
+                <tr className="border-t border-[color:var(--color-border)]">
+                  <td
+                    colSpan={3}
+                    className="px-4 py-6 text-center text-[color:var(--color-fg-muted)]"
+                  >
+                    No TSIG keys configured on <code>{serverSlug}</code>. AXFR and NOTIFY between
+                    this backend and its peers happens without shared-secret authentication.
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
+      ) : null}
+
+      {wizard ? (
+        <TsigKeyWizard
+          serverSlug={serverSlug}
+          secondaries={secondaries}
+          zones={zones}
+          existing={
+            wizard.mode === "existing"
+              ? { keyId: wizard.keyId, keyName: wizard.keyName }
+              : undefined
+          }
+          onChanged={() => router.refresh()}
+          onClose={() => {
+            setWizard(null);
+            router.refresh();
+          }}
+        />
       ) : null}
     </section>
   );

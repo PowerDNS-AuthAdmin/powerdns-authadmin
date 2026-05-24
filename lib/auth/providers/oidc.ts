@@ -32,6 +32,7 @@ import type { OidcGroupMapping, OidcProvider } from "@/lib/db/schema";
 
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { assertSafeOidcIssuerUrl } from "./oidc-url-safety";
 import type { VerifiedIdentity } from "./types";
 
 /**
@@ -271,6 +272,11 @@ async function loadConfig(provider: ResolvedOidcProvider): Promise<oidc.Configur
   const key = cacheKey(provider);
   const cached = configCache.get(key);
   if (cached) return cached;
+
+  // SSRF re-check before fetching the (admin-configured) issuer — DNS-rebind
+  // defense, mirroring the PDNS request-time guard. Bounded: discovery only runs
+  // on a config-cache miss, not every sign-in.
+  await assertSafeOidcIssuerUrl(provider.issuerUrl);
 
   // First-pass discovery — gets the AS metadata. openid-client picks
   // ClientSecretPost by default whenever a client_secret is present,

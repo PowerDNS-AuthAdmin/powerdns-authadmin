@@ -97,7 +97,10 @@ export async function requireUserForPage(
     return await requireUser(opts);
   } catch (err) {
     if (err instanceof UnauthorizedError) {
-      redirect("/login?flash=session-required");
+      // Carry the attempted path so login can return the user there (L-2).
+      const attempted = (await headers()).get("x-pathname");
+      const next = attempted && attempted !== "/" ? `&next=${encodeURIComponent(attempted)}` : "";
+      redirect(`/login?flash=session-required${next}`);
     }
     if (err instanceof ForbiddenError) {
       // Block the navigation: send the user back to where they came from

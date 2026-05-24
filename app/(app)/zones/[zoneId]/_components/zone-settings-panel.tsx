@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
+import { Switch } from "@/components/ui/switch";
 
 interface Props {
   zoneIdEncoded: string;
@@ -189,22 +190,12 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
 
         <Field label="API-RECTIFY" help="Rectify the zone automatically after every API change.">
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={apiRectify}
+            <Switch
+              checked={apiRectify}
+              onChange={setApiRectify}
               disabled={!canEdit}
-              onClick={() => setApiRectify((v) => !v)}
-              className={`inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                apiRectify ? "bg-[color:var(--color-accent)]" : "bg-[color:var(--color-bg-muted)]"
-              }`}
-            >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                  apiRectify ? "translate-x-5" : "translate-x-0.5"
-                }`}
-              />
-            </button>
+              ariaLabel="API-RECTIFY"
+            />
             <span className="font-mono text-xs">{apiRectify ? "enabled" : "disabled"}</span>
           </div>
         </Field>

@@ -20,8 +20,10 @@ import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
+import { assertEditableZoneKind } from "@/lib/pdns/writable-kind";
+import { PdnsNotFoundError } from "@/lib/pdns/errors";
 import { normalizeZoneId } from "@/lib/pdns/client";
-import { getPdnsClientForRow } from "@/lib/pdns/registry";
+import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
@@ -74,7 +76,19 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       throw new ForbiddenError("Missing dnssec.configure for this zone.");
     }
 
-    const client = getPdnsClientForRow(selected);
+    const client = getBackendGateway(selected);
+    // DNSSEC keys live on the primary; a mirror serves presigned RRSIGs it got
+    // over AXFR, so key management is read-only there — gate by the zone kind.
+    let zone;
+    try {
+      zone = await client.getZone(zoneName);
+    } catch (err) {
+      if (err instanceof PdnsNotFoundError) {
+        throw new NotFoundError(`Zone "${zoneName}" not found on backend.`);
+      }
+      throw err;
+    }
+    assertEditableZoneKind(zone.kind);
     const created = await client.createCryptokey(zoneName, {
       keytype: body.keytype,
       active: body.active,

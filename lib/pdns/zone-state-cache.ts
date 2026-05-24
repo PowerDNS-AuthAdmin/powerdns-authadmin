@@ -15,6 +15,8 @@ import "server-only";
 const TTL_MS = 30_000;
 
 export interface CachedZoneSnapshot {
+  /** PDNS zone id (the URL-safe canonical zone, e.g. "example.com."). */
+  id: string;
   /** PDNS zone name with trailing dot. */
   name: string;
   serial: number | null;
@@ -22,6 +24,8 @@ export interface CachedZoneSnapshot {
   notifiedSerial: number | null;
   kind: string;
   dnssec: boolean;
+  /** AXFR source addresses for a mirror zone — drives derived topology. */
+  masters: string[];
 }
 
 export interface CachedListEntry {
