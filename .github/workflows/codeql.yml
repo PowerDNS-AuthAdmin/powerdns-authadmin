@@ -1,0 +1,65 @@
+# =============================================================================
+# CodeQL — static analysis (SAST) for the app code and the workflows.
+#
+# Why a workflow file instead of GitHub's "default setup": this repo treats
+# everything as code (ADRs, CI, compose), and the classic-PAT default-setup
+# endpoint isn't available here. The workflow authenticates with the built-in
+# GITHUB_TOKEN (security-events: write), so no secrets are needed.
+#
+# Scope: the TypeScript/JavaScript app + the GitHub Actions workflows
+# themselves (the `actions` language catches injection / untrusted-input bugs
+# in CI). Runs on PRs, pushes to main, and weekly to catch newly-published
+# CodeQL queries against unchanged code. The `security-extended` suite is used
+# because this is an auth/RBAC/DNS app where extra security queries earn their
+# keep.
+# =============================================================================
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "27 3 * * 1" # Mondays 03:27 UTC
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write # upload SARIF to the Security tab
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, actions]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          language: ${{ matrix.language }}
+          queries: security-extended
+
+      # JS/TS is interpreted and the Actions language has nothing to compile,
+      # so autobuild is a no-op here — kept for portability if a compiled
+      # language is ever added.
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
