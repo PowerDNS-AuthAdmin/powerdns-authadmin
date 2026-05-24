@@ -207,6 +207,13 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Bake build provenance into the image so the UI can show the running
+          # commit (sidebar version chip → /commit/<sha>, Docs → /tree/<sha>).
+          # APP_RELEASE is "true" only for vX.Y.Z tag builds, which keep the
+          # clean release/tag links.
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            APP_RELEASE=${{ github.ref_type == 'tag' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           # Keep the published manifest to just the two arches (no extra
