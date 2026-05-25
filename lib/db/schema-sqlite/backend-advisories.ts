@@ -18,8 +18,12 @@ export const backendAdvisories = sqliteTable(
     severity: text("severity").notNull(),
     title: text("title").notNull(),
     detail: text("detail").notNull(),
-    firstSeenAt: integer("first_seen_at", { mode: "timestamp_ms" }).notNull(),
-    lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }).notNull(),
+    firstSeenAt: integer("first_seen_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
     acknowledgedAt: integer("acknowledged_at", { mode: "timestamp_ms" }),
   },
   (t) => ({
