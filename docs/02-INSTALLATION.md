@@ -15,15 +15,32 @@ automatically on boot, so a fresh container comes up ready to use.
 Switching dialects later is a fresh install — the two schema histories don't
 share migrations. Pick one up front.
 
-## 1. Generate secrets
+## 1. Generate secrets and create your `.env`
 
-Two secrets are **required** and must be unique per deployment. Generate them
-once and keep them safe — rotating `APP_ENCRYPTION_KEY` later makes every stored
-PowerDNS API key and OIDC client secret undecryptable.
+Two secrets are **required** and must be unique per deployment. **Generate them
+once, store them in a `.env` file next to your `docker-compose.yml`, and never
+change them.** Docker Compose auto-loads `.env`, so the exact same values are
+reused on every `up`, `down`, and restart — there are no shell `export`s to
+remember (and nothing to silently regenerate).
+
+> ⚠️ **Generate these once; never regenerate them on an existing install.**
+> Rotating `APP_ENCRYPTION_KEY` makes every stored PowerDNS API key, OIDC client
+> secret, and TOTP/MFA secret undecryptable; changing `APP_SECRET_KEY` logs
+> everyone out and voids outstanding verification/reset tokens. Re-running the
+> generator on a running deployment is the most common way to lock yourself out
+> — keep the `.env` backed up instead.
 
 ```sh
-openssl rand -base64 32   # → APP_SECRET_KEY      (session / CSRF / token HMAC)
-openssl rand -base64 32   # → APP_ENCRYPTION_KEY  (AES-256 envelope for secrets at rest)
+# Run ONCE, in your deployment directory. Writes freshly-generated keys into
+# .env. Do NOT re-run this on an existing install (see the warning above).
+cat > .env <<EOF
+APP_SECRET_KEY=$(openssl rand -base64 32)
+APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
+BOOTSTRAP_ADMIN_PASSWORD=a-strong-password
+# Option B (Postgres) also needs a database password:
+POSTGRES_PASSWORD=a-strong-db-password
+EOF
+chmod 600 .env
 ```
 
 | Secret               | Used for                                            | Constraint                    |
@@ -58,12 +75,17 @@ volumes:
   app-data:
 ```
 
+With the `.env` from [step 1](#1-generate-secrets-and-create-your-env) in the
+same directory (Compose loads it automatically for `${...}` interpolation), edit
+`APP_URL`/`BOOTSTRAP_ADMIN_EMAIL` in the compose file, then start the stack:
+
 ```sh
-export APP_SECRET_KEY=$(openssl rand -base64 32)
-export APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
-export BOOTSTRAP_ADMIN_PASSWORD='a-strong-password'
 docker compose up -d
 ```
+
+> Later, `docker compose down` then `up -d` **reuses the same `.env`** — your
+> data and encrypted secrets stay valid because the keys never changed. (Use
+> `docker compose down -v` only to start over: it **deletes the data volume**.)
 
 ### Option B — Postgres
 
@@ -98,6 +120,14 @@ services:
       retries: 10
 volumes:
   pg-data:
+```
+
+Start it the same way — the `.env` from
+[step 1](#1-generate-secrets-and-create-your-env) supplies `APP_SECRET_KEY`,
+`APP_ENCRYPTION_KEY`, `POSTGRES_PASSWORD`, and `BOOTSTRAP_ADMIN_PASSWORD`:
+
+```sh
+docker compose up -d
 ```
 
 ## 3. First login
