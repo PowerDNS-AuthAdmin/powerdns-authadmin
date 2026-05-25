@@ -102,6 +102,10 @@
     "vitest": "4.1.7"
   },
   "overrides": {
-    "comment": "Add transitive-dep overrides here when patching CVEs that upstream hasn't released. Each entry should have a tracking issue."
+    "comment": "Transitive-dep CVE patches (dev/build-only deps). Revisit when upstream ships fixes.",
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.12"
+    },
+    "postcss": "$postcss"
   }
 }
