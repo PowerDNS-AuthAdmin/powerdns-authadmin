@@ -15,7 +15,7 @@ keys.
 1. On boot, if `PROVISIONING_FILE` points at a YAML file **and** the
    `settings.provisioned_at` row is absent, the app applies the file.
 2. Blocks are processed **in order**: `settings → roles → teams → zone_templates
-→ clusters → pdns_servers → demo_zones → oidc`. References resolve by slug, so
+→ clusters → pdns_servers → oidc → demo_zones`. References resolve by slug, so
    an `oidc` group mapping can point at a role defined earlier in the same file.
 3. On success it writes `settings.provisioned_at = <timestamp>`. **Subsequent
    boots skip the file** — from then on the admin UI is the source of truth.

@@ -17,7 +17,7 @@ cd powerdns-authadmin
 docker compose up -d
 ```
 
-The first run builds the app image (a few minutes); later runs start instantly.
+The first run pulls the app + PowerDNS images; subsequent runs start instantly.
 When the containers report healthy:
 
 - **App** → http://localhost:3000

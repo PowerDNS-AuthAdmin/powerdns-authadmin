@@ -27,31 +27,35 @@ Licensed under **MIT**.
 
 ## How to run things
 
-### Containerized (recommended)
+### Containerized demo (quickest)
 
 ```sh
-cp .env.example .env
-openssl rand -base64 32   # → APP_SECRET_KEY in .env
-openssl rand -base64 32   # → APP_ENCRYPTION_KEY in .env
-docker compose up -d --build
-#   app  at http://localhost:3000
-#   pdns at http://localhost:8081/api/v1   (X-API-Key: changeme)
+docker compose up -d   # demo stack (app + PDNS); reads throwaway secrets from .env.example
+#   app  at http://localhost:3000          (login: admin@example.com / change-me-now)
+#   pdns at http://localhost:8081/api/v1   (X-API-Key: demo-pdns-api-key)
 ```
+
+For a real install (your own `.env` + compose, SQLite or Postgres) see
+[`docs/02-INSTALLATION.md`](./docs/02-INSTALLATION.md).
 
 ### Local dev with HMR
 
 ```sh
 nvm use                          # Node 24 from .nvmrc
 npm ci                           # exact-pin install
-cp .env.example .env.local       # fill in APP_SECRET_KEY + APP_ENCRYPTION_KEY
-docker compose up -d             # Postgres + Redis + sandbox PDNS
+cp .env.example .env.local       # set APP_SECRET_KEY + APP_ENCRYPTION_KEY; DATABASE_URL=file:./dev.db
+docker compose up -d pdns        # a local PowerDNS to develop against (SQLite app runs on host)
 
 npm run dev                      # http://localhost:3000
 npm run validate                 # the CI gate — lint + typecheck + format + test
-npm run db:generate              # after a schema change → produces a new migration
+npm run test:integration         # integration suite (builds + boots the stack in Docker)
+npm run db:generate              # after a schema change → new migration (also db:generate:sqlite)
 npm run db:migrate               # apply pending migrations
-npm run db:studio                # browse the DB via Drizzle Studio
 ```
+
+Run CI locally before pushing with [`act`](https://github.com/nektos/act) — e.g.
+`act -j static-checks -W .github/workflows/ci.yml --container-architecture linux/amd64` (covers
+the `static-checks`/`test`/`audit` jobs; CodeQL/Docker/Scorecard still need real CI).
 
 ## Project layout
 

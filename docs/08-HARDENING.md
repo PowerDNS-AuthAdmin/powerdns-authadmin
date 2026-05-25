@@ -21,7 +21,7 @@ exotic — it's the handful of things worth getting right before you expose the 
 
 - **Terminate TLS at a reverse proxy** and forward to port 3000. Set `APP_URL` to
   the public `https://` URL (no trailing slash) — it drives OIDC redirects,
-  cookies, and CSP. See [Installation → reverse proxy](./02-INSTALLATION.md#running-behind-a-reverse-proxy).
+  cookies, and CSP. See [Installation → reverse proxy](./02-INSTALLATION.md#behind-a-reverse-proxy).
 - **Ensure the proxy overwrites `X-Forwarded-For`/`X-Real-IP`** with the real
   client IP (the app trusts these for audit + rate limiting; there's no
   `TRUST_PROXY` toggle).
@@ -48,7 +48,8 @@ exotic — it's the handful of things worth getting right before you expose the 
 - **Turn on Turnstile** (`TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY`) for a
   public-facing login to blunt credential-stuffing.
 - **Tune the lockout policy** (`login_lockout_threshold` / `login_lockout_seconds`
-  settings) to taste — defaults are 5 attempts → 15-minute lockout.
+  settings) to taste — defaults are 10 failed attempts → 15-minute account
+  lockout. (Separately, a per-IP rate limiter throttles login bursts.)
 
 ## Least privilege
 

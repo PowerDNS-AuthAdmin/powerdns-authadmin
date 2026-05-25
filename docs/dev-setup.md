@@ -7,29 +7,33 @@ be safe to copy-paste.
 
 - **Node.js 24 LTS.** The `.nvmrc` pins the major version; `nvm use` picks it up.
 - **npm 10+.** Ships with Node 24.
-- **Docker** with Compose v2. Needed for Postgres + Redis + the sandbox PowerDNS stack.
+- **Docker** with Compose v2 — runs a local PowerDNS backend to develop against.
 
 ## One-time setup
 
 ```sh
 git clone https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin
-cd PowerDNS-AuthAdmin
+cd powerdns-authadmin
 
 nvm use            # reads .nvmrc
 npm ci             # exact-pin install
 
 cp .env.example .env.local
-# Generate the two required secrets — paste them into .env.local under
-# APP_SECRET_KEY and APP_ENCRYPTION_KEY:
-openssl rand -base64 32
-openssl rand -base64 32
 ```
+
+Then edit `.env.local`:
+
+- Set `APP_SECRET_KEY` and `APP_ENCRYPTION_KEY` (generate each with `openssl rand -base64 32`).
+- Point `DATABASE_URL` at a local SQLite file the dev server can write — e.g.
+  `DATABASE_URL=file:./dev.db` (the shipped default `file:/data/...` is the in-container path).
+
+Redis is optional in dev — everything falls back to an in-process path when `REDIS_URL` is unset.
 
 ## Daily loop
 
 ```sh
-# Start dependencies (Postgres + Redis + sandbox PDNS)
-docker compose up -d
+# A local PowerDNS to talk to (just the pdns service from the demo stack)
+docker compose up -d pdns
 
 # Dev server with hot reload — migrations run on app boot (ADR 0011)
 npm run dev        # → http://localhost:3000
@@ -38,7 +42,7 @@ npm run dev        # → http://localhost:3000
 Health endpoints to confirm everything's wired:
 
 - `GET /healthz` — `{"status":"ok",...}` 200.
-- `GET /readyz` — `{"status":"ok","checks":{"database":"ok"}}` 200 when Postgres is reachable,
+- `GET /readyz` — `{"status":"ok","checks":{"database":"ok"}}` 200 when the database is reachable,
   503 otherwise.
 
 ## Before opening a PR
@@ -48,7 +52,28 @@ Health endpoints to confirm everything's wired:
 npm run validate
 ```
 
-If any of those fail locally, CI will too. Fix before pushing.
+Run the integration suite too if you touched routes, repositories, or auth — it
+builds + boots the stack in Docker:
+
+```sh
+npm run test:integration
+```
+
+**Run the CI workflow locally with [`act`](https://github.com/nektos/act)** to
+catch failures before they hit GitHub. It runs the GitHub Actions jobs in Docker:
+
+```sh
+act -j static-checks -W .github/workflows/ci.yml --container-architecture linux/amd64
+act -j test          -W .github/workflows/ci.yml --container-architecture linux/amd64
+```
+
+`act` reliably runs the **JS-action jobs** (`static-checks`, `test`, `audit`) —
+and runs `eslint .` without the host-memory limits you can hit locally. It does
+**not** stand in for GitHub-hosted CodeQL, the Docker build/publish, Scorecard,
+or dependency-review (those need GitHub runners / tokens), so those remain the
+authority on the PR. First run pulls the runner image (~1 GB).
+
+If any of these fail locally, CI will too. Fix before pushing.
 
 ## Commonly-needed commands
 
@@ -77,14 +102,14 @@ If any of those fail locally, CI will too. Fix before pushing.
 You're missing a required environment variable. The error message lists exactly which ones.
 Check `.env.local` against `.env.example`.
 
-### Database connection refused
+### PowerDNS backend unreachable
 
 ```sh
 docker compose ps
-docker compose logs postgres
+docker compose logs pdns
 ```
 
-Confirm `postgres` shows `(healthy)`. If not, `docker compose up -d --force-recreate postgres`.
+Confirm `pdns` shows `(healthy)`. If not, `docker compose up -d --force-recreate pdns`.
 
 ### "Cannot find module 'server-only'"
 

@@ -19,7 +19,8 @@ can jump straight into the code that owns each feature.
   `app/(auth)/login/`.
 - **How.**
   - Bootstrap the first admin via `BOOTSTRAP_ADMIN_EMAIL` + `BOOTSTRAP_ADMIN_PASSWORD` env (see
-    `.env.example`). The seed script creates the row only when the `users` table is empty.
+    `.env.example`). The seed is idempotent — keyed on the email, it ensures that account exists
+    and never clobbers an existing one.
   - Add more users from `/admin/users` (gated on `user.create`). The admin can issue a
     one-time temporary password that forces the user to change on first login.
   - Lockout policy is operator-tunable: `login_lockout_threshold` (1–100 attempts) and
@@ -384,7 +385,7 @@ can jump straight into the code that owns each feature.
   - **Metrics.** Prometheus `/metrics` (optional bearer-token gate via `METRICS_TOKEN`).
   - **Health.** `/healthz` (liveness) + `/readyz` (readiness — fails on DB unreachable or
     pending migrations).
-- **Where.** `lib/logger.ts`, `app/api/metrics/`, `app/healthz/`, `app/readyz/`.
+- **Where.** `lib/logger.ts`, `app/metrics/`, `app/healthz/`, `app/readyz/`.
 
 ---
 

@@ -363,9 +363,10 @@ Full guides live in **[`docs/`](./docs/)** — start at the
 
 ## Status
 
-**v1.0.0 — first production release.** Deploy on SQLite or Postgres with the published image; see
-[Run it](#run-it). The roadmap is tracked in GitHub issues — contributions welcome, read
-[`CONTRIBUTING.md`](./CONTRIBUTING.md) first.
+**Production-ready.** Deploy on SQLite or Postgres with the published image; see
+[Run it](#run-it). Released versions and changes are in
+[`CHANGELOG.md`](./CHANGELOG.md); the roadmap is tracked in GitHub issues —
+contributions welcome, read [`CONTRIBUTING.md`](./CONTRIBUTING.md) first.
 
 ## License
 

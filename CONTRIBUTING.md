@@ -174,6 +174,25 @@ Two layers, run independently:
   log, anything that handles money or secrets. Don't write tests to inflate the percentage.
 - **Every bug fix ships a test that fails before the fix.** No exceptions.
 
+### Before you push (run CI locally)
+
+Standard pre-push gate, in order — fix anything that fails before pushing:
+
+1. `npm run validate` — lint + typecheck + format check + unit tests.
+2. `npm run test:integration` — if you touched routes, repositories, or auth.
+3. **[`act`](https://github.com/nektos/act)** — run the GitHub Actions jobs in Docker to catch
+   CI failures locally:
+
+   ```sh
+   act -j static-checks -W .github/workflows/ci.yml --container-architecture linux/amd64
+   act -j test          -W .github/workflows/ci.yml --container-architecture linux/amd64
+   ```
+
+   `act` covers the JS-action jobs (`static-checks`, `test`, `audit`) and runs `eslint .` without
+   the host-memory limits you can hit locally. It does **not** replace GitHub-hosted CodeQL, the
+   Docker build/publish, Scorecard, or dependency-review — those need GitHub runners/tokens and
+   remain the authority on the PR.
+
 ### Running the integration suite
 
 `npm run test:integration` is one command. It:
