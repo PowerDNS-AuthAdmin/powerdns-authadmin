@@ -66,6 +66,13 @@ describe("AAAA validator", () => {
     expect(aaaaValidator.validate("fe80::1").issues[0]?.level).toBe("warning");
     expect(aaaaValidator.validate("fc00::1").issues[0]?.level).toBe("warning");
   });
+
+  it("rejects a fully-specified address that still contains :: (RFC 4291 § 2.2.2)", () => {
+    // '::' must represent one or more zero groups; when all 8 groups are
+    // explicit there is no room for even one zero group — this is malformed.
+    expect(hasErrors(aaaaValidator.validate("1:2:3:4:5:6:7:8::"))).toBe(true);
+    expect(hasErrors(aaaaValidator.validate("::1:2:3:4:5:6:7:8"))).toBe(true);
+  });
 });
 
 describe("CNAME validator", () => {
@@ -126,6 +133,20 @@ describe("SRV validator", () => {
     expect(hasErrors(srvValidator.validate("10 5 443"))).toBe(true);
     expect(hasErrors(srvValidator.validate("10 5 443 service.example.com. extra"))).toBe(true);
   });
+
+  it("rejects port > 65535 as an error (16-bit field, RFC 2782)", () => {
+    // port=70000 overflows the 16-bit wire field — this must be an error,
+    // not merely a warning, because the value cannot be encoded.
+    const r = srvValidator.validate("10 5 70000 service.example.com.");
+    expect(r.issues.some((i) => i.level === "error" && i.message.includes("0–65535"))).toBe(true);
+  });
+
+  it("warns on port 0 but does not error", () => {
+    // Port 0 is encodable (fits in 16 bits) but operationally unusual.
+    const r = srvValidator.validate("10 5 0 service.example.com.");
+    expect(r.issues.some((i) => i.level === "warning")).toBe(true);
+    expect(r.issues.some((i) => i.level === "error")).toBe(false);
+  });
 });
 
 describe("TXT validator", () => {
@@ -178,6 +199,35 @@ describe("CAA validator", () => {
   it("warns on unknown tag", () => {
     const r = caaValidator.validate('0 customtag "value"');
     expect(r.issues.some((i) => i.message.includes("not in the IANA"))).toBe(true);
+  });
+
+  it("re-quotes a leading-only quote (unbalanced) into a balanced string", () => {
+    // A value like `"letsencrypt.org` (opening quote, no closing quote) is
+    // unbalanced — passing it through verbatim would produce malformed wire
+    // data. The validator must wrap it so the output is balanced.
+    const r = caaValidator.validate('0 issue "letsencrypt.org');
+    expect(hasErrors(r)).toBe(false); // unbalanced quote is a warning, not an error
+    const normalized = r.normalized;
+    // normalized value field must start and end with '"' and be balanced.
+    const valueField = normalized.split(" ").slice(2).join(" ");
+    expect(valueField.startsWith('"')).toBe(true);
+    expect(valueField.endsWith('"')).toBe(true);
+    expect(valueField.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("escapes backslashes (not just quotes) when quoting a bare value", () => {
+    // A bare value containing `\` must have it escaped before being wrapped —
+    // leaving it raw emits malformed wire data (CodeQL js/incomplete-sanitization).
+    const r = caaValidator.validate("0 issue ca\\corp");
+    const valueField = r.normalized.split(" ").slice(2).join(" ");
+    expect(valueField).toBe('"ca\\\\corp"'); // \  →  \\  inside the quoted string
+  });
+
+  it("escapes backslash before quote in a bare value (correct order)", () => {
+    const r = caaValidator.validate('0 issue a\\b"c');
+    const valueField = r.normalized.split(" ").slice(2).join(" ");
+    // a\b"c  →  "a\\b\"c"  — backslash doubled, quote escaped, neither doubled twice.
+    expect(valueField).toBe('"a\\\\b\\"c"');
   });
 });
 
