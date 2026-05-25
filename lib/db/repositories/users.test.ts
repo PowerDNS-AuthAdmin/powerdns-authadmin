@@ -18,7 +18,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
@@ -107,7 +107,14 @@ describeDb("recordFailedLogin (SQLite, atomic increment)", () => {
     migrate(rawDb, { migrationsFolder: "drizzle-sqlite" });
 
     // Point the repository's db singleton at this file, then import it.
+    // `vi.resetModules()` is essential: the top-level `computeLockoutUntil`
+    // import already evaluated `./users` → `lib/db`, building the `db` singleton
+    // against the DEFAULT (Postgres) DATABASE_URL. Without dropping that cached
+    // graph, this dynamic import returns the Postgres-bound singleton and the
+    // queries below hit a DB that isn't there (ECONNREFUSED). Resetting forces
+    // `lib/db` to rebuild against the SQLite file set just above.
     process.env["DATABASE_URL"] = `file:${dbFile}`;
+    vi.resetModules();
     repo = await import("./users");
   });
 
