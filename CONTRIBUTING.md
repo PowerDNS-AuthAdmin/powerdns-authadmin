@@ -169,6 +169,10 @@ Two layers, run independently:
 - **Unit tests** — live next to the source (`foo.ts` + `foo.test.ts`). Pure functions, mock-free
   where reasonable, no external dependencies. Run with `npm run test`. Fast, hermetic, no
   Docker required.
+- **Fuzz tests** — property-based tests using [`fast-check`](https://fast-check.dev), in
+  `*.fuzz.test.ts` next to the source. Use them for parsers / anything that takes untrusted
+  string input: assert invariants (never throws, round-trips, idempotent) over thousands of
+  generated inputs. They run inside the unit suite (`npm run test`).
 - **Integration tests** — live under `tests/integration/`. They talk to a real running
   PowerDNS-AuthAdmin app + a real Postgres + real PDNS Authoritative backends across all three
   topologies (multi-primary cluster, standalone, primary+secondaries). Pure HTTP from the test
