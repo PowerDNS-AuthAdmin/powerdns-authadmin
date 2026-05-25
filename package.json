@@ -53,6 +53,7 @@
     "echarts": "6.1.0",
     "echarts-for-react": "3.0.6",
     "ioredis": "5.10.1",
+    "isomorphic-dompurify": "3.13.0",
     "jose": "6.2.3",
     "js-yaml": "4.1.1",
     "lucide-react": "1.16.0",

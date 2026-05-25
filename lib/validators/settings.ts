@@ -49,12 +49,15 @@ export type KnownSettingKey = (typeof KNOWN_SETTING_KEYS)[number];
  * small enough to keep the row from bloating the audit `before`/`after`
  * snapshots when settings change.
  *
- * Only raster data: MIME types are allowed (png/jpeg/gif/webp). SVG is
- * deliberately excluded: an `image/svg+xml` document can carry `<script>`
- * and event handlers, so an inline SVG logo rendered into the page is a
- * stored-XSS vector. Raster formats can't execute, so they're safe to
- * inline. Externally hosted https:// SVGs remain allowed because the
- * browser fetches them as images (not active documents) under our CSP.
+ * Allowed data: MIME types are png/jpeg/gif/webp and svg+xml. The logo is only
+ * ever rendered via `<img src>` (secure static mode — the browser disables
+ * scripts/handlers/external loads for inline AND hosted SVG alike), so an inline
+ * SVG is no more dangerous than a hosted one. As defense-in-depth for any future
+ * inline-render path, inline SVGs are sanitized server-side before storage (see
+ * `sanitizeBrandLogoValue` in `lib/security/svg.ts`, called from the settings
+ * route) — `<script>`, `<foreignObject>`, `on*` handlers, and javascript:/
+ * external refs are stripped. (This module is also imported client-side, so the
+ * sanitizer — which uses Node `Buffer` — lives in the route, not here.)
  */
 const MAX_BRAND_LOGO_LENGTH = 2 * 1024 * 1024;
 
@@ -71,13 +74,11 @@ export const SETTING_VALUE_SCHEMAS = {
       (u) =>
         u.startsWith("https://") ||
         u.startsWith("http://") ||
-        // svg+xml is intentionally NOT accepted here: an inline SVG can
-        // execute script when rendered, so only non-executable raster
-        // formats are allowed as data: URIs.
-        /^data:image\/(png|jpeg|jpg|gif|webp);base64,/.test(u),
+        // svg+xml is accepted; the route sanitizes inline SVG before storage.
+        /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/.test(u),
       {
         message:
-          "Logo URL must use https://, http://, or be an inline data: URI (image/png, image/jpeg, image/gif, image/webp).",
+          "Logo URL must use https://, http://, or be an inline data: URI (image/png, image/jpeg, image/gif, image/webp, image/svg+xml).",
       },
     ),
   support_contact: z.string().min(1).max(500),
