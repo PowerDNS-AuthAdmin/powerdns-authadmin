@@ -96,7 +96,12 @@ export const caaValidator: RRTypeValidator = {
     // quote (e.g. `"letsencrypt.org`) is unbalanced — re-quoting it prevents
     // emitting malformed wire data.
     const isBalancedQuoted = value.startsWith('"') && value.endsWith('"') && value.length >= 2;
-    const normalizedValue = isBalancedQuoted ? value : `"${value.replace(/"/g, '\\"')}"`;
+    // Escape `\` before `"` (RFC 1035 § 5.1 character-string rules): doing it
+    // the other way doubles the backslash the quote pass just inserted, and
+    // leaving `\` unescaped emits malformed wire data for a value that contains
+    // one. Both meta-characters must be escaped.
+    const escapeForQuoting = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const normalizedValue = isBalancedQuoted ? value : `"${escapeForQuoting(value)}"`;
     return {
       issues,
       normalized: `${Number(flagsStr) || 0} ${tag} ${normalizedValue}`,

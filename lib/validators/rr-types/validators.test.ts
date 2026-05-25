@@ -196,6 +196,21 @@ describe("CAA validator", () => {
     expect(valueField.endsWith('"')).toBe(true);
     expect(valueField.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("escapes backslashes (not just quotes) when quoting a bare value", () => {
+    // A bare value containing `\` must have it escaped before being wrapped —
+    // leaving it raw emits malformed wire data (CodeQL js/incomplete-sanitization).
+    const r = caaValidator.validate("0 issue ca\\corp");
+    const valueField = r.normalized.split(" ").slice(2).join(" ");
+    expect(valueField).toBe('"ca\\\\corp"'); // \  →  \\  inside the quoted string
+  });
+
+  it("escapes backslash before quote in a bare value (correct order)", () => {
+    const r = caaValidator.validate('0 issue a\\b"c');
+    const valueField = r.normalized.split(" ").slice(2).join(" ");
+    // a\b"c  →  "a\\b\"c"  — backslash doubled, quote escaped, neither doubled twice.
+    expect(valueField).toBe('"a\\\\b\\"c"');
+  });
 });
 
 describe("DS validator", () => {
