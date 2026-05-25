@@ -39,9 +39,10 @@ jobs:
           persist-credentials: false
 
       - name: Run analysis
-        # Pin to a real release tag — ossf/scorecard-action publishes no
-        # floating `v2` major tag, so `@v2` fails to resolve at runtime.
-        uses: ossf/scorecard-action@v2.4.3
+        # Pinned to an immutable commit SHA (not a tag): a moved tag is a
+        # supply-chain vector, and `@v2` doesn't resolve at all. CodeQL's
+        # actions query enforces this. Bump the SHA + comment together.
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
         with:
           results_file: results.sarif
           results_format: sarif
