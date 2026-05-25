@@ -16,7 +16,17 @@ import { requireCsrf } from "@/lib/auth/csrf";
 import { hashPassword } from "@/lib/auth/password";
 import { db } from "@/lib/db";
 import { findUserByEmail, insertUser, listAllUsers } from "@/lib/db/repositories/users";
-import { createRoleAssignment, findRoleById } from "@/lib/db/repositories/roles";
+import {
+  createRoleAssignment,
+  findRoleById,
+  loadUserAssignmentsForAbility,
+} from "@/lib/db/repositories/roles";
+import {
+  globalPermissionsOf,
+  permissionsExceedingGrant,
+  type AbilitySource,
+} from "@/lib/rbac/ability";
+import type { Permission } from "@/lib/rbac/permissions";
 import { createUserSchema } from "@/lib/validators/users";
 import { ConflictError, ForbiddenError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
@@ -63,6 +73,25 @@ export async function POST(request: Request): Promise<Response> {
         throw new ValidationError("Role does not exist.", {
           fieldErrors: { roleId: ["Role does not exist."] },
         });
+      }
+
+      // Privilege ceiling (L-3): the initial role is assigned at GLOBAL scope
+      // below, so an actor must not be able to mint a user holding permissions
+      // the actor lacks globally (e.g. a `user.create`+`role.assign` holder
+      // bootstrapping a new Super Admin). Mirrors the `/role-assignments` POST.
+      // Cast: the DB column is structurally string[]; values are validated at
+      // write time. Avoids a lib/db → lib/rbac import.
+      const actorSources = (await loadUserAssignmentsForAbility(
+        actor.id,
+      )) as readonly AbilitySource[];
+      const exceeding = permissionsExceedingGrant(
+        globalPermissionsOf(actorSources),
+        initialRole.permissions as readonly Permission[],
+      );
+      if (exceeding.length > 0) {
+        throw new ForbiddenError(
+          `You can't assign a role that grants permissions you don't hold globally: ${exceeding.join(", ")}.`,
+        );
       }
     }
 
