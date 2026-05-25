@@ -50,7 +50,11 @@ import type { VerifiedIdentity } from "./types";
  * rebuild by hand (auth-method swaps), since a fresh `new oidc.Configuration`
  * starts without it.
  */
-const guardedOidcFetch = makeGuardedFetch(checkOidcIssuerUrlSafe);
+// `makeGuardedFetch` returns the standard Fetch surface; openid-client's
+// `CustomFetch` types `body` more narrowly (its `FetchBody`) and requires the
+// options arg. The wrapper accepts any `RequestInit` and forwards it to undici
+// unchanged, so it satisfies the contract at runtime — bridge the nominal gap.
+const guardedOidcFetch = makeGuardedFetch(checkOidcIssuerUrlSafe) as unknown as oidc.CustomFetch;
 
 /**
  * Attach {@link guardedOidcFetch} to a Configuration via openid-client's

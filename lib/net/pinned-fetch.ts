@@ -57,7 +57,10 @@ export type UrlGuard = (url: string) => Promise<GuardResult>;
  * dispatcher is the pinned `connect.lookup`. The Agent is single-use — close it
  * once the request settles (see {@link makeGuardedFetch}).
  */
-export function buildPinnedDispatcher(addresses: string[], agentOptions: Agent.Options = {}): Agent {
+export function buildPinnedDispatcher(
+  addresses: string[],
+  agentOptions: Agent.Options = {},
+): Agent {
   // Prefer an IPv4 address when available — matches the OS resolver's common
   // default and avoids surprising IPv6-only connects in IPv4-only networks.
   // Any address in the list already passed the guard, so the choice is purely
@@ -129,7 +132,8 @@ export function makeGuardedFetch(
 
     const safety = await guard(url);
     if (!safety.safe) {
-      const factory = options.onUnsafe ?? ((reason) => new Error(`Refusing to call unsafe URL: ${reason}`));
+      const factory =
+        options.onUnsafe ?? ((reason) => new Error(`Refusing to call unsafe URL: ${reason}`));
       throw factory(safety.reason);
     }
 

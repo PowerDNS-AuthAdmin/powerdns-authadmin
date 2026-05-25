@@ -140,9 +140,7 @@ describe("makeGuardedFetch", () => {
       redirect: "manual",
     });
 
-    expect(guard).toHaveBeenCalledWith(
-      "https://idp.example.test/.well-known/openid-configuration",
-    );
+    expect(guard).toHaveBeenCalledWith("https://idp.example.test/.well-known/openid-configuration");
     // A pinned dispatcher was built and handed to fetch.
     expect(agentCtor).toHaveBeenCalledTimes(1);
     const fetchArgs = fetchMock.mock.calls[0];

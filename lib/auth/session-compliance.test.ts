@@ -48,19 +48,13 @@ describe("evaluateSessionCompliance", () => {
 
     it("blocks with reason 'mfa' for override=true even without an MFA role", () => {
       expect(
-        evaluateSessionCompliance(
-          base({ totpEnrolled: false, mfaOverride: true }),
-          NO_ROLES,
-        ),
+        evaluateSessionCompliance(base({ totpEnrolled: false, mfaOverride: true }), NO_ROLES),
       ).toEqual({ ok: false, reason: "mfa" });
     });
 
     it("override=false exempts even when a role requires MFA", () => {
       expect(
-        evaluateSessionCompliance(
-          base({ totpEnrolled: false, mfaOverride: false }),
-          MFA_ROLE,
-        ),
+        evaluateSessionCompliance(base({ totpEnrolled: false, mfaOverride: false }), MFA_ROLE),
       ).toEqual({ ok: true });
     });
 
@@ -84,25 +78,24 @@ describe("evaluateSessionCompliance", () => {
 
     it("treats mfaOverride === undefined the same as null (inherit)", () => {
       expect(
-        evaluateSessionCompliance(
-          base({ totpEnrolled: false, mfaOverride: undefined }),
-          MFA_ROLE,
-        ),
+        evaluateSessionCompliance(base({ totpEnrolled: false, mfaOverride: undefined }), MFA_ROLE),
       ).toEqual({ ok: false, reason: "mfa" });
     });
   });
 
   describe("must-change-password gate", () => {
     it("blocks with reason 'must-change-password' when the flag is set", () => {
-      expect(
-        evaluateSessionCompliance(base({ mustChangePassword: true }), NON_MFA_ROLE),
-      ).toEqual({ ok: false, reason: "must-change-password" });
+      expect(evaluateSessionCompliance(base({ mustChangePassword: true }), NON_MFA_ROLE)).toEqual({
+        ok: false,
+        reason: "must-change-password",
+      });
     });
 
     it("blocks even with no roles when the flag is set", () => {
-      expect(
-        evaluateSessionCompliance(base({ mustChangePassword: true }), NO_ROLES),
-      ).toEqual({ ok: false, reason: "must-change-password" });
+      expect(evaluateSessionCompliance(base({ mustChangePassword: true }), NO_ROLES)).toEqual({
+        ok: false,
+        reason: "must-change-password",
+      });
     });
   });
 
@@ -118,10 +111,7 @@ describe("evaluateSessionCompliance", () => {
 
     it("falls through to 'must-change-password' once MFA is satisfied", () => {
       expect(
-        evaluateSessionCompliance(
-          base({ totpEnrolled: true, mustChangePassword: true }),
-          MFA_ROLE,
-        ),
+        evaluateSessionCompliance(base({ totpEnrolled: true, mustChangePassword: true }), MFA_ROLE),
       ).toEqual({ ok: false, reason: "must-change-password" });
     });
   });
