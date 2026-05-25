@@ -28,7 +28,10 @@ import { requireCsrf } from "@/lib/auth/csrf";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { findUserById } from "@/lib/db/repositories/users";
-import { NotFoundError } from "@/lib/errors";
+import { loadUserAssignmentsForAbility } from "@/lib/db/repositories/roles";
+import { globalPermissionsOf, type AbilitySource } from "@/lib/rbac/ability";
+import { permissionsTargetHoldsBeyondActor } from "@/lib/rbac/target-ceiling";
+import { ForbiddenError, NotFoundError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 
 interface RouteContext {
@@ -43,6 +46,24 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
 
     const target = await findUserById(id);
     if (!target) throw new NotFoundError("User not found.");
+
+    // TARGET-privilege ceiling: stripping a user's TOTP weakens their account
+    // security, so a `user.update` holder must not be able to do it to an
+    // account holding global permissions the actor lacks. Self-target passes
+    // (identical sets) — the lost-device self-service case stays open. Cast: the
+    // DB column is structurally string[]; values are validated at write time.
+    const actorGlobal = globalPermissionsOf(
+      (await loadUserAssignmentsForAbility(actor.id)) as readonly AbilitySource[],
+    );
+    const targetGlobal = globalPermissionsOf(
+      (await loadUserAssignmentsForAbility(target.id)) as readonly AbilitySource[],
+    );
+    if (permissionsTargetHoldsBeyondActor(actorGlobal, targetGlobal).length > 0) {
+      throw new ForbiddenError(
+        "You can't remove MFA from a user who holds permissions you don't hold globally.",
+      );
+    }
+
     if (!target.totpSecretEncrypted) {
       throw new NotFoundError("TOTP is not enabled on this account.");
     }
