@@ -105,3 +105,42 @@ export function canActOnZone(input: {
   if (input.hasGlobalPermission) return true;
   return hasZonePermissionViaGrant(input.grants, input.serverId, input.zoneName, input.permission);
 }
+
+/**
+ * Expand a user's grants across cluster peers so a grant issued on one peer of
+ * a multi-primary cluster authorizes the zone on EVERY peer of that cluster.
+ *
+ * Grants are keyed to a single `serverId`, but a cluster zone's reads/writes
+ * resolve a peer per request via `choosePeer` (round-robin / lowest-latency), so
+ * a grant on peer A would intermittently 403 when peer B is chosen. We close
+ * that by emitting, for each grant whose server belongs to a cluster, a copy of
+ * the grant for every peer id in the same cluster — leaving the exact-`serverId`
+ * matchers (`canActOnZone` et al.) and all their call sites untouched.
+ *
+ * `equivalentServerIds` maps a grant's `serverId` to every server id in its
+ * cluster (built by `mapServersToClusterPeers`). A server absent from the map
+ * (standalone, or not in a cluster) keeps its single grant verbatim.
+ *
+ * This is applied only on the AUTHZ path (`getCurrentUser`, the DynDNS token
+ * path, the grant-ceiling check) — never on the admin DISPLAY path, where the
+ * operator should see the real stored row, not synthetic per-peer copies.
+ *
+ * Pure: storage I/O (the cluster lookup) happens in the repo; this just maps.
+ */
+export function expandGrantsAcrossClusters<T extends { serverId: string }>(
+  grants: readonly T[],
+  equivalentServerIds: ReadonlyMap<string, readonly string[]>,
+): T[] {
+  const out: T[] = [];
+  for (const g of grants) {
+    const peers = equivalentServerIds.get(g.serverId);
+    if (!peers || peers.length === 0) {
+      out.push(g);
+      continue;
+    }
+    for (const peerId of peers) {
+      out.push(peerId === g.serverId ? g : { ...g, serverId: peerId });
+    }
+  }
+  return out;
+}

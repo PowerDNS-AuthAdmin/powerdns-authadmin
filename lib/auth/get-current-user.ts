@@ -20,7 +20,8 @@ import {
 } from "@/lib/db/repositories/api-tokens";
 import { findUserById } from "@/lib/db/repositories/users";
 import { loadUserAssignmentsForAbility } from "@/lib/db/repositories/roles";
-import { listGrantsForUser } from "@/lib/db/repositories/zone-grants";
+import { listGrantsForUser, mapServersToClusterPeers } from "@/lib/db/repositories/zone-grants";
+import { expandGrantsAcrossClusters } from "@/lib/rbac/zone-permissions";
 import type { User } from "@/lib/db/schema";
 import type { ZoneGrant } from "@/lib/db/schema";
 import {
@@ -68,6 +69,23 @@ export interface AuthenticatedRequest {
  * decrypts cleanly but points at a deleted user — that's an inconsistency,
  * not "anonymous").
  */
+/**
+ * Expand a user's zone grants across cluster peers (see
+ * `expandGrantsAcrossClusters`): a grant on one peer of a multi-primary cluster
+ * authorizes the zone on every peer, since the request path picks a rotating
+ * peer. Applied on the authz path only; the admin display path keeps the raw
+ * rows. No DB round-trip for the common case (a user with no grants, or none on
+ * a clustered backend).
+ */
+async function expandClusterGrants<T extends { serverId: string }>(
+  grants: readonly T[],
+): Promise<T[]> {
+  if (grants.length === 0) return [...grants];
+  const peers = await mapServersToClusterPeers(grants.map((g) => g.serverId));
+  if (peers.size === 0) return [...grants];
+  return expandGrantsAcrossClusters(grants, peers);
+}
+
 export async function getCurrentUser(): Promise<AuthenticatedRequest | null> {
   // --- Session cookie path -------------------------------------------------
   const session = await readSession();
@@ -91,7 +109,7 @@ export async function getCurrentUser(): Promise<AuthenticatedRequest | null> {
       user,
       ability,
       globalPermissions: globalPermissionsOf(sources),
-      zoneGrants,
+      zoneGrants: await expandClusterGrants(zoneGrants),
       source: "session",
     };
   }
@@ -186,7 +204,7 @@ async function resolvePresentedToken(
     user,
     ability,
     globalPermissions: globalPermissionsOf(sources),
-    zoneGrants,
+    zoneGrants: await expandClusterGrants(zoneGrants),
     source: "token",
   };
 }

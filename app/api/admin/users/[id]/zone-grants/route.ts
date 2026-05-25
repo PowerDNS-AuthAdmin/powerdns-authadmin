@@ -22,13 +22,17 @@ import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { db } from "@/lib/db";
 import { zoneGrants } from "@/lib/db/schema";
-import { findGrant, listGrantsForUser } from "@/lib/db/repositories/zone-grants";
+import {
+  findGrant,
+  listGrantsForUser,
+  mapServersToClusterPeers,
+} from "@/lib/db/repositories/zone-grants";
 import { findPdnsServerById } from "@/lib/db/repositories/pdns-servers";
 import { findUserById } from "@/lib/db/repositories/users";
 import { loadUserAssignmentsForAbility } from "@/lib/db/repositories/roles";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
 import { globalPermissionsOf, type AbilitySource } from "@/lib/rbac/ability";
-import { effectiveZonePermissions } from "@/lib/rbac/zone-permissions";
+import { effectiveZonePermissions, expandGrantsAcrossClusters } from "@/lib/rbac/zone-permissions";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 
@@ -109,7 +113,14 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     )) as readonly AbilitySource[];
     const actorGlobal = globalPermissionsOf(actorSources);
     const actorGrants = await listGrantsForUser(actor.id);
-    const actorZonePerms = effectiveZonePermissions(actorGrants, input.serverId, zoneName);
+    // Expand across cluster peers so an actor's grant on a sibling peer counts
+    // toward the ceiling for this (cluster) zone (see get-current-user).
+    const actorPeers = actorGrants.length
+      ? await mapServersToClusterPeers(actorGrants.map((g) => g.serverId))
+      : new Map<string, string[]>();
+    const actorEffectiveGrants =
+      actorPeers.size === 0 ? actorGrants : expandGrantsAcrossClusters(actorGrants, actorPeers);
+    const actorZonePerms = effectiveZonePermissions(actorEffectiveGrants, input.serverId, zoneName);
     const exceeding = input.permissions.filter(
       (p) => !actorGlobal.has(p as (typeof PERMISSIONS)[number]) && !actorZonePerms.has(p),
     );
