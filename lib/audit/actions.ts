@@ -25,6 +25,10 @@ export const AUDIT_ACTIONS = [
   "auth.token.revoked",
   "auth.oidc.linked",
   "auth.oidc.rejected_provisioning",
+  // Self-service signup (SIGNUP_ENABLED) refused before any user row is
+  // created — currently only the email-domain allow-list rejection. The
+  // successful-signup path reuses `user.create` (source: signup).
+  "auth.signup.rejected",
   "auth.password.reset.requested",
   "auth.password.reset.completed",
   "auth.password.reset.invalid",

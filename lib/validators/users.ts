@@ -6,9 +6,11 @@
 
 import "server-only";
 import { z } from "zod";
+// Re-exported from a client-safe module so client forms can mirror the policy
+// without pulling this `server-only` module into a client bundle (issue #32).
+import { MIN_PASSWORD_LENGTH } from "./password-policy";
 
-/** Minimum password length we accept anywhere local passwords are written. */
-export const MIN_PASSWORD_LENGTH = 12;
+export { MIN_PASSWORD_LENGTH };
 
 export const passwordSchema = z
   .string()
@@ -64,6 +66,31 @@ export const profileNameSchema = z.object({
     .transform((s) => s.trim())
     .nullable(),
 });
+
+// =============================================================================
+// Self-service signup (SIGNUP_ENABLED)
+// =============================================================================
+
+export const signupSchema = z.object({
+  email: emailSchema,
+  // Reuse the app-wide password policy (Argon2id + min length) so a self-service
+  // signup can't set a weaker password than an admin-created account.
+  password: passwordSchema,
+  // Optional display name. Empty/whitespace is normalised to undefined so the
+  // user row stores NULL rather than an empty string.
+  name: z
+    .string()
+    .max(120, "Name is too long.")
+    .transform((s) => s.trim())
+    .optional()
+    .transform((s) => (s && s.length > 0 ? s : undefined)),
+  // Cloudflare Turnstile response token. Required by the route when
+  // TURNSTILE_SECRET_KEY is configured; accepted unconditionally so dev clients
+  // without the widget still validate (the route decides enforcement).
+  captchaToken: z.string().max(4096).optional(),
+});
+
+export type SignupInput = z.infer<typeof signupSchema>;
 
 // =============================================================================
 // Admin — create / update user

@@ -66,10 +66,55 @@ ensures the account exists, created with "must change password on next login".
 
 ## Local authentication
 
-| Variable             | Default | Notes                                                     |
-| -------------------- | ------- | --------------------------------------------------------- |
-| `LOCAL_AUTH_ENABLED` | `true`  | Email + password sign-in. Set `false` for SSO-only.       |
-| `SIGNUP_ENABLED`     | `false` | Public self-service signup. Default: admins create users. |
+| Variable             | Default | Notes                                               |
+| -------------------- | ------- | --------------------------------------------------- |
+| `LOCAL_AUTH_ENABLED` | `true`  | Email + password sign-in. Set `false` for SSO-only. |
+
+## Self-service signup
+
+Off by default — admins create users (or users arrive via OIDC). Turn it on only
+when you want the public to register themselves. When **disabled**, both the
+`/signup` page and `POST /api/auth/signup` return **404** (the feature does not
+exist for the deployment) and no "Create an account" link is shown on the login
+page.
+
+| Variable                       | Default          | Notes                                                                                                   |
+| ------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------- |
+| `SIGNUP_ENABLED`               | `false`          | Master switch. `false` → `/signup` + the API are 404; admins create users.                              |
+| `SIGNUP_DEFAULT_ROLE`          | `read-only`      | Role (slug) every signup receives. **Must be low-privilege** — the seed step refuses to boot otherwise. |
+| `SIGNUP_ALLOWED_EMAIL_DOMAINS` | unset (no limit) | Comma-separated allow-list of email domains. Empty = any domain. Exact-domain, case-insensitive.        |
+
+**`SMTP_*` must be configured** (see [Email / SMTP](#email--smtp-optional)) for verification
+links to be **delivered**. Without SMTP the signup flow still works, but the
+verification link is only recorded in the audit log (action
+`auth.email.verify.sent`, field `after.url`) for an operator to share out-of-band
+— the same fallback the password-reset and email-change flows use.
+
+**Boot-time guard.** When `SIGNUP_ENABLED=true`, the seed step validates
+`SIGNUP_DEFAULT_ROLE` _after_ the system roles are upserted: it must resolve to an
+existing role that is **not** admin-equivalent (no `user.*`, `role.*`,
+`settings.write`, `oidc.manage`, `audit.read`, `server.*`, `team.create/delete`,
+or `token.*.all` permission, and never the `super-admin` slug). A missing or
+over-privileged value **fails the boot loudly** rather than silently turning
+public signup into an admin-account vending machine. The check is inert when
+signup is off.
+
+**End-to-end flow:**
+
+1. Visitor opens `/signup`, enters email + password (Argon2id, min 12 chars) and
+   an optional display name. Per-IP rate-limited; captcha enforced when
+   `TURNSTILE_SECRET_KEY` is set.
+2. The server validates input, enforces `SIGNUP_ALLOWED_EMAIL_DOMAINS`, then
+   creates an **unverified** user assigned exactly `SIGNUP_DEFAULT_ROLE` (one
+   audited transaction) and sends the verification link. The response is the same
+   whether or not the email already exists (**no account enumeration**) — a
+   duplicate silently re-sends verification to an unfinished signup.
+3. The user **cannot log in until verified**: while signup is enabled, any
+   unverified local account is blocked at login (`403`, `reason: email-unverified`).
+   They redeem the link at `/verify-email`, which sets `email_verified_at`.
+4. After verifying, they sign in normally and hold only the low-privilege default
+   role. MFA is **not** required at signup; a role's MFA policy can require it
+   later.
 
 ## OIDC single sign-on
 

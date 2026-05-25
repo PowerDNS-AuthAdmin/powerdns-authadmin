@@ -127,6 +127,35 @@ const envSchema = z.object({
     .transform((s) => s.toLowerCase() === "true")
     .pipe(z.boolean())
     .default(false),
+  /**
+   * Role (by slug) assigned to every self-service signup. Defaults to the
+   * seeded low-privilege `read-only` role. This is the ONLY role a signup
+   * ever receives — there is no path from public signup to an admin role.
+   *
+   * The slug's existence and low-privilege nature are verified at boot by the
+   * seed step (`scripts/seed.ts`), AFTER the system roles are upserted: if the
+   * configured role is missing or holds an admin-equivalent permission, the
+   * boot fails loudly. We can't validate it here in the env schema because the
+   * check needs the DB (the role table), which isn't available at env-parse
+   * time. See `lib/auth/signup-policy.ts` for the pure low-privilege predicate.
+   */
+  SIGNUP_DEFAULT_ROLE: z.string().min(1).default("read-only"),
+  /**
+   * Comma-separated email-domain allow-list for self-service signups. Mirrors
+   * `OIDC_ALLOWED_EMAIL_DOMAINS`: empty / unset means "any domain". Matching is
+   * case-insensitive on the part after the rightmost `@`, exact-domain only
+   * (a subdomain needs its own entry). Enforced before any user row is created.
+   */
+  SIGNUP_ALLOWED_EMAIL_DOMAINS: z
+    .string()
+    .optional()
+    .transform((s) =>
+      (s ?? "")
+        .split(",")
+        .map((d) => d.trim().toLowerCase())
+        .filter((d) => d.length > 0),
+    )
+    .pipe(z.array(z.string())),
 
   // --- Bootstrap admin (run on seed if no users exist) ---
   BOOTSTRAP_ADMIN_EMAIL: z.string().email().optional(),
@@ -338,6 +367,8 @@ const ENV_KEYS = [
   "COOKIE_DOMAIN",
   "LOCAL_AUTH_ENABLED",
   "SIGNUP_ENABLED",
+  "SIGNUP_DEFAULT_ROLE",
+  "SIGNUP_ALLOWED_EMAIL_DOMAINS",
   "BOOTSTRAP_ADMIN_EMAIL",
   "BOOTSTRAP_ADMIN_PASSWORD",
   "OIDC_ENABLED",
