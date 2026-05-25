@@ -102,9 +102,10 @@ group → role mapping** — that requires a DB provider.
 
 ## PowerDNS connectivity (SSRF guard)
 
-The app re-resolves backend hostnames before each request as a DNS-rebinding
-defense. Link-local addresses (incl. the `169.254.169.254` cloud-metadata IP) are
-**always** blocked. See [Connecting PowerDNS backends](./04-BACKENDS.md).
+The app re-resolves backend hostnames before each request and pins the validated
+IP into the connection as a DNS-rebinding defense. Link-local addresses (incl. the
+`169.254.169.254` cloud-metadata IP) are **always** blocked. See
+[Connecting PowerDNS backends](./04-BACKENDS.md).
 
 | Variable                          | Default                                 | Notes                                                                                               |
 | --------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------- |
