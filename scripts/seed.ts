@@ -34,6 +34,7 @@ import { findUserByEmail } from "@/lib/db/repositories/users";
 import { hashPassword } from "@/lib/auth/password";
 import { appendAudit } from "@/lib/audit/log";
 import { DEFAULT_ROLES } from "@/lib/rbac/default-roles";
+import { checkSignupDefaultRole } from "@/lib/auth/signup-policy";
 import { roleAssignments, users } from "@/lib/db/schema";
 
 async function seedRoles(): Promise<void> {
@@ -156,10 +157,40 @@ async function seedBootstrapAdmin(): Promise<void> {
   });
 }
 
+/**
+ * Boot-time guard for self-service signup (`SIGNUP_ENABLED`). Runs after the
+ * system roles are upserted so a default pointing at a seeded role resolves.
+ *
+ * Refuses to boot — same loud-failure contract as the env/SMTP checks — when
+ * `SIGNUP_DEFAULT_ROLE` either doesn't exist or is admin-equivalent. Without
+ * this, a typo'd or over-privileged default would turn public signup into a
+ * silent admin-account vending machine. Only enforced when signup is on; when
+ * it's off the var is inert and an operator can leave it at any value.
+ */
+async function validateSignupDefaultRole(): Promise<void> {
+  if (!env.SIGNUP_ENABLED) {
+    logger.info("seed.signup.skipped: SIGNUP_ENABLED=false");
+    return;
+  }
+  const slug = env.SIGNUP_DEFAULT_ROLE;
+  const role = await findRoleBySlug(slug);
+  const check = checkSignupDefaultRole(role);
+  if (check.ok) {
+    logger.info({ role: slug }, "seed.signup.default-role.ok");
+    return;
+  }
+  const detail =
+    check.reason === "missing"
+      ? `SIGNUP_DEFAULT_ROLE="${slug}" does not match any role. Create the role first, or point it at a seeded low-privilege role (e.g. "read-only").`
+      : `SIGNUP_DEFAULT_ROLE="${slug}" is admin-equivalent. Self-service signup must only grant a low-privilege role — pick one without user/role/settings/server/audit permissions (e.g. "read-only").`;
+  throw new Error(`seed.signup: refusing to boot — ${detail}`);
+}
+
 async function main(): Promise<void> {
   logger.info("seed.start");
   try {
     await seedRoles();
+    await validateSignupDefaultRole();
     await seedBootstrapAdmin();
     logger.info("seed.complete");
   } finally {

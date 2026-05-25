@@ -37,7 +37,12 @@ exotic — it's the handful of things worth getting right before you expose the 
 - **Require MFA where it matters.** Mark sensitive roles `requires_mfa` so holders
   must enrol TOTP. For SSO users, enforce MFA at the IdP. See [RBAC](./07-RBAC.md#mfa-required-roles).
 - **Keep `SIGNUP_ENABLED=false`** (the default) unless you intend public
-  self-service signup; create users via the admin UI or OIDC instead.
+  self-service signup; create users via the admin UI or OIDC instead. When you do
+  turn it on: keep `SIGNUP_DEFAULT_ROLE` low-privilege (the boot guard enforces
+  this — see [Self-service signup](./03-CONFIGURATION.md#self-service-signup)),
+  restrict who can register with `SIGNUP_ALLOWED_EMAIL_DOMAINS`, configure
+  `SMTP_*` so verification links are actually delivered (signups can't log in
+  until verified), and enable Turnstile to blunt automated registration.
 - **Scope OIDC sign-in** with `allowed_email_domains` (per provider) or
   `OIDC_ALLOWED_EMAIL_DOMAINS` (env) so only your org's emails auto-provision.
 - **Turn on Turnstile** (`TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY`) for a

@@ -110,6 +110,11 @@ export function LoginForm({
           setError(`Account locked until ${new Date(data.unlockAt).toLocaleString()}.`);
         } else if (res.status === 429 && data?.retryAfterSeconds) {
           setError(`Too many attempts. Try again in ${data.retryAfterSeconds}s.`);
+        } else if (data?.reason === "email-unverified") {
+          // Signup-enabled deployments block login until the email is verified.
+          setError(
+            "Verify your email before signing in. Check your inbox for the verification link (or ask your administrator if email isn't configured).",
+          );
         } else if (data?.reason === "captcha-required" || data?.reason === "captcha-failed") {
           setError(
             data.reason === "captcha-required"

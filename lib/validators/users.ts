@@ -66,6 +66,31 @@ export const profileNameSchema = z.object({
 });
 
 // =============================================================================
+// Self-service signup (SIGNUP_ENABLED)
+// =============================================================================
+
+export const signupSchema = z.object({
+  email: emailSchema,
+  // Reuse the app-wide password policy (Argon2id + min length) so a self-service
+  // signup can't set a weaker password than an admin-created account.
+  password: passwordSchema,
+  // Optional display name. Empty/whitespace is normalised to undefined so the
+  // user row stores NULL rather than an empty string.
+  name: z
+    .string()
+    .max(120, "Name is too long.")
+    .transform((s) => s.trim())
+    .optional()
+    .transform((s) => (s && s.length > 0 ? s : undefined)),
+  // Cloudflare Turnstile response token. Required by the route when
+  // TURNSTILE_SECRET_KEY is configured; accepted unconditionally so dev clients
+  // without the widget still validate (the route decides enforcement).
+  captchaToken: z.string().max(4096).optional(),
+});
+
+export type SignupInput = z.infer<typeof signupSchema>;
+
+// =============================================================================
 // Admin — create / update user
 // =============================================================================
 

@@ -151,6 +151,33 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError(401, "Invalid email or password.");
   }
 
+  // 3b. Email-verification gate. When public self-service signup is enabled,
+  // the deployment commits to "verify your email before you get in" — otherwise
+  // an attacker could register `someone-else@org.com` and access the app without
+  // ever owning that mailbox. We block any local-password account whose email
+  // isn't verified yet. SSO-only accounts (no passwordHash) never reach this
+  // branch; admins clear the gate out-of-band via the verification link recorded
+  // in the audit log, and a repeat POST to /api/auth/signup re-sends it.
+  //
+  // Entirely inert when SIGNUP_ENABLED=false: deployments that never turn on
+  // public signup keep the pre-existing soft-banner behavior unchanged.
+  if (
+    env.SIGNUP_ENABLED &&
+    outcome.user.passwordHash !== null &&
+    outcome.user.emailVerifiedAt === null
+  ) {
+    await appendAudit({
+      actor: { type: "user", id: outcome.user.id },
+      action: "auth.login.failure",
+      resource: { type: "user", id: outcome.user.id },
+      after: { reason: "email-unverified" },
+      request: { ip, userAgent, requestId: getRequestId(hdrs) },
+    });
+    return jsonError(403, "Verify your email address before signing in.", {
+      reason: "email-unverified",
+    });
+  }
+
   // 4. MFA challenge — when the user has TOTP enrolled, do NOT
   // start a session yet. Mint a single-use challenge token bound to
   // the constant actor "_mfa-pending" (the operator isn't logged in

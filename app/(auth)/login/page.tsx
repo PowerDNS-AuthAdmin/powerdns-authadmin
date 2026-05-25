@@ -158,6 +158,16 @@ export default async function LoginPage({
               </Link>
             </p>
           ) : null}
+          {/* Self-service signup link — only when SIGNUP_ENABLED. The page
+              itself 404s when disabled, so this is the matching UI gate. */}
+          {env.SIGNUP_ENABLED ? (
+            <p className="mt-2 text-xs text-[color:var(--color-fg-muted)]">
+              Don&apos;t have an account?{" "}
+              <Link href="/signup" className="underline">
+                Create an account
+              </Link>
+            </p>
+          ) : null}
         </>
       ) : null}
 
