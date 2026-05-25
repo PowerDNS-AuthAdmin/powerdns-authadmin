@@ -176,20 +176,20 @@ Two layers, run independently:
 
 ### Before you push (run CI locally)
 
-Standard pre-push gate — fix anything that fails before pushing:
+Standard pre-push gate — run CI locally with **[`act`](https://github.com/nektos/act)** and fix
+anything that fails. The committed `.actrc` pins the runner image + the CI workflow and uses your
+host-native arch, so the commands are flag-free:
 
 ```sh
-npm run test                              # unit suite (native — fast, reliable)
-act -j static-checks -W .github/workflows/ci.yml   # CI lint + typecheck + format
-npm run test:integration                  # only if you touched routes / repos / auth
+npm run ci:local            # the gate: act runs the CI lint + typecheck + format + unit-test jobs
+npm run test:integration    # only if you touched routes / repos / auth
 ```
 
-- **Run the unit suite natively** with `npm run test`, not under `act` — a couple of
-  network-touching tests can time out in `act`'s emulated container (e.g. on Apple Silicon).
-- **[`act`](https://github.com/nektos/act)** runs the CI lint + typecheck + format job in Docker;
-  use it for lint especially — it runs `eslint .` without the host-memory limit you can hit with
-  `npm run lint` directly. The committed `.actrc` pins the runner image + arch (no flags needed;
-  first run pulls the ~1 GB image).
+- `npm run ci:local` is `act -j static-checks && act -j test`; run a single job with `act -j test`
+  if you prefer. `act` runs `eslint .` without the host-memory limit you can hit with
+  `npm run lint` directly (first run pulls the ~1 GB runner image).
+- Run the integration suite **natively, not under `act`** — that job nests docker-compose, which
+  `act` can't run.
 - `act` does **not** replace GitHub-hosted CodeQL, the Docker build/publish, Scorecard, or
   dependency-review — those need GitHub runners/tokens and remain the authority on the PR.
 

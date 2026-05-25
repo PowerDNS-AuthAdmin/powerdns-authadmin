@@ -2,10 +2,16 @@
 # locally before pushing. With these set, `act -j static-checks -W .github/workflows/ci.yml`
 # works with no extra flags (and no interactive image prompt).
 #
-# Runner image: the "medium" catthehacker image — enough to run our JS-action
-# jobs (static-checks, test, audit). CodeQL, the Docker build/publish, Scorecard,
-# and dependency-review need GitHub-hosted runners and are NOT validated by act.
+# Runner image: the "medium" catthehacker image (multi-arch) — enough to run our
+# JS-action jobs (static-checks, test, audit). CodeQL, the Docker build/publish,
+# Scorecard, and dependency-review need GitHub-hosted runners and are NOT run here.
 -P ubuntu-latest=catthehacker/ubuntu:act-latest
-# Pin the container arch so Apple-silicon hosts don't prompt / misbehave; a no-op
-# cost on amd64 Linux.
---container-architecture linux/amd64
+# No --container-architecture: act uses the HOST-native arch (arm64 on Apple
+# silicon, amd64 on Linux). Forcing linux/amd64 on Apple silicon runs under QEMU,
+# which makes loopback-networking unit tests time out — native arch runs them fine.
+#
+# Default to the CI workflow, so `act -j static-checks` / `act -j test` need no
+# other flags. (act only honours one -j, so the full local gate is wrapped as
+# `npm run ci:local`. integration-test + docker need a real runner / nested
+# Docker — run `npm run test:integration` natively instead.)
+-W .github/workflows/ci.yml

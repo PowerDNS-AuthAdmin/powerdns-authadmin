@@ -47,31 +47,28 @@ Health endpoints to confirm everything's wired:
 
 ## Before opening a PR
 
-Run this gate and fix anything that fails:
+Run CI locally with [`act`](https://github.com/nektos/act) and fix anything that
+fails. The committed `.actrc` pins the runner image + the CI workflow and uses
+your host-native arch, so the commands are flag-free:
 
 ```sh
-npm run test                              # unit suite (native — fast, reliable)
-act -j static-checks -W .github/workflows/ci.yml   # CI lint + typecheck + format
-npm run test:integration                  # only if you touched routes / repos / auth
+npm run ci:local            # the gate: act runs the CI lint + typecheck + format + unit-test jobs
+npm run test:integration    # only if you touched routes / repos / auth
 ```
 
-Why this split:
+`npm run ci:local` is just `act -j static-checks && act -j test`; run a single
+job directly with `act -j static-checks` or `act -j test` if you prefer.
 
-- **`npm run test`** runs the unit suite natively. Run it here rather than under
-  `act` — a couple of network-touching tests can time out under `act`'s emulated
-  container (e.g. on Apple Silicon).
-- **`act -j static-checks`** ([act](https://github.com/nektos/act)) runs the CI
-  lint + typecheck + format-check job in Docker. Use it for lint especially: it
-  runs `eslint .` without the host-memory limit you can hit with `npm run lint`
-  directly. The committed `.actrc` pins the runner image + arch, so no flags are
-  needed (first run pulls the ~1 GB image).
-- **`npm run test:integration`** builds + boots the stack in Docker for the HTTP
-  integration suite.
+- `act` runs `eslint .` without the host-memory limit you can hit with
+  `npm run lint` directly. First run pulls the ~1 GB runner image.
+- For a fast inner loop, `npm run test` / `npm run typecheck` run natively too.
+- `npm run test:integration` boots the stack in Docker for the HTTP integration
+  suite — run it **natively, not under `act`** (the job nests docker-compose,
+  which act can't do; it publishes ports to the host, not into act's container).
 
 `act` does **not** stand in for GitHub-hosted CodeQL, the Docker build/publish,
 Scorecard, or dependency-review (those need GitHub runners / tokens) — they
-remain the authority on the PR. If the gate above passes, CI's JS-action jobs
-will too.
+remain the authority on the PR.
 
 ## Commonly-needed commands
 
