@@ -146,7 +146,7 @@ describe("TXT validator", () => {
     expect(r.issues.some((i) => i.message.includes("255"))).toBe(true);
   });
 
-  it("escapes \\ before \" when auto-quoting bare text (RFC 1035 § 5.1 escape order)", () => {
+  it('escapes \\ before " when auto-quoting bare text (RFC 1035 § 5.1 escape order)', () => {
     // Regression for issue #2: the old code escaped `"` first, then `\`,
     // so the backslash inserted by the quote pass got doubled. The value
     // `a "b" c\d` must round-trip through extractQuotedStrings back to the
