@@ -87,7 +87,20 @@ export function decrypt(envelope: string, usage = "default"): string {
   const ciphertext = Buffer.from(ctB64, "base64url");
   const authTag = Buffer.from(tagB64, "base64url");
 
-  const decipher = createDecipheriv("aes-256-gcm", key, iv);
+  // Node's GCM decipher accepts any auth tag length ≥ 4 bytes by default,
+  // which would silently downgrade authentication strength from 2^-128 to
+  // 2^-32 for a truncated tag. Reject anything other than the standard
+  // 16-byte (128-bit) tag we write on encrypt, and pass authTagLength as
+  // defence-in-depth so Node never sees a shorter tag even if a caller
+  // somehow bypasses this check.
+  if (iv.length !== 12) {
+    throw new Error("Encryption envelope has invalid IV length.");
+  }
+  if (authTag.length !== 16) {
+    throw new Error("Encryption envelope has invalid auth tag length.");
+  }
+
+  const decipher = createDecipheriv("aes-256-gcm", key, iv, { authTagLength: 16 });
   decipher.setAuthTag(authTag);
   const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
   return plaintext.toString("utf8");
