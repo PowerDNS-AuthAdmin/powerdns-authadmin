@@ -29,7 +29,10 @@ import { errorResponse } from "@/lib/http/error-response";
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const { user } = await requireUser();
+    // Self-remediation endpoint: a `mustChangePassword`-flagged operator must
+    // be able to change their password, so skip the compliance gate here —
+    // otherwise the gate would block the action that clears the flag.
+    const { user } = await requireUser({ skipComplianceGate: true });
     await requireCsrf(request);
 
     let input;
