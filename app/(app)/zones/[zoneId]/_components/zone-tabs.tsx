@@ -41,8 +41,8 @@ export function ZoneTabs({
   const syncHref = `/zones/${zoneIdEncoded}?${qs}&tab=sync`;
 
   return (
-    <div className="border-b border-[color:var(--color-border)]">
-      <nav className="-mb-px flex gap-6 text-sm">
+    <div className="overflow-x-auto border-b border-[color:var(--color-border)]">
+      <nav className="-mb-px flex w-max gap-6 text-sm whitespace-nowrap">
         <TabLink href={detailHref} active={active === "records"}>
           Records
         </TabLink>
@@ -59,7 +59,7 @@ export function ZoneTabs({
         ) : null}
         {canReadMetadata ? (
           <TabLink href={metadataHref} active={active === "metadata"}>
-            Metadata
+            Metadata &amp; TSIG
           </TabLink>
         ) : null}
         <TabLink href={syncHref} active={active === "sync"}>

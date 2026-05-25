@@ -87,16 +87,11 @@
  * `.dark` class lets the toggle win.
  * ------------------------------------------------------------------------- */
 html {
-  /* Bumps every rem-based size (text, padding, gap, border-radius, …)
-   * by 20%. Equivalent to having the browser zoomed to 120% on a
-   * default-16px-root setup, but baked into the page so it lands the
-   * same regardless of the operator's browser zoom. Tables already
-   * use overflow-x-auto inside DataTable, so the wider content stays
-   * scrollable on narrow viewports.
-   *
-   * Multiplicative (not absolute): if a user has bumped their browser
-   * font-size for accessibility, our 120% applies on top of theirs. */
-  font-size: 120%;
+  /* Root stays at the browser default (typically 16px) so rem-based spacing,
+   * gaps, and radii are true to the design. The comfortably-large *text* scale
+   * lives in the Tailwind `fontSize` theme (each utility ≈1.2× default),
+   * replacing the former blanket `font-size: 120%` here — which also inflated
+   * spacing and made the UI feel zoomed, especially on mobile. */
   background-color: var(--color-bg);
   color: var(--color-fg);
   color-scheme: light;

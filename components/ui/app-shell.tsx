@@ -1,0 +1,91 @@
+"use client";
+
+/**
+ * components/ui/app-shell.tsx
+ *
+ * Responsive chrome for the authenticated app. On `md+` the sidebar is a static
+ * 16rem column (the classic desktop layout); below `md` it becomes an off-canvas
+ * drawer toggled by the hamburger in the top bar, with a tap-to-dismiss backdrop.
+ *
+ * The server layout owns auth + builds the sidebar/header content (RBAC-gated),
+ * then hands it here as props — this component only manages the mobile drawer
+ * state, so the data-fetching stays on the server.
+ */
+
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { Menu, X } from "lucide-react";
+
+export function AppShell({
+  sidebar,
+  headerControls,
+  children,
+}: {
+  sidebar: React.ReactNode;
+  headerControls: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Close the drawer after navigating (tapping a nav link changes the route).
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // Esc closes the drawer; only matters while it's open on mobile.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  return (
+    <div className="flex h-dvh overflow-hidden">
+      {/* Backdrop — mobile only, fades in with the drawer. */}
+      <div
+        aria-hidden
+        onClick={() => setOpen(false)}
+        className={`fixed inset-0 z-30 bg-black/50 transition-opacity duration-200 md:hidden ${
+          open ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      />
+
+      {/* Sidebar — off-canvas drawer on mobile, static column on md+. */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          aria-label="Close navigation"
+          className="absolute top-3 right-2 z-10 rounded-md p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg)] hover:text-[color:var(--color-fg)] md:hidden"
+        >
+          <X className="h-5 w-5" aria-hidden />
+        </button>
+        {sidebar}
+      </aside>
+
+      {/* Main column. */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Open navigation"
+            aria-expanded={open}
+            className="-ml-1 rounded-md p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-subtle)] hover:text-[color:var(--color-fg)] md:hidden"
+          >
+            <Menu className="h-5 w-5" aria-hidden />
+          </button>
+          <div className="ml-auto flex items-center gap-3">{headerControls}</div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">{children}</main>
+      </div>
+    </div>
+  );
+}

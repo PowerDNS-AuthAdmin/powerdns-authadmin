@@ -66,7 +66,7 @@ export default async function UsersListPage({
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
@@ -74,7 +74,7 @@ export default async function UsersListPage({
             {filter ? ` matching "${FILTER_LABELS[filter]}"` : " — newest first"}.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canBulkRevoke ? <RevokeAllSessionsButton /> : null}
           {canCreate ? (
             <Link

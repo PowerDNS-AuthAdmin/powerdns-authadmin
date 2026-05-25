@@ -23,6 +23,7 @@ import { UserMenu } from "@/components/ui/user-menu";
 import { HealthBell } from "@/components/domain/health-bell";
 import { listActiveAdvisories } from "@/lib/db/repositories/backend-advisories";
 import { BrandMark } from "@/components/ui/brandmark";
+import { AppShell } from "@/components/ui/app-shell";
 import { DialogProvider } from "@/components/ui/dialog";
 import { FlashListener } from "@/components/ui/flash-listener";
 import { NavLink } from "@/components/ui/nav-link";
@@ -126,87 +127,83 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const hasAccess = canReadUsers || canReadRoles || canReadTeams || canReadOidc;
   const hasSystem = canReadSettings || canReadAudit;
 
+  const sidebar = (
+    <>
+      <div className="flex h-14 shrink-0 items-center overflow-hidden border-b border-[color:var(--color-border)] px-4">
+        <Link
+          href="/dashboard"
+          aria-label={`${appSettings.siteName} home`}
+          className="flex w-full items-center justify-center overflow-hidden"
+        >
+          <BrandMark
+            siteName={appSettings.siteName}
+            brandLogoUrl={appSettings.brandLogoUrl}
+            width={224}
+            maxHeight={40}
+            priority
+          />
+        </Link>
+      </div>
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3 text-sm">
+        <NavLink href="/dashboard" label="Dashboard" />
+        {canReadZones ? <NavLink href="/zones" label="Zones" /> : null}
+
+        {hasInfrastructure ? (
+          <NavSection label="Infrastructure">
+            {canReadServers ? (
+              <NavLink nested href="/admin/servers" label="PowerDNS servers" />
+            ) : null}
+            {canReadServers ? <NavLink nested href="/admin/pdns-clusters" label="Groups" /> : null}
+            {canReadTsig ? <NavLink nested href="/admin/tsig-keys" label="TSIG keys" /> : null}
+            {canManageAutoprimary ? (
+              <NavLink nested href="/admin/autoprimaries" label="Autoprimaries" />
+            ) : null}
+            {canUseTemplates ? (
+              <NavLink nested href="/admin/zone-templates" label="Zone templates" />
+            ) : null}
+          </NavSection>
+        ) : null}
+
+        {hasAccess ? (
+          <NavSection label="Access">
+            {canReadUsers ? <NavLink nested href="/admin/users" label="Users" /> : null}
+            {canReadTeams ? <NavLink nested href="/admin/teams" label="Teams" /> : null}
+            {canReadRoles ? <NavLink nested href="/admin/roles" label="Roles" /> : null}
+            {canReadOidc ? (
+              <NavLink nested href="/admin/oidc-providers" label="OIDC providers" />
+            ) : null}
+          </NavSection>
+        ) : null}
+
+        {hasSystem ? (
+          <NavSection label="System">
+            {canReadSettings ? <NavLink nested href="/admin/settings" label="Settings" /> : null}
+            {canReadAudit ? <NavLink nested href="/admin/audit" label="Audit log" /> : null}
+            {canReadAudit ? (
+              <NavLink nested href="/admin/pdns-requests" label="Request log" />
+            ) : null}
+          </NavSection>
+        ) : null}
+      </nav>
+      <SidebarFooter />
+    </>
+  );
+
+  const headerControls = (
+    <>
+      {canReadServers ? <HealthBell advisories={advisories} /> : null}
+      <ThemeToggle />
+      <UserMenu email={current.user.email} name={current.user.name} />
+    </>
+  );
+
   return (
     <DialogProvider>
       <RealtimeProvider>
         <FlashListener />
-        {/* Fixed to the viewport height so the sidebar (and its version
-            footer) is always fully visible; only the main <section> scrolls. */}
-        <div className="grid h-dvh grid-cols-[16rem_1fr] grid-rows-[3.5rem_1fr] overflow-hidden">
-          <aside className="row-span-2 flex flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)]">
-            <div className="flex h-14 items-center overflow-hidden border-b border-[color:var(--color-border)] px-4">
-              <Link
-                href="/dashboard"
-                aria-label={`${appSettings.siteName} home`}
-                className="flex w-full items-center justify-center overflow-hidden"
-              >
-                <BrandMark
-                  siteName={appSettings.siteName}
-                  brandLogoUrl={appSettings.brandLogoUrl}
-                  width={224}
-                  maxHeight={40}
-                  priority
-                />
-              </Link>
-            </div>
-            <nav className="flex-1 space-y-1 overflow-y-auto p-3 text-sm">
-              <NavLink href="/dashboard" label="Dashboard" />
-              {canReadZones ? <NavLink href="/zones" label="Zones" /> : null}
-
-              {hasInfrastructure ? (
-                <NavSection label="Infrastructure">
-                  {canReadServers ? (
-                    <NavLink nested href="/admin/servers" label="PowerDNS servers" />
-                  ) : null}
-                  {canReadServers ? (
-                    <NavLink nested href="/admin/pdns-clusters" label="Groups" />
-                  ) : null}
-                  {canReadTsig ? (
-                    <NavLink nested href="/admin/tsig-keys" label="TSIG keys" />
-                  ) : null}
-                  {canManageAutoprimary ? (
-                    <NavLink nested href="/admin/autoprimaries" label="Autoprimaries" />
-                  ) : null}
-                  {canUseTemplates ? (
-                    <NavLink nested href="/admin/zone-templates" label="Zone templates" />
-                  ) : null}
-                </NavSection>
-              ) : null}
-
-              {hasAccess ? (
-                <NavSection label="Access">
-                  {canReadUsers ? <NavLink nested href="/admin/users" label="Users" /> : null}
-                  {canReadTeams ? <NavLink nested href="/admin/teams" label="Teams" /> : null}
-                  {canReadRoles ? <NavLink nested href="/admin/roles" label="Roles" /> : null}
-                  {canReadOidc ? (
-                    <NavLink nested href="/admin/oidc-providers" label="OIDC providers" />
-                  ) : null}
-                </NavSection>
-              ) : null}
-
-              {hasSystem ? (
-                <NavSection label="System">
-                  {canReadSettings ? (
-                    <NavLink nested href="/admin/settings" label="Settings" />
-                  ) : null}
-                  {canReadAudit ? <NavLink nested href="/admin/audit" label="Audit log" /> : null}
-                  {canReadAudit ? (
-                    <NavLink nested href="/admin/pdns-requests" label="Request log" />
-                  ) : null}
-                </NavSection>
-              ) : null}
-            </nav>
-            <SidebarFooter />
-          </aside>
-
-          <header className="flex h-14 items-center justify-end gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4">
-            {canReadServers ? <HealthBell advisories={advisories} /> : null}
-            <ThemeToggle />
-            <UserMenu email={current.user.email} name={current.user.name} />
-          </header>
-
-          <section className="overflow-y-auto p-8">{children}</section>
-        </div>
+        <AppShell sidebar={sidebar} headerControls={headerControls}>
+          {children}
+        </AppShell>
       </RealtimeProvider>
     </DialogProvider>
   );

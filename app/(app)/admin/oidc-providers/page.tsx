@@ -56,7 +56,7 @@ export default async function OidcProvidersPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">OIDC providers</h1>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
@@ -68,7 +68,7 @@ export default async function OidcProvidersPage() {
             .
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {providers.length > 0 ? <RefreshAllButton /> : null}
           {canManage ? (
             <Link

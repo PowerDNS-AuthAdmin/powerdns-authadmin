@@ -24,7 +24,7 @@ export default async function TeamsListPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Teams</h1>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">

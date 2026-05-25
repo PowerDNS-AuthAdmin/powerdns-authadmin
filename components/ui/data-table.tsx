@@ -310,6 +310,17 @@ export function DataTable<TData>({
   const showingFrom = rows.length === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1;
   const showingTo = pagination.pageIndex * pagination.pageSize + rows.length;
 
+  // Leaf header cells, used to label fields in the mobile card view. A column
+  // with no header text (action columns) gets no label — its cell renders
+  // full-width at the foot of the card instead.
+  const leafHeaders = table.getHeaderGroups().at(-1)?.headers ?? [];
+  const headerLabel = (columnId: string): React.ReactNode | null => {
+    const h = leafHeaders.find((hdr) => hdr.column.id === columnId);
+    const def = h?.column.columnDef.header;
+    if (!h || def == null || def === "") return null;
+    return flexRender(def, h.getContext());
+  };
+
   return (
     <div className={`space-y-3 ${className}`}>
       {!hideSearch ? (
@@ -338,7 +349,61 @@ export function DataTable<TData>({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)]">
+      {/* Mobile (< md): a card per row. Avoids horizontal scrolling — each
+          column becomes a labelled field, the first cell is the card title. */}
+      <div className="space-y-3 md:hidden">
+        {rows.length === 0 ? (
+          <div className="rounded-lg border border-[color:var(--color-border)] px-4 py-10 text-center text-sm text-[color:var(--color-fg-muted)]">
+            {totalCount === 0 ? noDataMessage : emptyMessage}
+          </div>
+        ) : (
+          rows.map((row) => {
+            const cells = row.getVisibleCells();
+            const detail = renderRowDetail?.(row.original);
+            return (
+              <div
+                key={row.id}
+                className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-4"
+              >
+                {cells.map((cell, i) => {
+                  const label = headerLabel(cell.column.id);
+                  const content = flexRender(cell.column.columnDef.cell, cell.getContext());
+                  // First cell → card title. Labelled cells → label/value row.
+                  // Unlabelled cells (actions) → full-width.
+                  if (i === 0) {
+                    return (
+                      <div key={cell.id} className="mb-2 text-base font-medium break-words">
+                        {content}
+                      </div>
+                    );
+                  }
+                  if (label == null) {
+                    return (
+                      <div key={cell.id} className="mt-3">
+                        {content}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div
+                      key={cell.id}
+                      className="flex justify-between gap-3 border-t border-[color:var(--color-border)] py-1.5 text-sm first:border-t-0"
+                    >
+                      <span className="shrink-0 text-[color:var(--color-fg-muted)]">{label}</span>
+                      <span className="min-w-0 text-right break-words">{content}</span>
+                    </div>
+                  );
+                })}
+                {detail != null ? <div className="mt-3">{detail}</div> : null}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop (md+): the dense table. overflow-x-auto only kicks in when a
+          table genuinely can't fit — the common case stays scroll-free. */}
+      <div className="hidden overflow-hidden rounded-lg border border-[color:var(--color-border)] md:block">
         <div className="overflow-x-auto">
           <table className={`w-full text-sm ${layout === "fixed" ? "table-fixed" : ""}`}>
             <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
