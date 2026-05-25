@@ -39,7 +39,9 @@ jobs:
           persist-credentials: false
 
       - name: Run analysis
-        uses: ossf/scorecard-action@v2
+        # Pin to a real release tag — ossf/scorecard-action publishes no
+        # floating `v2` major tag, so `@v2` fails to resolve at runtime.
+        uses: ossf/scorecard-action@v2.4.3
         with:
           results_file: results.sarif
           results_format: sarif
