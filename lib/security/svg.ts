@@ -9,38 +9,22 @@
  * for inline `data:` and hosted `https://` SVGs. So an inline SVG is no more
  * dangerous than a hosted one. This sanitizer is **defense-in-depth** for any
  * future code path that might render the stored value inline (e.g.
- * `dangerouslySetInnerHTML`) rather than through `<img>` — it strips the
- * script-capable constructs so the value at rest can never be a live payload.
+ * `dangerouslySetInnerHTML`) rather than through `<img>`.
+ *
+ * Uses DOMPurify (a real parser, not a regex filter) — it drops `<script>`,
+ * `<foreignObject>`, `on*` handlers, and `javascript:` refs reliably, where a
+ * regex tag-filter would be bypassable.
  */
 
 import "server-only";
+import DOMPurify from "isomorphic-dompurify";
 
 /** `data:image/svg+xml[;params],<body>` — capture params + body. */
 const SVG_DATA_URI = /^data:image\/svg\+xml(?<params>;[^,]*)?,(?<body>[\s\S]*)$/i;
 
-/**
- * Remove script-capable constructs from an SVG document: `<script>` and
- * `<foreignObject>` elements (and their content), `on*` event-handler
- * attributes, and `javascript:`/external/protocol-relative refs in
- * `href`/`xlink:href` (rewritten to a harmless `#`). Pure string transform.
- */
+/** Parse + sanitize an SVG document, returning safe SVG markup. */
 export function sanitizeSvg(svg: string): string {
-  return (
-    svg
-      // <script>…</script> and self-closing <script/>
-      .replace(/<script[\s\S]*?<\/script\s*>/gi, "")
-      .replace(/<script\b[^>]*\/>/gi, "")
-      // <foreignObject>…</foreignObject> can host arbitrary HTML/JS
-      .replace(/<foreignObject[\s\S]*?<\/foreignObject\s*>/gi, "")
-      .replace(/<foreignObject\b[^>]*\/>/gi, "")
-      // on* event-handler attributes (double-quoted, single-quoted, unquoted)
-      .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "")
-      .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "")
-      .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, "")
-      // javascript:/external/protocol-relative refs in (xlink:)href → "#"
-      .replace(/\b((?:xlink:)?href)\s*=\s*"\s*(?:javascript:|https?:|\/\/)[^"]*"/gi, '$1="#"')
-      .replace(/\b((?:xlink:)?href)\s*=\s*'\s*(?:javascript:|https?:|\/\/)[^']*'/gi, "$1='#'")
-  );
+  return DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true } });
 }
 
 /**
