@@ -8,13 +8,38 @@ All notable changes to this project are documented here. The format is based on
 
 ### Security
 
-- **OIDC `requireEmailVerified` default changed to `true` (GHSA-24hf-rxww-95cf).** The
+Coordinated batch resolving six advisories (GHSA-gjg4-58c5-2qg3, GHSA-wf29-rmhc-rqc9,
+GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29r8).
+
+- **Zone-grant route now enforces the permission ceiling (GHSA-gjg4-58c5-2qg3, high).** The
+  per-user zone-grant route assigned a role's permissions without checking them against the
+  granting admin's own authority, so an admin could grant — through a zone scope — permissions
+  they didn't hold globally (privilege escalation). It now applies the same
+  `permissionsExceedingGrant` ceiling as role assignment.
+- **OIDC group→role mappings now enforce the permission ceiling (GHSA-wf29-rmhc-rqc9, high).** An
+  `oidc.manage` holder could map an IdP group to a role granting permissions they lacked, then
+  escalate by signing in through that group. Mappings are rejected at save time unless every
+  mapped role is within the actor's global permission ceiling.
+- **OIDC `requireEmailVerified` default changed to `true` (GHSA-24hf-rxww-95cf, high).** The
   `createOidcProviderSchema` previously defaulted `requireEmailVerified` to `false`, shipping
   new DB-configured OIDC providers with the account-takeover guard disabled. The default is now
   `true`, matching the documented intent and the env-provider behaviour. **Existing DB rows
   keep their stored value** — operators should audit any provider where `requireEmailVerified`
   is `false` and confirm the IdP does not emit the `email_verified` claim before retaining
   that setting.
+- **AES-GCM authentication-tag length enforced on decrypt (GHSA-phv2-wjmm-pqqq, medium).**
+  `decrypt()` accepted a truncated GCM auth tag (Node permits tags ≥ 4 bytes by default),
+  silently downgrading integrity strength. It now requires the standard 12-byte IV and 16-byte
+  tag and passes `authTagLength` as defence-in-depth.
+- **Failed-login counter increment made atomic (GHSA-frpq-xgm7-574x, medium).** The lockout
+  counter used a read-modify-write, so concurrent failed logins could lose increments and exceed
+  the lockout threshold. The increment is now a single atomic
+  `failed_login_count = failed_login_count + 1 … RETURNING` statement.
+- **Last-Super-Admin guard hardened (GHSA-86v6-w5p9-29r8, medium).** The guard counted raw
+  assignment rows (including disabled users and duplicate rows), so the last _usable_ global
+  Super Admin could be disabled or deleted — locking the install out of its own administration.
+  It now counts distinct **enabled** users and also covers the user disable + delete routes
+  (previously only assignment removal was guarded).
 
 ## [1.1.0] — 2026-05-24
 
