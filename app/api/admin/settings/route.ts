@@ -15,6 +15,7 @@ import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { sanitizeBrandLogoValue } from "@/lib/security/svg";
 import { db } from "@/lib/db";
 import { deleteSetting, listAllSettings, upsertSetting } from "@/lib/db/repositories/settings";
 import {
@@ -59,6 +60,12 @@ export async function PATCH(request: Request): Promise<Response> {
         });
       }
       throw err;
+    }
+
+    // Strip script-capable constructs from an inline SVG logo before it's
+    // persisted (issue #30). No-op for raster data: URIs and http(s) URLs.
+    if (typeof input.brand_logo_url === "string") {
+      input.brand_logo_url = sanitizeBrandLogoValue(input.brand_logo_url);
     }
 
     const hdrs = await headers();
