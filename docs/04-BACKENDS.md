@@ -46,7 +46,10 @@ client.
 ## The SSRF guard
 
 The app refuses backend URLs that could be used to reach internal services, and
-**re-resolves the hostname before every request** as a DNS-rebinding defense.
+**re-resolves the hostname before every request** as a DNS-rebinding defense. The
+validated address is then **pinned into the connection** — the request reaches the
+exact IP the guard checked, so a hostile resolver can't hand a safe IP to the guard
+and a private one to the HTTP client between the two lookups.
 
 - **Link-local addresses are always blocked**, including the
   `169.254.169.254` cloud-metadata endpoint — no flag overrides this.
