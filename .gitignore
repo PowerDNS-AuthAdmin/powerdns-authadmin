@@ -1,5 +1,5 @@
 # Node / pnpm / yarn
-node_modules/
+node_modules
 .pnpm-store/
 .yarn/cache
 .yarn/install-state.gz

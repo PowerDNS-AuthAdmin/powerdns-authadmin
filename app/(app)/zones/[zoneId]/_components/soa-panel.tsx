@@ -369,7 +369,9 @@ function emailToRname(email: string): string {
   if (at === -1) {
     return addTrailingDot(trimmed);
   }
-  const local = trimmed.slice(0, at).replace(/\./g, "\\.");
+  // DNS master-file escaping: double a literal `\` before escaping `.` to `\.`,
+  // otherwise an unescaped backslash in the local-part corrupts the rname.
+  const local = trimmed.slice(0, at).replace(/\\/g, "\\\\").replace(/\./g, "\\.");
   const domain = stripTrailingDot(trimmed.slice(at + 1));
   return `${local}.${domain}.`;
 }

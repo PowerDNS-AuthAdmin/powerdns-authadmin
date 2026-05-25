@@ -43,6 +43,9 @@ export default defineConfig({
       "dist",
       "build",
       "coverage",
+      // Agent worktrees live here (git worktree under .claude/worktrees); their
+      // copies of the test files must not be collected into the main run.
+      ".claude/**",
       "tests/integration/**",
       "tests/e2e/**",
     ],

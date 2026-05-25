@@ -212,7 +212,13 @@ export async function POST(request: Request): Promise<Response> {
     if (!isSecondary && normalizedNs.length > 0) {
       const primaryNs = normalizedNs[0]!;
       const responsibleEmail = input.responsibleEmail ?? `hostmaster@${lower.replace(/\.$/, "")}`;
-      const localPart = responsibleEmail.split("@")[0]!.replace(/\./g, "\\.");
+      // DNS master-file escaping for the SOA rname local-part: a literal `\`
+      // must be doubled before `.` is escaped to `\.`, else an unescaped
+      // backslash corrupts the encoding.
+      const localPart = responsibleEmail
+        .split("@")[0]!
+        .replace(/\\/g, "\\\\")
+        .replace(/\./g, "\\.");
       const domain = responsibleEmail.split("@")[1]!;
       const rname = `${localPart}.${domain.replace(/\.$/, "")}.`;
       const soa = {

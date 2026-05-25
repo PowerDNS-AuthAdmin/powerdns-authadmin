@@ -52,7 +52,11 @@ function serializeParam(p: SvcbParam): string {
   // whitespace (or a literal `"`). Comma is a value separator inside
   // comma-list values (alpn, ipv4hint, …) and stays unquoted.
   const needsQuote = /[\s"]/.test(p.value);
-  const v = needsQuote ? `"${p.value.replace(/"/g, '\\"')}"` : p.value;
+  // Escape `\` before `"` (RFC 9460 char-string rules): doing it the other way
+  // doubles the backslash the quote pass just inserted, and an unescaped `\`
+  // in the value would corrupt the serialized param.
+  const escaped = p.value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const v = needsQuote ? `"${escaped}"` : p.value;
   return `${p.key}=${v}`;
 }
 
