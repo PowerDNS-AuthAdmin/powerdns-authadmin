@@ -45,6 +45,32 @@ export const REDACT_FIELDS: ReadonlySet<string> = new Set([
 export const REDACTED = "[Redacted]";
 
 /**
+ * Substring backstop for secret-shaped field names the explicit list misses.
+ * Matching is on the lowercased key, so this catches both camelCase and
+ * snake_case spellings (`oidcIdToken` / `oidc_id_token`, `apiKeyEncrypted` /
+ * `api_key_encrypted`, `clientSecretEncrypted`, …) without enumerating every
+ * variant. Over-redacting an audit row's UI label is far cheaper than ever
+ * persisting a secret, so this errs broad on purpose.
+ */
+const REDACT_SUBSTRINGS: readonly string[] = [
+  "secret",
+  "token",
+  "password",
+  "apikey",
+  "api_key",
+  "encrypted",
+  "credential",
+  "hash",
+];
+
+/** True when a field name is known-secret-shaped and its value must be hidden. */
+function isSecretFieldName(key: string): boolean {
+  if (REDACT_FIELDS.has(key)) return true;
+  const lower = key.toLowerCase();
+  return REDACT_SUBSTRINGS.some((needle) => lower.includes(needle));
+}
+
+/**
  * Walk a JSON-able object and replace values of known-secret-named fields
  * with `[Redacted]`. Recursive but bounded: stops at `MAX_DEPTH` to avoid
  * runaway on cyclic structures. Returns a fresh object — does not mutate.
@@ -59,7 +85,7 @@ export function redactSnapshot(value: unknown, depth = 0): unknown {
   }
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value)) {
-    if (REDACT_FIELDS.has(k)) {
+    if (isSecretFieldName(k)) {
       out[k] = REDACTED;
     } else {
       out[k] = redactSnapshot(v, depth + 1);

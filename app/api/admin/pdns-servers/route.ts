@@ -21,6 +21,7 @@ import { ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 import { logger } from "@/lib/logger";
 import { redact } from "@/lib/errors/redact";
+import { db } from "@/lib/db";
 import {
   findPdnsServerBySlug,
   insertPdnsServer,
@@ -82,36 +83,49 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const apiKeyEncrypted = encrypt(input.apiKey, "pdns-api-key");
-    const row = await insertPdnsServer({
-      slug: input.slug,
-      name: input.name,
-      description: input.description && input.description !== "" ? input.description : null,
-      baseUrl: input.baseUrl,
-      serverId: input.serverId,
-      apiKeyEncrypted,
-      isDefault: input.isDefault,
-      clusterId: input.clusterId ?? null,
-      advertisedAddresses:
-        input.advertisedAddresses && input.advertisedAddresses.length > 0
-          ? input.advertisedAddresses
-          : null,
-      createdBy: user.id,
-    });
-
     const hdrs = await headers();
-    await appendAudit({
-      actor: { type: "user", id: user.id },
-      action: "server.create",
-      resource: { type: "pdns_server", id: row.id },
-      after: {
-        slug: row.slug,
-        name: row.name,
-        description: row.description,
-        baseUrl: row.baseUrl,
-        serverId: row.serverId,
-        isDefault: row.isDefault,
-      },
-      request: getRequestContext(hdrs),
+    // One transaction: the single-default clearing, the insert, and the audit
+    // write commit together or not at all (atomic mutation + audit, ADR audit
+    // tx pattern). Failing the audit no longer leaves an unaudited server row.
+    const row = await db.transaction(async (tx) => {
+      const created = await insertPdnsServer(
+        {
+          slug: input.slug,
+          name: input.name,
+          description: input.description && input.description !== "" ? input.description : null,
+          baseUrl: input.baseUrl,
+          serverId: input.serverId,
+          apiKeyEncrypted,
+          isDefault: input.isDefault,
+          clusterId: input.clusterId ?? null,
+          advertisedAddresses:
+            input.advertisedAddresses && input.advertisedAddresses.length > 0
+              ? input.advertisedAddresses
+              : null,
+          createdBy: user.id,
+        },
+        tx,
+      );
+
+      await appendAudit(
+        {
+          actor: { type: "user", id: user.id },
+          action: "server.create",
+          resource: { type: "pdns_server", id: created.id },
+          after: {
+            slug: created.slug,
+            name: created.name,
+            description: created.description,
+            baseUrl: created.baseUrl,
+            serverId: created.serverId,
+            isDefault: created.isDefault,
+          },
+          request: getRequestContext(hdrs),
+        },
+        tx,
+      );
+
+      return created;
     });
 
     // Best-effort first health probe so the list view shows real status +
