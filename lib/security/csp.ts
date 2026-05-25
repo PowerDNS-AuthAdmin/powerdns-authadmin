@@ -2,7 +2,7 @@
  * lib/security/csp.ts
  *
  * Builds the Content-Security-Policy header value. Pure (no request/runtime
- * deps) so it can be unit-tested in isolation; `middleware.ts` calls it with a
+ * deps) so it can be unit-tested in isolation; `proxy.ts` calls it with a
  * fresh per-request nonce. See ADR-0006 for the nonce + `'strict-dynamic'`
  * rationale.
  *

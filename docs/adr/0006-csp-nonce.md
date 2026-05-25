@@ -21,7 +21,8 @@ The options are:
 
 ## Decision
 
-We use option 3: a **per-request nonce** generated in `middleware.ts`, propagated to Next.js'
+We use option 3: a **per-request nonce** generated in `proxy.ts` (the Next 16 proxy convention —
+formerly `middleware.ts`), propagated to Next.js'
 inline scripts via the `x-nonce` request header, with `'strict-dynamic'` so we don't have to list
 every chunk URL.
 
@@ -36,12 +37,12 @@ every chunk URL.
 
 ## Trade-offs (the honest part)
 
-- **Every response goes through middleware.** This is a tiny per-request cost (~1ms for nonce
+- **Every response goes through the proxy.** This is a tiny per-request cost (~1ms for nonce
   generation), but it does mean CDN cacheability is reduced. Acceptable for an admin app; would
   be reconsidered for a public-facing site.
-- **`crypto.getRandomValues` works in the Edge runtime,** which is where Next middleware runs.
-  If we ever move middleware to Node runtime we need to verify the nonce generator still uses a
-  CSPRNG.
+- **`crypto.getRandomValues` works in both the Edge and Node runtimes,** so the nonce generator
+  is correct wherever the proxy runs. `crypto.randomUUID()` (request id) and `btoa` are likewise
+  available in both.
 - **CSS still uses `'unsafe-inline'`** for style-src because Tailwind injects critical CSS at
   render time. Not load-bearing for security since style injection has a much smaller attack
   surface than script injection.
@@ -57,6 +58,6 @@ every chunk URL.
 
 ## References
 
-- `middleware.ts` (the implementation)
+- `proxy.ts` (the implementation; renamed from `middleware.ts` in the Next 16 upgrade)
 - [Next.js CSP guide](https://nextjs.org/docs/app/building-your-application/configuring/content-security-policy)
 - [MDN: CSP nonce-source](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)

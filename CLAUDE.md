@@ -88,7 +88,7 @@ lib/                  domain code, three-layer architecture enforced via ESLint
   logger.ts           Pino structured logging
   client-ip.ts        proxy-aware client IP
 
-middleware.ts         per-request CSP nonce + security headers
+proxy.ts              per-request CSP nonce + security headers (Next 16 proxy convention)
 docker/               entrypoint that runs migrations then boots the server
 drizzle/              generated PG migrations
 drizzle-sqlite/       generated SQLite migrations

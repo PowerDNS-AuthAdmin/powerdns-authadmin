@@ -1,10 +1,11 @@
 /**
- * middleware.ts
+ * proxy.ts
  *
- * Next.js Edge middleware that runs on every request. It applies the security
- * headers — most importantly a per-request CSP nonce — generates and propagates
- * a request id for log + audit correlation, and forwards the nonce and request
- * pathname to server components via request headers.
+ * Next.js Proxy — the Next 16 successor to the `middleware` file convention —
+ * runs on every request. It applies the security headers — most importantly a
+ * per-request CSP nonce — generates and propagates a request id for log + audit
+ * correlation, and forwards the nonce and request pathname to server components
+ * via request headers.
  *
  * Why a per-request nonce instead of static CSP: Next.js streams inline scripts
  * for hydration data. A static `script-src 'self'` CSP would block them; the only
@@ -35,12 +36,13 @@ function isPlausibleRequestId(value: string): boolean {
 }
 
 /**
- * The middleware itself.
+ * The proxy itself.
  *
- * `export default` is required by Next.js — this is one of the small set of files
- * exempt from our "no default exports" rule (see eslint.config.mjs).
+ * Next 16 accepts the proxy as a default export or a named `proxy` export; we
+ * use the default export, one of the small set of files exempt from our
+ * "no default exports" rule (see eslint.config.mjs).
  */
-export default function middleware(request: NextRequest): NextResponse {
+export default function proxy(request: NextRequest): NextResponse {
   const isDev = process.env.NODE_ENV === "development";
   const turnstileEnabled = Boolean(process.env["TURNSTILE_SITE_KEY"]);
   const nonce = generateNonce();
@@ -127,7 +129,7 @@ export default function middleware(request: NextRequest): NextResponse {
   return response;
 }
 
-// Skip the middleware for static assets and Next's internal routes.
+// Skip the proxy for static assets and Next's internal routes.
 export const config = {
   matcher: [
     /*
@@ -137,7 +139,7 @@ export const config = {
      *   favicon.ico      — static asset
      *   robots.txt       — static
      *   sitemap.xml      — static
-     * Health endpoints DO run through the middleware — we want their responses to
+     * Health endpoints DO run through the proxy — we want their responses to
      * carry the security headers too.
      */
     "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",

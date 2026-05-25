@@ -31,7 +31,7 @@
  *     arbitrarily large log line.
  *
  * Wired into CSP via the `report-uri` + `report-to` directives in
- * `middleware.ts`.
+ * `proxy.ts`.
  */
 
 import { logger } from "@/lib/logger";

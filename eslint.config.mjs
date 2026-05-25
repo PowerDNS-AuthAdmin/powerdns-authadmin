@@ -222,7 +222,7 @@ export default tseslint.config(
       "app/**/sitemap.ts",
       "app/**/robots.ts",
       "app/**/manifest.ts",
-      "middleware.ts",
+      "proxy.ts",
       "instrumentation.ts",
       "next.config.ts",
       "drizzle.config.ts",
@@ -255,7 +255,7 @@ export default tseslint.config(
   // no-img-element, no-html-link-for-pages, no-sync-scripts, etc. Also
   // satisfies the existing `@next/next/no-img-element` disable directives.
   {
-    files: ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "middleware.ts", "instrumentation.ts"],
+    files: ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "proxy.ts", "instrumentation.ts"],
     plugins: { "@next/next": nextPlugin },
     rules: {
       ...nextPlugin.configs.recommended.rules,
