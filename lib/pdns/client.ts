@@ -100,7 +100,7 @@ export class PdnsClient {
   public async serverInfo(): Promise<PdnsServerInfo> {
     const body = await this.request<unknown>({
       method: "GET",
-      path: `/servers/${this.serverId}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}`,
       op: "server.info",
     });
     return pdnsServerInfoSchema.parse(body);
@@ -115,7 +115,7 @@ export class PdnsClient {
   public async statistics(): Promise<PdnsStatisticsEntry[]> {
     const body = await this.request<unknown>({
       method: "GET",
-      path: `/servers/${this.serverId}/statistics`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/statistics`,
       op: "server.statistics",
     });
     return pdnsStatisticsSchema.parse(body);
@@ -132,7 +132,7 @@ export class PdnsClient {
   public async getConfig(): Promise<PdnsConfigSetting[]> {
     const body = await this.request<unknown>({
       method: "GET",
-      path: `/servers/${this.serverId}/config`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/config`,
       op: "server.config",
     });
     return pdnsConfigSchema.parse(body);
@@ -172,7 +172,7 @@ export class PdnsClient {
   public async listZones(): Promise<PdnsZoneSummary[]> {
     const body = await this.request<unknown>({
       method: "GET",
-      path: `/servers/${this.serverId}/zones`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones`,
       op: "zones.list",
     });
     return pdnsZoneListSchema.parse(body);
@@ -183,7 +183,7 @@ export class PdnsClient {
     const id = normalizeZoneId(zoneName);
     const body = await this.request<unknown>({
       method: "GET",
-      path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}`,
       op: "zones.get",
     });
     return pdnsZoneDetailSchema.parse(body);
@@ -230,7 +230,7 @@ export class PdnsClient {
 
     const raw = await this.request<unknown>({
       method: "POST",
-      path: `/servers/${this.serverId}/zones`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones`,
       op: "zones.create",
       body,
     });
@@ -252,7 +252,7 @@ export class PdnsClient {
     const id = normalizeZoneId(zoneName);
     await this.request<void>({
       method: "PATCH",
-      path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}`,
       op: "zones.patch",
       body,
     });
@@ -296,7 +296,7 @@ export class PdnsClient {
     const id = normalizeZoneId(zoneName);
     await this.request<void>({
       method: "PUT",
-      path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}`,
       op: "zones.settings.update",
       body: settings,
     });
@@ -313,7 +313,7 @@ export class PdnsClient {
     const id = normalizeZoneId(zoneName);
     await this.request<void>({
       method: "DELETE",
-      path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}`,
       op: "zones.delete",
     });
   }
@@ -332,7 +332,7 @@ export class PdnsClient {
     const id = normalizeZoneId(zoneName);
     await this.request<void>({
       method: "PUT",
-      path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}/notify`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}/notify`,
       op: "zones.notify",
     });
   }
@@ -352,7 +352,7 @@ export class PdnsClient {
     const id = normalizeZoneId(zoneName);
     const body = await this.request<unknown>({
       method: "GET",
-      path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}/cryptokeys`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}/cryptokeys`,
       op: "cryptokeys.list",
     });
     return pdnsCryptokeyListSchema.parse(body);
@@ -370,7 +370,7 @@ export class PdnsClient {
     const id = normalizeZoneId(zoneName);
     const body = await this.request<unknown>({
       method: "GET",
-      path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}/cryptokeys/${cryptokeyId}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}/cryptokeys/${cryptokeyId}`,
       op: "cryptokeys.get",
     });
     return pdnsCryptokeyDetailSchema.parse(body);
@@ -417,7 +417,7 @@ export class PdnsClient {
 
     const raw = await this.request<unknown>({
       method: "POST",
-      path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}/cryptokeys`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}/cryptokeys`,
       op: "cryptokeys.create",
       body,
     });
@@ -450,7 +450,7 @@ export class PdnsClient {
     const id = normalizeZoneId(zoneName);
     await this.request<void>({
       method: "PUT",
-      path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}/cryptokeys/${cryptokeyId}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}/cryptokeys/${cryptokeyId}`,
       op: "cryptokeys.update",
       body: patch,
     });
@@ -468,7 +468,7 @@ export class PdnsClient {
     const id = normalizeZoneId(zoneName);
     await this.request<void>({
       method: "DELETE",
-      path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}/cryptokeys/${cryptokeyId}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}/cryptokeys/${cryptokeyId}`,
       op: "cryptokeys.delete",
     });
   }
@@ -491,7 +491,7 @@ export class PdnsClient {
     const id = normalizeZoneId(zoneName);
     const body = await this.request<unknown>({
       method: "GET",
-      path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}/metadata`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}/metadata`,
       op: "zone.metadata.list",
     });
     return pdnsMetadataListSchema.parse(body);
@@ -513,7 +513,7 @@ export class PdnsClient {
     try {
       const body = await this.request<unknown>({
         method: "GET",
-        path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}/metadata/${encodeURIComponent(kind)}`,
+        path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}/metadata/${encodeURIComponent(kind)}`,
         op: "zone.metadata.get",
       });
       return pdnsMetadataSchema.parse(body);
@@ -549,7 +549,7 @@ export class PdnsClient {
     const id = normalizeZoneId(zoneName);
     const raw = await this.request<unknown>({
       method: "PUT",
-      path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}/metadata/${encodeURIComponent(kind)}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}/metadata/${encodeURIComponent(kind)}`,
       op: "zone.metadata.set",
       body: { metadata: values },
     });
@@ -565,7 +565,7 @@ export class PdnsClient {
     const id = normalizeZoneId(zoneName);
     await this.request<void>({
       method: "DELETE",
-      path: `/servers/${this.serverId}/zones/${encodeURIComponent(id)}/metadata/${encodeURIComponent(kind)}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}/metadata/${encodeURIComponent(kind)}`,
       op: "zone.metadata.delete",
     });
   }
@@ -589,7 +589,7 @@ export class PdnsClient {
   public async listTsigKeys(): Promise<PdnsTsigKeySummary[]> {
     const body = await this.request<unknown>({
       method: "GET",
-      path: `/servers/${this.serverId}/tsigkeys`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/tsigkeys`,
       op: "tsigkeys.list",
     });
     return pdnsTsigKeyListSchema.parse(body);
@@ -609,7 +609,7 @@ export class PdnsClient {
   public async getTsigKey(keyId: string): Promise<PdnsTsigKeyDetail> {
     const body = await this.request<unknown>({
       method: "GET",
-      path: `/servers/${this.serverId}/tsigkeys/${encodeURIComponent(keyId)}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/tsigkeys/${encodeURIComponent(keyId)}`,
       op: "tsigkeys.get",
     });
     return pdnsTsigKeyDetailSchema.parse(body);
@@ -645,7 +645,7 @@ export class PdnsClient {
   }): Promise<PdnsTsigKeyDetail> {
     const body = await this.request<unknown>({
       method: "POST",
-      path: `/servers/${this.serverId}/tsigkeys`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/tsigkeys`,
       op: "tsigkeys.create",
       body: {
         name: input.name,
@@ -667,7 +667,7 @@ export class PdnsClient {
   public async deleteTsigKey(keyId: string): Promise<void> {
     await this.request<void>({
       method: "DELETE",
-      path: `/servers/${this.serverId}/tsigkeys/${encodeURIComponent(keyId)}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/tsigkeys/${encodeURIComponent(keyId)}`,
       op: "tsigkeys.delete",
     });
   }
@@ -685,7 +685,7 @@ export class PdnsClient {
   public async listAutoprimaries(): Promise<PdnsAutoprimary[]> {
     const body = await this.request<unknown>({
       method: "GET",
-      path: `/servers/${this.serverId}/autoprimaries`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/autoprimaries`,
       op: "autoprimaries.list",
     });
     return pdnsAutoprimaryListSchema.parse(body);
@@ -700,7 +700,7 @@ export class PdnsClient {
   public async createAutoprimary(input: PdnsAutoprimary): Promise<void> {
     await this.request<void>({
       method: "POST",
-      path: `/servers/${this.serverId}/autoprimaries`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/autoprimaries`,
       op: "autoprimaries.create",
       body: input,
     });
@@ -715,7 +715,7 @@ export class PdnsClient {
   public async deleteAutoprimary(input: { ip: string; nameserver: string }): Promise<void> {
     await this.request<void>({
       method: "DELETE",
-      path: `/servers/${this.serverId}/autoprimaries/${encodeURIComponent(input.ip)}/${encodeURIComponent(input.nameserver)}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/autoprimaries/${encodeURIComponent(input.ip)}/${encodeURIComponent(input.nameserver)}`,
       op: "autoprimaries.delete",
     });
   }

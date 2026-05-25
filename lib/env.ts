@@ -94,7 +94,14 @@ const envSchema = z.object({
 
   // --- Secrets ---
   APP_SECRET_KEY: secretKey,
-  APP_ENCRYPTION_KEY: secretKey,
+  // `lib/crypto/encryption.ts deriveKey` base64-decodes this and requires
+  // >=32 BYTES. A 32-char base64 string decodes to only 24 bytes — it would
+  // pass `secretKey`'s min(32)-CHARS check at boot but throw at first use.
+  // Refine here so the misconfig fails loudly at boot, matching env.ts's intent.
+  APP_ENCRYPTION_KEY: secretKey.refine((s) => Buffer.from(s, "base64").length >= 32, {
+    message:
+      "must base64-decode to at least 32 bytes (generate with: openssl rand -base64 32; a 32-char base64 string is only 24 bytes)",
+  }),
 
   // --- Database ---
   DATABASE_URL: z.string().url("DATABASE_URL must be a valid connection URL"),

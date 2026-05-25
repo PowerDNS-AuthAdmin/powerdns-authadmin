@@ -35,6 +35,28 @@ describe("redactSnapshot", () => {
     });
   });
 
+  it("redacts secret-shaped column names the explicit list misses", () => {
+    // These DB column names are not in REDACT_FIELDS but carry secret
+    // material; the substring backstop must catch them in both camelCase
+    // and snake_case spellings.
+    const out = redactSnapshot({
+      oidcIdToken: "eyJ...",
+      oidc_id_token: "eyJ...",
+      apiKeyEncrypted: "v1:...:...:...",
+      api_key_encrypted: "v1:...:...:...",
+      clientSecretEncrypted: "v1:...:...:...",
+      client_secret_encrypted: "v1:...:...:...",
+    });
+    expect(out).toEqual({
+      oidcIdToken: "[Redacted]",
+      oidc_id_token: "[Redacted]",
+      apiKeyEncrypted: "[Redacted]",
+      api_key_encrypted: "[Redacted]",
+      clientSecretEncrypted: "[Redacted]",
+      client_secret_encrypted: "[Redacted]",
+    });
+  });
+
   it("recurses through arrays and nested objects", () => {
     const out = redactSnapshot({
       assignments: [

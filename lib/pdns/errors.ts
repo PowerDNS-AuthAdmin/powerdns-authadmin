@@ -14,6 +14,33 @@
  */
 
 import "server-only";
+import { redact } from "@/lib/errors/redact";
+
+/**
+ * Deep-scrub a parsed upstream body before it's retained on `error.body`.
+ * The shape is preserved (objects/arrays stay objects/arrays) so the admin
+ * diagnostics UI still renders it, but every string value is run through the
+ * credential redactor. Bounded recursion guards against cyclic/huge payloads.
+ *
+ * Rationale: a future PDNS response shape could embed a secret-looking string
+ * (a connection URL, an echoed API key) in a field we don't anticipate. We
+ * can't whitelist fields we don't know, so redact defensively at the value
+ * level — over-redaction here is cheap, leaking is not.
+ */
+function redactBody(value: unknown, depth = 0): unknown {
+  const MAX_DEPTH = 8;
+  if (depth > MAX_DEPTH) return "[Redacted: max depth]";
+  if (typeof value === "string") return redact(value);
+  if (Array.isArray(value)) return value.map((v) => redactBody(v, depth + 1));
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = redactBody(v, depth + 1);
+    }
+    return out;
+  }
+  return value;
+}
 
 /** Base class. Carries the HTTP status (or 0 for transport errors). */
 export class PdnsError extends Error {
@@ -27,7 +54,9 @@ export class PdnsError extends Error {
     super(message, { cause: options.cause });
     this.name = this.constructor.name;
     this.status = options.status;
-    if (options.body !== undefined) this.body = options.body;
+    // Retain a redacted copy: the raw upstream body could surface secret-shaped
+    // strings to the diagnostics UI / audit log otherwise.
+    if (options.body !== undefined) this.body = redactBody(options.body);
   }
 }
 

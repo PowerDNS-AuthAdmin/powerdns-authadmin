@@ -23,6 +23,7 @@
  */
 
 import "server-only";
+import { isIP } from "node:net";
 
 /**
  * Best-effort client IP from request headers. Returns null only when neither
@@ -44,16 +45,13 @@ export function getClientIp(headers: Headers): string | null {
   return null;
 }
 
-const IPV4_RE = /^(?:\d{1,3}\.){3}\d{1,3}$/;
-const IPV6_RE = /^[0-9a-fA-F:]+$/;
-
 function isPlausibleIp(s: string): boolean {
-  // Quick shape check — defends logs against obviously-non-IP input. The
-  // strict structural check lives in `lib/pdns/url-safety.ts#isIP`.
+  // Strict structural validation via Node's `isIP` (returns 0 for non-IP,
+  // 4 for IPv4, 6 for IPv6). The old loose regex accepted nonsense like
+  // `999.999.999.999`; this rejects it, keeping only real IPs out of
+  // rate-limit keys and audit rows.
   if (s.length === 0 || s.length > 45) return false;
-  if (IPV4_RE.test(s)) return true;
-  if (IPV6_RE.test(s) && s.includes(":")) return true;
-  return false;
+  return isIP(s) !== 0;
 }
 
 /**
