@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.1.1] — 2026-05-25
+
 ### Security
 
 Coordinated batch resolving six advisories (GHSA-gjg4-58c5-2qg3, GHSA-wf29-rmhc-rqc9,
@@ -40,6 +44,55 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
   Super Admin could be disabled or deleted — locking the install out of its own administration.
   It now counts distinct **enabled** users and also covers the user disable + delete routes
   (previously only assignment removal was guarded).
+- **Content-Security-Policy `script-src` tightened.** Removed `'self'` and the Cloudflare
+  Turnstile host from `script-src`; the directive is now the per-request nonce plus
+  `strict-dynamic` (with `'unsafe-eval'` only in dev), so an injected inline or remote script can
+  no longer execute by virtue of same-origin or a hard-coded allow-listed host.
+- **DNS-rebinding hardening on outbound PowerDNS requests.** The reachability guard validated the
+  backend host, but the follow-up HTTP request re-resolved DNS — a TOCTOU window a rebinding
+  record could exploit to reach a blocked address. The guard-validated IP is now pinned into the
+  request dispatcher, so the connection targets the address that actually passed the guard.
+- **Supply-chain & scanning hardening.** Every third-party GitHub Action is pinned to a full
+  commit SHA, and the container base image to a `sha256` digest; CodeQL runs the
+  `security-and-quality` query suite; and CodeQL, dependency-review, and OpenSSF Scorecard now gate
+  pushes/PRs. Also resolved three `js/incomplete-sanitization` findings — a literal backslash is
+  now escaped before the following metacharacter when building SVCB/HTTPS and SOA-mailbox rdata.
+
+### Added
+
+- **Self-service signup.** Optional `SIGNUP_ENABLED` exposes a `/signup` page and API (both 404
+  when off, the default). New accounts receive the low-privilege `SIGNUP_DEFAULT_ROLE` — a
+  boot-time guard refuses an admin-equivalent role — with an optional `SIGNUP_ALLOWED_EMAIL_DOMAINS`
+  allow-list and SMTP-backed email verification. See [Configuration](./docs/03-CONFIGURATION.md).
+- **Inline SVG brand logo.** The settings brand logo now accepts an inline `data:` SVG URI in
+  addition to an `https://` URL; inline SVG is sanitized server-side (DOMPurify) before it is
+  stored or rendered.
+- **Build provenance in the version chip.** Non-release / local builds show the short commit SHA
+  in the sidebar version chip, so a running build is unambiguously identifiable.
+
+### Fixed
+
+- **Dashboard active-session count.** The "active sessions" KPI was sampled in a way that always
+  reported 0; the sampler now counts live sessions correctly.
+- **DNS record validators.** Corrected the SRV port-range bound, accept the all-zeroes IPv6 group
+  (`::`) in AAAA, reject an unbalanced quote in CAA, and fix the TXT bare-text escape order
+  (RFC 1035 § 5.1).
+- **SQLite write path.** Writes and their audit row now commit in a single real transaction
+  (atomic), and the `backend_advisories` `first_seen_at` / `last_seen_at` defaults match the
+  Postgres schema.
+- **Cluster routing.** Probe/failure latencies no longer skew peer selection, and the round-robin
+  index is shared across the process so rotation stays even.
+- **Redis event-bus handler.** The cross-replica SSE message handler is registered exactly once,
+  so an event is no longer delivered multiple times when `REDIS_URL` is configured.
+- **SelectMenu drop-up.** The themed select menu flips upward when it would otherwise open past
+  the bottom of the viewport.
+
+### Documentation
+
+- **Installation: persist secrets in `.env`.** The setup used shell `export`s for
+  `APP_SECRET_KEY` / `APP_ENCRYPTION_KEY`, which silently change on the next shell and guarantee a
+  lockout. It now writes them once into a Compose-loaded `.env`, with explicit `down` vs `down -v`
+  guidance.
 
 ## [1.1.0] — 2026-05-24
 
@@ -194,7 +247,8 @@ First production release.
 - **Distribution** — multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.0.0...v1.0.1

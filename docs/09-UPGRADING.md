@@ -37,6 +37,22 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.1.1 (from 1.1.0)
+
+A maintenance + security release — **no schema migration**, so it's a plain
+pull-and-recreate. One behavioural change to be aware of:
+
+- **OIDC `requireEmailVerified` now defaults to `true`** for newly-created
+  DB-backed providers (account-takeover hardening). **Existing provider rows keep
+  their stored value**, so nothing changes for them on upgrade — but if you have a
+  provider with `requireEmailVerified` set to `false`, audit it: confirm the IdP
+  genuinely never emits the `email_verified` claim before keeping it off. See
+  [OIDC](./05-OIDC.md).
+
+Everything else in this release (the security batch, the CSP and supply-chain
+hardening, and the opt-in additions like self-service signup) is transparent on
+upgrade — signup stays off unless you set `SIGNUP_ENABLED=true`.
+
 ### Upgrading to 1.1.0 (from 1.0.x)
 
 One schema migration applies on first boot (`0003_backend_caps_advisories_squash`).

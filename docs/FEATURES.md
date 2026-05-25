@@ -44,9 +44,10 @@ can jump straight into the code that owns each feature.
     - `enabled` — hides the provider from the login page when off.
     - `force_default` — `/login` auto-redirects here instead of showing the form. Escape hatch
       is `/login?force-local=1`.
-    - `require_email_verified` — default off; on, sign-in is blocked unless the IdP attests
+    - `require_email_verified` — default on; sign-in is blocked unless the IdP attests
       `email_verified: true`. Defends against account-takeover when the same email exists
-      locally and the IdP lets users set arbitrary unverified emails.
+      locally and the IdP lets users set arbitrary unverified emails. Relax it only for IdPs
+      that never emit the claim.
     - `allowed_email_domains` — per-provider override of the env-level allow-list.
   - Discovery health is operator-pollable via the **Test** button on the providers list AND
     the edit page; the result is cached on the row's `discovery_cache` field.
