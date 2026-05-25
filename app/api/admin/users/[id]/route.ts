@@ -16,9 +16,14 @@ import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { db } from "@/lib/db";
 import { deleteUserById, findUserById, updateUser } from "@/lib/db/repositories/users";
+import {
+  countGlobalAssignmentsOfRoleSlug,
+  userHoldsGlobalRoleSlug,
+} from "@/lib/db/repositories/roles";
 import { revokeSessionsForUser } from "@/lib/db/repositories/sessions";
+import { SUPER_ADMIN_SLUG } from "@/lib/rbac/default-roles";
 import { updateUserSchema } from "@/lib/validators/users";
-import { NotFoundError, ValidationError } from "@/lib/errors";
+import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 
 interface RouteContext {
@@ -60,6 +65,25 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
 
     const hdrs = await headers();
     const updated = await db.transaction(async (tx) => {
+      // Last-SuperAdmin guard (GHSA-86v6-w5p9-29r8): disabling the final
+      // *enabled* global Super Admin would lock everyone out of user/role/
+      // settings management just as surely as deleting their assignment would.
+      // Only relevant when the target is currently enabled — re-disabling an
+      // already-disabled account can't reduce the enabled population. The target
+      // is still counted here, so `<= 1` means they're the last one. Checked
+      // inside the tx so a concurrent disable/delete can't race past it (mirrors
+      // the assignment-delete route).
+      if (
+        input.disabled === true &&
+        existing.disabledAt === null &&
+        (await userHoldsGlobalRoleSlug(id, SUPER_ADMIN_SLUG, tx))
+      ) {
+        const enabled = await countGlobalAssignmentsOfRoleSlug(SUPER_ADMIN_SLUG, tx);
+        if (enabled <= 1) {
+          throw new ForbiddenError("Cannot disable the last global Super Admin.");
+        }
+      }
+
       const u = await updateUser(id, patch, tx);
       if (!u) throw new NotFoundError("User not found.");
 
@@ -106,6 +130,22 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
 
     const hdrs = await headers();
     await db.transaction(async (tx) => {
+      // Last-SuperAdmin guard (GHSA-86v6-w5p9-29r8): deleting the final enabled
+      // global Super Admin locks everyone out of administration. Only relevant
+      // when the target is currently enabled — a disabled account isn't part of
+      // the enabled population, so deleting it can't drop the count. The target
+      // is still counted here, so `<= 1` means they're the last one. Inside the
+      // tx to block a concurrent disable/delete.
+      if (
+        existing.disabledAt === null &&
+        (await userHoldsGlobalRoleSlug(id, SUPER_ADMIN_SLUG, tx))
+      ) {
+        const enabled = await countGlobalAssignmentsOfRoleSlug(SUPER_ADMIN_SLUG, tx);
+        if (enabled <= 1) {
+          throw new ForbiddenError("Cannot delete the last global Super Admin.");
+        }
+      }
+
       await deleteUserById(id, tx);
       await appendAudit(
         {
