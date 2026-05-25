@@ -8,6 +8,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { extractQuotedStrings } from "@/lib/dns/txt";
 import { aValidator } from "./a";
 import { aaaaValidator } from "./aaaa";
 import { caaValidator } from "./caa";
@@ -143,6 +144,23 @@ describe("TXT validator", () => {
     const long = `"${"a".repeat(300)}"`;
     const r = txtValidator.validate(long);
     expect(r.issues.some((i) => i.message.includes("255"))).toBe(true);
+  });
+
+  it('escapes \\ before " when auto-quoting bare text (RFC 1035 § 5.1 escape order)', () => {
+    // Regression for issue #2: the old code escaped `"` first, then `\`,
+    // so the backslash inserted by the quote pass got doubled. The value
+    // `a "b" c\d` must round-trip through extractQuotedStrings back to the
+    // original bare string.
+    const raw = 'a "b" c\\d';
+    const r = txtValidator.validate(raw);
+    expect(hasErrors(r)).toBe(false);
+    // Normalized form must be a quoted string.
+    expect(r.normalized.startsWith('"')).toBe(true);
+    expect(r.normalized.endsWith('"')).toBe(true);
+    // Round-trip: parsing the normalized value must recover the original.
+    const parsed = extractQuotedStrings(r.normalized);
+    expect(parsed).not.toBeNull();
+    expect(parsed![0]).toBe(raw);
   });
 });
 
