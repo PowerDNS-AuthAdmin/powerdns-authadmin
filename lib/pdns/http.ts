@@ -333,12 +333,23 @@ function pinnedDispatcher(addresses: string[]): Agent {
   const pinned = addresses.find((addr) => isIP(addr) === 4) ?? addresses[0];
   const family = pinned !== undefined ? isIP(pinned) : 0;
 
-  const lookup: LookupFunction = (_hostname, _options, callback) => {
+  const lookup: LookupFunction = (_hostname, options, callback) => {
     if (pinned === undefined) {
       callback(new Error("no validated address to pin"), "", 0);
       return;
     }
-    callback(null, pinned, family);
+    // Node's net.connect uses Happy Eyeballs (`autoSelectFamily`, default-on in
+    // Node 20+), which calls `lookup` with `{ all: true }` and expects an ARRAY
+    // of { address, family }; other callers use the single (err, address,
+    // family) form. Support both — handing the single form to an all:true caller
+    // leaves the address `undefined`, so the connect fails with "Invalid IP
+    // address: undefined" (the regression real undici hits but a direct unit
+    // call does not).
+    if (options.all === true) {
+      callback(null, [{ address: pinned, family }]);
+    } else {
+      callback(null, pinned, family);
+    }
   };
 
   return new Agent({ ...PDNS_AGENT_OPTIONS, connect: { lookup } });

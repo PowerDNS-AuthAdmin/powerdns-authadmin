@@ -127,7 +127,24 @@ describe("pdns http transport — DNS-rebinding pinning (issue #10)", () => {
     // the guard-validated PUBLIC IP — NOT trigger a fresh DNS query that would
     // hand back the rebind loopback address.
     const before = dnsCallCount;
-    const pinned = await new Promise<{ address: unknown; family: number | undefined }>(
+
+    // Node's net.connect uses Happy Eyeballs by default, calling lookup with
+    // `{ all: true }` and expecting an ARRAY of { address, family }. This is the
+    // form that actually flows at connect time, so assert it returns the pinned
+    // address in array shape (a single-form-only lookup would hand undici
+    // `undefined` here and the real connect would fail).
+    const pinnedAll = await new Promise<Array<{ address: string; family: number }>>(
+      (resolve, reject) => {
+        lookup!("pdns.example.test", { all: true }, (err, address) => {
+          if (err) reject(err);
+          else resolve(address as unknown as Array<{ address: string; family: number }>);
+        });
+      },
+    );
+    expect(pinnedAll).toEqual([{ address: PUBLIC_IP, family: 4 }]);
+
+    // The single-address form (all:false / legacy callers) must also pin.
+    const pinnedSingle = await new Promise<{ address: unknown; family: number | undefined }>(
       (resolve, reject) => {
         lookup!("pdns.example.test", {}, (err, address, family) => {
           if (err) reject(err);
@@ -135,8 +152,9 @@ describe("pdns http transport — DNS-rebinding pinning (issue #10)", () => {
         });
       },
     );
-    expect(pinned.address).toBe(PUBLIC_IP);
-    expect(pinned.family).toBe(4);
+    expect(pinnedSingle.address).toBe(PUBLIC_IP);
+    expect(pinnedSingle.family).toBe(4);
+
     // No second resolution happened — the address is pinned, not re-fetched.
     expect(dnsCallCount).toBe(before);
 
