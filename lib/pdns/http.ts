@@ -17,11 +17,13 @@
  */
 
 import "server-only";
-import { fetch as undiciFetch } from "undici";
+import { isIP } from "node:net";
+import type { LookupFunction } from "node:net";
+import { Agent, fetch as undiciFetch } from "undici";
 import { logger } from "@/lib/logger";
 import { redact } from "@/lib/errors/redact";
 import { PdnsError, PdnsUpstreamError, classifyPdnsHttpError } from "./errors";
-import { pdnsDispatcher } from "./dispatcher";
+import { PDNS_AGENT_OPTIONS } from "./dispatcher";
 import { recordPdnsLatency } from "./observations";
 import { withBackendLock } from "./backend-lock";
 import { checkPdnsUrlSafe } from "./url-safety";
@@ -227,17 +229,13 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
   };
 
   // DNS-rebinding defense. The hostname passed config-time safety, but DNS is
-  // mutable — re-resolve immediately before the call and reject if the
-  // current resolution lands in a blocked range. `checkPdnsUrlSafe` itself
-  // looks up the hostname; the resolution result is intentionally NOT pinned
-  // into `undici.fetch` (which performs its own lookup). Pinning would require
-  // a per-request Agent with a custom `connect.lookup`, which defeats the
-  // shared keep-alive connection pool (a real, per-call TLS-handshake cost).
-  // Both lookups go through the OS resolver within a few ms, so a rebind
-  // narrow enough to escape both is not realistic over standard cached
-  // resolvers — an accepted residual risk, not an oversight. The hard
-  // controls below (always-blocked metadata range + `redirect: "error"`)
-  // are what actually close the SSRF vector.
+  // mutable — re-resolve immediately before the call and reject if the current
+  // resolution lands in a blocked range. `checkPdnsUrlSafe` returns the exact
+  // addresses it validated; we PIN one of them into the request (see
+  // `pinnedDispatcher` below) so the peer undici connects to is byte-for-byte
+  // the address the guard checked — closing the rebinding window where undici's
+  // own independent lookup could resolve the same hostname to a different
+  // (blocked) IP between the guard's lookup and the connect.
   const safety = await checkPdnsUrlSafe(url);
   if (!safety.safe) {
     writeAudit(null, `Refusing to call unsafe URL: ${safety.reason}`);
@@ -245,6 +243,11 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
       status: 0,
     });
   }
+
+  // `addresses` is non-empty here: the PDNS policy never sets
+  // `treatUnresolvableAsSafe`, so `safe: true` implies at least one validated
+  // address (a literal IP, or the resolved A/AAAA set).
+  const dispatcher = pinnedDispatcher(safety.addresses);
 
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
@@ -259,7 +262,7 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
     response = await undiciFetch(url, {
       method,
       signal,
-      dispatcher: pdnsDispatcher(),
+      dispatcher,
       headers: outboundHeaders,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       // SSRF guard: never follow redirects. `checkPdnsUrlSafe` validates only
@@ -278,6 +281,13 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
     throw new PdnsUpstreamError(redact(message), { status: 0, cause: err });
   } finally {
     clearTimeout(timeoutHandle);
+    // The pinned dispatcher is single-use: it carries this request's validated
+    // address and must not be reused for a hostname that may now resolve
+    // elsewhere. Tear it down once the request settles. `close()` waits for
+    // in-flight work; body bytes are fully drained below before we return, so
+    // closing here (vs. after the read) would race the body — fire-and-forget
+    // and let it drain. A close failure is irrelevant to the caller.
+    void dispatcher.close().catch(() => undefined);
   }
 
   // Audit the completed request once we know the upstream status. We
@@ -297,6 +307,41 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
     throw classifyPdnsHttpError(response.status, parsed, redact(message));
   }
   return parsed as T;
+}
+
+/**
+ * Build a single-use undici dispatcher whose `connect.lookup` returns one of
+ * the guard-validated addresses instead of doing its own DNS resolution — so
+ * the connected peer is byte-for-byte the IP `checkPdnsUrlSafe` classified as
+ * safe. This closes the DNS-rebinding window between the guard's lookup and
+ * undici's connect (an attacker-controlled host returning a public IP to the
+ * guard and a private/loopback IP to undici with a 0-TTL record). The original
+ * hostname still flows to undici as Host header + TLS SNI; only the address
+ * resolution is overridden.
+ *
+ * Tradeoff: a per-request Agent forgoes the shared keep-alive/TLS-session pool
+ * (`pdnsDispatcher`), so each call pays a fresh handshake. That cost is
+ * accepted here — pinning is the whole point, and a shared pool can't carry a
+ * per-request pinned address. The Agent mirrors `PDNS_AGENT_OPTIONS` so TLS/H2
+ * negotiation and timeouts match the shared pool exactly.
+ */
+function pinnedDispatcher(addresses: string[]): Agent {
+  // Prefer an IPv4 address when available — matches the OS resolver's common
+  // default and avoids surprising IPv6-only connects in IPv4-only networks.
+  // Any address in the list already passed the guard, so the choice is purely
+  // about reachability, not safety.
+  const pinned = addresses.find((addr) => isIP(addr) === 4) ?? addresses[0];
+  const family = pinned !== undefined ? isIP(pinned) : 0;
+
+  const lookup: LookupFunction = (_hostname, _options, callback) => {
+    if (pinned === undefined) {
+      callback(new Error("no validated address to pin"), "", 0);
+      return;
+    }
+    callback(null, pinned, family);
+  };
+
+  return new Agent({ ...PDNS_AGENT_OPTIONS, connect: { lookup } });
 }
 
 /**
