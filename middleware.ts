@@ -13,6 +13,7 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
+import { buildCsp } from "@/lib/security/csp";
 
 // Cryptographically random nonce. 16 random bytes → 24 base64 chars. Generated on
 // every request because that's the whole point — a stale nonce defeats CSP.
@@ -31,99 +32,6 @@ function generateNonce(): string {
  */
 function isPlausibleRequestId(value: string): boolean {
   return value.length > 0 && value.length <= 200 && /^[A-Za-z0-9_.:-]+$/.test(value);
-}
-
-/**
- * Build the Content-Security-Policy header value. Strict by default; relaxed only
- * where the framework or our own UI patterns genuinely need it.
- *
- * Pre-flight test before relaxing any source: are there fewer than 3 distinct
- * inline scripts we'd need to allow? If yes, refactor them to external files.
- */
-function buildCsp(nonce: string, isDev: boolean, turnstileEnabled: boolean): string {
-  // Cloudflare Turnstile (S-4): loaded from challenges.cloudflare.com and
-  // renders inside an iframe served from the same origin. We open
-  // script-src, frame-src, and connect-src to that single host ONLY when
-  // the operator has configured the captcha — keeps the CSP tight
-  // otherwise. Reading TURNSTILE_SITE_KEY directly from process.env is
-  // safe: the site key is public by design (it ships to every browser).
-  const turnstileOrigin = "https://challenges.cloudflare.com";
-
-  const directives: Record<string, string[]> = {
-    "default-src": ["'self'"],
-    "script-src": [
-      "'self'",
-      `'nonce-${nonce}'`,
-      // 'strict-dynamic' tells browsers to trust scripts loaded *by* trusted
-      // scripts. Lets us avoid listing every chunk URL explicitly.
-      "'strict-dynamic'",
-      // Dev hot-reload eval()s. We never enable this in production.
-      ...(isDev ? ["'unsafe-eval'"] : []),
-      ...(turnstileEnabled ? [turnstileOrigin] : []),
-    ],
-    "style-src": [
-      "'self'",
-      // `'unsafe-inline'` is retained here deliberately, and cannot be
-      // dropped without an app-wide refactor. Two hard constraints:
-      //   1. React/Radix render `style="…"` ATTRIBUTES throughout (every
-      //      dialog/dropdown/chart). Style attributes cannot carry a nonce
-      //      — only `<style>`/`<link>` elements can — so the only CSP source
-      //      that permits them is `'unsafe-inline'`.
-      //   2. Adding a nonce does NOT help: under CSP3, the presence of a
-      //      nonce makes Chromium/WebKit *ignore* `'unsafe-inline'` for both
-      //      elements and attributes, which would then break those style
-      //      attributes. And the granular `style-src-attr`/`style-src-elem`
-      //      split that could thread this needle is ignored by Firefox
-      //      (it falls back to `style-src`), so it can't be relied on.
-      // Net: dropping `'unsafe-inline'` requires eliminating every inline
-      // style attribute first. Tracked as future work. The risk is low —
-      // `style-src` is the lowest-value CSP relaxation (no script, no
-      // external load, no exfil-via-form); `script-src` stays strict
-      // (nonce + 'strict-dynamic', no 'unsafe-inline').
-      "'unsafe-inline'",
-    ],
-    // Images: anything from our own origin, inline data URIs, blob URLs, plus
-    // arbitrary https origins. The HTTPS opening exists for operator-set brand
-    // logo URLs in /admin/settings (e.g. https://example.com/logo.svg) and for
-    // future avatar URLs from OIDC IdPs. We do NOT open script-src or
-    // style-src — only the image directive, which is the lowest-risk channel
-    // (no JS, no CSS, no exfil-via-form). `http:` is added in dev so
-    // localhost-served logos work; production remains https-only.
-    "img-src": ["'self'", "data:", "blob:", "https:", ...(isDev ? ["http:"] : [])],
-    "font-src": ["'self'"],
-    // `connect-src` is the network egress allow-list. Defaults to self; the auth
-    // layer extends this for OIDC discovery URLs at runtime .
-    "connect-src": [
-      "'self'",
-      ...(isDev ? ["ws:", "wss:"] : []),
-      ...(turnstileEnabled ? [turnstileOrigin] : []),
-    ],
-    "frame-src": ["'self'", ...(turnstileEnabled ? [turnstileOrigin] : [])],
-    "frame-ancestors": ["'none'"],
-    "base-uri": ["'self'"],
-    "form-action": ["'self'"],
-    "object-src": ["'none'"],
-    "upgrade-insecure-requests": [],
-    // S-20 from `reports/audit-2026-05-16.md`. Browsers POST a JSON
-    // body describing each blocked load to this endpoint; the handler
-    // logs at warn level. No storage or admin UI yet  — the
-    // logs are visible in any log aggregator and surface violations
-    // that would otherwise be silent (the inevitable "we added a
-    // third-party script and forgot to extend script-src" moment).
-    //
-    // We emit BOTH the legacy `report-uri` and the modern `report-to`.
-    // `report-uri` is deprecated but still the only mechanism older
-    // browsers (and some current Firefox configs) honor. `report-to`
-    // names a group declared in the `Reporting-Endpoints` response
-    // header (set below) and is the path forward for Chromium. Keeping
-    // both means no browser silently drops violation reports.
-    "report-uri": ["/api/csp-report"],
-    "report-to": ["csp-endpoint"],
-  };
-
-  return Object.entries(directives)
-    .map(([k, v]) => (v.length ? `${k} ${v.join(" ")}` : k))
-    .join("; ");
 }
 
 /**
