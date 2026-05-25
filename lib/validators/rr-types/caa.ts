@@ -95,11 +95,8 @@ export const caaValidator: RRTypeValidator = {
     // quoted string (starts AND ends with '"', length ≥ 2). A leading-only
     // quote (e.g. `"letsencrypt.org`) is unbalanced — re-quoting it prevents
     // emitting malformed wire data.
-    const isBalancedQuoted =
-      value.startsWith('"') && value.endsWith('"') && value.length >= 2;
-    const normalizedValue = isBalancedQuoted
-      ? value
-      : `"${value.replace(/"/g, '\\"')}"`;
+    const isBalancedQuoted = value.startsWith('"') && value.endsWith('"') && value.length >= 2;
+    const normalizedValue = isBalancedQuoted ? value : `"${value.replace(/"/g, '\\"')}"`;
     return {
       issues,
       normalized: `${Number(flagsStr) || 0} ${tag} ${normalizedValue}`,

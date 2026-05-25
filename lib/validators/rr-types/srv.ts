@@ -61,8 +61,7 @@ export const srvValidator: RRTypeValidator = {
         } else if (label === "port" && n < 1) {
           issues.push({
             level: "warning",
-            message:
-              "Port 0 is reserved and unusual; 1–65535 is the normal range (RFC 2782).",
+            message: "Port 0 is reserved and unusual; 1–65535 is the normal range (RFC 2782).",
           });
         } else if ((label === "priority" || label === "weight") && (n < 0 || n > 65535)) {
           issues.push({
