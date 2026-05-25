@@ -32,6 +32,7 @@ import { logger } from "@/lib/logger";
 import { redact } from "@/lib/errors/redact";
 import { isDiscoveryCacheStale } from "./oidc-discovery-staleness";
 import { probeOidcDiscovery } from "./oidc-probe";
+import { checkOidcIssuerUrlSafe } from "./oidc-url-safety";
 
 const DEFAULT_STALE_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -76,7 +77,14 @@ async function sampleOneProvider(
 ): Promise<void> {
   const fetchedAt = new Date().toISOString();
   try {
-    const result = await probeOidcDiscovery(provider.issuerUrl, fetchImpl);
+    // Explicit SSRF pre-check before probing — defense-in-depth (the pinned
+    // fetch inside `probeOidcDiscovery` re-checks too) and a clean
+    // transport-style failure when the persisted issuer now resolves to a
+    // blocked address. Mirrors the `/test` route.
+    const safety = await checkOidcIssuerUrlSafe(provider.issuerUrl);
+    const result = safety.safe
+      ? await probeOidcDiscovery(provider.issuerUrl, fetchImpl)
+      : ({ ok: false, reason: "transport" } as const);
     await setOidcDiscoveryCache(provider.id, {
       fetchedAt,
       ok: result.ok,

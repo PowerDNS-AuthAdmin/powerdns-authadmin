@@ -32,8 +32,35 @@ import type { OidcGroupMapping, OidcProvider } from "@/lib/db/schema";
 
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { assertSafeOidcIssuerUrl } from "./oidc-url-safety";
+import { makeGuardedFetch } from "@/lib/net/pinned-fetch";
+import { assertSafeOidcIssuerUrl, checkOidcIssuerUrlSafe } from "./oidc-url-safety";
 import type { VerifiedIdentity } from "./types";
+
+/**
+ * Guarded + pinned fetch for ALL openid-client traffic (discovery, JWKS, and
+ * the token-exchange POST that carries the `client_secret`). Re-runs the SSRF
+ * guard immediately before each connection and pins the validated address into
+ * undici's connect, closing the DNS-rebinding / TOCTOU window between the guard
+ * the call site ran and openid-client's own independent re-resolution. Also
+ * forces `redirect: "error"` (openid-client would otherwise pass "manual").
+ *
+ * `discovery()` assigns whatever `customFetch` it's given to the resolved
+ * `Configuration`, so the same guarded fetch flows to every later request on
+ * that config. {@link attachGuardedFetch} re-attaches it to Configurations we
+ * rebuild by hand (auth-method swaps), since a fresh `new oidc.Configuration`
+ * starts without it.
+ */
+const guardedOidcFetch = makeGuardedFetch(checkOidcIssuerUrlSafe);
+
+/**
+ * Attach {@link guardedOidcFetch} to a Configuration via openid-client's
+ * `customFetch` symbol so its token / userinfo requests go only to the
+ * guard-validated address. Returns the same instance for chaining.
+ */
+function attachGuardedFetch(config: oidc.Configuration): oidc.Configuration {
+  config[oidc.customFetch] = guardedOidcFetch;
+  return config;
+}
 
 /**
  * Resolved provider config — uniform shape whether the row came from the DB
@@ -292,6 +319,12 @@ async function loadConfig(provider: ResolvedOidcProvider): Promise<oidc.Configur
     new URL(provider.issuerUrl),
     provider.clientId,
     provider.clientSecret,
+    undefined,
+    // Pin the guard-validated address into discovery AND every later request
+    // openid-client makes on the resolved config (JWKS, token exchange). The
+    // assignment to the Configuration persists, so the token POST carrying the
+    // client_secret can't be rebound to an internal address.
+    { [oidc.customFetch]: guardedOidcFetch },
   );
 
   const supportedMethods = config.serverMetadata().token_endpoint_auth_methods_supported ?? [];
@@ -324,11 +357,13 @@ async function loadConfig(provider: ResolvedOidcProvider): Promise<oidc.Configur
       //     the secret and try None.
       if (supportsBasic) {
         chosenMethod = "client_secret_basic";
-        config = new oidc.Configuration(
-          config.serverMetadata(),
-          provider.clientId,
-          provider.clientSecret,
-          oidc.ClientSecretBasic(provider.clientSecret),
+        config = attachGuardedFetch(
+          new oidc.Configuration(
+            config.serverMetadata(),
+            provider.clientId,
+            provider.clientSecret,
+            oidc.ClientSecretBasic(provider.clientSecret),
+          ),
         );
       } else if (supportsPost) {
         chosenMethod = "client_secret_post";
@@ -337,11 +372,13 @@ async function loadConfig(provider: ResolvedOidcProvider): Promise<oidc.Configur
         // likely the operator set the client type to Public in the IdP
         // — strip the secret and try None.
         chosenMethod = "none";
-        config = new oidc.Configuration(
-          config.serverMetadata(),
-          provider.clientId,
-          undefined,
-          oidc.None(),
+        config = attachGuardedFetch(
+          new oidc.Configuration(
+            config.serverMetadata(),
+            provider.clientId,
+            undefined,
+            oidc.None(),
+          ),
         );
         logger.warn(
           {
@@ -586,22 +623,26 @@ function rebuildWithOtherAuthMethod(
   const key = cacheKey(provider);
 
   if (choice.chosen === "client_secret_basic") {
-    const rebuilt = new oidc.Configuration(
-      config.serverMetadata(),
-      provider.clientId,
-      provider.clientSecret,
-      oidc.ClientSecretPost(provider.clientSecret),
+    const rebuilt = attachGuardedFetch(
+      new oidc.Configuration(
+        config.serverMetadata(),
+        provider.clientId,
+        provider.clientSecret,
+        oidc.ClientSecretPost(provider.clientSecret),
+      ),
     );
     configCache.set(key, rebuilt);
     authMethodCache.set(key, { chosen: "client_secret_post", supported: choice.supported });
     return rebuilt;
   }
   if (choice.chosen === "client_secret_post") {
-    const rebuilt = new oidc.Configuration(
-      config.serverMetadata(),
-      provider.clientId,
-      provider.clientSecret,
-      oidc.ClientSecretBasic(provider.clientSecret),
+    const rebuilt = attachGuardedFetch(
+      new oidc.Configuration(
+        config.serverMetadata(),
+        provider.clientId,
+        provider.clientSecret,
+        oidc.ClientSecretBasic(provider.clientSecret),
+      ),
     );
     configCache.set(key, rebuilt);
     authMethodCache.set(key, { chosen: "client_secret_basic", supported: choice.supported });
