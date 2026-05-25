@@ -71,6 +71,15 @@ describe("getClientIp", () => {
       expect(getClientIp(h({ "x-forwarded-for": "2001:db8::1" }))).toBe("2001:db8::1");
     });
 
+    it("rejects out-of-range IPv4 octets (strict isIP, not a loose regex)", () => {
+      // The old shape-only regex accepted `999.999.999.999`; the strict
+      // `node:net` check rejects any octet > 255 so junk can't reach
+      // rate-limit keys or audit rows.
+      expect(getClientIp(h({ "x-forwarded-for": "999.999.999.999" }))).toBeNull();
+      expect(getClientIp(h({ "x-forwarded-for": "256.0.0.1" }))).toBeNull();
+      expect(getClientIp(h({ "x-forwarded-for": "1.2.3" }))).toBeNull();
+    });
+
     it("rejects hex-but-no-colon (looks like IPv4 but isn't)", () => {
       // 0xAA is hex but not a valid IP shape. IPv6 detection requires
       // a colon to disambiguate from "bare hex string".

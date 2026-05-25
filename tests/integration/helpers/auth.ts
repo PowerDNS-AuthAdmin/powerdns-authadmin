@@ -13,6 +13,7 @@
  */
 
 import { anonClient, type TestHttp } from "./http";
+import { dbQuery } from "./db";
 
 export const BOOTSTRAP_EMAIL = process.env["TEST_BOOTSTRAP_EMAIL"] ?? "admin@test.local";
 export const BOOTSTRAP_PASSWORD =
@@ -96,6 +97,11 @@ export async function createUser(
   const { user } = await admin.sendJson<{
     user: { id: string; email: string; name: string | null };
   }>("POST", "/api/admin/users", body);
+  // The create-user route sets must_change_password when a password is given.
+  // Route handlers now enforce that flag (the compliance gate), so clear it so
+  // the actor is immediately usable for `loginAs` — tests that exercise the
+  // must-change flow set it explicitly.
+  await dbQuery("UPDATE users SET must_change_password = false WHERE id = $1", [user.id]);
   return {
     id: user.id,
     email: user.email,

@@ -282,8 +282,12 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     const reqInfo = getRequestContext(hdrs);
 
     // Audit inserts run in parallel — one DB round-trip's worth of
-    // latency total, not N × round-trip.
-    await Promise.all(
+    // latency total, not N × round-trip. The PDNS edit has ALREADY been
+    // applied at this point, so a failed audit write must NOT fail the
+    // request (that would 500 an edit that succeeded on the backend,
+    // misleading the operator into retrying an already-applied change).
+    // Use allSettled and log any rejections at warn level instead.
+    const auditResults = await Promise.allSettled(
       auditPairs.map((pair) =>
         appendAudit({
           actor: { type: "user", id: user.id },
@@ -303,6 +307,21 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
         }),
       ),
     );
+    auditResults.forEach((result, i) => {
+      if (result.status === "rejected") {
+        const pair = auditPairs[i];
+        logger.warn(
+          {
+            server: server.slug,
+            zone: zoneName,
+            userId: user.id,
+            rrset: pair ? `${pair.name}|${pair.type}` : undefined,
+            error: result.reason instanceof Error ? result.reason.message : "unknown",
+          },
+          "rrsets.patch.audit.failed",
+        );
+      }
+    });
 
     logger.info(
       {

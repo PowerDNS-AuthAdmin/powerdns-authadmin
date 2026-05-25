@@ -30,13 +30,16 @@ import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 import { getAppSettings } from "@/lib/settings/app-settings";
 
 /**
- * Paths an MFA-non-compliant user is still allowed to visit so they
- * can enroll. Anything else triggers a redirect to /profile?mfa-required=1.
- * Match by prefix to cover sub-routes and the API surface.
+ * Paths a non-compliant user (forced-MFA-not-enrolled, or flagged
+ * `mustChangePassword`) is still allowed to visit so they can self-remediate.
+ * Anything else triggers a redirect to /profile. Match by prefix to cover
+ * sub-routes and the self-service API surface (enroll TOTP / change password /
+ * log out).
  */
-const MFA_REQUIRED_ALLOWLIST: readonly string[] = [
+const COMPLIANCE_ALLOWLIST: readonly string[] = [
   "/profile",
   "/api/profile/mfa",
+  "/api/auth/change-password",
   "/api/auth/logout",
 ];
 
@@ -64,6 +67,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // this account.
   const hdrs = await headers();
   const pathname = hdrs.get("x-pathname") ?? "/";
+  const allowed = COMPLIANCE_ALLOWLIST.some((p) => pathname.startsWith(p));
+
   const userRoles = await listRoleMfaStatesForUser(current.user.id);
   const compliance = checkMfaCompliance(
     {
@@ -74,12 +79,16 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     },
     userRoles,
   );
-  if (!compliance.compliant) {
-    const allowed = MFA_REQUIRED_ALLOWLIST.some((p) => pathname.startsWith(p));
-    if (!allowed) {
-      const because = encodeURIComponent(compliance.requiringRoleSlugs.join(","));
-      redirect(`/profile?mfa-required=1&because=${because}`);
-    }
+  if (!compliance.compliant && !allowed) {
+    const because = encodeURIComponent(compliance.requiringRoleSlugs.join(","));
+    redirect(`/profile?mfa-required=1&because=${because}`);
+  }
+
+  // A temp/expired password must be rotated before the operator can use the
+  // app. Mirrors the route-handler gate in `requireUser` (which throws);
+  // the page path redirects to /profile for a friendlier prompt.
+  if (current.user.mustChangePassword && !allowed) {
+    redirect(`/profile?must-change-password=1`);
   }
 
   const appSettings = await getAppSettings();

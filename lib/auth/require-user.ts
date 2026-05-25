@@ -23,7 +23,9 @@ import { redirect } from "next/navigation";
 import { env } from "@/lib/env";
 import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 import type { Subject } from "@/lib/rbac/ability";
+import { listRoleMfaStatesForUser } from "@/lib/db/repositories/roles";
 import { getCurrentUser, type AuthenticatedRequest } from "./get-current-user";
+import { evaluateSessionCompliance } from "./session-compliance";
 
 export interface RequireUserOptions {
   /**
@@ -37,6 +39,14 @@ export interface RequireUserOptions {
    * this when checking type-level access ("can the user read any Zone?").
    */
   on?: Exclude<Subject, string>;
+  /**
+   * Skip the post-authorization compliance gate (forced MFA enrollment +
+   * mustChangePassword). Set this ONLY on the self-remediation endpoints a
+   * non-compliant operator must reach to fix their state (TOTP enrollment,
+   * password change) — otherwise they'd deadlock — and on page renders, which
+   * `requireUserForPage` already gates via the `(app)` layout redirect.
+   */
+  skipComplianceGate?: boolean;
 }
 
 export async function requireUser(opts: RequireUserOptions = {}): Promise<AuthenticatedRequest> {
@@ -70,6 +80,34 @@ export async function requireUser(opts: RequireUserOptions = {}): Promise<Authen
     }
   }
 
+  // Compliance gate (security): a session can be FULLY authenticated yet
+  // non-compliant — a role requires MFA but the operator never enrolled TOTP,
+  // or they signed in with a temp password flagged `mustChangePassword`. The
+  // `(app)` layout already redirects browser page loads, but route handlers
+  // bypass the layout entirely, so without this check a non-compliant user
+  // could drive write APIs directly. Enforce it here so every guarded handler
+  // is covered. Token (PAT) auth is exempt: a non-compliant user can't mint a
+  // PAT (creation is itself gated), and PATs are a separate deliberate
+  // credential, not the interactive session this gate is about.
+  if (result.source === "session" && !opts.skipComplianceGate) {
+    const roleMfaStates = await listRoleMfaStatesForUser(result.user.id);
+    const compliance = evaluateSessionCompliance(
+      {
+        totpEnrolled: result.user.totpSecretEncrypted !== null,
+        ssoOnly: result.user.passwordHash === null,
+        mfaOverride: result.user.mfaRequired,
+        mustChangePassword: result.user.mustChangePassword,
+      },
+      roleMfaStates,
+    );
+    if (!compliance.ok) {
+      if (compliance.reason === "mfa") {
+        throw new ForbiddenError("MFA enrollment required before performing this action.");
+      }
+      throw new ForbiddenError("Password change required before performing this action.");
+    }
+  }
+
   return result;
 }
 
@@ -94,7 +132,10 @@ export async function requireUserForPage(
   opts: RequireUserOptions = {},
 ): Promise<AuthenticatedRequest> {
   try {
-    return await requireUser(opts);
+    // Pages don't double-gate: the `(app)` layout already enforces compliance
+    // and redirects to /profile (nicer UX than a thrown ForbiddenError). The
+    // permission check still runs.
+    return await requireUser({ ...opts, skipComplianceGate: true });
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       // Carry the attempted path so login can return the user there (L-2).

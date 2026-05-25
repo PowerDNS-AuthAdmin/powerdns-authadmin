@@ -24,6 +24,9 @@ import { mint } from "@/lib/auth/temp-reveal-store";
 import { db } from "@/lib/db";
 import { findUserById, updateUser } from "@/lib/db/repositories/users";
 import { revokeSessionsForUser } from "@/lib/db/repositories/sessions";
+import { loadUserAssignmentsForAbility } from "@/lib/db/repositories/roles";
+import { globalPermissionsOf, type AbilitySource } from "@/lib/rbac/ability";
+import { permissionsTargetHoldsBeyondActor } from "@/lib/rbac/target-ceiling";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "@/lib/errors";
 
 interface RouteContext {
@@ -38,6 +41,24 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
 
     const target = await findUserById(id);
     if (!target) throw new NotFoundError("User not found.");
+
+    // TARGET-privilege ceiling: a `user.reset-password` holder must not be able
+    // to reset the password of (then, via the sibling /reveal route, read) an
+    // account holding global permissions the actor lacks — that's a takeover of
+    // privileges above the actor's own. Self-target passes (identical sets).
+    // Cast: the DB column is structurally string[]; values are validated at
+    // write time. Keeps this free of a lib/db → lib/rbac import.
+    const actorGlobal = globalPermissionsOf(
+      (await loadUserAssignmentsForAbility(actor.id)) as readonly AbilitySource[],
+    );
+    const targetGlobal = globalPermissionsOf(
+      (await loadUserAssignmentsForAbility(target.id)) as readonly AbilitySource[],
+    );
+    if (permissionsTargetHoldsBeyondActor(actorGlobal, targetGlobal).length > 0) {
+      throw new ForbiddenError(
+        "You can't reset the password of a user who holds permissions you don't hold globally.",
+      );
+    }
 
     // Generate a 24-byte base64url password (~32 chars). Easily strong.
     const temporary = randomBytes(24).toString("base64url");

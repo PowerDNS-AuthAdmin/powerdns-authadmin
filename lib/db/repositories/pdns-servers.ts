@@ -182,9 +182,16 @@ export async function findServerToInspect(requestedSlug?: string): Promise<PdnsS
  * Insert a backend. The caller is responsible for encrypting the API key. If
  * `isDefault` is true, any other default-flagged row is cleared in the same
  * transaction — exactly one default at a time.
+ *
+ * Executor-aware: pass a `tx` so the route can group the default-clearing +
+ * insert + `appendAudit` into ONE transaction. Called bare, it opens its own
+ * transaction so the single-default invariant still holds.
  */
-export async function insertPdnsServer(input: NewPdnsServer): Promise<PdnsServer> {
-  return db.transaction(async (tx) => {
+export async function insertPdnsServer(
+  input: NewPdnsServer,
+  executor: DbExecutor = db,
+): Promise<PdnsServer> {
+  const run = async (tx: DbExecutor): Promise<PdnsServer> => {
     if (input.isDefault) {
       await tx
         .update(pdnsServers)
@@ -194,19 +201,28 @@ export async function insertPdnsServer(input: NewPdnsServer): Promise<PdnsServer
     const rows = await tx.insert(pdnsServers).values(input).returning();
     if (!rows[0]) throw new Error("pdns_servers insert returned no row.");
     return rows[0];
-  });
+  };
+  // When the caller supplies an executor it owns the transaction; the two
+  // statements above already run inside it. Bare calls need their own tx to
+  // keep the clear-then-insert atomic.
+  return executor === db ? db.transaction(run) : run(executor);
 }
 
 /**
  * Update mutable fields. Same default-uniqueness invariant applies — setting
  * `isDefault: true` clears the flag on every other row inside the same
  * transaction. The id and createdAt columns are immutable.
+ *
+ * Executor-aware: pass a `tx` so the route can group the default-clearing +
+ * update + `appendAudit` into ONE transaction. Called bare, it opens its own
+ * transaction so the single-default invariant still holds.
  */
 export async function updatePdnsServer(
   id: string,
   patch: Partial<Omit<PdnsServer, "id" | "createdAt">>,
+  executor: DbExecutor = db,
 ): Promise<PdnsServer | null> {
-  return db.transaction(async (tx) => {
+  const run = async (tx: DbExecutor): Promise<PdnsServer | null> => {
     if (patch.isDefault === true) {
       await tx
         .update(pdnsServers)
@@ -219,7 +235,8 @@ export async function updatePdnsServer(
       .where(eq(pdnsServers.id, id))
       .returning();
     return rows[0] ?? null;
-  });
+  };
+  return executor === db ? db.transaction(run) : run(executor);
 }
 
 /**

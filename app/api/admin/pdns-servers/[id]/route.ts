@@ -99,8 +99,29 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
           : null;
     }
 
-    const updated = await updatePdnsServer(id, patch);
-    if (!updated) throw new NotFoundError("PowerDNS server not found.");
+    const hdrs = await headers();
+    // One transaction: the single-default clearing, the update, and the audit
+    // write commit together or not at all. The cache/poll side effects below
+    // run only after the commit so they never reflect a rolled-back change.
+    const updated = await db.transaction(async (tx) => {
+      const row = await updatePdnsServer(id, patch, tx);
+      if (!row) throw new NotFoundError("PowerDNS server not found.");
+
+      await appendAudit(
+        {
+          actor: { type: "user", id: user.id },
+          action: "server.update",
+          resource: { type: "pdns_server", id },
+          before: snapshotForAudit(existing),
+          after: snapshotForAudit(row),
+          request: getRequestContext(hdrs),
+        },
+        tx,
+      );
+
+      return row;
+    });
+
     invalidatePdnsClient(id);
 
     // baseUrl / advertisedAddresses / cluster / disabled changes all shift the
@@ -109,16 +130,6 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     // schedule the poll for any other open views (ADR-0014).
     invalidateBackendObservation();
     scheduleImmediatePoll();
-
-    const hdrs = await headers();
-    await appendAudit({
-      actor: { type: "user", id: user.id },
-      action: "server.update",
-      resource: { type: "pdns_server", id },
-      before: snapshotForAudit(existing),
-      after: snapshotForAudit(updated),
-      request: getRequestContext(hdrs),
-    });
 
     const { apiKeyEncrypted: _strip, ...safe } = updated;
     return Response.json({ server: safe });

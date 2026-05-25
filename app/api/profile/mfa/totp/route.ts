@@ -46,7 +46,10 @@ const confirmSchema = z.object({
 /** POST — start enrollment. */
 export async function POST(request: Request): Promise<Response> {
   try {
-    const { user } = await requireUser();
+    // Self-remediation endpoint: a forced-MFA-non-compliant operator must be
+    // able to enroll/confirm/disable TOTP, so skip the compliance gate here —
+    // otherwise the gate would block the very action that clears it.
+    const { user } = await requireUser({ skipComplianceGate: true });
     await requireCsrf(request);
     if (user.totpSecretEncrypted) {
       throw new ConflictError(
@@ -81,7 +84,10 @@ export async function POST(request: Request): Promise<Response> {
 /** PUT — confirm with code. */
 export async function PUT(request: Request): Promise<Response> {
   try {
-    const { user } = await requireUser();
+    // Self-remediation endpoint: a forced-MFA-non-compliant operator must be
+    // able to enroll/confirm/disable TOTP, so skip the compliance gate here —
+    // otherwise the gate would block the very action that clears it.
+    const { user } = await requireUser({ skipComplianceGate: true });
     await requireCsrf(request);
     if (user.totpSecretEncrypted) {
       throw new ConflictError("TOTP is already enabled.");
@@ -149,7 +155,10 @@ export async function PUT(request: Request): Promise<Response> {
 /** DELETE — disable. */
 export async function DELETE(request: Request): Promise<Response> {
   try {
-    const { user } = await requireUser();
+    // Self-remediation endpoint: a forced-MFA-non-compliant operator must be
+    // able to enroll/confirm/disable TOTP, so skip the compliance gate here —
+    // otherwise the gate would block the very action that clears it.
+    const { user } = await requireUser({ skipComplianceGate: true });
     await requireCsrf(request);
     if (!user.totpSecretEncrypted) {
       throw new NotFoundError("TOTP is not enabled on this account.");

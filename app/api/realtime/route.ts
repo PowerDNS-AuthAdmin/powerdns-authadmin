@@ -85,79 +85,126 @@ export async function GET(request: Request): Promise<Response> {
 
     conns.set(user.id, active + 1);
 
+    // The slot is reserved above, so the decrement MUST run exactly once no
+    // matter how the stream ends — including the request already being aborted
+    // before `start` runs, or `start` itself throwing. `releaseSlot` is the
+    // single owner of the counter decrement; `cleanup` (defined in `start`)
+    // tears down listeners/timers and delegates the count back to it.
+    let slotReleased = false;
+    const releaseSlot = () => {
+      if (slotReleased) return;
+      slotReleased = true;
+      const remaining = (conns.get(user.id) ?? 1) - 1;
+      if (remaining <= 0) conns.delete(user.id);
+      else conns.set(user.id, remaining);
+    };
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
-        let closed = false;
-        const cleanup = () => {
-          if (closed) return;
-          closed = true;
-          clearInterval(heartbeat);
-          unsubscribe();
-          stopPoller();
-          const remaining = (conns.get(user.id) ?? 1) - 1;
-          if (remaining <= 0) conns.delete(user.id);
-          else conns.set(user.id, remaining);
+        // Request was aborted before `start` got a chance to run — release the
+        // reserved slot immediately and don't wire up listeners we'd then have
+        // to tear down.
+        if (request.signal.aborted) {
+          releaseSlot();
           try {
             controller.close();
           } catch {
             // already closed
           }
-        };
+          return;
+        }
 
-        const unsubscribe = subscribeAll((event: RealtimeEvent) => {
+        let closed = false;
+
+        // Wire up listeners/timers inside a guard: if any step throws before
+        // the abort handler is registered, `cleanup`'s teardown targets may be
+        // uninitialized (TDZ), so release the reserved slot directly and
+        // re-throw. Without this, a throw here would leak the counter slot.
+        let unsubscribe: (() => void) | undefined;
+        let stopPoller: (() => void) | undefined;
+        let heartbeat: ReturnType<typeof setInterval> | undefined;
+        try {
+          unsubscribe = subscribeAll((event: RealtimeEvent) => {
+            if (closed) return;
+            // Drop sensitive events for users without audit.read — they
+            // leak actor IDs, action vocabulary, request URLs.
+            if (
+              (event.type === "audit.appended" || event.type === "pdns.request.appended") &&
+              !canReadAudit
+            ) {
+              return;
+            }
+            // Per-zone scoping: a non-global user only receives zone events
+            // for zones they hold a grant on. Without this, zone names +
+            // serials on every backend leak to any scoped user.
+            if (
+              !globalZoneRead &&
+              (event.type === "zone.updated" || event.type === "zone.sync.changed") &&
+              !grantKeys.has(`${event.serverSlug}:${canonicalZone(event.zone)}`)
+            ) {
+              return;
+            }
+            // Health-bell nudge only matters to users who can read backends.
+            if (event.type === "health.updated" && !canReadServers) {
+              return;
+            }
+            try {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+            } catch {
+              // Stream is gone — self-clean so we don't leak this
+              // listener if `abort` never fires (server crash mid-
+              // stream, hung connection, etc.). Without this, dead
+              // listeners would accumulate in the bus and call
+              // enqueue on every event forever.
+              cleanup();
+            }
+          });
+          stopPoller = registerPollerSubscriber();
+          heartbeat = setInterval(() => {
+            if (closed) {
+              clearInterval(heartbeat);
+              return;
+            }
+            try {
+              controller.enqueue(encoder.encode(`: keep-alive ${Date.now()}\n\n`));
+            } catch {
+              cleanup();
+            }
+          }, 25_000);
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: "ready", at: new Date().toISOString() })}\n\n`,
+            ),
+          );
+          request.signal.addEventListener("abort", cleanup);
+        } catch (err) {
+          if (heartbeat) clearInterval(heartbeat);
+          unsubscribe?.();
+          stopPoller?.();
+          releaseSlot();
+          try {
+            controller.close();
+          } catch {
+            // already closed
+          }
+          throw err;
+        }
+
+        function cleanup(): void {
           if (closed) return;
-          // Drop sensitive events for users without audit.read — they
-          // leak actor IDs, action vocabulary, request URLs.
-          if (
-            (event.type === "audit.appended" || event.type === "pdns.request.appended") &&
-            !canReadAudit
-          ) {
-            return;
-          }
-          // Per-zone scoping: a non-global user only receives zone events
-          // for zones they hold a grant on. Without this, zone names +
-          // serials on every backend leak to any scoped user.
-          if (
-            !globalZoneRead &&
-            (event.type === "zone.updated" || event.type === "zone.sync.changed") &&
-            !grantKeys.has(`${event.serverSlug}:${canonicalZone(event.zone)}`)
-          ) {
-            return;
-          }
-          // Health-bell nudge only matters to users who can read backends.
-          if (event.type === "health.updated" && !canReadServers) {
-            return;
-          }
+          closed = true;
+          if (heartbeat) clearInterval(heartbeat);
+          unsubscribe?.();
+          stopPoller?.();
+          request.signal.removeEventListener("abort", cleanup);
+          releaseSlot();
           try {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+            controller.close();
           } catch {
-            // Stream is gone — self-clean so we don't leak this
-            // listener if `abort` never fires (server crash mid-
-            // stream, hung connection, etc.). Without this, dead
-            // listeners would accumulate in the bus and call
-            // enqueue on every event forever.
-            cleanup();
+            // already closed
           }
-        });
-        const stopPoller = registerPollerSubscriber();
-        const heartbeat = setInterval(() => {
-          if (closed) {
-            clearInterval(heartbeat);
-            return;
-          }
-          try {
-            controller.enqueue(encoder.encode(`: keep-alive ${Date.now()}\n\n`));
-          } catch {
-            cleanup();
-          }
-        }, 25_000);
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ type: "ready", at: new Date().toISOString() })}\n\n`,
-          ),
-        );
-        request.signal.addEventListener("abort", cleanup);
+        }
       },
     });
 

@@ -77,6 +77,14 @@ export async function resetUserData(opts: { bootstrapEmail: string }): Promise<v
       );
       // 4. Delete every user except the bootstrap.
       await c.query(`DELETE FROM users WHERE lower(email) <> lower($1)`, [opts.bootstrapEmail]);
+      // 5. The seed creates the bootstrap admin with must_change_password=true.
+      //    Route handlers now enforce that flag (the compliance gate in
+      //    requireUser), so the canonical "do everything" actor must be in a
+      //    compliant state — model an admin who has completed first-login.
+      await c.query(
+        `UPDATE users SET must_change_password = false WHERE lower(email) = lower($1)`,
+        [opts.bootstrapEmail],
+      );
       await c.query("COMMIT");
     } catch (err) {
       await c.query("ROLLBACK");

@@ -58,8 +58,10 @@ export async function auditCountsPerHour(opts: {
     .orderBy(bucketExpr);
 
   return rows.map((row) => ({
-    // SQLite returns the truncated bucket as an ISO-ish string; PG returns a Date.
-    // Normalize both to Date so downstream code is dialect-agnostic.
+    // SQLite returns the truncated bucket as a UTC ISO string ('…THH:00:00Z',
+    // see truncToHour); PG returns a Date. `new Date(str)` parses the 'Z' as
+    // UTC so both dialects agree — without it the string would be read as
+    // local time and skew the chart by the server's offset.
     bucket: row.bucket instanceof Date ? row.bucket : new Date(row.bucket as unknown as string),
     count: Number(row.count),
   }));

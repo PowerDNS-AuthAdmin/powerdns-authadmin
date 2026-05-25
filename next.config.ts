@@ -60,15 +60,19 @@ const config: NextConfig = {
     // the nonce into Next's framework scripts.
     // See: https://nextjs.org/docs/app/building-your-application/configuring/content-security-policy
 
-    // Disable Next 15's client-side router cache for dynamic RSC payloads.
+    // Disable Next's client-side router cache for dynamic RSC payloads.
     // Without this, navigating between tabs (zone Records → Change history → back)
     // serves a cached RSC payload for up to 30 s — making the page look frozen and
     // hiding the loading shimmer. PDNS state can change between tab switches; we
-    // want a live fetch every time. Prefetched static RSC payloads still cache
-    // (the `static` bucket) so plain link prefetching keeps working.
+    // want a live fetch every time.
+    //
+    // We only override `dynamic`; `static` is left at Next's default. Next 16
+    // clamps `staleTimes.static` to a minimum of 30 s and silently ignores a
+    // lower value (the old `static: 0` was a no-op), so leaving the key out is
+    // honest about what actually takes effect. Prefetched static RSC payloads
+    // keep caching, so plain link prefetching still works.
     staleTimes: {
       dynamic: 0,
-      static: 0,
     },
   },
 };

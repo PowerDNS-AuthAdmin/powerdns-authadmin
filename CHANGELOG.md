@@ -6,7 +6,51 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-_Nothing yet._
+### Security
+
+Findings from an internal security audit. Distinct advisories are tracked privately
+as GHSA records; the fixes are summarized here.
+
+- **MFA-enrollment and forced-password-change gates now enforced on API routes, not
+  just page loads.** `requireUser` (the shared route guard) now refuses a **session**
+  whose role requires MFA but hasn't enrolled, or that is flagged
+  `mustChangePassword`, with the self-remediation endpoints (TOTP enrollment, change
+  password, logout) explicitly exempt. Previously these gates lived only in the page
+  layout, so a non-compliant user — or anyone holding their session — could call the
+  JSON write APIs directly and bypass them.
+- **Privilege-escalation ceilings closed on three admin paths.** Creating a user
+  with an initial role now applies the same "can't grant permissions you don't hold
+  globally" ceiling the role-assignment route already enforced (it previously didn't,
+  allowing a non-Super-Admin to mint a global Super Admin). Resetting another user's
+  password and removing another user's MFA now refuse to target a user who holds
+  global permissions the actor lacks (previously a `user.reset-password` holder could
+  take over a Super Admin account).
+- **OIDC outbound requests are now IP-pinned against DNS rebinding.** Discovery, JWKS,
+  and the token-exchange POST (which carries the client secret) now connect only to
+  the address the SSRF guard validated — closing the TOCTOU window the PDNS client
+  already guarded. The background discovery sampler also runs the SSRF guard before
+  probing. The pinning logic is shared via a new `lib/net/pinned-fetch` module.
+- **Defense-in-depth hardening:** the audit-log redaction backstop now also catches
+  `*Encrypted` / `oidcIdToken` columns; the `serverId` PDNS path segment is
+  URL-encoded; client-IP parsing uses strict `isIP`; `APP_ENCRYPTION_KEY` byte-length
+  is validated at boot (not at first use); the SSE per-user connection counter no
+  longer leaks a slot on pre-start abort; and PDNS error bodies are redacted before
+  being surfaced.
+
+### Fixed
+
+- **Self-service-signup email verification is now redeemable.** The verification link
+  worked only for an already-signed-in user, but a freshly-signed-up local account is
+  blocked from signing in until verified — a deadlock. Verification is now an
+  unauthenticated, token-only flow (the signed token proves ownership), and the verify
+  page renders for logged-out users.
+- **Audit writes made atomic with their mutation** on the PowerDNS-server create/update
+  routes (the audit row was written outside the mutation's transaction), and on OIDC
+  group-sync role changes.
+- **SQLite dashboard "events per hour"** buckets are now computed in UTC, matching the
+  Postgres path (they previously skewed by the server's local timezone offset).
+- Minor: per-team member counts filter in SQL rather than in memory; a failed audit
+  insert after an already-applied zone edit no longer returns a 500.
 
 ## [1.1.1] — 2026-05-25
 

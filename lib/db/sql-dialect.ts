@@ -73,14 +73,18 @@ export function jsonBoolField(col: AnyColumn, key: string): SQL<boolean> {
  * Truncate a timestamp column to a unit (hour / day) for bucketing. Returns
  * a SQL fragment whose JS-decoded value is a `Date`.
  *
- * Postgres: `date_trunc('hour', ts)`
- * SQLite (timestamp_ms storage): convert to seconds, truncate via strftime,
- *   and feed back through `datetime(...)` so the JDBC driver round-trips it
- *   as an ISO string Drizzle decodes to a Date.
+ * Postgres: `date_trunc('hour', ts)` — yields a UTC timestamptz.
+ * SQLite (timestamp_ms storage): convert to seconds and truncate via
+ *   strftime under `'unixepoch'`, which interprets the epoch as UTC and
+ *   formats UTC wall-clock components. We emit an ISO-8601 string with a
+ *   'T' separator and a trailing 'Z' so `new Date(string)` parses it back
+ *   as UTC — without the 'Z', a space/`'YYYY-MM-DD HH:00:00'` string is
+ *   parsed as LOCAL time, skewing every SQLite bucket by the server's
+ *   offset relative to the Postgres path.
  */
 export function truncToHour(col: AnyColumn): SQL<Date> {
   if (isSqlite) {
-    return sql<Date>`strftime('%Y-%m-%d %H:00:00', ${col} / 1000, 'unixepoch')`;
+    return sql<Date>`strftime('%Y-%m-%dT%H:00:00Z', ${col} / 1000, 'unixepoch')`;
   }
   return sql<Date>`date_trunc('hour', ${col})`;
 }
