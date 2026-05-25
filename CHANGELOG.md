@@ -6,7 +6,18 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-_Nothing yet._
+### Security
+
+- **Patched dev/build dependency CVEs** via `overrides` — the deprecated `@esbuild-kit`
+  chain is forced onto `esbuild@0.25.12` (dev-server CORS) and `next`'s pinned `postcss`
+  up to `8.5.15` (`</style>` XSS). `npm audit` is clean. (OpenSSF Scorecard: Vulnerabilities.)
+
+### Added
+
+- **Property-based fuzz tests** (`fast-check`) for the DNS parsers — TXT presentation,
+  DynDNS request/auth, and every RR-type content validator — running in the unit suite as
+  `*.fuzz.test.ts`. Hardens the hand-rolled parsers (which have shipped real bugs) and
+  satisfies the OpenSSF Scorecard Fuzzing check.
 
 ## [1.1.3] — 2026-05-26
 
