@@ -156,71 +156,16 @@ docker compose up -d
 
 > ⚠️ Demo only: it reads `.env.example` directly, which ships public throwaway secrets. Don't expose it.
 
-### Production — SQLite
+### Production
 
-```yaml
-# docker-compose.yml
-services:
-  app:
-    image: ghcr.io/powerdns-authadmin/powerdns-authadmin:latest
-    restart: unless-stopped
-    ports: ["3000:3000"]
-    environment:
-      APP_URL: https://dns.example.com
-      DATABASE_URL: file:/data/powerdns_authadmin.db
-      APP_SECRET_KEY: ${APP_SECRET_KEY} # openssl rand -base64 32
-      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY} # openssl rand -base64 32
-      BOOTSTRAP_ADMIN_EMAIL: admin@example.com
-      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD} # ≥12 chars
-    volumes:
-      - app-data:/data
-volumes:
-  app-data:
-```
+For a real deployment — SQLite or Postgres, TLS, backups, and the boot sequence —
+follow the **[Installation guide](./docs/02-INSTALLATION.md)**. It's four copy-paste
+steps and the canonical source of truth (the demo above is evaluation-only).
 
-```sh
-export APP_SECRET_KEY=$(openssl rand -base64 32)
-export APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
-export BOOTSTRAP_ADMIN_PASSWORD='a-strong-password'
-docker compose up -d
-```
-
-Then add your PowerDNS backend(s) under **Admin → PowerDNS servers** (or via a provisioning file).
-
-### Production — Postgres
-
-```yaml
-# docker-compose.yml
-services:
-  app:
-    image: ghcr.io/powerdns-authadmin/powerdns-authadmin:latest
-    restart: unless-stopped
-    ports: ["3000:3000"]
-    depends_on:
-      postgres: { condition: service_healthy }
-    environment:
-      APP_URL: https://dns.example.com
-      DATABASE_URL: postgres://pdns:${POSTGRES_PASSWORD}@postgres:5432/powerdns_authadmin
-      APP_SECRET_KEY: ${APP_SECRET_KEY}
-      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
-      BOOTSTRAP_ADMIN_EMAIL: admin@example.com
-      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: pdns
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: powerdns_authadmin
-    volumes: ["pg-data:/var/lib/postgresql/data"]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pdns -d powerdns_authadmin"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-volumes:
-  pg-data:
-```
+> Store `APP_SECRET_KEY` / `APP_ENCRYPTION_KEY` once in a persistent **`.env`** next to
+> your compose file — **never** shell `export`s. Exports vanish when the shell closes, and
+> a regenerated `APP_ENCRYPTION_KEY` makes every stored PowerDNS API key, OIDC secret, and
+> MFA secret undecryptable. Generate once, back the `.env` up, never change them.
 
 ### High availability (replicas > 1)
 
