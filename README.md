@@ -22,6 +22,12 @@
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=next.js)](https://nextjs.org)
 [![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 
+[![PowerDNS 4.6](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-46.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-46.yml)
+[![PowerDNS 4.7](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-47.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-47.yml)
+[![PowerDNS 4.8](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-48.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-48.yml)
+[![PowerDNS 4.9](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-49.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-49.yml)
+[![PowerDNS 5.0](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-50.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-50.yml)
+
 PowerDNS-AuthAdmin manages one or many PowerDNS Authoritative backends from a single web app. It
 ships with a permissive RBAC engine, OIDC single sign-on with group→role mapping, transactional
 zone editing, NOTIFY-aware sync probes for cluster + primary/secondary topologies, an append-only
@@ -320,26 +326,6 @@ npm run validate                   # lint + typecheck + format + test
 ```
 
 Full workflow + troubleshooting in [`docs/dev-setup.md`](./docs/dev-setup.md).
-
-## PowerDNS Authoritative compatibility
-
-The full end-to-end suite runs against every supported official PowerDNS
-Authoritative image — one workflow per version, so each badge below is the **live**
-GitHub Actions status of that version's last run (no manual updates). They run on
-every minor/major release tag (`vX.Y.0`), monthly to catch upstream `:latest` drift,
-and on demand — not on every push, so the matrix stays honest without slowing PR CI.
-
-[![PowerDNS 4.6](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-46.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-46.yml)
-[![PowerDNS 4.7](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-47.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-47.yml)
-[![PowerDNS 4.8](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-48.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-48.yml)
-[![PowerDNS 4.9](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-49.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-49.yml)
-[![PowerDNS 5.0](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-50.yml/badge.svg)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/pdns-compat-50.yml)
-
-The same modern-name INI configs and gsqlite3/gmysql schema work unchanged across
-4.6 → 5.0 (4.5 renamed replication settings to primary/secondary, which we use; 5.0
-only dropped the legacy master/slave aliases and added an optional YAML config it
-still reads old-style INI alongside). Older majors aren't tested; newer ones are
-added to the matrix as they ship.
 
 ## Documentation
 
