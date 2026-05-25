@@ -37,6 +37,14 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.1.3 (from 1.1.x)
+
+A maintenance release — **no schema migration**, a plain pull-and-recreate, and
+nothing operator-facing to change. It fixes per-zone grants on multi-primary
+clusters (a grant on one peer now authorizes the zone on every peer), renames the
+internal request middleware to the Next 16 `proxy` convention (transparent), and
+re-pins the CI GitHub Actions to Node 24 (CI-only).
+
 ### Upgrading to 1.1.2 (from 1.1.x)
 
 A security release — **no schema migration**, a plain pull-and-recreate. Two
