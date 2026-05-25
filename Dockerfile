@@ -91,6 +91,15 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Build provenance surfaced in the UI (sidebar version chip + GitHub/Docs links,
+# see lib/app-meta.ts). The CI docker job sets GIT_SHA to the commit and
+# APP_RELEASE=true only for vX.Y.Z tag builds. Both default empty for a plain
+# `docker build`, which makes the app fall back to release/tag links.
+ARG GIT_SHA=""
+ARG APP_RELEASE="false"
+ENV APP_GIT_SHA=$GIT_SHA
+ENV APP_RELEASE=$APP_RELEASE
+
 # Non-root user for the app. `node:bookworm-slim` ships a `node` user with
 # uid 1000 — reuse it instead of creating our own. /data is the conventional
 # mount target for the SQLite file (DATABASE_URL=file:/data/...).

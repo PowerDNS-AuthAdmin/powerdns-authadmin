@@ -12,10 +12,11 @@
  *     row uses `serverId = null` for app-wide metrics — simpler than
  *     two tables for the same shape).
  *
- * The sampler in `lib/metrics/sampler.ts` writes rows on-access (triggered
- * by dashboard page loads) rather than via a background scheduler — keeps
- * the data fresh enough for the dashboard without a separate worker
- * deployment. Real prod observability is Prometheus's job.
+ * The sampler in `lib/realtime/zone-poller.ts` writes rows from the poll cycle
+ * (which any SSE subscriber or dashboard page load keeps running) rather than
+ * via a standalone scheduler — keeps the data fresh enough for the dashboard
+ * without a separate worker deployment. Real prod observability is
+ * Prometheus's job.
  */
 
 import {

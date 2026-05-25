@@ -29,6 +29,7 @@ import Database from "better-sqlite3";
 import pg from "pg";
 import { env } from "@/lib/env";
 import { dialect } from "./_dialect";
+import { createSqliteTransactionRunner } from "./sqlite-transaction";
 import * as schema from "@/lib/db/schema";
 
 type PgPool = InstanceType<typeof pg.Pool>;
@@ -92,15 +93,15 @@ function buildBundle(): DbBundle {
     // ("Transaction function cannot return a promise"). The app's write+audit
     // pattern is async (it awaits the mutation, then `appendAudit`, inside one
     // `db.transaction(async (tx) => …)`) and is used by ~46 call sites plus the
-    // seed/provision boot scripts — all of which throw on SQLite otherwise.
-    // Override `transaction` to run the async callback directly on the
-    // connection. Tradeoff: SQLite loses strict multi-statement atomicity for
-    // these writes (statements autocommit individually). That's an acceptable
-    // cost for the lightweight, single-writer SQLite option; Postgres (the
-    // production path) keeps full transactional atomicity via node-postgres.
-    const runDirect = ((callback: (tx: AppDatabase) => unknown) =>
-      callback(sqliteDb)) as unknown as AppDatabase["transaction"];
-    sqliteDb.transaction = runDirect;
+    // seed/provision boot scripts. Replace `transaction` with a runner that
+    // wraps the async callback in a real BEGIN/COMMIT/ROLLBACK (serialized,
+    // since one connection can't hold overlapping transactions) so the mutation
+    // and its audit row commit atomically — matching the Postgres path. See
+    // ./sqlite-transaction.ts for the serialization + nesting details.
+    sqliteDb.transaction = createSqliteTransactionRunner(
+      handle,
+      sqliteDb,
+    ) as unknown as AppDatabase["transaction"];
 
     return { db: sqliteDb, pool: null, sqliteHandle: handle };
   }

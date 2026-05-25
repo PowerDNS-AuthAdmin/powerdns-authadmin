@@ -219,7 +219,11 @@ can jump straight into the code that owns each feature.
 - **What.** Config-time + runtime IP-range checks on PDNS `base_url`. Link-local
   (incl. 169.254.169.254 cloud metadata) is always blocked. Private networks gated by
   `APP_PDNS_ALLOW_PRIVATE_NETWORKS`; `http://` gated by `APP_PDNS_ALLOW_INSECURE_HTTP`.
-- **Where.** `lib/pdns/url-safety.ts`.
+  At request time the guard re-resolves the host and **pins the validated IP into
+  the connection**, so undici reaches the exact address the guard checked (closes
+  the DNS-rebinding window).
+- **Where.** `lib/pdns/url-safety.ts` (the guard); `lib/pdns/http.ts` (request-time
+  re-check + pinned dispatcher).
 
 ---
 

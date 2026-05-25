@@ -28,12 +28,20 @@ export interface PeerSamples {
 }
 
 /**
- * Process-local round-robin index per cluster id. Resets on app boot —
- * a stricter cross-instance fairness guarantee would need DB state, which
- * isn't worth the write per request for an internal hint. The map only
- * grows by O(clusters); never trimmed.
+ * Round-robin index per cluster id. Stored on `globalThis` (the same idiom as
+ * `lib/pdns/backend-lock.ts` and `lib/pdns/zone-state-cache.ts`) rather than a
+ * plain module Map: Next bundles route handlers separately, so a module-level
+ * Map can be instantiated more than once per process, splitting the rotation
+ * state and letting two bundles each start the cursor at 0 — the same peer
+ * gets picked twice in a row. A single globalThis holder gives all bundles one
+ * shared cursor. Resets on app boot — a stricter cross-instance fairness
+ * guarantee would need DB state, not worth the write per request for an
+ * internal hint. The map only grows by O(clusters); never trimmed.
  */
-const rrIndex = new Map<string, number>();
+declare global {
+  var __pdnsClusterRrIndex: Map<string, number> | undefined;
+}
+const rrIndex = (globalThis.__pdnsClusterRrIndex ??= new Map<string, number>());
 
 /** Test-only reset. */
 export function _resetRoundRobinIndex(): void {

@@ -63,13 +63,25 @@ const REDIS_CHANNEL = "pda:realtime";
 
 declare global {
   var __pdnsRealtimeBus:
-    | { listeners: Set<Listener>; instanceId: string; redisSubscribed: boolean }
+    | {
+        listeners: Set<Listener>;
+        instanceId: string;
+        // True while a `subscribe(REDIS_CHANNEL)` is in effect. Reset to false on
+        // a subscribe failure so the call can be retried.
+        redisSubscribed: boolean;
+        // One-way latch: set the first time we attach the `message` listener and
+        // NEVER reset. The subscriber lives on globalThis for the process life,
+        // so re-attaching on each subscribe retry would deliver cross-replica
+        // events N+1× (issue #4). The handler must register exactly once.
+        redisHandlerAttached: boolean;
+      }
     | undefined;
 }
 const bus = (globalThis.__pdnsRealtimeBus ??= {
   listeners: new Set<Listener>(),
   instanceId: randomUUID(),
   redisSubscribed: false,
+  redisHandlerAttached: false,
 });
 
 /**
@@ -122,23 +134,32 @@ function ensureRedisSubscription(): void {
   if (bus.redisSubscribed || !isRedisEnabled()) return;
   const sub = getRedisSubscriber();
   if (!sub) return;
+
+  // Attach the message listener exactly once for the lifetime of the (globalThis
+  // singleton) subscriber. `redisSubscribed` is reset on a subscribe failure to
+  // permit a retry, but the listener must NOT be re-attached on that retry or
+  // remote events fan out once per past failure (issue #4).
+  if (!bus.redisHandlerAttached) {
+    bus.redisHandlerAttached = true;
+    sub.on("message", (channel: string, message: string) => {
+      if (channel !== REDIS_CHANNEL) return;
+      try {
+        const parsed = JSON.parse(message) as { instanceId: string; event: RealtimeEvent };
+        if (parsed.instanceId === bus.instanceId) return; // our own publish — already delivered
+        deliver(parsed.event);
+      } catch {
+        // Malformed payload on the channel — ignore.
+      }
+    });
+  }
+
   bus.redisSubscribed = true;
   sub.subscribe(REDIS_CHANNEL).catch((err: unknown) => {
-    bus.redisSubscribed = false; // allow a later retry
+    bus.redisSubscribed = false; // allow a later retry (without re-attaching the handler)
     logger.warn(
       { err: err instanceof Error ? err.message : "unknown" },
       "realtime.redis.subscribe.failed",
     );
-  });
-  sub.on("message", (channel: string, message: string) => {
-    if (channel !== REDIS_CHANNEL) return;
-    try {
-      const parsed = JSON.parse(message) as { instanceId: string; event: RealtimeEvent };
-      if (parsed.instanceId === bus.instanceId) return; // our own publish — already delivered
-      deliver(parsed.event);
-    } catch {
-      // Malformed payload on the channel — ignore.
-    }
   });
 }
 

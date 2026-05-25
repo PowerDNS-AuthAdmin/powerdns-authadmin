@@ -1,0 +1,61 @@
+# =============================================================================
+# OpenSSF Scorecard — supply-chain security posture audit.
+#
+# Scores the repo against the OpenSSF checks (branch protection, pinned
+# dependencies, token permissions, dangerous workflow patterns, signed
+# releases, etc.) and uploads the results to the Security → Code scanning tab
+# as SARIF, so regressions show up alongside CodeQL findings. With
+# `publish_results: true` the score also feeds the public Scorecard badge.
+#
+# Runs weekly and whenever a branch-protection rule changes (the event
+# Scorecard recommends). No secrets — uses GITHUB_TOKEN + OIDC.
+# =============================================================================
+
+name: Scorecard supply-chain
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: "23 4 * * 1" # Mondays 04:23 UTC
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write # upload SARIF to code scanning
+      id-token: write # OIDC token for publish_results
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        # Pinned to an immutable commit SHA (not a tag): a moved tag is a
+        # supply-chain vector, and `@v2` doesn't resolve at all. CodeQL's
+        # actions query enforces this. Bump the SHA + comment together.
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
