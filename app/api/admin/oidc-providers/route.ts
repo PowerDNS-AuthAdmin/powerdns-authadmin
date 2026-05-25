@@ -23,6 +23,7 @@ import {
 import { createOidcProviderSchema } from "@/lib/validators/oidc-providers";
 import { probeOidcDiscovery } from "@/lib/auth/providers/oidc-probe";
 import { assertSafeOidcIssuerUrl } from "@/lib/auth/providers/oidc-url-safety";
+import { assertGroupMappingsWithinCeiling } from "@/lib/rbac/oidc-mapping-ceiling";
 import { ConflictError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 import { logger } from "@/lib/logger";
@@ -64,6 +65,11 @@ export async function POST(request: Request): Promise<Response> {
     // SSRF guard: the issuer is fetched server-side (probe + sign-in discovery),
     // so it must resolve to a public address (link-local/metadata always blocked).
     await assertSafeOidcIssuerUrl(input.issuerUrl);
+
+    // Privilege ceiling (GHSA-wf29-rmhc-rqc9): group→role mappings auto-assign
+    // roles at first sign-in, so they can't carry permissions the actor lacks
+    // globally — otherwise `oidc.manage` would launder privilege through the IdP.
+    await assertGroupMappingsWithinCeiling(user.id, input.groupMappings ?? null);
 
     const clientSecretEncrypted = encrypt(input.clientSecret, "oidc-client-secret");
 

@@ -127,12 +127,11 @@ export const createOidcProviderSchema = z.object({
   claimName: claimSchema.default("name"),
   enabled: z.boolean().default(true),
   forceDefault: z.boolean().default(false),
-  /** Default `false` — we trust the IdP. Operators flip it on for
-   *  environments where the IdP lets users set arbitrary unverified
-   *  emails AND there's overlap between OIDC and local-password
-   *  accounts (the account-takeover scenario the check defends
-   *  against). */
-  requireEmailVerified: z.boolean().default(false),
+  /** Default `true` — the account-takeover guard is on for new providers.
+   *  Operators flip it off only for IdPs that don't emit `email_verified`
+   *  at all (custom OIDC bridges, some SAML→OIDC translators). Existing DB
+   *  rows keep their stored value; this default only applies at create time. */
+  requireEmailVerified: z.boolean().default(true),
   allowedEmailDomains: allowedEmailDomainsSchema.optional(),
   iconUrl: iconUrlSchema.optional(),
   /** Per-provider group → role rules. Omit / null = no mappings. */

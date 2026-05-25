@@ -7,16 +7,29 @@
  */
 
 import "server-only";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, countDistinct, eq, inArray, isNull } from "drizzle-orm";
 import { db, type DbExecutor } from "@/lib/db";
 import { roleAssignments, type NewRoleAssignment, type RoleAssignment } from "@/lib/db/schema";
 import { roles, type NewRole, type Role } from "@/lib/db/schema";
+import { users } from "@/lib/db/schema";
 import { countStar } from "@/lib/db/sql-dialect";
 
 /** Find a role by its slug — used by seed and assignment paths. */
 export async function findRoleBySlug(slug: string): Promise<Role | null> {
   const rows = await db.select().from(roles).where(eq(roles.slug, slug)).limit(1);
   return rows[0] ?? null;
+}
+
+/**
+ * Load every role whose slug is in `slugs`, in one query. Used by the OIDC
+ * group→role ceiling check, which must resolve each mapping's `roleSlug` to its
+ * permission set before deciding whether the actor may persist the mapping.
+ * Missing slugs simply don't appear in the result — the caller treats an
+ * unresolved mapping as invalid.
+ */
+export async function findRolesBySlugs(slugs: readonly string[]): Promise<Role[]> {
+  if (slugs.length === 0) return [];
+  return db.select().from(roles).where(inArray(roles.slug, slugs));
 }
 
 /** Upsert a role by slug. Used by the seed script for system roles. */
@@ -112,17 +125,63 @@ export async function findAssignmentWithRole(
   return rows[0] ?? null;
 }
 
-/** Count global-scope assignments of the role with `slug` (last-SuperAdmin guard). */
+/**
+ * Count the distinct *enabled* users holding a global-scope assignment of the
+ * role with `slug` — the population the last-SuperAdmin guard cares about.
+ *
+ * Three things this query deliberately does, all of which the old `rows.length`
+ * version got wrong (GHSA-86v6-w5p9-29r8):
+ *   - INNER JOIN `users` and exclude `disabled_at IS NOT NULL`: a disabled
+ *     account cannot sign in, so it can't actually administer anything. Counting
+ *     it as a live Super Admin would let the last *usable* one be removed.
+ *   - `count(distinct user_id)`: a user can hold the same role at global scope
+ *     more than once (it's the unique key with scope_id, which is NULL here —
+ *     and historically duplicate rows have existed). Two rows for one person is
+ *     still one Super Admin, not two.
+ *
+ * `countDistinct` emits `count(distinct …)`, portable across Postgres and
+ * SQLite; `isNull` and the inner join are standard Drizzle, so this runs
+ * unchanged on both dialects.
+ */
 export async function countGlobalAssignmentsOfRoleSlug(
   slug: string,
   executor: DbExecutor = db,
 ): Promise<number> {
   const rows = await executor
+    .select({ count: countDistinct(roleAssignments.userId) })
+    .from(roleAssignments)
+    .innerJoin(roles, eq(roleAssignments.roleId, roles.id))
+    .innerJoin(users, eq(roleAssignments.userId, users.id))
+    .where(
+      and(eq(roles.slug, slug), eq(roleAssignments.scopeType, "global"), isNull(users.disabledAt)),
+    );
+  return Number(rows[0]?.count ?? 0);
+}
+
+/**
+ * Whether `userId` holds a global-scope assignment of the role with `slug`.
+ * Lets the user disable/delete routes decide whether the target is a global
+ * Super Admin (and therefore subject to the last-SuperAdmin guard) before they
+ * mutate the row.
+ */
+export async function userHoldsGlobalRoleSlug(
+  userId: string,
+  slug: string,
+  executor: DbExecutor = db,
+): Promise<boolean> {
+  const rows = await executor
     .select({ id: roleAssignments.id })
     .from(roleAssignments)
     .innerJoin(roles, eq(roleAssignments.roleId, roles.id))
-    .where(and(eq(roles.slug, slug), eq(roleAssignments.scopeType, "global")));
-  return rows.length;
+    .where(
+      and(
+        eq(roleAssignments.userId, userId),
+        eq(roles.slug, slug),
+        eq(roleAssignments.scopeType, "global"),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
 }
 
 /**

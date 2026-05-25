@@ -94,6 +94,39 @@ describe("decrypt — tamper + format rejection", () => {
   });
 });
 
+describe("decrypt — GCM tag/IV length validation (GHSA-phv2-wjmm-pqqq)", () => {
+  it("round-trips correctly after the fix", () => {
+    const plaintext = "ghsa-phv2-wjmm-pqqq regression";
+    expect(decrypt(encrypt(plaintext))).toBe(plaintext);
+  });
+
+  it("rejects a truncated (4-byte) auth tag — would downgrade to 2^-32 without the fix", () => {
+    const [version, ivB64, ctB64, tagB64] = encrypt("secret").split(":");
+    // Decode the real 16-byte tag and slice it to 4 bytes, then re-encode.
+    const truncatedTag = Buffer.from(tagB64!, "base64url").subarray(0, 4).toString("base64url");
+    const tampered = [version, ivB64, ctB64, truncatedTag].join(":");
+    expect(() => decrypt(tampered)).toThrow(/invalid auth tag length/i);
+  });
+
+  it("rejects an extended (32-byte) auth tag", () => {
+    const [version, ivB64, ctB64, tagB64] = encrypt("secret").split(":");
+    // Extend the tag by appending extra zero bytes — still shouldn't be accepted.
+    const extendedTag = Buffer.concat([
+      Buffer.from(tagB64!, "base64url"),
+      Buffer.alloc(16),
+    ]).toString("base64url");
+    const tampered = [version, ivB64, ctB64, extendedTag].join(":");
+    expect(() => decrypt(tampered)).toThrow(/invalid auth tag length/i);
+  });
+
+  it("rejects an IV shorter than 12 bytes", () => {
+    const [version, , ctB64, tagB64] = encrypt("secret").split(":");
+    const shortIv = Buffer.alloc(8).toString("base64url");
+    const tampered = [version, shortIv, ctB64, tagB64].join(":");
+    expect(() => decrypt(tampered)).toThrow(/invalid IV length/i);
+  });
+});
+
 describe("looksLikeEnvelope", () => {
   it("is true for a real envelope", () => {
     expect(looksLikeEnvelope(encrypt("x"))).toBe(true);
