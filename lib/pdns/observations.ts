@@ -10,8 +10,11 @@
  * memory tame under heavy traffic. On process restart it resets — fine,
  * the dashboard just shows a brief gap.
  *
- * The HTTP layer (`lib/pdns/http.ts`) pushes after every request via
- * `recordPdnsLatency(serverSlug, ms)`. Pushing is O(1).
+ * The HTTP layer (`lib/pdns/http.ts`) pushes after every *successful* request
+ * via `recordPdnsLatency(serverSlug, ms)`. Pushing is O(1). Failures are
+ * deliberately excluded: this buffer's p50 feeds the cluster picker's
+ * `lowest_latency` routing, and a fast-failing peer must not look like a
+ * low-latency one. Failure signal lives in the request log / audit row.
  */
 
 import "server-only";

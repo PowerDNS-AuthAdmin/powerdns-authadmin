@@ -137,9 +137,16 @@ export async function pdnsRequest<T>(config: PdnsHttpConfig, init: PdnsRequestIn
         return result;
       } catch (err) {
         const elapsed = Date.now() - start;
-        // Record failures too — they still consume wall-time + their latency is
-        // an early signal that the backend is hurting.
-        recordPdnsLatency(config.serverSlug, elapsed);
+        // Do NOT record failure latency. The latency buffer feeds the p50 in
+        // `metric_samples`, which the cluster picker reads to route writes
+        // (`lowest_latency` strategy). A peer that fails *fast* (instant 5xx,
+        // refused connection) would otherwise post a tiny latency and become
+        // the preferred write target — exactly backwards. Keeping the buffer
+        // success-only also makes the operator-facing latency percentile mean
+        // "latency of requests that worked," not a number a flapping backend
+        // can drag down. Failures are still fully observable via the
+        // `pdns.request.failed` log line below and the `pdns_requests` audit
+        // row; error-rate/up belongs in those signals, not in a latency p50.
         lastError = err;
         const retryable = isRetryable(err);
         log.warn(
