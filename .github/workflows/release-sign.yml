@@ -1,0 +1,93 @@
+# =============================================================================
+# Sign release — supply-chain provenance for published releases.
+#
+# Runs when a GitHub release is published (so the release + the :X.Y.Z image
+# already exist). It:
+#   1. cosign-signs the published multi-arch image (keyless / Sigstore) — a
+#      verifiable signature attached to the image in GHCR.
+#   2. generates an SPDX SBOM of the image,
+#   3. writes a checksums file over the attached artifacts and cosign sign-blobs
+#      it into a Sigstore bundle,
+#   4. uploads the SBOM + checksums + signature bundle as release assets.
+#
+# The release assets (the *.sigstore.json bundle) are what OpenSSF Scorecard's
+# Signed-Releases check looks for; the image signature is the real supply-chain
+# win (verify with: cosign verify ghcr.io/...@<digest>).
+#
+# All actions are pinned to a commit SHA. Verify a signature:
+#   cosign verify ghcr.io/powerdns-authadmin/powerdns-authadmin:<version> \
+#     --certificate-identity-regexp '^https://github.com/PowerDNS-AuthAdmin/' \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+# =============================================================================
+
+name: Sign release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # upload release assets
+      packages: write # cosign writes the image signature to GHCR
+      id-token: write # cosign keyless (Fulcio OIDC)
+    env:
+      IMAGE: ghcr.io/powerdns-authadmin/powerdns-authadmin
+      TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Log in to GHCR
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image digest for the release tag
+        id: digest
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"                       # v1.2.3 -> 1.2.3 (the published image tag)
+          digest="$(docker buildx imagetools inspect "${IMAGE}:${version}" --format '{{ .Manifest.Digest }}')"
+          echo "ref=${IMAGE}@${digest}" >> "$GITHUB_OUTPUT"
+          echo "Resolved ${IMAGE}:${version} -> ${digest}"
+
+      - name: Sign the image (keyless)
+        run: cosign sign --yes "${{ steps.digest.outputs.ref }}"
+
+      - name: Generate SBOM (SPDX)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ steps.digest.outputs.ref }}
+          format: spdx-json
+          output-file: powerdns-authadmin.sbom.spdx.json
+
+      - name: Build + sign checksums
+        run: |
+          set -euo pipefail
+          echo "${{ steps.digest.outputs.ref }}" > image-digest.txt
+          sha256sum powerdns-authadmin.sbom.spdx.json image-digest.txt > checksums.txt
+          cosign sign-blob --yes --bundle checksums.txt.sigstore.json checksums.txt
+
+      - name: Upload signed assets to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$TAG" \
+            powerdns-authadmin.sbom.spdx.json \
+            image-digest.txt \
+            checksums.txt \
+            checksums.txt.sigstore.json \
+            --clobber
