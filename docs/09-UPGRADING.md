@@ -37,6 +37,25 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.1.2 (from 1.1.x)
+
+A security release — **no schema migration**, a plain pull-and-recreate. Two
+behavioural changes that close enforcement gaps (they may surface as a new `403`
+for accounts that were previously able to bypass a gate via the API):
+
+- **Required-MFA and forced-password-change are now enforced on the API, not just
+  in the browser.** If a user's role requires MFA, or the user is flagged "must
+  change password", their session is now refused on write routes until they
+  enroll TOTP / change their password (the enrollment, change-password, and
+  logout endpoints stay reachable). This previously only redirected the browser,
+  so a direct API caller could skip it. No action needed unless you rely on
+  required-MFA accounts driving the API without having enrolled — have them
+  enroll.
+- **Privilege ceilings are enforced on more admin paths.** Creating a user with
+  an initial role, resetting another user's password, and removing another user's
+  MFA now refuse to act beyond the actor's own global permissions. Operators using
+  only the built-in roles are unaffected.
+
 ### Upgrading to 1.1.1 (from 1.1.0)
 
 A maintenance + security release — **no schema migration**, so it's a plain
