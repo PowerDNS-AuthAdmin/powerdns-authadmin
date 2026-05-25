@@ -34,6 +34,7 @@
 
 import "server-only";
 import { listAllActiveBackends, markPdnsServersSeen } from "@/lib/db/repositories/pdns-servers";
+import { countActiveSessions } from "@/lib/db/repositories/sessions";
 import { getPdnsProbeClientForRow } from "@/lib/pdns/registry";
 import { isReadOnlyMirror, isWriteCapable } from "@/lib/pdns/capabilities";
 import { backendAddressSet, resolveMastersToBackendId } from "@/lib/pdns/topology-resolve";
@@ -586,6 +587,13 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
     }
   }
 
+  // One app-wide row per metric tick carries the active-session count
+  // (`serverId = null`) — counted once here, never on the per-backend rows.
+  if (dueForMetric) {
+    const appWide = await appWideMetricRow(sampledAt);
+    if (appWide) metricRows.push(appWide);
+  }
+
   // Single-shot DB writes outside the per-backend Promise.all so a slow
   // insert doesn't block subsequent polls.
   await persistSamples(metricRows, statsRows);
@@ -622,6 +630,36 @@ function statisticsToRows(
     }
   }
   return rows;
+}
+
+/**
+ * Build the single app-wide metric row for this tick — `serverId = null`, with
+ * only `activeSessions` populated (the backend-scoped fields stay null per the
+ * schema's app-wide-row design). Active sessions are an app-wide quantity, so it
+ * is counted ONCE per metric tick and written as one row — never duplicated
+ * across the per-backend rows, which would pollute the series the dashboard
+ * reads. Best-effort: a failed count just drops the app-wide row for this tick
+ * rather than failing the whole sample (the next tick re-samples in 5 min).
+ */
+async function appWideMetricRow(
+  sampledAt: Date,
+): Promise<typeof metricSamples.$inferInsert | null> {
+  try {
+    return {
+      serverId: null,
+      sampledAt,
+      zoneCount: null,
+      latencyP50Ms: null,
+      latencyP95Ms: null,
+      activeSessions: await countActiveSessions(),
+    };
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : "unknown" },
+      "pdns.zone-poller.active-sessions.failed",
+    );
+    return null;
+  }
 }
 
 /** Persist the cycle's time-series rows; chunked + best-effort (see callers). */
@@ -713,6 +751,15 @@ async function sampleTimeSeries(
         "pdns.zone-poller.mark-seen.failed",
       );
     }
+  }
+
+  // The idle and full paths are mutually exclusive per tick (runPollCycle
+  // returns after the idle branch), so emitting the single app-wide row here
+  // too keeps the active-session series flowing while idle without ever
+  // double-writing it within one tick.
+  if (dueForMetric) {
+    const appWide = await appWideMetricRow(sampledAt);
+    if (appWide) metricRows.push(appWide);
   }
   await persistSamples(metricRows, statsRows);
 }

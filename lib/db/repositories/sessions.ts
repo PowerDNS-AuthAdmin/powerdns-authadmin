@@ -11,6 +11,7 @@
 import "server-only";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { db, type DbExecutor } from "@/lib/db";
+import { countStar } from "@/lib/db/sql-dialect";
 import { sessions, type NewSession, type Session } from "@/lib/db/schema";
 
 /** Create a new session row. Returns the persisted row including its id. */
@@ -57,6 +58,22 @@ export async function revokeSessionsForUser(
     .where(eq(sessions.userId, userId))
     .returning({ id: sessions.id });
   return result.length;
+}
+
+/**
+ * Count active sessions app-wide — the metric sampler's source for the
+ * dashboard "Active sessions" KPI + 7-day chart. "Active" == not expired;
+ * revocation is a row DELETE (there is no revoked flag), so a present,
+ * unexpired row is the whole definition — same predicate as
+ * `listSessionsForUser`. The optional executor keeps this unit-testable
+ * without a live DB, mirroring the write helpers above.
+ */
+export async function countActiveSessions(executor: DbExecutor = db): Promise<number> {
+  const rows = await executor
+    .select({ count: countStar() })
+    .from(sessions)
+    .where(gt(sessions.expiresAt, new Date()));
+  return Number(rows[0]?.count ?? 0);
 }
 
 /** List a user's active sessions for the "your sessions" UI. */
