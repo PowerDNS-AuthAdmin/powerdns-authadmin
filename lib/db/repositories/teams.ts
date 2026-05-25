@@ -6,7 +6,7 @@
  */
 
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, type DbExecutor } from "@/lib/db";
 import { teamMembers, type NewTeamMember, type TeamMember } from "@/lib/db/schema";
 import { teams, type NewTeam, type Team } from "@/lib/db/schema";
@@ -123,9 +123,7 @@ export async function countMembersByTeam(teamIds: string[]): Promise<Map<string,
       count: countStar(),
     })
     .from(teamMembers)
+    .where(inArray(teamMembers.teamId, teamIds))
     .groupBy(teamMembers.teamId);
-  const filterSet = new Set(teamIds);
-  return new Map(
-    rows.filter((row) => filterSet.has(row.teamId)).map((row) => [row.teamId, row.count]),
-  );
+  return new Map(rows.map((row) => [row.teamId, row.count]));
 }
