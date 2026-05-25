@@ -37,12 +37,12 @@ export function VerifyEmailForm({ token }: { token: string }) {
     toast({
       kind: "success",
       title: "Email verified",
-      description: "Your email address is confirmed.",
+      description: "Your email address is confirmed. Sign in to continue.",
     });
-    router.refresh();
-    // Brief pause so the success state is visible, then off to the dashboard
-    // (where the unverified-email banner is now gone).
-    setTimeout(() => router.push("/dashboard"), 1000);
+    // The page is public (logged-out signup users land here), so send them
+    // to the sign-in form rather than a session-gated dashboard. A
+    // logged-in operator who re-verifies can sign in again at no cost.
+    setTimeout(() => router.push("/login"), 1200);
   }
 
   // The link click IS the confirmation — verify automatically on mount, with
@@ -76,7 +76,7 @@ export function VerifyEmailForm({ token }: { token: string }) {
       className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-3 text-sm"
       role="status"
     >
-      {status === "done" ? "Email verified — redirecting…" : "Verifying your email…"}
+      {status === "done" ? "Email verified — redirecting to sign in…" : "Verifying your email…"}
     </p>
   );
 }
