@@ -25,8 +25,11 @@ import { zoneGrants } from "@/lib/db/schema";
 import { findGrant, listGrantsForUser } from "@/lib/db/repositories/zone-grants";
 import { findPdnsServerById } from "@/lib/db/repositories/pdns-servers";
 import { findUserById } from "@/lib/db/repositories/users";
+import { loadUserAssignmentsForAbility } from "@/lib/db/repositories/roles";
 import { PERMISSIONS } from "@/lib/rbac/permissions";
-import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
+import { globalPermissionsOf, type AbilitySource } from "@/lib/rbac/ability";
+import { effectiveZonePermissions } from "@/lib/rbac/zone-permissions";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 
 const PERMISSION_SET = new Set<string>(PERMISSIONS);
@@ -94,6 +97,26 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     const server = await findPdnsServerById(input.serverId);
     if (!server || server.disabledAt) {
       throw new ValidationError("Unknown or disabled PowerDNS backend.");
+    }
+
+    // Privilege ceiling (GHSA-gjg4-58c5-2qg3): an operator can only grant
+    // permissions they themselves hold *effectively* for this (server, zone) —
+    // i.e. their GLOBAL permissions plus their own zone_grants for the same
+    // (server, zone). Without this, a `user.update` holder with a narrow grant
+    // could mint a broader grant for another user (or themselves) and escalate.
+    const actorSources = (await loadUserAssignmentsForAbility(
+      actor.id,
+    )) as readonly AbilitySource[];
+    const actorGlobal = globalPermissionsOf(actorSources);
+    const actorGrants = await listGrantsForUser(actor.id);
+    const actorZonePerms = effectiveZonePermissions(actorGrants, input.serverId, zoneName);
+    const exceeding = input.permissions.filter(
+      (p) => !actorGlobal.has(p as (typeof PERMISSIONS)[number]) && !actorZonePerms.has(p),
+    );
+    if (exceeding.length > 0) {
+      throw new ForbiddenError(
+        `You can't grant permissions you don't hold for this zone: ${exceeding.join(", ")}.`,
+      );
     }
 
     // Refuse duplicate via the unique index — explicit check for a

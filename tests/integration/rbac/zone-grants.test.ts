@@ -12,7 +12,15 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { createAndLogin, loginAsBootstrap, SYSTEM_ROLES, uniqueEmail } from "../helpers/auth";
+import {
+  createAndLogin,
+  createUser,
+  loginAs,
+  loginAsBootstrap,
+  resolveRoleId,
+  SYSTEM_ROLES,
+  uniqueEmail,
+} from "../helpers/auth";
 import { resetState } from "../helpers/reset";
 import { type TestHttp } from "../helpers/http";
 
@@ -22,6 +30,9 @@ function randomZone(prefix: string): string {
   const tag = Math.random().toString(36).slice(2, 8);
   return `${prefix}-${Date.now()}-${tag}.example.com.`;
 }
+
+const uniqueSlug = (prefix: string): string =>
+  `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
 async function getStandaloneId(admin: TestHttp): Promise<string> {
   const { servers } = await admin.getJson<{
@@ -237,5 +248,61 @@ describe("zone grants — per-zone permission grants", () => {
       },
     });
     expect(res.status).toBe(409);
+  }, 30_000);
+
+  it("privilege ceiling (GHSA-gjg4-58c5-2qg3): can't grant a permission you don't hold for the zone", async () => {
+    const admin = await loginAsBootstrap();
+    const standaloneId = await getStandaloneId(admin);
+    const zone = randomZone("ceiling");
+    await admin.sendJson("POST", "/api/admin/pdns/zones", {
+      serverSlug: "standalone",
+      name: zone,
+      kind: "Master",
+      nameservers: NS,
+    });
+
+    // The acting operator can manage users (reaches the route) and holds
+    // zone.read globally — but NOT record.delete anywhere.
+    const password = "limited-granter-pw-123456";
+    const granter = await createUser(admin, {
+      email: uniqueEmail("granter"),
+      name: "Limited Granter",
+      password,
+    });
+    const granterSlug = uniqueSlug("limited-granter");
+    await admin.sendJson("POST", "/api/admin/roles", {
+      slug: granterSlug,
+      name: "Limited Granter",
+      permissions: ["user.read", "user.update", "zone.read"],
+    });
+    const granterRoleId = await resolveRoleId(admin, granterSlug);
+    await admin.sendJson("POST", `/api/admin/users/${granter.id}/role-assignments`, {
+      roleId: granterRoleId,
+      scopeType: "global",
+    });
+
+    const victim = await createUser(admin, {
+      email: uniqueEmail("grant-victim"),
+      name: "Grant Victim",
+      password: "grant-victim-pw-123456",
+    });
+
+    const limited = await loginAs(granter.email, password);
+    const path = `/api/admin/users/${victim.id}/zone-grants`;
+
+    // Over the ceiling: granter lacks record.delete globally and has no own
+    // grant for this zone → 403.
+    const bad = await limited.call(path, {
+      method: "POST",
+      json: { serverId: standaloneId, zoneName: zone, permissions: ["record.delete"] },
+    });
+    expect(bad.status).toBe(403);
+
+    // Within the ceiling: zone.read is held globally → 201.
+    const ok = await limited.call(path, {
+      method: "POST",
+      json: { serverId: standaloneId, zoneName: zone, permissions: ["zone.read"] },
+    });
+    expect(ok.status).toBe(201);
   }, 30_000);
 });

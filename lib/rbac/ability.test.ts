@@ -13,8 +13,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildAbility,
   globalPermissionsOf,
+  groupMappingsExceedingGrant,
   permissionsExceedingGrant,
   type AbilitySource,
+  type ResolvedGroupMapping,
 } from "./ability";
 import type { Permission } from "./permissions";
 
@@ -81,6 +83,51 @@ describe("permissionsExceedingGrant (the role-assign privilege ceiling)", () => 
 
   it("treats a scoped-only actor (empty global set) as able to grant nothing", () => {
     expect(permissionsExceedingGrant(actor([]), ["zone.read"])).toEqual(["zone.read"]);
+  });
+});
+
+describe("groupMappingsExceedingGrant (OIDC group→role ceiling, GHSA-wf29-rmhc-rqc9)", () => {
+  const actor = (perms: Permission[]): ReadonlySet<Permission> => new Set(perms);
+  const mapping = (
+    group: string,
+    roleSlug: string,
+    permissions: Permission[],
+  ): ResolvedGroupMapping => ({ group, roleSlug, permissions });
+
+  it("allows mappings whose roles stay within the actor's global permissions", () => {
+    const violations = groupMappingsExceedingGrant(
+      actor(["zone.read", "record.update", "oidc.manage"]),
+      [
+        mapping("dns-readers", "read-only", ["zone.read"]),
+        mapping("dns-editors", "editor", ["zone.read", "record.update"]),
+      ],
+    );
+    expect(violations).toEqual([]);
+  });
+
+  it("flags a mapping to a role granting permissions the actor lacks (no SuperAdmin laundering)", () => {
+    const violations = groupMappingsExceedingGrant(actor(["oidc.manage", "zone.read"]), [
+      mapping("dns-readers", "read-only", ["zone.read"]),
+      mapping("superusers", "super-admin", ["zone.read", "user.delete", "settings.write"]),
+    ]);
+    expect(violations).toEqual([
+      {
+        group: "superusers",
+        roleSlug: "super-admin",
+        exceeding: ["user.delete", "settings.write"],
+      },
+    ]);
+  });
+
+  it("treats an actor with no global permissions as unable to map any privileged role", () => {
+    const violations = groupMappingsExceedingGrant(actor([]), [
+      mapping("any", "editor", ["zone.read"]),
+    ]);
+    expect(violations).toEqual([{ group: "any", roleSlug: "editor", exceeding: ["zone.read"] }]);
+  });
+
+  it("is a no-op for an empty mapping set", () => {
+    expect(groupMappingsExceedingGrant(actor(["oidc.manage"]), [])).toEqual([]);
   });
 });
 
