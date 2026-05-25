@@ -13,7 +13,7 @@
 /lib/auth/                   @jseifeddine
 /lib/rbac/                   @jseifeddine
 /lib/pdns/                   @jseifeddine
-/middleware.ts               @jseifeddine
+/proxy.ts                    @jseifeddine
 /.github/workflows/          @jseifeddine
 /Dockerfile                  @jseifeddine
 /SECURITY.md                 @jseifeddine
