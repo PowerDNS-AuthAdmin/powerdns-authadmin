@@ -40,14 +40,22 @@ describe("app-meta", () => {
     expect(m.APP_DOCS_URL).toMatch(/\/tree\/abc1234\/docs$/);
   });
 
-  it("local dev (no SHA): falls back to release/tag links", async () => {
+  it("local/dev build (no SHA, not a release): -dev label + main-branch links", async () => {
     vi.stubEnv("APP_RELEASE", "");
     vi.stubEnv("APP_GIT_SHA", "");
     const m = await loadFresh();
 
-    expect(m.IS_RELEASE_BUILD).toBe(true);
+    // Not a release: a dev build must not masquerade as one.
+    expect(m.IS_RELEASE_BUILD).toBe(false);
     expect(m.APP_GIT_SHA).toBeNull();
-    expect(m.APP_VERSION_LABEL).toBe(m.APP_VERSION);
-    expect(m.APP_SOURCE_URL).toContain("/releases/tag/");
+    expect(m.APP_VERSION_LABEL).toBe(`${m.APP_VERSION}-dev`);
+    // No commit ref exists on the remote, so link to `main`, not a 404 commit.
+    expect(m.APP_SOURCE_URL).toBe(
+      "https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/tree/main",
+    );
+    expect(m.APP_DOCS_URL).toBe(
+      "https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/tree/main/docs",
+    );
+    expect(m.APP_SOURCE_TITLE).toContain("local build");
   });
 });
