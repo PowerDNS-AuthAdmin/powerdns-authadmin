@@ -55,7 +55,7 @@ export const viewport: Viewport = {
 const THEME_INIT_SCRIPT = `(function(){try{var k="pda-theme",t=localStorage.getItem(k)||"system",d=t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);}catch(e){}})();`;
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  // CSP nonce is set per request in middleware.ts; thread it onto the inline
+  // CSP nonce is set per request in proxy.ts; thread it onto the inline
   // theme-init script so it isn't blocked by the strict policy.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 

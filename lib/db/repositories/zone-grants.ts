@@ -10,9 +10,9 @@
  */
 
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { zoneGrants, type ZoneGrant } from "@/lib/db/schema";
+import { zoneGrants, pdnsServers, type ZoneGrant } from "@/lib/db/schema";
 
 /**
  * Every zone grant the given user has, across all backends. Used by
@@ -55,4 +55,53 @@ export async function findGrant(input: {
     )
     .limit(1);
   return rows[0] ?? null;
+}
+
+/**
+ * For each of the given server ids that belongs to a cluster, the full set of
+ * server ids in that cluster (including itself). Servers not in a cluster
+ * (standalone primaries, primary+secondaries groups) are omitted — callers
+ * treat an absent key as "just this server".
+ *
+ * Feeds `expandGrantsAcrossClusters` (lib/rbac/zone-permissions): a zone grant
+ * issued on one peer of a multi-primary cluster must authorize the zone on every
+ * peer, because the request path resolves a rotating peer via `choosePeer`.
+ *
+ * Two small dialect-neutral queries instead of a self-join (the repo's `db` is
+ * the shared pg/sqlite handle; a self-join needs dialect-specific aliasing).
+ */
+export async function mapServersToClusterPeers(
+  serverIds: readonly string[],
+): Promise<Map<string, string[]>> {
+  const result = new Map<string, string[]>();
+  if (serverIds.length === 0) return result;
+
+  // Which of the requested servers are in a cluster, and which cluster?
+  const inputRows = await db
+    .select({ id: pdnsServers.id, clusterId: pdnsServers.clusterId })
+    .from(pdnsServers)
+    .where(inArray(pdnsServers.id, [...serverIds]));
+  const clusterIds = [
+    ...new Set(inputRows.map((r) => r.clusterId).filter((c): c is string => c !== null)),
+  ];
+  if (clusterIds.length === 0) return result;
+
+  // Every server in those clusters.
+  const peerRows = await db
+    .select({ id: pdnsServers.id, clusterId: pdnsServers.clusterId })
+    .from(pdnsServers)
+    .where(and(inArray(pdnsServers.clusterId, clusterIds), isNotNull(pdnsServers.clusterId)));
+  const peersByCluster = new Map<string, string[]>();
+  for (const r of peerRows) {
+    if (r.clusterId === null) continue;
+    const arr = peersByCluster.get(r.clusterId) ?? [];
+    arr.push(r.id);
+    peersByCluster.set(r.clusterId, arr);
+  }
+
+  for (const r of inputRows) {
+    if (r.clusterId === null) continue;
+    result.set(r.id, peersByCluster.get(r.clusterId) ?? [r.id]);
+  }
+  return result;
 }

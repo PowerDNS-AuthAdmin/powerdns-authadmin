@@ -16,6 +16,9 @@
 4. **Trunk-based.** Short-lived branches, squash-merge to `main`, no long-running feature branches.
 5. **Conventional Commits** for PR titles: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, `test:`,
    `perf:`, `build:`, `ci:`. The PR body is the changelog entry — write it for humans.
+6. **Milestones track releases.** Every issue and PR targeting a release is tagged with that
+   release's milestone (e.g. `v1.1.3`). The milestone is closed when that version ships — its
+   issues/PRs are the release's scope and map to the `CHANGELOG` section.
 
 ---
 
@@ -173,6 +176,25 @@ Two layers, run independently:
 - **Coverage is not a goal.** Cover the things that _matter_ — auth, RBAC, PDNS client, audit
   log, anything that handles money or secrets. Don't write tests to inflate the percentage.
 - **Every bug fix ships a test that fails before the fix.** No exceptions.
+
+### Before you push (run CI locally)
+
+Standard pre-push gate — run CI locally with **[`act`](https://github.com/nektos/act)** and fix
+anything that fails. The committed `.actrc` pins the runner image + the CI workflow and uses your
+host-native arch, so the commands are flag-free:
+
+```sh
+npm run ci:local            # the gate: act runs the CI lint + typecheck + format + unit-test jobs
+npm run test:integration    # only if you touched routes / repos / auth
+```
+
+- `npm run ci:local` is `act -j static-checks && act -j test`; run a single job with `act -j test`
+  if you prefer. `act` runs `eslint .` without the host-memory limit you can hit with
+  `npm run lint` directly (first run pulls the ~1 GB runner image).
+- Run the integration suite **natively, not under `act`** — that job nests docker-compose, which
+  `act` can't run.
+- `act` does **not** replace GitHub-hosted CodeQL, the Docker build/publish, Scorecard, or
+  dependency-review — those need GitHub runners/tokens and remain the authority on the PR.
 
 ### Running the integration suite
 

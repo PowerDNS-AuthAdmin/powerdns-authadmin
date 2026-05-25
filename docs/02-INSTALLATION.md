@@ -1,57 +1,82 @@
 # Installation
 
-Run PowerDNS-AuthAdmin in production. The app ships as a single image —
+Run PowerDNS-AuthAdmin in production with Docker Compose. The app is one image —
 [`ghcr.io/powerdns-authadmin/powerdns-authadmin`](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin) —
-that runs on **SQLite** or **Postgres**. Migrations and the system-role seed run
-automatically on boot, so a fresh container comes up ready to use.
+and runs on **SQLite** or **Postgres**. Database migrations and the first-run
+admin seed happen automatically on boot, so the container comes up ready to use.
 
-- **SQLite** — single instance: homelab, evaluation, small teams. One file, no
-  separate database service.
-- **Postgres** — multi-instance, write-concurrent, the production default for
-  teams. Boots are serialised by an advisory lock so multiple replicas are safe.
-  For replicas > 1 also set `REDIS_URL` (cross-replica rate limiting, reveal
-  tokens, and live updates) — see [High availability](../README.md#high-availability-replicas--1).
+Four steps: **pick a database → create `.env` → write `docker-compose.yml` → start.**
 
-Switching dialects later is a fresh install — the two schema histories don't
-share migrations. Pick one up front.
+---
 
-## 1. Generate secrets and create your `.env`
+## Before you start
 
-Two secrets are **required** and must be unique per deployment. **Generate them
-once, store them in a `.env` file next to your `docker-compose.yml`, and never
-change them.** Docker Compose auto-loads `.env`, so the exact same values are
-reused on every `up`, `down`, and restart — there are no shell `export`s to
-remember (and nothing to silently regenerate).
+- **Docker** with the Compose plugin — `docker compose version` must be **v2+**.
+- A directory to hold your two files (`.env` + `docker-compose.yml`). Everything
+  below runs from inside it:
 
-> ⚠️ **Generate these once; never regenerate them on an existing install.**
-> Rotating `APP_ENCRYPTION_KEY` makes every stored PowerDNS API key, OIDC client
-> secret, and TOTP/MFA secret undecryptable; changing `APP_SECRET_KEY` logs
-> everyone out and voids outstanding verification/reset tokens. Re-running the
-> generator on a running deployment is the most common way to lock yourself out
-> — keep the `.env` backed up instead.
+  ```sh
+  mkdir powerdns-authadmin && cd powerdns-authadmin
+  ```
+
+### Which database?
+
+|              | **SQLite**                                     | **Postgres**                                                                                    |
+| ------------ | ---------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Use when     | one instance — homelab, evaluation, small team | multiple instances, or you want a managed DB                                                    |
+| Storage      | one file in a Docker volume                    | a `postgres` service (or your own DB)                                                           |
+| Replicas > 1 | ❌                                             | ✅ (also set `REDIS_URL` — see [High availability](../README.md#high-availability-replicas--1)) |
+
+> The two database backends do **not** share a migration history — switching
+> later is a fresh install. Pick one now.
+
+---
+
+## 1. Create `.env` (secrets)
+
+Two secrets are **required** and must be unique to your deployment. This command
+generates them, picks a bootstrap admin password, and writes `.env`. **Run it
+once.**
 
 ```sh
-# Run ONCE, in your deployment directory. Writes freshly-generated keys into
-# .env. Do NOT re-run this on an existing install (see the warning above).
-cat > .env <<EOF
-APP_SECRET_KEY=$(openssl rand -base64 32)
-APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
-BOOTSTRAP_ADMIN_PASSWORD=a-strong-password
-# Option B (Postgres) also needs a database password:
-POSTGRES_PASSWORD=a-strong-db-password
-EOF
+{
+  echo "APP_SECRET_KEY=$(openssl rand -base64 32)"
+  echo "APP_ENCRYPTION_KEY=$(openssl rand -base64 32)"
+  echo "APP_URL=https://dns.example.com"
+  echo "BOOTSTRAP_ADMIN_EMAIL=admin@example.com"
+  echo "BOOTSTRAP_ADMIN_PASSWORD=$(openssl rand -base64 18)"
+  # Postgres only — delete this line if you chose SQLite:
+  echo "POSTGRES_PASSWORD=$(openssl rand -base64 18)"
+} > .env
 chmod 600 .env
 ```
 
-| Secret               | Used for                                            | Constraint                    |
-| -------------------- | --------------------------------------------------- | ----------------------------- |
-| `APP_SECRET_KEY`     | Signing sessions, CSRF tokens, API-token HMACs      | ≥ 32 chars                    |
-| `APP_ENCRYPTION_KEY` | Encrypting PowerDNS API keys + OIDC secrets at rest | base64 decoding to ≥ 32 bytes |
+Then edit `.env`: set **`APP_URL`** to your real public URL and
+**`BOOTSTRAP_ADMIN_EMAIL`** to your address. Note the generated
+`BOOTSTRAP_ADMIN_PASSWORD` — you'll use it for the first login (and change it
+immediately).
 
-The app refuses to start if either is missing, too short, or an obvious
-placeholder (`changeme`, `secret`, …).
+| Variable                              | Purpose                                                      | Constraint                     |
+| ------------------------------------- | ------------------------------------------------------------ | ------------------------------ |
+| `APP_SECRET_KEY`                      | Signs sessions, CSRF tokens, API-token HMACs                 | ≥ 32 characters                |
+| `APP_ENCRYPTION_KEY`                  | Encrypts stored PowerDNS API keys, OIDC secrets, MFA secrets | base64 decoding to ≥ 32 bytes  |
+| `APP_URL`                             | Public, browser-visible URL (no trailing slash)              | e.g. `https://dns.example.com` |
+| `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD` | The first admin account (set together)                       | password ≥ 12 chars            |
 
-## 2. Deploy
+> ⚠️ **Generate the two keys once and never change them.** Rotating
+> `APP_ENCRYPTION_KEY` makes every stored PowerDNS API key, OIDC secret, and MFA
+> secret undecryptable; changing `APP_SECRET_KEY` logs everyone out. Back up
+> `.env` — don't regenerate it. (The app refuses to start if either key is
+> missing, too short, or a placeholder like `changeme`.)
+
+Compose loads `.env` automatically, so the same values are reused on every `up`,
+`down`, and restart — there are no shell `export`s to remember.
+
+---
+
+## 2. Write `docker-compose.yml`
+
+Pick the block matching your database choice.
 
 ### Option A — SQLite
 
@@ -63,29 +88,17 @@ services:
     restart: unless-stopped
     ports: ["3000:3000"]
     environment:
-      APP_URL: https://dns.example.com
+      APP_URL: ${APP_URL}
       DATABASE_URL: file:/data/powerdns_authadmin.db
       APP_SECRET_KEY: ${APP_SECRET_KEY}
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
-      BOOTSTRAP_ADMIN_EMAIL: admin@example.com
-      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD} # ≥12 chars
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
     volumes:
       - app-data:/data
 volumes:
   app-data:
 ```
-
-With the `.env` from [step 1](#1-generate-secrets-and-create-your-env) in the
-same directory (Compose loads it automatically for `${...}` interpolation), edit
-`APP_URL`/`BOOTSTRAP_ADMIN_EMAIL` in the compose file, then start the stack:
-
-```sh
-docker compose up -d
-```
-
-> Later, `docker compose down` then `up -d` **reuses the same `.env`** — your
-> data and encrypted secrets stay valid because the keys never changed. (Use
-> `docker compose down -v` only to start over: it **deletes the data volume**.)
 
 ### Option B — Postgres
 
@@ -99,11 +112,11 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
     environment:
-      APP_URL: https://dns.example.com
+      APP_URL: ${APP_URL}
       DATABASE_URL: postgres://pdns:${POSTGRES_PASSWORD}@postgres:5432/powerdns_authadmin
       APP_SECRET_KEY: ${APP_SECRET_KEY}
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
-      BOOTSTRAP_ADMIN_EMAIL: admin@example.com
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
   postgres:
     image: postgres:16-alpine
@@ -122,39 +135,49 @@ volumes:
   pg-data:
 ```
 
-Start it the same way — the `.env` from
-[step 1](#1-generate-secrets-and-create-your-env) supplies `APP_SECRET_KEY`,
-`APP_ENCRYPTION_KEY`, `POSTGRES_PASSWORD`, and `BOOTSTRAP_ADMIN_PASSWORD`:
+> **Production tip:** pin a version (`:1.1.2`) instead of `:latest` so deploys
+> are deterministic. See [Upgrading](./09-UPGRADING.md).
+
+---
+
+## 3. Start
 
 ```sh
 docker compose up -d
+docker compose logs -f app   # watch migrations + seed run, then "Ready"
 ```
 
-## 3. First login
+Later, `docker compose down` then `up -d` reuses the same `.env` and data.
+`docker compose down -v` **deletes the data volume** — only use it to start over.
+
+---
+
+## 4. First login
 
 Open `APP_URL`, sign in as `BOOTSTRAP_ADMIN_EMAIL` with the bootstrap password,
-and set a new password when prompted (the bootstrap admin is created with
-"must change password on next login"). Then add your PowerDNS backend(s) under
-**Admin → PowerDNS servers** — see [Connecting PowerDNS backends](./04-BACKENDS.md) —
-or define them in a [provisioning file](./06-PROVISIONING.md).
+and set a new password when prompted (the bootstrap admin is flagged
+"must change password"). Then add your PowerDNS backend(s) under **Admin →
+PowerDNS servers** ([Connecting backends](./04-BACKENDS.md)) — or define them in
+a [provisioning file](./06-PROVISIONING.md).
 
-> The bootstrap admin only seeds when both `BOOTSTRAP_ADMIN_EMAIL` and
-> `BOOTSTRAP_ADMIN_PASSWORD` are set (together — setting one without the other is
-> a startup error). It's idempotent: it ensures the account exists but won't
-> clobber an existing one.
+The bootstrap admin seeds only when **both** `BOOTSTRAP_ADMIN_EMAIL` and
+`BOOTSTRAP_ADMIN_PASSWORD` are set. It's idempotent — keyed on the email, it
+ensures that account exists and never clobbers an existing one.
 
-## Running behind a reverse proxy
+---
+
+## Reference
+
+### Behind a reverse proxy
 
 Terminate TLS at your proxy (nginx, Caddy, Traefik, a cloud LB) and forward to
 the app's port 3000. Two things matter:
 
-1. **`APP_URL` must be the public, browser-visible URL** (`https://dns.example.com`,
-   no trailing slash). It's used to build OIDC redirect URIs, email links, and
-   CSP origin checks — a wrong value breaks SSO and cookies.
-2. **The proxy must set `X-Forwarded-For` / `X-Real-IP`** to the real client IP.
-   The app always trusts these headers for IP attribution (audit log, rate
-   limiting) — there is no `TRUST_PROXY` toggle — so your proxy must _overwrite_
-   any client-supplied value, never append to it.
+1. **`APP_URL` is the public URL** — it builds OIDC redirect URIs, email links,
+   and cookie/CSP origins. A wrong value breaks SSO and cookies.
+2. **The proxy must set `X-Forwarded-For` / `X-Real-IP`** to the real client IP
+   (and _overwrite_ any client-supplied value, never append). The app always
+   trusts these for audit + rate limiting — there is no `TRUST_PROXY` toggle.
 
 Minimal Caddy example:
 
@@ -164,10 +187,10 @@ dns.example.com {
 }
 ```
 
-## Secrets from files (Docker / Kubernetes)
+### Secrets from files (Docker / Kubernetes secrets)
 
-Every variable also accepts a `_FILE` suffix: point it at a file whose contents
-are the value. Ideal for Docker secrets and Kubernetes `Secret` volumes.
+Every variable also accepts a `_FILE` suffix pointing at a file whose contents
+are the value:
 
 ```yaml
 environment:
@@ -180,60 +203,47 @@ secrets:
 
 If both `FOO` and `FOO_FILE` are set, the inline value wins and a warning is logged.
 
-## What happens on boot
+### What happens on boot
 
-The container entrypoint runs four stages, and **any failure aborts the boot** —
-a broken migration or malformed provisioning file produces a refused start, not a
-silently degraded run:
+The entrypoint runs four stages; **any failure aborts the boot** (a broken
+migration or bad provisioning file gives a refused start, not a degraded run):
 
-1. **Migrations** — apply pending schema changes. Opt out: `MIGRATE_ON_BOOT=false`.
-2. **Seed** — create the five system roles and (if configured) the bootstrap
-   admin. Opt out: `SEED_ON_BOOT=false`.
-3. **Provisioning** — apply `PROVISIONING_FILE` once. Opt out: `PROVISION_ON_BOOT=false`
-   or leave `PROVISIONING_FILE` unset. See [Provisioning](./06-PROVISIONING.md).
-4. **Start** the Next.js server.
+1. **Migrate** — apply pending schema changes. Opt out: `MIGRATE_ON_BOOT=false`.
+2. **Seed** — create the five system roles and (if configured) the bootstrap admin. Opt out: `SEED_ON_BOOT=false`.
+3. **Provision** — apply `PROVISIONING_FILE` once, if set. Opt out: `PROVISION_ON_BOOT=false`. See [Provisioning](./06-PROVISIONING.md).
+4. **Start** the server.
 
-To run migrations as a separate CI/CD step instead of on boot, set
-`MIGRATE_ON_BOOT=false` and run `npm run db:migrate` (with `DATABASE_URL` set)
-before starting the app.
+To run migrations as a separate CI/CD step, set `MIGRATE_ON_BOOT=false` and run
+`npm run db:migrate` (with `DATABASE_URL` set) before starting the app.
 
-## Health checks
-
-Wire these into your orchestrator:
+### Health checks
 
 | Endpoint       | Meaning                                                 | Use for                     |
 | -------------- | ------------------------------------------------------- | --------------------------- |
 | `GET /healthz` | Process is alive                                        | Liveness probe              |
 | `GET /readyz`  | DB reachable **and** migrations at the expected version | Readiness probe / LB gating |
 
-`/readyz` deliberately fails while migrations are mid-flight, so a rolling deploy
-won't send traffic to a replica that isn't ready.
+`/readyz` fails while migrations are mid-flight, so a rolling deploy won't send
+traffic to a replica that isn't ready.
 
-## Backups
+### Backups
 
-- **SQLite:** the database is a single file at the path in `DATABASE_URL`
-  (e.g. `/data/powerdns_authadmin.db` inside the `app-data` volume). Back up the
-  volume, or copy the file while the app is stopped (or use `sqlite3 … ".backup"`
-  for a hot copy). Losing `APP_ENCRYPTION_KEY` makes the backup's stored API keys
-  unreadable — back up the key alongside the data.
-- **Postgres:** standard `pg_dump` / `pg_restore` or volume snapshots.
+- **SQLite** — back up the `app-data` volume (the DB is a single file at the
+  `DATABASE_URL` path). Back up `APP_ENCRYPTION_KEY` alongside it, or the stored
+  secrets are unreadable.
+- **Postgres** — `pg_dump` / `pg_restore` or volume snapshots:
 
-```sh
-# Postgres logical backup
-docker compose exec postgres pg_dump -U pdns powerdns_authadmin > backup.sql
-```
+  ```sh
+  docker compose exec postgres pg_dump -U pdns powerdns_authadmin > backup.sql
+  ```
 
-## Upgrading
-
-Pull a newer image tag and recreate the container — migrations run automatically.
-**Back up first**, and read [Upgrading](./09-UPGRADING.md) for version pinning and
-rollback caveats.
+---
 
 ## Next steps
 
-- [Configuration reference](./03-CONFIGURATION.md) — every environment variable.
+- [Configuration](./03-CONFIGURATION.md) — every environment variable.
 - [Connecting PowerDNS backends](./04-BACKENDS.md).
-- [Hardening & best practices](./08-HARDENING.md).
+- [Hardening](./08-HARDENING.md) and [Upgrading](./09-UPGRADING.md).
 
 ---
 

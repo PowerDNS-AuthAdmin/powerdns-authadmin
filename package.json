@@ -39,7 +39,8 @@
     "db:seed": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed.ts",
     "provision": "NODE_OPTIONS=--conditions=react-server tsx scripts/provision.ts",
     "audit:strict": "npm audit --audit-level=high --omit=dev",
-    "validate": "npm run lint && npm run typecheck && npm run format:check && npm run test"
+    "validate": "npm run lint && npm run typecheck && npm run format:check && npm run test",
+    "ci:local": "act -j static-checks && act -j test"
   },
   "dependencies": {
     "@casl/ability": "7.0.0",

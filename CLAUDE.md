@@ -27,31 +27,36 @@ Licensed under **MIT**.
 
 ## How to run things
 
-### Containerized (recommended)
+### Containerized demo (quickest)
 
 ```sh
-cp .env.example .env
-openssl rand -base64 32   # → APP_SECRET_KEY in .env
-openssl rand -base64 32   # → APP_ENCRYPTION_KEY in .env
-docker compose up -d --build
-#   app  at http://localhost:3000
-#   pdns at http://localhost:8081/api/v1   (X-API-Key: changeme)
+docker compose up -d   # demo stack (app + PDNS); reads throwaway secrets from .env.example
+#   app  at http://localhost:3000          (login: admin@example.com / change-me-now)
+#   pdns at http://localhost:8081/api/v1   (X-API-Key: demo-pdns-api-key)
 ```
+
+For a real install (your own `.env` + compose, SQLite or Postgres) see
+[`docs/02-INSTALLATION.md`](./docs/02-INSTALLATION.md).
 
 ### Local dev with HMR
 
 ```sh
 nvm use                          # Node 24 from .nvmrc
 npm ci                           # exact-pin install
-cp .env.example .env.local       # fill in APP_SECRET_KEY + APP_ENCRYPTION_KEY
-docker compose up -d             # Postgres + Redis + sandbox PDNS
+cp .env.example .env.local       # set APP_SECRET_KEY + APP_ENCRYPTION_KEY; DATABASE_URL=file:./dev.db
+docker compose up -d pdns        # a local PowerDNS to develop against (SQLite app runs on host)
 
 npm run dev                      # http://localhost:3000
 npm run validate                 # the CI gate — lint + typecheck + format + test
-npm run db:generate              # after a schema change → produces a new migration
+npm run test:integration         # integration suite (builds + boots the stack in Docker)
+npm run db:generate              # after a schema change → new migration (also db:generate:sqlite)
 npm run db:migrate               # apply pending migrations
-npm run db:studio                # browse the DB via Drizzle Studio
 ```
+
+Pre-push gate: `npm run ci:local` (= `act -j static-checks && act -j test` — [act](https://github.com/nektos/act)
+runs the CI lint/typecheck/format + unit-test jobs locally, incl. `eslint .` without the local OOM;
+the committed `.actrc` pins the runner image + workflow + host-native arch). Run
+`npm run test:integration` natively (act can't nest docker-compose). CodeQL/Docker/Scorecard still need real CI.
 
 ## Project layout
 
@@ -88,7 +93,7 @@ lib/                  domain code, three-layer architecture enforced via ESLint
   logger.ts           Pino structured logging
   client-ip.ts        proxy-aware client IP
 
-middleware.ts         per-request CSP nonce + security headers
+proxy.ts              per-request CSP nonce + security headers (Next 16 proxy convention)
 docker/               entrypoint that runs migrations then boots the server
 drizzle/              generated PG migrations
 drizzle-sqlite/       generated SQLite migrations

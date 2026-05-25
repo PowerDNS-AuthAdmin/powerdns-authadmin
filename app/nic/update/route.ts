@@ -30,7 +30,7 @@ import {
 } from "@/lib/db/repositories/api-tokens";
 import { findUserByEmail } from "@/lib/db/repositories/users";
 import { loadUserAssignmentsForAbility } from "@/lib/db/repositories/roles";
-import { listGrantsForUser } from "@/lib/db/repositories/zone-grants";
+import { listGrantsForUser, mapServersToClusterPeers } from "@/lib/db/repositories/zone-grants";
 import { listActivePdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { appendAudit } from "@/lib/audit/log";
 import { getClientIp, getRequestContext } from "@/lib/client-ip";
@@ -48,7 +48,7 @@ import {
   type NarrowableAssignment,
 } from "@/lib/auth/token-scope-narrowing";
 import { globalPermissionsOf } from "@/lib/rbac/ability";
-import { hasZonePermissionViaGrant } from "@/lib/rbac/zone-permissions";
+import { expandGrantsAcrossClusters, hasZonePermissionViaGrant } from "@/lib/rbac/zone-permissions";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { replaceRRset, zonePatchBody } from "@/lib/pdns/rrsets";
 import { redact } from "@/lib/errors/redact";
@@ -118,7 +118,7 @@ export async function GET(request: Request): Promise<Response> {
   );
   const globalPermissions = globalPermissionsOf(narrowed);
   const rawGrants = await listGrantsForUser(user.id);
-  const zoneGrants =
+  const narrowedGrants =
     tokenRow.scopes.length === 0
       ? rawGrants
       : rawGrants
@@ -127,6 +127,16 @@ export async function GET(request: Request): Promise<Response> {
             permissions: g.permissions.filter((p) => tokenRow.scopes.includes(p)),
           }))
           .filter((g) => g.permissions.length > 0);
+  // Expand across cluster peers so a grant on one peer authorizes the zone on
+  // the rotating peer this DynDNS update resolves to (see get-current-user).
+  const clusterPeers =
+    narrowedGrants.length > 0
+      ? await mapServersToClusterPeers(narrowedGrants.map((g) => g.serverId))
+      : new Map<string, string[]>();
+  const zoneGrants =
+    clusterPeers.size === 0
+      ? narrowedGrants
+      : expandGrantsAcrossClusters(narrowedGrants, clusterPeers);
 
   // ── Source IP — use the explicit param when given, else derive ──────────
   const sourceIp = myip ?? getClientIp(hdrs);

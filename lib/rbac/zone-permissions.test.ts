@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canActOnZone,
   effectiveZonePermissions,
+  expandGrantsAcrossClusters,
   hasZonePermissionViaGrant,
   type ZoneGrantInput,
 } from "./zone-permissions";
@@ -142,5 +143,61 @@ describe("canActOnZone", () => {
         permission: "record.update",
       }),
     ).toBe(false);
+  });
+});
+
+describe("expandGrantsAcrossClusters", () => {
+  const clusterGrant: ZoneGrantInput[] = [
+    { serverId: "peer-1", zoneName: "example.com.", permissions: ["record.update"] },
+  ];
+
+  it("emits a copy of a cluster grant for every peer (preserving zone + permissions)", () => {
+    const peers = new Map<string, readonly string[]>([["peer-1", ["peer-1", "peer-2", "peer-3"]]]);
+    const out = expandGrantsAcrossClusters(clusterGrant, peers);
+    expect(out.map((g) => g.serverId).sort()).toEqual(["peer-1", "peer-2", "peer-3"]);
+    for (const g of out) {
+      expect(g.zoneName).toBe("example.com.");
+      expect(g.permissions).toEqual(["record.update"]);
+    }
+  });
+
+  it("makes a cluster grant authorize the zone on a sibling peer (the #40 fix)", () => {
+    const peers = new Map<string, readonly string[]>([["peer-1", ["peer-1", "peer-2"]]]);
+    const expanded = expandGrantsAcrossClusters(clusterGrant, peers);
+    // The request resolved peer-2 via choosePeer; the grant was issued on peer-1.
+    expect(hasZonePermissionViaGrant(expanded, "peer-2", "example.com.", "record.update")).toBe(
+      true,
+    );
+    // Without expansion the raw grant would NOT match peer-2.
+    expect(hasZonePermissionViaGrant(clusterGrant, "peer-2", "example.com.", "record.update")).toBe(
+      false,
+    );
+  });
+
+  it("leaves a standalone grant (server absent from the map) untouched", () => {
+    const out = expandGrantsAcrossClusters(clusterGrant, new Map());
+    expect(out).toHaveLength(1);
+    expect(out[0]).toBe(clusterGrant[0]); // same reference, no copy
+  });
+
+  it("does not cross cluster boundaries", () => {
+    const twoClusters: ZoneGrantInput[] = [
+      { serverId: "a1", zoneName: "z.", permissions: ["zone.read"] },
+      { serverId: "b1", zoneName: "z.", permissions: ["zone.delete"] },
+    ];
+    const peers = new Map<string, readonly string[]>([
+      ["a1", ["a1", "a2"]],
+      ["b1", ["b1", "b2"]],
+    ]);
+    const out = expandGrantsAcrossClusters(twoClusters, peers);
+    // a-cluster peers only carry zone.read; b-cluster peers only zone.delete.
+    expect(hasZonePermissionViaGrant(out, "a2", "z.", "zone.read")).toBe(true);
+    expect(hasZonePermissionViaGrant(out, "a2", "z.", "zone.delete")).toBe(false);
+    expect(hasZonePermissionViaGrant(out, "b2", "z.", "zone.delete")).toBe(true);
+    expect(hasZonePermissionViaGrant(out, "b2", "z.", "zone.read")).toBe(false);
+  });
+
+  it("returns an empty array for empty input", () => {
+    expect(expandGrantsAcrossClusters([], new Map())).toEqual([]);
   });
 });
