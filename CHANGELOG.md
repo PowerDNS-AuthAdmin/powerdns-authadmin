@@ -18,6 +18,11 @@ All notable changes to this project are documented here. The format is based on
   DynDNS request/auth, and every RR-type content validator — running in the unit suite as
   `*.fuzz.test.ts`. Hardens the hand-rolled parsers (which have shipped real bugs) and
   satisfies the OpenSSF Scorecard Fuzzing check.
+- **Signed releases + image provenance.** A `release-sign` workflow (on release publish)
+  cosign-signs the published multi-arch image (keyless / Sigstore) and attaches an SPDX SBOM
+  plus a signed checksums bundle (`*.sigstore.json`) to the GitHub release. Verify the image
+  with `cosign verify ghcr.io/powerdns-authadmin/powerdns-authadmin:<version>` (see
+  [Hardening → verifying the image](./docs/08-HARDENING.md)). (OpenSSF Scorecard: Signed-Releases.)
 
 ## [1.1.3] — 2026-05-26
 

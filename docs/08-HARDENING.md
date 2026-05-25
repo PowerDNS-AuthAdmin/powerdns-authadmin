@@ -74,6 +74,20 @@ exotic — it's the handful of things worth getting right before you expose the 
 - **Watch the audit log.** Every write is recorded with redacted before/after
   snapshots — it's your forensic trail.
 
+## Verify the image signature
+
+Each published release is cosign-signed (keyless / Sigstore) by the release
+workflow. Verify before deploying:
+
+```sh
+cosign verify ghcr.io/powerdns-authadmin/powerdns-authadmin:1.1.3 \
+  --certificate-identity-regexp '^https://github.com/PowerDNS-AuthAdmin/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+The GitHub release also carries an SPDX SBOM and a signed `checksums.txt`
+(`checksums.txt.sigstore.json`) for the attached artifacts.
+
 ---
 
 [← Docs index](./README.md)
