@@ -13,7 +13,7 @@
  */
 
 import { useState, type FormEvent } from "react";
-import { MIN_PASSWORD_LENGTH } from "@/lib/validators/users";
+import { MIN_PASSWORD_LENGTH } from "@/lib/validators/password-policy";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
 
 export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) {

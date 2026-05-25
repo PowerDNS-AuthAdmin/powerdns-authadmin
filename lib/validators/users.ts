@@ -6,9 +6,11 @@
 
 import "server-only";
 import { z } from "zod";
+// Re-exported from a client-safe module so client forms can mirror the policy
+// without pulling this `server-only` module into a client bundle (issue #32).
+import { MIN_PASSWORD_LENGTH } from "./password-policy";
 
-/** Minimum password length we accept anywhere local passwords are written. */
-export const MIN_PASSWORD_LENGTH = 12;
+export { MIN_PASSWORD_LENGTH };
 
 export const passwordSchema = z
   .string()
