@@ -1,0 +1,40 @@
+# =============================================================================
+# Dependency review — blocks a PR that adds a dependency with a known
+# high/critical CVE or a disallowed license, before it ever lands on main.
+#
+# This complements, rather than duplicates, the other layers:
+#   • Renovate          — opens PRs to *update* deps (incl. immediate security PRs).
+#   • Dependabot alerts — flag CVEs in deps *already* on main.
+#   • CI `npm audit`    — gates the production dep tree on high/critical CVEs.
+#   • THIS              — gates the *diff*: catches a vulnerable/odd-licensed dep
+#                         at the moment a PR introduces it.
+#
+# Uses the dependency graph (on by default for public repos). No secrets.
+# =============================================================================
+
+name: Dependency review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write # post the summary comment on failure
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          # MIT project — keep the dep tree to permissive/compatible licenses.
+          deny-licenses: AGPL-1.0-only, AGPL-3.0-only, GPL-2.0-only, GPL-3.0-only
+          comment-summary-in-pr: on-failure
