@@ -40,9 +40,13 @@ interface SelectMenuProps<T extends string> {
 }
 
 interface Anchor {
-  top: number;
   left: number;
   width: number;
+  /** Exactly one of `top` / `bottom` is set, depending on the flip direction. */
+  top?: number;
+  bottom?: number;
+  /** Cap the listbox to the space on the chosen side so it scrolls, never clips. */
+  maxHeight: number;
 }
 
 export function SelectMenu<T extends string>({
@@ -60,11 +64,38 @@ export function SelectMenu<T extends string>({
   const listRef = useRef<HTMLUListElement>(null);
   const listId = useId();
 
-  // Anchor the portaled listbox to the trigger. Recomputed on open and on any
-  // scroll/resize so it tracks the trigger instead of drifting.
+  // Anchor the portaled listbox to the trigger. Opens downward by default, but
+  // flips upward when the trigger sits near the viewport bottom (e.g. a table's
+  // page-size selector, which lives in the pager at the foot of the page) so the
+  // options aren't clipped off-screen. Recomputed on open and on any
+  // scroll/resize so it tracks the trigger and re-flips as it moves.
   const reposition = useCallback(() => {
     const b = btnRef.current?.getBoundingClientRect();
-    if (b) setAnchor({ top: b.bottom + 4, left: b.left, width: b.width });
+    if (!b) return;
+    const GAP = 4; // breathing room between the trigger and the menu
+    const EDGE = 8; // keep the menu off the very edge of the screen
+    const MENU_MAX = 288; // the listbox's natural cap (the old max-h-72 = 18rem)
+    const spaceBelow = window.innerHeight - b.bottom - GAP - EDGE;
+    const spaceAbove = b.top - GAP - EDGE;
+    // Flip up only when the menu can't get its full height below AND there's more
+    // room above. Anchoring the up-menu by its BOTTOM edge means it sits directly
+    // above the trigger regardless of how many options it holds — no measuring.
+    const openUp = spaceBelow < MENU_MAX && spaceAbove > spaceBelow;
+    if (openUp) {
+      setAnchor({
+        bottom: window.innerHeight - b.top + GAP,
+        left: b.left,
+        width: b.width,
+        maxHeight: Math.max(0, Math.min(MENU_MAX, spaceAbove)),
+      });
+    } else {
+      setAnchor({
+        top: b.bottom + GAP,
+        left: b.left,
+        width: b.width,
+        maxHeight: Math.max(0, Math.min(MENU_MAX, spaceBelow)),
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -139,8 +170,14 @@ export function SelectMenu<T extends string>({
               ref={listRef}
               id={listId}
               role="listbox"
-              style={{ top: anchor.top, left: anchor.left, width: anchor.width }}
-              className="fixed z-[200] max-h-72 overflow-auto rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] py-1 text-sm shadow-lg"
+              style={{
+                top: anchor.top,
+                bottom: anchor.bottom,
+                left: anchor.left,
+                width: anchor.width,
+                maxHeight: anchor.maxHeight,
+              }}
+              className="fixed z-[200] overflow-auto rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] py-1 text-sm shadow-lg"
             >
               {options.map((o) => (
                 <li

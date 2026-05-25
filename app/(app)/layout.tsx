@@ -14,7 +14,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { BookText } from "lucide-react";
-import { APP_DOCS_URL, APP_RELEASE_URL, APP_VERSION } from "@/lib/app-meta";
+import { APP_DOCS_URL, APP_SOURCE_TITLE, APP_SOURCE_URL, APP_VERSION_LABEL } from "@/lib/app-meta";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { checkMfaCompliance } from "@/lib/auth/mfa-compliance";
 import { listRoleMfaStatesForUser } from "@/lib/db/repositories/roles";
@@ -225,14 +225,14 @@ function SidebarFooter() {
     <div className="shrink-0 border-t border-[color:var(--color-border)] px-4 py-3">
       <div className="flex items-center justify-between text-xs text-[color:var(--color-fg-muted)]">
         <a
-          href={APP_RELEASE_URL}
+          href={APP_SOURCE_URL}
           target="_blank"
           rel="noreferrer noopener"
-          title={`PowerDNS-AuthAdmin v${APP_VERSION} — view this release on GitHub`}
+          title={APP_SOURCE_TITLE}
           className="inline-flex items-center gap-1.5 hover:text-[color:var(--color-fg)]"
         >
           <GitHubMark className="h-3.5 w-3.5" />
-          <span className="tabular-nums">v{APP_VERSION}</span>
+          <span className="tabular-nums">v{APP_VERSION_LABEL}</span>
         </a>
         <a
           href={APP_DOCS_URL}

@@ -29,6 +29,16 @@ describe("pickPeer round_robin", () => {
     expect(sequence).toEqual(["a", "b", "c", "a"]);
   });
 
+  it("keeps rotating after a full wrap (shared globalThis cursor survives)", () => {
+    // Regression for the RR index moving onto globalThis: the cursor must keep
+    // advancing past the peer-count boundary instead of being silently reset
+    // by a duplicated module instance restarting at 0.
+    const peers = [peer("a"), peer("b")];
+    const cluster = { id: "wrap", writeStrategy: "round_robin" as const };
+    const seq = Array.from({ length: 5 }, () => pickPeer(cluster, peers)?.id);
+    expect(seq).toEqual(["a", "b", "a", "b", "a"]);
+  });
+
   it("tracks RR index per cluster independently", () => {
     const peers = [peer("a"), peer("b")];
     expect(pickPeer({ id: "x", writeStrategy: "round_robin" }, peers)?.id).toBe("a");
@@ -64,6 +74,28 @@ describe("pickPeer lowest_latency", () => {
   it("falls back to first peer when samples are absent", () => {
     const peers = [peer("a"), peer("b")];
     expect(pickPeer({ id: "c1", writeStrategy: "lowest_latency" }, peers)?.id).toBe("a");
+  });
+
+  it("a fast-failing peer never becomes the lowest_latency choice", () => {
+    // Regression for the failure-latency pollution bug: requests that FAIL no
+    // longer feed the latency buffer, so a peer that only ever returns fast
+    // errors records no success-latency sample at all. With no sample it sorts
+    // to +Infinity and must lose to a slower-but-working peer. (Before the fix,
+    // its tiny error wall-time would have made it the preferred write target.)
+    const failingFast = peer("fail-fast");
+    const slowButHealthy = peer("healthy");
+    const samples: PeerSamples = {
+      // Only the healthy peer recorded a (success) latency. The failing peer is
+      // absent — modelling the buffer no longer ingesting its failure timings.
+      latencyP50Ms: new Map([["healthy", 300]]),
+      zoneCounts: new Map(),
+    };
+    const choice = pickPeer(
+      { id: "c1", writeStrategy: "lowest_latency" },
+      [failingFast, slowButHealthy],
+      samples,
+    );
+    expect(choice?.id).toBe("healthy");
   });
 });
 
