@@ -38,7 +38,7 @@
 # =============================================================================
 
 # --- Stage 1: builder --------------------------------------------------------
-FROM node:24-bookworm-slim AS builder
+FROM node:24-bookworm-slim@sha256:242549cd46785b480c832479a730f4f2a20865d61ea2e404fdb2a5c3d3b73ecf AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 build-essential ca-certificates \
@@ -67,7 +67,7 @@ RUN npm run build
 # --- Stage 2: prod deps tree -------------------------------------------------
 # Separate stage so the runner gets a clean `npm ci --omit=dev` tree without
 # the devDeps that the builder needed (drizzle-kit, tsc, vitest, prettier).
-FROM node:24-bookworm-slim AS deps
+FROM node:24-bookworm-slim@sha256:242549cd46785b480c832479a730f4f2a20865d61ea2e404fdb2a5c3d3b73ecf AS deps
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 build-essential ca-certificates \
@@ -82,7 +82,7 @@ RUN --mount=type=cache,target=/root/.npm \
 
 
 # --- Stage 3: runner --------------------------------------------------------
-FROM node:24-bookworm-slim AS runner
+FROM node:24-bookworm-slim@sha256:242549cd46785b480c832479a730f4f2a20865d61ea2e404fdb2a5c3d3b73ecf AS runner
 
 WORKDIR /app
 
