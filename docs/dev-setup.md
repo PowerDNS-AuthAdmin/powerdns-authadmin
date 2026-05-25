@@ -47,33 +47,31 @@ Health endpoints to confirm everything's wired:
 
 ## Before opening a PR
 
-```sh
-# One command runs lint, typecheck, format check, and unit tests.
-npm run validate
-```
-
-Run the integration suite too if you touched routes, repositories, or auth — it
-builds + boots the stack in Docker:
+Run this gate and fix anything that fails:
 
 ```sh
-npm run test:integration
+npm run test                              # unit suite (native — fast, reliable)
+act -j static-checks -W .github/workflows/ci.yml   # CI lint + typecheck + format
+npm run test:integration                  # only if you touched routes / repos / auth
 ```
 
-**Run the CI workflow locally with [`act`](https://github.com/nektos/act)** to
-catch failures before they hit GitHub. It runs the GitHub Actions jobs in Docker:
+Why this split:
 
-```sh
-act -j static-checks -W .github/workflows/ci.yml --container-architecture linux/amd64
-act -j test          -W .github/workflows/ci.yml --container-architecture linux/amd64
-```
+- **`npm run test`** runs the unit suite natively. Run it here rather than under
+  `act` — a couple of network-touching tests can time out under `act`'s emulated
+  container (e.g. on Apple Silicon).
+- **`act -j static-checks`** ([act](https://github.com/nektos/act)) runs the CI
+  lint + typecheck + format-check job in Docker. Use it for lint especially: it
+  runs `eslint .` without the host-memory limit you can hit with `npm run lint`
+  directly. The committed `.actrc` pins the runner image + arch, so no flags are
+  needed (first run pulls the ~1 GB image).
+- **`npm run test:integration`** builds + boots the stack in Docker for the HTTP
+  integration suite.
 
-`act` reliably runs the **JS-action jobs** (`static-checks`, `test`, `audit`) —
-and runs `eslint .` without the host-memory limits you can hit locally. It does
-**not** stand in for GitHub-hosted CodeQL, the Docker build/publish, Scorecard,
-or dependency-review (those need GitHub runners / tokens), so those remain the
-authority on the PR. First run pulls the runner image (~1 GB).
-
-If any of these fail locally, CI will too. Fix before pushing.
+`act` does **not** stand in for GitHub-hosted CodeQL, the Docker build/publish,
+Scorecard, or dependency-review (those need GitHub runners / tokens) — they
+remain the authority on the PR. If the gate above passes, CI's JS-action jobs
+will too.
 
 ## Commonly-needed commands
 

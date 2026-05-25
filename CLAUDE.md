@@ -53,9 +53,10 @@ npm run db:generate              # after a schema change → new migration (also
 npm run db:migrate               # apply pending migrations
 ```
 
-Run CI locally before pushing with [`act`](https://github.com/nektos/act) — e.g.
-`act -j static-checks -W .github/workflows/ci.yml --container-architecture linux/amd64` (covers
-the `static-checks`/`test`/`audit` jobs; CodeQL/Docker/Scorecard still need real CI).
+Pre-push gate: `npm run test` (unit suite, native) + `act -j static-checks -W .github/workflows/ci.yml`
+([act](https://github.com/nektos/act) runs CI lint+typecheck+format — incl. `eslint .` without the
+local OOM; `.actrc` pins the image + arch). Run unit tests natively, not under `act` (network-touching
+tests can time out in its emulated container). CodeQL/Docker/Scorecard still need real CI.
 
 ## Project layout
 

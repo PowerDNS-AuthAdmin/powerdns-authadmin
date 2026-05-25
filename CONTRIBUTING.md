@@ -176,22 +176,22 @@ Two layers, run independently:
 
 ### Before you push (run CI locally)
 
-Standard pre-push gate, in order — fix anything that fails before pushing:
+Standard pre-push gate — fix anything that fails before pushing:
 
-1. `npm run validate` — lint + typecheck + format check + unit tests.
-2. `npm run test:integration` — if you touched routes, repositories, or auth.
-3. **[`act`](https://github.com/nektos/act)** — run the GitHub Actions jobs in Docker to catch
-   CI failures locally:
+```sh
+npm run test                              # unit suite (native — fast, reliable)
+act -j static-checks -W .github/workflows/ci.yml   # CI lint + typecheck + format
+npm run test:integration                  # only if you touched routes / repos / auth
+```
 
-   ```sh
-   act -j static-checks -W .github/workflows/ci.yml --container-architecture linux/amd64
-   act -j test          -W .github/workflows/ci.yml --container-architecture linux/amd64
-   ```
-
-   `act` covers the JS-action jobs (`static-checks`, `test`, `audit`) and runs `eslint .` without
-   the host-memory limits you can hit locally. It does **not** replace GitHub-hosted CodeQL, the
-   Docker build/publish, Scorecard, or dependency-review — those need GitHub runners/tokens and
-   remain the authority on the PR.
+- **Run the unit suite natively** with `npm run test`, not under `act` — a couple of
+  network-touching tests can time out in `act`'s emulated container (e.g. on Apple Silicon).
+- **[`act`](https://github.com/nektos/act)** runs the CI lint + typecheck + format job in Docker;
+  use it for lint especially — it runs `eslint .` without the host-memory limit you can hit with
+  `npm run lint` directly. The committed `.actrc` pins the runner image + arch (no flags needed;
+  first run pulls the ~1 GB image).
+- `act` does **not** replace GitHub-hosted CodeQL, the Docker build/publish, Scorecard, or
+  dependency-review — those need GitHub runners/tokens and remain the authority on the PR.
 
 ### Running the integration suite
 

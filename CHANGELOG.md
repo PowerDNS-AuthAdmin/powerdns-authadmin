@@ -6,7 +6,31 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **Per-zone grants now work on multi-primary clusters.** A `zone_grant` is keyed to one
+  backend, but a cluster zone's reads/writes resolve a rotating peer (`choosePeer`), so a grant
+  issued on one peer intermittently returned 403 when another peer was chosen. Grants are now
+  expanded across cluster peers on the authorization path, so a grant on any peer authorizes the
+  zone on every peer of that cluster. (#40)
+
+### Changed
+
+- **`middleware.ts` → `proxy.ts`.** Adopted the Next 16 `proxy` file convention (the `middleware`
+  convention is deprecated); the per-request CSP nonce + security headers are unchanged. (#41)
+- **CI GitHub Actions re-pinned to Node 24-compatible releases** (still pinned by commit SHA),
+  ahead of GitHub's deprecation of the Node 20 action runtime. (#44)
+
+### Documentation
+
+- **Installation guide rewritten** to four bulletproof, copy-paste steps (pick a database → create
+  `.env` → write `docker-compose.yml` → start), plus a docs-wide accuracy sweep (bootstrap-admin
+  semantics, lockout default, metrics route/default, provisioning order, dev-setup flow) verified
+  against the code.
+- **`act` documented as the pre-push local-CI standard** (a committed `.actrc` pins the runner
+  image); it runs the JS-action jobs locally, while CodeQL / Docker / Scorecard remain on GitHub CI.
+- README: added a GHCR pulls badge and a "PowerDNS Auth tested versions" header over the
+  compatibility badges.
 
 ## [1.1.2] — 2026-05-25
 
