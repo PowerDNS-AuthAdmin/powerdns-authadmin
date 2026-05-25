@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.1.2] — 2026-05-25
+
 ### Security
 
 Findings from an internal security audit. Distinct advisories are tracked privately
@@ -291,7 +295,8 @@ First production release.
 - **Distribution** — multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.0.1...v1.0.2
