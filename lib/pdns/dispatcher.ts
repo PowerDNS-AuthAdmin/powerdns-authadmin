@@ -1,7 +1,7 @@
 /**
  * lib/pdns/dispatcher.ts
  *
- * Shared undici Agent used by every PdnsClient instance. Configured to:
+ * undici Agent configuration for every PDNS-facing request. The options are:
  *
  *   - **Negotiate HTTP/2 via ALPN** (`allowH2: true`). Some upstream PDNS
  *     deployments live behind a Cloudflare / nginx / Envoy front that
@@ -17,8 +17,10 @@
  *     own `AbortController` is the authoritative timeout — these are belt-
  *     and-braces.
  *
- * One Agent serves every backend; undici's pool keys by origin so this is
- * still per-host pooling under the hood.
+ * `http.ts` builds a per-request Agent from {@link PDNS_AGENT_OPTIONS} with a
+ * pinned `connect.lookup` (DNS-rebinding defense), so the long-lived shared
+ * Agent from {@link pdnsDispatcher} is not on the live request path; it remains
+ * for callers that want a pooled dispatcher without per-request address pinning.
  */
 
 import "server-only";
@@ -27,17 +29,25 @@ import { Agent } from "undici";
 let dispatcher: Agent | null = null;
 
 /**
+ * Shared timeout/protocol options for every PDNS-facing Agent. Exported so the
+ * per-request DNS-rebinding-pinned Agent in `http.ts` inherits the exact same
+ * TLS/H2 negotiation and timeout behavior as the shared pool — the only
+ * difference between the two is the pinned `connect.lookup`.
+ */
+export const PDNS_AGENT_OPTIONS: Agent.Options = {
+  allowH2: true,
+  keepAliveTimeout: 30_000,
+  keepAliveMaxTimeout: 600_000,
+  connectTimeout: 10_000,
+  headersTimeout: 30_000,
+  bodyTimeout: 30_000,
+};
+
+/**
  * Lazily build the shared Agent on first use. Lazy because constructing it at
  * module-load time fires before env validation in some test scenarios.
  */
 export function pdnsDispatcher(): Agent {
-  dispatcher ??= new Agent({
-    allowH2: true,
-    keepAliveTimeout: 30_000,
-    keepAliveMaxTimeout: 600_000,
-    connectTimeout: 10_000,
-    headersTimeout: 30_000,
-    bodyTimeout: 30_000,
-  });
+  dispatcher ??= new Agent(PDNS_AGENT_OPTIONS);
   return dispatcher;
 }
