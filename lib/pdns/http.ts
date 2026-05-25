@@ -17,11 +17,10 @@
  */
 
 import "server-only";
-import { isIP } from "node:net";
-import type { LookupFunction } from "node:net";
-import { Agent, fetch as undiciFetch } from "undici";
+import { fetch as undiciFetch } from "undici";
 import { logger } from "@/lib/logger";
 import { redact } from "@/lib/errors/redact";
+import { buildPinnedDispatcher } from "@/lib/net/pinned-fetch";
 import { PdnsError, PdnsUpstreamError, classifyPdnsHttpError } from "./errors";
 import { PDNS_AGENT_OPTIONS } from "./dispatcher";
 import { recordPdnsLatency } from "./observations";
@@ -246,8 +245,11 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
 
   // `addresses` is non-empty here: the PDNS policy never sets
   // `treatUnresolvableAsSafe`, so `safe: true` implies at least one validated
-  // address (a literal IP, or the resolved A/AAAA set).
-  const dispatcher = pinnedDispatcher(safety.addresses);
+  // address (a literal IP, or the resolved A/AAAA set). Pin one into a
+  // single-use dispatcher (shared logic in `lib/net/pinned-fetch.ts`); the
+  // Agent mirrors `PDNS_AGENT_OPTIONS` so TLS/H2 negotiation and timeouts match
+  // the shared pool exactly — the only difference is the pinned `connect.lookup`.
+  const dispatcher = buildPinnedDispatcher(safety.addresses, PDNS_AGENT_OPTIONS);
 
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
@@ -307,52 +309,6 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
     throw classifyPdnsHttpError(response.status, parsed, redact(message));
   }
   return parsed as T;
-}
-
-/**
- * Build a single-use undici dispatcher whose `connect.lookup` returns one of
- * the guard-validated addresses instead of doing its own DNS resolution — so
- * the connected peer is byte-for-byte the IP `checkPdnsUrlSafe` classified as
- * safe. This closes the DNS-rebinding window between the guard's lookup and
- * undici's connect (an attacker-controlled host returning a public IP to the
- * guard and a private/loopback IP to undici with a 0-TTL record). The original
- * hostname still flows to undici as Host header + TLS SNI; only the address
- * resolution is overridden.
- *
- * Tradeoff: a per-request Agent forgoes the shared keep-alive/TLS-session pool
- * (`pdnsDispatcher`), so each call pays a fresh handshake. That cost is
- * accepted here — pinning is the whole point, and a shared pool can't carry a
- * per-request pinned address. The Agent mirrors `PDNS_AGENT_OPTIONS` so TLS/H2
- * negotiation and timeouts match the shared pool exactly.
- */
-function pinnedDispatcher(addresses: string[]): Agent {
-  // Prefer an IPv4 address when available — matches the OS resolver's common
-  // default and avoids surprising IPv6-only connects in IPv4-only networks.
-  // Any address in the list already passed the guard, so the choice is purely
-  // about reachability, not safety.
-  const pinned = addresses.find((addr) => isIP(addr) === 4) ?? addresses[0];
-  const family = pinned !== undefined ? isIP(pinned) : 0;
-
-  const lookup: LookupFunction = (_hostname, options, callback) => {
-    if (pinned === undefined) {
-      callback(new Error("no validated address to pin"), "", 0);
-      return;
-    }
-    // Node's net.connect uses Happy Eyeballs (`autoSelectFamily`, default-on in
-    // Node 20+), which calls `lookup` with `{ all: true }` and expects an ARRAY
-    // of { address, family }; other callers use the single (err, address,
-    // family) form. Support both — handing the single form to an all:true caller
-    // leaves the address `undefined`, so the connect fails with "Invalid IP
-    // address: undefined" (the regression real undici hits but a direct unit
-    // call does not).
-    if (options.all === true) {
-      callback(null, [{ address: pinned, family }]);
-    } else {
-      callback(null, pinned, family);
-    }
-  };
-
-  return new Agent({ ...PDNS_AGENT_OPTIONS, connect: { lookup } });
 }
 
 /**

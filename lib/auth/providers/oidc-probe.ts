@@ -14,8 +14,18 @@
  */
 
 import "server-only";
+import { makeGuardedFetch } from "@/lib/net/pinned-fetch";
+import { checkOidcIssuerUrlSafe } from "./oidc-url-safety";
 
 const PROBE_TIMEOUT_MS = 5_000;
+
+/**
+ * Guarded + pinned fetch for the discovery probe. Re-runs the SSRF guard and
+ * pins the validated address into the connection, so the reachability check
+ * can't be DNS-rebound to an internal host between the guard's lookup and the
+ * connect. The default; callers (tests) inject a mock via `fetchImpl`.
+ */
+const guardedProbeFetch = makeGuardedFetch(checkOidcIssuerUrlSafe) as unknown as typeof fetch;
 
 export type ProbeResult = { ok: true } | { ok: false; reason: ProbeFailureReason };
 
@@ -33,7 +43,7 @@ export type ProbeFailureReason =
  */
 export async function probeOidcDiscovery(
   issuerUrl: string,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl: typeof fetch = guardedProbeFetch,
 ): Promise<ProbeResult> {
   const base = issuerUrl.replace(/\/+$/, "");
   const discoveryUrl = `${base}/.well-known/openid-configuration`;

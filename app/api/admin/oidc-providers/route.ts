@@ -22,7 +22,10 @@ import {
 } from "@/lib/db/repositories/oidc-providers";
 import { createOidcProviderSchema } from "@/lib/validators/oidc-providers";
 import { probeOidcDiscovery } from "@/lib/auth/providers/oidc-probe";
-import { assertSafeOidcIssuerUrl } from "@/lib/auth/providers/oidc-url-safety";
+import {
+  assertSafeOidcIssuerUrl,
+  checkOidcIssuerUrlSafe,
+} from "@/lib/auth/providers/oidc-url-safety";
 import { assertGroupMappingsWithinCeiling } from "@/lib/rbac/oidc-mapping-ceiling";
 import { ConflictError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
@@ -131,7 +134,13 @@ export async function POST(request: Request): Promise<Response> {
     // create error — the operator can re-probe via the Test button.
     void (async () => {
       try {
-        const result = await probeOidcDiscovery(row.issuerUrl);
+        // SSRF pre-check before the detached probe — defense-in-depth (the
+        // pinned fetch re-checks too) and a clean transport-style failure if
+        // the issuer resolves to a blocked address. Mirrors the `/test` route.
+        const safety = await checkOidcIssuerUrlSafe(row.issuerUrl);
+        const result = safety.safe
+          ? await probeOidcDiscovery(row.issuerUrl)
+          : ({ ok: false, reason: "transport" } as const);
         await setOidcDiscoveryCache(row.id, {
           fetchedAt: new Date().toISOString(),
           ok: result.ok,
