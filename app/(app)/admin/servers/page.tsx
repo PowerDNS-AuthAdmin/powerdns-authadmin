@@ -26,6 +26,7 @@ import { ClickableTr, ClickableDiv } from "@/components/ui/clickable-row";
 import { SyncIndicator } from "@/components/ui/sync-indicator";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { pdnsBackgroundPollingEnabled } from "@/lib/env";
+import { PollingDisabledHint } from "@/components/domain/polling-disabled-hint";
 import { backendUnreachability } from "@/lib/realtime/backend-status";
 import type { PdnsServer } from "@/lib/db/schema";
 import { TestServerButton } from "./_components/test-server-button";
@@ -118,7 +119,10 @@ export default async function PdnsServersListPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">PowerDNS servers</h1>
+          <div className="flex items-baseline gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">PowerDNS servers</h1>
+            {!pdnsBackgroundPollingEnabled ? <PollingDisabledHint /> : null}
+          </div>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
             One row per upstream PowerDNS Authoritative backend.
           </p>

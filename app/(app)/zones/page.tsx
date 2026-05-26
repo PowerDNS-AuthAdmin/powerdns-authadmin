@@ -45,6 +45,7 @@ import { backendUnreachability } from "@/lib/realtime/backend-status";
 import type { PdnsServer } from "@/lib/db/schema";
 import { ZonesTable, type ZoneRow } from "./_components/zones-table";
 import { pdnsBackgroundPollingEnabled } from "@/lib/env";
+import { PollingDisabledHint } from "@/components/domain/polling-disabled-hint";
 import { ServerRealtimeSubscriber } from "./_components/server-realtime-subscriber";
 
 export const metadata: Metadata = { title: "Zones" };
@@ -220,7 +221,9 @@ export default async function ZonesPage() {
             <h1 className="text-2xl font-semibold tracking-tight">Zones</h1>
             {pdnsBackgroundPollingEnabled ? (
               <ServerRealtimeSubscriber serverSlugs={channelSlugs} inSync={!anyLagging} />
-            ) : null}
+            ) : (
+              <PollingDisabledHint />
+            )}
           </div>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
             {visibleRows.length} zone{visibleRows.length === 1 ? "" : "s"} across {backends.length}{" "}

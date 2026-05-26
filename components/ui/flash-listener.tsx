@@ -19,12 +19,12 @@ import { useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDialog } from "@/components/ui/dialog";
 
-interface FlashConfig {
+export interface FlashConfig {
   kind: "info" | "success" | "error";
   description: string;
 }
 
-function describeFlash(flash: string, need: string | null): FlashConfig | null {
+export function describeFlash(flash: string, need: string | null): FlashConfig | null {
   switch (flash) {
     case "forbidden":
       return {

@@ -33,6 +33,7 @@ import { MustChangePasswordProvider } from "@/components/auth/must-change-passwo
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { globalAnyLagging, hasReplicationTopology } from "@/lib/pdns/sync";
+import { decideHeaderChipMode } from "@/lib/realtime/header-chip-mode";
 import { pdnsBackgroundPollingEnabled } from "@/lib/env";
 
 /**
@@ -216,23 +217,26 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // signal they have no context for. The helper reads exclusively from the
   // poller's in-process caches, so this is a near-free lookup once the
   // first ensureBackendsObserved warms the store.
-  // Sync-mode chip is only meaningful when:
-  //   • PDNS_BACKGROUND_POLLING is enabled (#57 + v1.2.0 opt-in) — without
-  //     the poller there's no live sync state to surface; the chip stays
-  //     in plain "Live" connectivity-only mode, and
-  //   • the fleet actually has replication topology (derived primary+
-  //     secondaries group or configured multi-primary cluster) to be
-  //     in-sync about.
-  // Standalone / single-primary fleets see only the "Live" pulse.
-  const showGlobalSync =
-    pdnsBackgroundPollingEnabled && realtimeAvailable && (canReadZones || canReadServers);
-  let initialChipMode: { kind: "live" } | { kind: "sync"; inSync: boolean } = { kind: "live" };
+  // Sync-mode chip default. Pages that show their own per-zone or per-page
+  // sync state override this via <HeaderStatusMode/>. The decision is a pure
+  // function (`decideHeaderChipMode`) — unit-tested in isolation; the awaits
+  // here are I/O bridges feeding it.
+  const canReadBackends = canReadZones || canReadServers;
+  const showGlobalSync = pdnsBackgroundPollingEnabled && realtimeAvailable && canReadBackends;
+  let topology = false;
+  let lagging = false;
   if (showGlobalSync) {
     await ensureBackendsObserved();
-    if (await hasReplicationTopology()) {
-      initialChipMode = { kind: "sync", inSync: !(await globalAnyLagging()) };
-    }
+    topology = await hasReplicationTopology();
+    if (topology) lagging = await globalAnyLagging();
   }
+  const initialChipMode = decideHeaderChipMode({
+    pollingEnabled: pdnsBackgroundPollingEnabled,
+    realtimeAvailable,
+    canReadBackends,
+    hasReplicationTopology: topology,
+    anyLagging: lagging,
+  });
 
   const shell = (
     <AppShell sidebar={sidebar} headerControls={headerControls}>

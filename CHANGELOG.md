@@ -41,9 +41,12 @@ Closes #57; reported by @insxa in
   Sync + Statistics tabs, servers-list Sync column, zones-list mirror
   column, dashboard PowerDNS-metrics tab, and the drift-derived
   advisories in the bell. (#57)
-- **`(i)` polling-mode hint** on the dashboard heading when polling is
-  off — hover tooltip explains the current state and links to the live
-  CONFIGURATION doc.
+- **`(i)` polling-mode hint** on every polling-gated page heading
+  (`/dashboard`, `/admin/servers`, `/zones`, `/zones/<id>`) when polling
+  is off — hover tooltip explains the current state and links to the live
+  CONFIGURATION doc. One small icon, consistent across the app, so an
+  operator can flip the flag deliberately from wherever they are when
+  they notice a sync-aware feature is missing.
 - **`flash=polling-required` error toast** when an operator follows a
   direct URL to a gated feature (`/dashboard?tab=pdns`,
   `/zones/<id>?tab=sync`, `/zones/<id>?tab=statistics`) on a polling-off
@@ -103,6 +106,18 @@ Closes #57; reported by @insxa in
   backend stays usable until its first probe.
 - Polling-flag tests pin `ensurePollerRunning` to no `setInterval`,
   and `scheduleImmediatePoll` to no `setTimeout`, when the flag is off.
+- **`decideHeaderChipMode` pure helper** (extracted from `app/(app)/layout.tsx`)
+  is unit-tested across all five gating inputs (polling enabled, realtime
+  available, can-read-backends, has-topology, lagging) — every false
+  gate falls back to plain "Live"; only the full happy path enters sync
+  mode.
+- **`describeFlash` for `polling-required`** is unit-tested to produce a
+  red error toast naming the env var verbatim (so operators can grep for
+  it), with and without the `need=` parameter.
+- **`logPollingModeOnce` startup log** is unit-tested across three
+  branches (flag on info; flag off + standalone info; flag off + topology
+  warn) plus the 3 s probe budget timing out gracefully and the one-shot
+  guard against re-firing.
 - Integration suite pinned to `PDNS_BACKGROUND_POLLING=true` so the
   replication-aware code paths stay exercised end-to-end.
 
