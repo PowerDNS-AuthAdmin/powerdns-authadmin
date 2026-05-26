@@ -37,6 +37,34 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.1.4 (from 1.1.x)
+
+A **major operator-UX release** — drop-in upgrade. **No schema migration, no API
+changes, no config changes.** Pull-and-recreate the container and you're done.
+
+What changes when operators sign in:
+
+- **Mobile-first responsive shell.** Every page is usable on a phone now.
+  Drawer-style navigation under `md`; full sidebar from `md+`.
+- **Live status chip in the top bar** — connection state plus a fleet-wide
+  sync verdict (`SYNCED` / `DESYNCED`) on every page, with the per-page
+  override on zone-detail / zones-list / servers preserved.
+- **New animated SyncIndicator** — concentric-ring glyph used everywhere a
+  sync state is displayed. Honours `prefers-reduced-motion`.
+- **Diff-before-apply on every record edit.** Save is now two clicks: an
+  inline edit, then a **Review changes** modal with the BIND-style diff,
+  then Save.
+- **One-button theme toggle** cycles light → dark → system.
+- **Every list is one DataTable.** Mobile reflows to labelled cards; the
+  desktop chrome is uniform across audit / zones / users / roles / teams /
+  PDNS requests / OIDC / TSIG / autoprimaries / zone templates.
+- **CSS-only changes** — no client-side breaking changes; saved theme
+  preferences, sessions, MFA enrolments, API tokens all carry over.
+
+If you've embedded our screenshots in your own docs, note that several
+filenames changed in this release — the canonical set is now
+[`screenshots/README.md`](../screenshots/README.md).
+
 ### Upgrading to 1.1.3 (from 1.1.x)
 
 A maintenance release — **no schema migration**, a plain pull-and-recreate, and

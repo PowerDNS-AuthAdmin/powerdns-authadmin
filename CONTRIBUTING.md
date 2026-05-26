@@ -17,7 +17,7 @@
 5. **Conventional Commits** for PR titles: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, `test:`,
    `perf:`, `build:`, `ci:`. The PR body is the changelog entry — write it for humans.
 6. **Milestones track releases.** Every issue and PR targeting a release is tagged with that
-   release's milestone (e.g. `v1.1.3`). The milestone is closed when that version ships — its
+   release's milestone (e.g. `v1.1.4`). The milestone is closed when that version ships — its
    issues/PRs are the release's scope and map to the `CHANGELOG` section.
 
 ---
