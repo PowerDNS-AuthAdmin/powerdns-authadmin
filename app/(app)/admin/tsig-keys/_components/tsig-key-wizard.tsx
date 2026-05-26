@@ -280,7 +280,7 @@ export function TsigKeyWizard({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Create TSIG key"
+          aria-label="Add TSIG key"
           className="relative w-full max-w-lg rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-6 shadow-xl"
         >
           <div className="flex items-baseline justify-between">

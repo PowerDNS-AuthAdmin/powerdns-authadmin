@@ -21,8 +21,10 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
+import { Plus } from "lucide-react";
 import { Dialog, useDialog } from "@/components/ui/dialog";
 import { DataTable } from "@/components/ui/data-table";
+import { createCtaClass } from "@/components/ui/create-button";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { mutate } from "@/lib/client/api-fetch";
 import {
@@ -539,11 +541,8 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
     <div className="space-y-3">
       <div className="flex items-center justify-end gap-3">
         {props.canCreate ? (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="rounded-md bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
-          >
+          <button type="button" onClick={openCreate} className={createCtaClass}>
+            <Plus className="h-4 w-4" aria-hidden />
             Add record
           </button>
         ) : null}
@@ -782,7 +781,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                 disabled={saving}
                 className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
               >
-                {saving ? "Applying…" : "Apply"}
+                {saving ? "Saving…" : "Save"}
               </button>
             </div>
           </div>

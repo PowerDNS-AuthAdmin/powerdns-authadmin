@@ -23,11 +23,16 @@ import { UserMenu } from "@/components/ui/user-menu";
 import { HealthBell } from "@/components/domain/health-bell";
 import { listActiveAdvisories } from "@/lib/db/repositories/backend-advisories";
 import { BrandMark } from "@/components/ui/brandmark";
+import { AppShell } from "@/components/ui/app-shell";
 import { DialogProvider } from "@/components/ui/dialog";
 import { FlashListener } from "@/components/ui/flash-listener";
 import { NavLink } from "@/components/ui/nav-link";
 import { RealtimeProvider } from "@/components/realtime/realtime-provider";
+import { HeaderStatusProvider } from "@/components/realtime/header-status-chip";
+import { MustChangePasswordProvider } from "@/components/auth/must-change-password-guard";
 import { getAppSettings } from "@/lib/settings/app-settings";
+import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
+import { globalAnyLagging } from "@/lib/pdns/sync";
 
 /**
  * Paths a non-compliant user (forced-MFA-not-enrolled, or flagged
@@ -126,88 +131,120 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const hasAccess = canReadUsers || canReadRoles || canReadTeams || canReadOidc;
   const hasSystem = canReadSettings || canReadAudit;
 
+  const sidebar = (
+    <>
+      <div className="flex h-20 shrink-0 items-center overflow-hidden border-b border-[color:var(--color-border)] px-4 pt-3">
+        <Link
+          href="/dashboard"
+          aria-label={`${appSettings.siteName} home`}
+          className="flex w-full items-center justify-center overflow-hidden"
+        >
+          <BrandMark
+            siteName={appSettings.siteName}
+            brandLogoUrl={appSettings.brandLogoUrl}
+            width={280}
+            maxHeight={56}
+            priority
+          />
+        </Link>
+      </div>
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3 text-base">
+        <NavLink href="/dashboard" label="Dashboard" />
+        {canReadZones ? <NavLink href="/zones" label="Zones" /> : null}
+
+        {hasInfrastructure ? (
+          <NavSection label="Infrastructure">
+            {canReadServers ? (
+              <NavLink nested href="/admin/servers" label="PowerDNS servers" />
+            ) : null}
+            {canReadServers ? <NavLink nested href="/admin/pdns-clusters" label="Groups" /> : null}
+            {canReadTsig ? <NavLink nested href="/admin/tsig-keys" label="TSIG keys" /> : null}
+            {canManageAutoprimary ? (
+              <NavLink nested href="/admin/autoprimaries" label="Autoprimaries" />
+            ) : null}
+            {canUseTemplates ? (
+              <NavLink nested href="/admin/zone-templates" label="Zone templates" />
+            ) : null}
+          </NavSection>
+        ) : null}
+
+        {hasAccess ? (
+          <NavSection label="Access">
+            {canReadUsers ? <NavLink nested href="/admin/users" label="Users" /> : null}
+            {canReadTeams ? <NavLink nested href="/admin/teams" label="Teams" /> : null}
+            {canReadRoles ? <NavLink nested href="/admin/roles" label="Roles" /> : null}
+            {canReadOidc ? (
+              <NavLink nested href="/admin/oidc-providers" label="OIDC providers" />
+            ) : null}
+          </NavSection>
+        ) : null}
+
+        {hasSystem ? (
+          <NavSection label="System">
+            {canReadSettings ? <NavLink nested href="/admin/settings" label="Settings" /> : null}
+            {canReadAudit ? <NavLink nested href="/admin/audit" label="Audit log" /> : null}
+            {canReadAudit ? (
+              <NavLink nested href="/admin/pdns-requests" label="Request log" />
+            ) : null}
+          </NavSection>
+        ) : null}
+      </nav>
+      <SidebarFooter />
+    </>
+  );
+
+  const headerControls = (
+    <>
+      {canReadServers ? <HealthBell advisories={advisories} /> : null}
+      <ThemeToggle />
+      <UserMenu email={current.user.email} name={current.user.name} />
+    </>
+  );
+
+  // A user stuck on the must-change-password / MFA-enrolment screen can't reach
+  // /api/realtime (requireUser rejects them with 403). Skipping RealtimeProvider
+  // here avoids the stuck-on-CONNECTING chip + the wasted reconnect storm; the
+  // chip self-hides when no provider is mounted.
+  const realtimeAvailable = compliance.compliant && !current.user.mustChangePassword;
+
+  // Fleet-wide sync verdict as the chip's default mode. Pages that show
+  // their own (per-zone or per-page) sync state push it via
+  // <HeaderStatusMode/> and override this. Computed only when realtime is
+  // available + the operator can see backend state at all — otherwise the
+  // chip falls back to plain "Live" so a profile-only user doesn't see a
+  // signal they have no context for. The helper reads exclusively from the
+  // poller's in-process caches, so this is a near-free lookup once the
+  // first ensureBackendsObserved warms the store.
+  const showGlobalSync = realtimeAvailable && (canReadZones || canReadServers);
+  let initialChipMode: { kind: "live" } | { kind: "sync"; inSync: boolean } = { kind: "live" };
+  if (showGlobalSync) {
+    await ensureBackendsObserved();
+    initialChipMode = { kind: "sync", inSync: !(await globalAnyLagging()) };
+  }
+
+  const shell = (
+    <AppShell sidebar={sidebar} headerControls={headerControls}>
+      {children}
+    </AppShell>
+  );
+
   return (
     <DialogProvider>
-      <RealtimeProvider>
-        <FlashListener />
-        {/* Fixed to the viewport height so the sidebar (and its version
-            footer) is always fully visible; only the main <section> scrolls. */}
-        <div className="grid h-dvh grid-cols-[16rem_1fr] grid-rows-[3.5rem_1fr] overflow-hidden">
-          <aside className="row-span-2 flex flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)]">
-            <div className="flex h-14 items-center overflow-hidden border-b border-[color:var(--color-border)] px-4">
-              <Link
-                href="/dashboard"
-                aria-label={`${appSettings.siteName} home`}
-                className="flex w-full items-center justify-center overflow-hidden"
-              >
-                <BrandMark
-                  siteName={appSettings.siteName}
-                  brandLogoUrl={appSettings.brandLogoUrl}
-                  width={224}
-                  maxHeight={40}
-                  priority
-                />
-              </Link>
-            </div>
-            <nav className="flex-1 space-y-1 overflow-y-auto p-3 text-sm">
-              <NavLink href="/dashboard" label="Dashboard" />
-              {canReadZones ? <NavLink href="/zones" label="Zones" /> : null}
-
-              {hasInfrastructure ? (
-                <NavSection label="Infrastructure">
-                  {canReadServers ? (
-                    <NavLink nested href="/admin/servers" label="PowerDNS servers" />
-                  ) : null}
-                  {canReadServers ? (
-                    <NavLink nested href="/admin/pdns-clusters" label="Groups" />
-                  ) : null}
-                  {canReadTsig ? (
-                    <NavLink nested href="/admin/tsig-keys" label="TSIG keys" />
-                  ) : null}
-                  {canManageAutoprimary ? (
-                    <NavLink nested href="/admin/autoprimaries" label="Autoprimaries" />
-                  ) : null}
-                  {canUseTemplates ? (
-                    <NavLink nested href="/admin/zone-templates" label="Zone templates" />
-                  ) : null}
-                </NavSection>
-              ) : null}
-
-              {hasAccess ? (
-                <NavSection label="Access">
-                  {canReadUsers ? <NavLink nested href="/admin/users" label="Users" /> : null}
-                  {canReadTeams ? <NavLink nested href="/admin/teams" label="Teams" /> : null}
-                  {canReadRoles ? <NavLink nested href="/admin/roles" label="Roles" /> : null}
-                  {canReadOidc ? (
-                    <NavLink nested href="/admin/oidc-providers" label="OIDC providers" />
-                  ) : null}
-                </NavSection>
-              ) : null}
-
-              {hasSystem ? (
-                <NavSection label="System">
-                  {canReadSettings ? (
-                    <NavLink nested href="/admin/settings" label="Settings" />
-                  ) : null}
-                  {canReadAudit ? <NavLink nested href="/admin/audit" label="Audit log" /> : null}
-                  {canReadAudit ? (
-                    <NavLink nested href="/admin/pdns-requests" label="Request log" />
-                  ) : null}
-                </NavSection>
-              ) : null}
-            </nav>
-            <SidebarFooter />
-          </aside>
-
-          <header className="flex h-14 items-center justify-end gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4">
-            {canReadServers ? <HealthBell advisories={advisories} /> : null}
-            <ThemeToggle />
-            <UserMenu email={current.user.email} name={current.user.name} />
-          </header>
-
-          <section className="overflow-y-auto p-8">{children}</section>
-        </div>
-      </RealtimeProvider>
+      <MustChangePasswordProvider blocked={current.user.mustChangePassword}>
+        {realtimeAvailable ? (
+          <RealtimeProvider>
+            <HeaderStatusProvider initialMode={initialChipMode}>
+              <FlashListener />
+              {shell}
+            </HeaderStatusProvider>
+          </RealtimeProvider>
+        ) : (
+          <>
+            <FlashListener />
+            {shell}
+          </>
+        )}
+      </MustChangePasswordProvider>
     </DialogProvider>
   );
 }

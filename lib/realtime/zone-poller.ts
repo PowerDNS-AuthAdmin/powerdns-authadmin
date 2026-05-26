@@ -33,6 +33,7 @@
  */
 
 import "server-only";
+import { newSystemRequestId, withRequestId } from "@/lib/request-context";
 import { listAllActiveBackends, markPdnsServersSeen } from "@/lib/db/repositories/pdns-servers";
 import { countActiveSessions } from "@/lib/db/repositories/sessions";
 import { getPdnsProbeClientForRow } from "@/lib/pdns/registry";
@@ -152,7 +153,10 @@ export function ensurePollerRunning(): void {
   // looking — it backs the time-series graphs). `pollOnce()` with no `full`
   // resolves the cycle mode from `subscriberCount` at fire time.
   state.timer = setInterval(() => {
-    void pollOnce().catch((err) => {
+    // Each tick gets a fresh request id so its PDNS calls + any audit rows
+    // are attributed to THIS tick, not to whichever route handler happened to
+    // hold the next/headers AsyncLocalStorage scope when the timer fired.
+    void withRequestId(newSystemRequestId(), () => pollOnce()).catch((err) => {
       logger.warn(
         { err: err instanceof Error ? err.message : "unknown" },
         "pdns.zone-poller.cycle.failed",
@@ -161,7 +165,7 @@ export function ensurePollerRunning(): void {
   }, POLL_INTERVAL_MS);
   // Kick off an immediate first FULL poll — a freshly-started poller was just
   // demanded by a subscriber or page render, so warm everything at once.
-  void pollOnce({ full: true }).catch(() => undefined);
+  void withRequestId(newSystemRequestId(), () => pollOnce({ full: true })).catch(() => undefined);
 }
 
 /**
@@ -185,7 +189,9 @@ export function scheduleImmediatePoll(): void {
     immediatePollPending = false;
     // A mutation just happened — always a FULL cycle so the operator sees the
     // zone/topology/advisory effects, even if no SSE subscriber is attached yet.
-    void pollOnce({ full: true }).catch((err) => {
+    // Fresh request id: this poll was *triggered by* the mutation but is its
+    // own operation (different timestamp, different PDNS call set).
+    void withRequestId(newSystemRequestId(), () => pollOnce({ full: true })).catch((err) => {
       logger.warn(
         { err: err instanceof Error ? err.message : "unknown" },
         "pdns.zone-poller.immediate.failed",
@@ -926,7 +932,7 @@ function scheduleFollowupPoll(): void {
     followupPollPending = false;
     // A follow-up exists to observe an in-flight AXFR catching up — inherently a
     // full-cycle concern (zone serials + drift), so never stats-only.
-    void pollOnce({ full: true }).catch((err) => {
+    void withRequestId(newSystemRequestId(), () => pollOnce({ full: true })).catch((err) => {
       logger.warn(
         { err: err instanceof Error ? err.message : "unknown" },
         "pdns.zone-poller.followup.failed",

@@ -19,7 +19,7 @@
  * `router.refresh()` so new rows appear without manual reloads.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { type ColumnDef } from "@tanstack/react-table";
@@ -27,6 +27,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { LocalTime } from "@/components/ui/local-time";
+import { Disclosure } from "@/components/ui/disclosure";
 import { useRealtimeEvent } from "@/components/realtime/realtime-provider";
 import { PdnsHttpLog } from "@/app/(app)/zones/[zoneId]/_components/pdns-http-log";
 
@@ -77,6 +78,21 @@ export function PdnsRequestsTable(props: Props) {
   const [requestId, setRequestId] = useState(props.initial.requestId);
   const [fromIso, setFromIso] = useState(props.initial.fromIso);
   const [toIso, setToIso] = useState(props.initial.toIso);
+
+  // Sync inputs with the URL. Outside links (e.g. clicking a row's `req` cell,
+  // or arriving from the audit log's req: link) update the URL but useState
+  // only takes the first value — without this the form inputs stay blank
+  // even though the URL is filtered, making it look like nothing happened.
+  const initKey = JSON.stringify(props.initial);
+  useEffect(() => {
+    setServerSlug(props.initial.serverSlug);
+    setOp(props.initial.op);
+    setStatus(props.initial.status);
+    setRequestId(props.initial.requestId);
+    setFromIso(props.initial.fromIso);
+    setToIso(props.initial.toIso);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initKey]);
 
   const filtersDirty =
     serverSlug !== props.initial.serverSlug ||
@@ -191,73 +207,57 @@ export function PdnsRequestsTable(props: Props) {
         meta: { className: "w-20" },
       },
       {
-        accessorKey: "requestId",
-        header: "Request",
-        cell: (ctx) => {
-          const v = ctx.getValue<string | null>();
-          if (!v) return <span>—</span>;
-          return (
-            <button
-              type="button"
-              onClick={() => {
-                setRequestId(v);
-                const params = new URLSearchParams();
-                params.set("requestId", v);
-                router.replace(`/admin/pdns-requests?${params.toString()}`, {
-                  scroll: false,
-                });
-              }}
-              className="font-mono text-[color:var(--color-accent)] hover:underline"
-            >
-              {v.slice(0, 8)}…
-            </button>
-          );
-        },
-        meta: { className: "w-24" },
-      },
-    ],
-    [router],
-  );
-
-  // Expandable row body — the PdnsHttpLog viewer rendered inline beneath the
-  // row via DataTable's `renderRowDetail`, controlled by a Set of expanded ids.
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
-  function toggle(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  // Augment columns with an expander column at index 0.
-  const columnsWithExpand = useMemo<Array<ColumnDef<PdnsRequestRowClient, unknown>>>(
-    () => [
-      {
-        id: "expand",
-        header: "",
+        id: "detail",
+        header: "Detail",
         enableSorting: false,
         cell: (ctx) => {
-          const id = ctx.row.original.id;
-          const open = expanded.has(id);
+          const row = ctx.row.original;
           return (
-            <button
-              type="button"
-              onClick={() => toggle(id)}
-              aria-label={open ? "Collapse" : "Expand"}
-              className="rounded px-1.5 text-xs text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-subtle)]"
-            >
-              {open ? "▾" : "▸"}
-            </button>
+            <div className="space-y-1 text-xs">
+              <Disclosure
+                label="POWERDNS HTTP REQUESTS (1)"
+                className="space-y-1"
+                summaryClassName="uppercase tracking-wide"
+                bodyClassName="mt-1"
+              >
+                <PdnsHttpLog
+                  collapsible={false}
+                  entries={[
+                    {
+                      id: row.id,
+                      ts: row.ts,
+                      serverSlug: row.serverSlug,
+                      serverName: row.serverName,
+                      serverDbId: row.serverDbId,
+                      op: row.op,
+                      method: row.method,
+                      url: row.url,
+                      requestHeaders: row.requestHeaders,
+                      requestBody: row.requestBody,
+                      responseStatus: row.responseStatus,
+                      error: row.error,
+                    },
+                  ]}
+                />
+              </Disclosure>
+              {row.requestId ? (
+                <div className="text-[color:var(--color-fg-muted)]">
+                  req:{" "}
+                  <Link
+                    href={`/admin/pdns-requests?${new URLSearchParams({ requestId: row.requestId }).toString()}`}
+                    className="font-mono text-[color:var(--color-accent)] hover:underline"
+                    title="Filter to all rows from this request"
+                  >
+                    {row.requestId}
+                  </Link>
+                </div>
+              ) : null}
+            </div>
           );
         },
-        meta: { className: "w-8" },
       },
-      ...columns,
     ],
-    [columns, expanded],
+    [],
   );
 
   return (
@@ -348,7 +348,7 @@ export function PdnsRequestsTable(props: Props) {
 
       <DataTable
         data={props.rows}
-        columns={columnsWithExpand}
+        columns={columns}
         pageSize={50}
         pageSizeOptions={[25, 50, 100, 200]}
         searchPlaceholder="Search URLs, ops, methods…"
@@ -356,29 +356,6 @@ export function PdnsRequestsTable(props: Props) {
         noDataMessage="No PowerDNS HTTP traffic recorded yet."
         sortParam="sort"
         pageSizeParam="pageSize"
-        renderRowDetail={(row) =>
-          expanded.has(row.id) ? (
-            <PdnsHttpLog
-              collapsible={false}
-              entries={[
-                {
-                  id: row.id,
-                  ts: row.ts,
-                  serverSlug: row.serverSlug,
-                  serverName: row.serverName,
-                  serverDbId: row.serverDbId,
-                  op: row.op,
-                  method: row.method,
-                  url: row.url,
-                  requestHeaders: row.requestHeaders,
-                  requestBody: row.requestBody,
-                  responseStatus: row.responseStatus,
-                  error: row.error,
-                },
-              ]}
-            />
-          ) : null
-        }
       />
     </div>
   );

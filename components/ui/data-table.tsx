@@ -142,9 +142,22 @@ export interface DataTableProps<TData> {
    * the PDNS-requests viewer to expand a request's full HTTP log in place.
    */
   renderRowDetail?: (row: TData) => React.ReactNode;
+  /**
+   * When set, the whole row (desktop) and card (mobile) become clickable,
+   * navigating to `rowHref(row)`. Clicks that land on an inner link, button, or
+   * form control are left alone, so per-row actions (Edit, Delete, …) and the
+   * name link still work. Pair it with the same href the name cell links to.
+   */
+  rowHref?: (row: TData) => string;
 }
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+/** A column with no header text is an "action" column (View, Edit, …). We size
+ *  those to their content so spare table width lands on the data columns. */
+function isUnlabeledColumn(def: { header?: unknown }): boolean {
+  return def.header == null || def.header === "";
+}
 
 export function DataTable<TData>({
   columns,
@@ -163,6 +176,7 @@ export function DataTable<TData>({
   stateKey,
   layout = "auto",
   renderRowDetail,
+  rowHref,
 }: DataTableProps<TData>) {
   const router = useRouter();
   const pathname = usePathname();
@@ -310,6 +324,26 @@ export function DataTable<TData>({
   const showingFrom = rows.length === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1;
   const showingTo = pagination.pageIndex * pagination.pageSize + rows.length;
 
+  // Leaf header cells, used to label fields in the mobile card view. A column
+  // with no header text (action columns) gets no label — its cell renders
+  // full-width at the foot of the card instead.
+  const leafHeaders = table.getHeaderGroups().at(-1)?.headers ?? [];
+  const headerLabel = (columnId: string): React.ReactNode | null => {
+    const h = leafHeaders.find((hdr) => hdr.column.id === columnId);
+    const def = h?.column.columnDef.header;
+    if (!h || def == null || def === "") return null;
+    return flexRender(def, h.getContext());
+  };
+
+  // Row/card click → navigate, unless the click landed on an interactive
+  // element (link, button, form control) so per-row actions keep working.
+  const activateRow = (target: EventTarget | null, original: TData) => {
+    if (!rowHref) return;
+    const el = target as HTMLElement | null;
+    if (el?.closest("a,button,input,select,textarea,label,[role=button]")) return;
+    router.push(rowHref(original));
+  };
+
   return (
     <div className={`space-y-3 ${className}`}>
       {!hideSearch ? (
@@ -338,7 +372,66 @@ export function DataTable<TData>({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)]">
+      {/* Mobile (< md): a card per row. Avoids horizontal scrolling — each
+          column becomes a labelled field, the first cell is the card title. */}
+      <div className="space-y-3 md:hidden">
+        {rows.length === 0 ? (
+          <div className="rounded-lg border border-[color:var(--color-border)] px-4 py-10 text-center text-sm text-[color:var(--color-fg-muted)]">
+            {totalCount === 0 ? noDataMessage : emptyMessage}
+          </div>
+        ) : (
+          rows.map((row) => {
+            const cells = row.getVisibleCells();
+            const detail = renderRowDetail?.(row.original);
+            return (
+              <div
+                key={row.id}
+                onClick={(e) => activateRow(e.target, row.original)}
+                className={`rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-4 ${
+                  rowHref
+                    ? "cursor-pointer transition-colors active:bg-[color:var(--color-bg-subtle)]"
+                    : ""
+                }`}
+              >
+                {cells.map((cell, i) => {
+                  const label = headerLabel(cell.column.id);
+                  const content = flexRender(cell.column.columnDef.cell, cell.getContext());
+                  // First cell → card title. Labelled cells → label/value row.
+                  // Unlabelled cells (actions) → full-width.
+                  if (i === 0) {
+                    return (
+                      <div key={cell.id} className="mb-2 text-base font-medium break-words">
+                        {content}
+                      </div>
+                    );
+                  }
+                  if (label == null) {
+                    return (
+                      <div key={cell.id} className="mt-3">
+                        {content}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div
+                      key={cell.id}
+                      className="flex justify-between gap-3 border-t border-[color:var(--color-border)] py-1.5 text-sm first:border-t-0"
+                    >
+                      <span className="shrink-0 text-[color:var(--color-fg-muted)]">{label}</span>
+                      <span className="min-w-0 text-right break-words">{content}</span>
+                    </div>
+                  );
+                })}
+                {detail != null ? <div className="mt-3">{detail}</div> : null}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop (md+): the dense table. overflow-x-auto only kicks in when a
+          table genuinely can't fit — the common case stays scroll-free. */}
+      <div className="hidden overflow-hidden rounded-lg border border-[color:var(--color-border)] md:block">
         <div className="overflow-x-auto">
           <table className={`w-full text-sm ${layout === "fixed" ? "table-fixed" : ""}`}>
             <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
@@ -353,6 +446,12 @@ export function DataTable<TData>({
                         scope="col"
                         className={[
                           "px-4 py-2.5",
+                          // Action columns (no header text) shrink to content so
+                          // the table's spare width spreads across the data
+                          // columns instead of opening a gap before the actions.
+                          layout === "auto" && isUnlabeledColumn(header.column.columnDef)
+                            ? "w-px whitespace-nowrap"
+                            : "",
                           canSort
                             ? "cursor-pointer select-none hover:bg-[color:var(--color-bg-muted)]"
                             : "",
@@ -405,6 +504,7 @@ export function DataTable<TData>({
                   return (
                     <Fragment key={row.id}>
                       <tr
+                        onClick={(e) => activateRow(e.target, row.original)}
                         // Four visually distinct row states, all token-driven so
                         // both themes track automatically:
                         //   header → bg-muted (the strongest neutral, anchors the top)
@@ -416,13 +516,18 @@ export function DataTable<TData>({
                         // it reads identically on odd and even rows. Tailwind emits
                         // the `hover:` variant after `even:`, so hover wins the
                         // cascade on striped rows without needing `!important`.
-                        className="border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
+                        className={`border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)] ${
+                          rowHref ? "cursor-pointer" : ""
+                        }`}
                       >
                         {row.getVisibleCells().map((cell) => (
                           <td
                             key={cell.id}
                             className={[
                               "px-4 py-3 align-top",
+                              layout === "auto" && isUnlabeledColumn(cell.column.columnDef)
+                                ? "w-px whitespace-nowrap"
+                                : "",
                               cell.column.columnDef.meta?.className ?? "",
                             ].join(" ")}
                           >
@@ -474,13 +579,14 @@ export function DataTable<TData>({
                 onClick={() => table.setPageIndex(0)}
                 disabled={!table.getCanPreviousPage()}
                 label="First"
+                className="hidden sm:inline-block"
               />
               <PaginationButton
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
                 label="Prev"
               />
-              <span className="px-2 tabular-nums">
+              <span className="px-2 whitespace-nowrap tabular-nums">
                 {table.getState().pagination.pageIndex + 1} / {Math.max(1, table.getPageCount())}
               </span>
               <PaginationButton
@@ -492,6 +598,7 @@ export function DataTable<TData>({
                 onClick={() => table.setPageIndex(table.getPageCount() - 1)}
                 disabled={!table.getCanNextPage()}
                 label="Last"
+                className="hidden sm:inline-block"
               />
             </div>
           </div>
@@ -505,17 +612,19 @@ function PaginationButton({
   onClick,
   disabled,
   label,
+  className = "",
 }: {
   onClick: () => void;
   disabled: boolean;
   label: string;
+  className?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-40"
+      className={`rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-40 ${className}`}
     >
       {label}
     </button>

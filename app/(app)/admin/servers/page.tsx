@@ -13,13 +13,17 @@
 import type { Metadata } from "next";
 import { Fragment } from "react";
 import Link from "next/link";
+import { CreateButton } from "@/components/ui/create-button";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { latestAdminEditTimestampsForServers } from "@/lib/db/repositories/audit-log";
 import { freshnessOf } from "@/lib/freshness";
 import { rawCache } from "@/lib/pdns/zone-state-cache";
 import { derivedParentOf } from "@/lib/pdns/topology-cache";
-import { isReadOnlyMirror, summarizeCapabilities } from "@/lib/pdns/capabilities";
+import { isReadOnlyMirror } from "@/lib/pdns/capabilities";
+import { CapabilityBadges } from "@/components/domain/capability-badges";
+import { ClickableTr, ClickableDiv } from "@/components/ui/clickable-row";
+import { SyncIndicator } from "@/components/ui/sync-indicator";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { backendUnreachability } from "@/lib/realtime/backend-status";
 import type { PdnsServer } from "@/lib/db/schema";
@@ -107,121 +111,188 @@ export default async function PdnsServersListPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">PowerDNS servers</h1>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
             One row per upstream PowerDNS Authoritative backend.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 [&>*]:w-full sm:[&>*]:w-auto">
           {servers.some((s) => s.disabledAt === null) ? (
             <ServersPageHeartbeat inSync={!anyLagging} />
           ) : null}
           {servers.some((s) => s.disabledAt === null) ? <RefreshAllButton /> : null}
-          {canCreate ? (
-            <Link
-              href="/admin/servers/new"
-              className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
-            >
-              Add server
-            </Link>
-          ) : null}
+          {canCreate ? <CreateButton href="/admin/servers/new" label="Add server" /> : null}
         </div>
       </header>
 
       {servers.length === 0 ? (
         <EmptyState canCreate={canCreate} />
       ) : (
-        <div className="overflow-hidden rounded-md border border-[color:var(--color-border)]">
-          <table className="w-full text-sm">
-            <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-              <tr>
-                <th className="px-4 py-2">Name</th>
-                <th className="px-4 py-2">Base URL</th>
-                <th className="px-4 py-2">Status</th>
-                <th className="px-4 py-2">Version</th>
-                <th className="px-4 py-2">Sync</th>
-                {canReadAudit ? <th className="px-4 py-2">Last admin edit</th> : null}
-                <th className="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {primaries.map((primary) => {
-                const kids = secondariesByPrimary.get(primary.id) ?? [];
-                return (
-                  <Fragment key={primary.id}>
-                    <ServerRow
-                      row={primary}
-                      indented={false}
-                      canReadAudit={canReadAudit}
-                      lastEdits={lastEdits}
-                      syncChip={null}
-                      reachability={reachability.get(primary.id)}
-                    />
-                    {kids.map((s) => (
-                      <ServerRow
-                        key={s.id}
-                        row={s}
-                        indented={true}
-                        canReadAudit={canReadAudit}
-                        lastEdits={lastEdits}
-                        syncChip={syncBySecondary.get(s.id) ?? null}
-                        reachability={reachability.get(s.id)}
-                      />
-                    ))}
-                  </Fragment>
-                );
-              })}
-              {standaloneSecondaries.length > 0 ? (
-                <Fragment>
-                  <tr className="border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)]">
-                    <td
-                      colSpan={canReadAudit ? 7 : 6}
-                      className="px-4 py-1.5 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase"
-                    >
-                      Standalone secondaries (mirror an external / unmanaged primary)
-                    </td>
-                  </tr>
-                  {standaloneSecondaries.map((s) => (
-                    <ServerRow
+        <>
+          {/* Mobile (< md): a card per backend, preserving the primary →
+              secondary grouping. Avoids the wide table overflowing the phone. */}
+          <div className="space-y-3 md:hidden">
+            {primaries.map((primary) => {
+              const kids = secondariesByPrimary.get(primary.id) ?? [];
+              return (
+                <Fragment key={primary.id}>
+                  <ServerCard
+                    row={primary}
+                    indented={false}
+                    canReadAudit={canReadAudit}
+                    lastEdits={lastEdits}
+                    syncChip={null}
+                    reachability={reachability.get(primary.id)}
+                  />
+                  {kids.map((s) => (
+                    <ServerCard
                       key={s.id}
                       row={s}
-                      indented={true}
+                      indented
                       canReadAudit={canReadAudit}
                       lastEdits={lastEdits}
-                      syncChip={null}
+                      syncChip={syncBySecondary.get(s.id) ?? null}
                       reachability={reachability.get(s.id)}
                     />
                   ))}
                 </Fragment>
-              ) : null}
-              {orphanSecondaries.length > 0 ? (
-                <Fragment>
-                  <tr className="border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)]">
-                    <td
-                      colSpan={canReadAudit ? 7 : 6}
-                      className="px-4 py-1.5 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase"
-                    >
-                      Orphan secondaries (parent disabled or deleted)
-                    </td>
+              );
+            })}
+            {standaloneSecondaries.length > 0 ? (
+              <>
+                <ServersGroupHeading>
+                  Standalone secondaries (mirror an external / unmanaged primary)
+                </ServersGroupHeading>
+                {standaloneSecondaries.map((s) => (
+                  <ServerCard
+                    key={s.id}
+                    row={s}
+                    indented
+                    canReadAudit={canReadAudit}
+                    lastEdits={lastEdits}
+                    syncChip={null}
+                    reachability={reachability.get(s.id)}
+                  />
+                ))}
+              </>
+            ) : null}
+            {orphanSecondaries.length > 0 ? (
+              <>
+                <ServersGroupHeading>
+                  Orphan secondaries (parent disabled or deleted)
+                </ServersGroupHeading>
+                {orphanSecondaries.map((s) => (
+                  <ServerCard
+                    key={s.id}
+                    row={s}
+                    indented
+                    canReadAudit={canReadAudit}
+                    lastEdits={lastEdits}
+                    syncChip={null}
+                    reachability={reachability.get(s.id)}
+                  />
+                ))}
+              </>
+            ) : null}
+          </div>
+
+          {/* Desktop (md+): the dense grouped table. Header + row styling kept
+              in lock-step with components/ui/data-table.tsx so the bespoke
+              grouped layout reads as one of the standard tables. */}
+          <div className="hidden overflow-hidden rounded-lg border border-[color:var(--color-border)] md:block">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+                  <tr>
+                    <th className="px-4 py-2.5">Name</th>
+                    <th className="px-4 py-2.5">Base URL</th>
+                    <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5">Version</th>
+                    <th className="px-4 py-2.5">Sync</th>
+                    {canReadAudit ? <th className="px-4 py-2.5">Last admin edit</th> : null}
+                    <th className="w-px px-4 py-2.5 whitespace-nowrap"></th>
                   </tr>
-                  {orphanSecondaries.map((s) => (
-                    <ServerRow
-                      key={s.id}
-                      row={s}
-                      indented={true}
-                      canReadAudit={canReadAudit}
-                      lastEdits={lastEdits}
-                      syncChip={null}
-                      reachability={reachability.get(s.id)}
-                    />
-                  ))}
-                </Fragment>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {primaries.map((primary) => {
+                    const kids = secondariesByPrimary.get(primary.id) ?? [];
+                    return (
+                      <Fragment key={primary.id}>
+                        <ServerRow
+                          row={primary}
+                          indented={false}
+                          canReadAudit={canReadAudit}
+                          lastEdits={lastEdits}
+                          syncChip={null}
+                          reachability={reachability.get(primary.id)}
+                        />
+                        {kids.map((s) => (
+                          <ServerRow
+                            key={s.id}
+                            row={s}
+                            indented={true}
+                            canReadAudit={canReadAudit}
+                            lastEdits={lastEdits}
+                            syncChip={syncBySecondary.get(s.id) ?? null}
+                            reachability={reachability.get(s.id)}
+                          />
+                        ))}
+                      </Fragment>
+                    );
+                  })}
+                  {standaloneSecondaries.length > 0 ? (
+                    <Fragment>
+                      <tr className="border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)]">
+                        <td
+                          colSpan={canReadAudit ? 7 : 6}
+                          className="px-4 py-1.5 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase"
+                        >
+                          Standalone secondaries (mirror an external / unmanaged primary)
+                        </td>
+                      </tr>
+                      {standaloneSecondaries.map((s) => (
+                        <ServerRow
+                          key={s.id}
+                          row={s}
+                          indented={true}
+                          canReadAudit={canReadAudit}
+                          lastEdits={lastEdits}
+                          syncChip={null}
+                          reachability={reachability.get(s.id)}
+                        />
+                      ))}
+                    </Fragment>
+                  ) : null}
+                  {orphanSecondaries.length > 0 ? (
+                    <Fragment>
+                      <tr className="border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)]">
+                        <td
+                          colSpan={canReadAudit ? 7 : 6}
+                          className="px-4 py-1.5 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase"
+                        >
+                          Orphan secondaries (parent disabled or deleted)
+                        </td>
+                      </tr>
+                      {orphanSecondaries.map((s) => (
+                        <ServerRow
+                          key={s.id}
+                          row={s}
+                          indented={true}
+                          canReadAudit={canReadAudit}
+                          lastEdits={lastEdits}
+                          syncChip={null}
+                          reachability={reachability.get(s.id)}
+                        />
+                      ))}
+                    </Fragment>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -309,11 +380,16 @@ function HealthBadge({
   // this is always seconds old ("· just now"); the red state above (not this
   // label) is what conveys an outage.
   const fresh = freshnessOf(lastSeenAt.toISOString());
+  // "Reachable" on its own line with the last-contact label stacked beneath it
+  // (aligned under the text, no separator). Avoids the ragged "Reachable ·"
+  // wrap when the Status column is narrow.
   return (
-    <span className="inline-flex items-center gap-1 text-xs">
-      <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
-      Reachable
-      <span className="text-[color:var(--color-fg-muted)]">· {fresh.label}</span>
+    <span className="inline-flex flex-col gap-0.5 text-xs">
+      <span className="inline-flex items-center gap-1">
+        <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
+        Reachable
+      </span>
+      <span className="pl-2.5 text-[color:var(--color-fg-muted)]">{fresh.label}</span>
     </span>
   );
 }
@@ -337,15 +413,19 @@ function ServerRow({
   syncChip,
   reachability,
 }: ServerRowProps) {
+  // Mirror DataTable's row styling exactly. The attention tint (warn/error
+  // backgrounds for not-yet-reached / unreachable rows) replaces the
+  // even-stripe on those rows — they're already noisier than a stripe, and
+  // letting both render would mean the same status renders differently
+  // depending on row parity.
+  const attentionClass = serverRowAttentionClass(row.disabledAt, row.lastSeenAt, reachability);
+  const stripeClass = attentionClass ? "" : "even:bg-[color:var(--color-bg-subtle)]";
   return (
-    <tr
-      className={`border-t border-[color:var(--color-border)] ${serverRowAttentionClass(
-        row.disabledAt,
-        row.lastSeenAt,
-        reachability,
-      )}`}
+    <ClickableTr
+      href={`/admin/servers/${row.id}`}
+      className={`border-t border-[color:var(--color-border)] transition-colors hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)] ${stripeClass} ${attentionClass}`}
     >
-      <td className={`px-4 py-3 ${indented ? "pl-10" : ""}`}>
+      <td className={`px-4 py-3 align-top ${indented ? "pl-10" : ""}`}>
         <div className="flex items-center gap-2">
           {indented ? (
             <span aria-hidden className="font-mono text-[color:var(--color-fg-subtle)] select-none">
@@ -353,15 +433,7 @@ function ServerRow({
             </span>
           ) : null}
           <div className="font-medium">{row.name}</div>
-          <span
-            className={
-              isReadOnlyMirror(row.capabilities)
-                ? "rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-1.5 py-0.5 font-mono text-[0.6rem] font-medium text-[color:var(--color-fg-muted)]"
-                : "rounded-full border border-[color:var(--color-accent)] bg-[color-mix(in_oklch,var(--color-accent)_12%,transparent)] px-1.5 py-0.5 font-mono text-[0.6rem] font-medium text-[color:var(--color-accent)]"
-            }
-          >
-            {summarizeCapabilities(row.capabilities)}
-          </span>
+          <CapabilityBadges capabilities={row.capabilities} />
         </div>
         <div className="mt-0.5 text-xs text-[color:var(--color-fg-muted)]">
           {row.slug}
@@ -377,20 +449,20 @@ function ServerRow({
           </div>
         ) : null}
       </td>
-      <td className="px-4 py-3 font-mono text-xs">{row.baseUrl}</td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 align-top font-mono text-xs">{row.baseUrl}</td>
+      <td className="px-4 py-3 align-top">
         <HealthBadge
           disabledAt={row.disabledAt}
           lastSeenAt={row.lastSeenAt}
           reachability={reachability}
         />
       </td>
-      <td className="px-4 py-3 text-xs">{row.versionCache?.version ?? "—"}</td>
-      <td className="px-4 py-3 text-xs">
+      <td className="px-4 py-3 align-top text-xs">{row.versionCache?.version ?? "—"}</td>
+      <td className="px-4 py-3 align-top text-xs">
         <SyncChip verdict={syncChip} isMirror={isReadOnlyMirror(row.capabilities)} />
       </td>
       {canReadAudit ? (
-        <td className="px-4 py-3 text-xs text-[color:var(--color-fg-muted)]">
+        <td className="px-4 py-3 align-top text-xs text-[color:var(--color-fg-muted)]">
           {lastEdits.has(row.id) ? (
             <span title={lastEdits.get(row.id)!.toISOString()}>
               {freshnessOf(lastEdits.get(row.id)!.toISOString()).label}
@@ -400,7 +472,7 @@ function ServerRow({
           )}
         </td>
       ) : null}
-      <td className="px-4 py-3 text-right">
+      <td className="w-px px-4 py-3 text-right align-top whitespace-nowrap">
         <span className="inline-flex items-center gap-2">
           <TestServerButton serverId={row.id} />
           <Link
@@ -411,7 +483,93 @@ function ServerRow({
           </Link>
         </span>
       </td>
-    </tr>
+    </ClickableTr>
+  );
+}
+
+/** Mobile (< md) card rendering of a server row — same data as ServerRow. */
+function ServerCard({ row, canReadAudit, lastEdits, syncChip, reachability }: ServerRowProps) {
+  const isMirror = isReadOnlyMirror(row.capabilities);
+  return (
+    <ClickableDiv
+      href={`/admin/servers/${row.id}`}
+      className={`rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-4 ${serverRowAttentionClass(
+        row.disabledAt,
+        row.lastSeenAt,
+        reachability,
+      )}`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-base font-medium">{row.name}</span>
+        <CapabilityBadges capabilities={row.capabilities} />
+        {row.isDefault ? (
+          <span className="rounded bg-[color:var(--color-bg-muted)] px-1.5 py-0.5 text-[0.65rem] tracking-wide uppercase">
+            default
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-0.5 text-xs text-[color:var(--color-fg-muted)]">{row.slug}</div>
+      {row.description ? (
+        <div className="mt-1 text-xs text-[color:var(--color-fg-muted)] italic">
+          {row.description}
+        </div>
+      ) : null}
+
+      <dl className="mt-3 text-sm">
+        <Field label="Base URL">
+          <span className="font-mono text-xs break-all">{row.baseUrl}</span>
+        </Field>
+        <Field label="Status">
+          <HealthBadge
+            disabledAt={row.disabledAt}
+            lastSeenAt={row.lastSeenAt}
+            reachability={reachability}
+          />
+        </Field>
+        <Field label="Version">
+          <span className="text-xs">{row.versionCache?.version ?? "—"}</span>
+        </Field>
+        <Field label="Sync">
+          <SyncChip verdict={syncChip} isMirror={isMirror} />
+        </Field>
+        {canReadAudit ? (
+          <Field label="Last admin edit">
+            <span className="text-xs text-[color:var(--color-fg-muted)]">
+              {lastEdits.has(row.id)
+                ? freshnessOf(lastEdits.get(row.id)!.toISOString()).label
+                : "—"}
+            </span>
+          </Field>
+        ) : null}
+      </dl>
+
+      <div className="mt-3 flex items-center gap-3">
+        <TestServerButton serverId={row.id} />
+        <Link
+          href={`/admin/servers/${row.id}`}
+          className="text-[color:var(--color-accent)] hover:underline"
+        >
+          Edit
+        </Link>
+      </div>
+    </ClickableDiv>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex justify-between gap-3 border-t border-[color:var(--color-border)] py-1.5 first:border-t-0">
+      <dt className="shrink-0 text-[color:var(--color-fg-muted)]">{label}</dt>
+      <dd className="min-w-0 text-right">{children}</dd>
+    </div>
+  );
+}
+
+function ServersGroupHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="px-1 pt-2 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+      {children}
+    </div>
   );
 }
 
@@ -422,15 +580,15 @@ function SyncChip({ verdict, isMirror }: { verdict: SyncVerdict | null; isMirror
   }
   if (verdict === "in-sync") {
     return (
-      <span className="inline-flex items-center gap-1">
-        <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
+      <span className="inline-flex items-center gap-1.5">
+        <SyncIndicator state="synced" />
         Synced
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 text-[color:var(--color-warn)]">
-      <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-warn)]" />
+    <span className="inline-flex items-center gap-1.5 text-[color:var(--color-error)]">
+      <SyncIndicator state="desynced" />
       Desynced
     </span>
   );

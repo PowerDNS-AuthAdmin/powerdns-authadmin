@@ -26,6 +26,7 @@ import { PDNS_AGENT_OPTIONS } from "./dispatcher";
 import { recordPdnsLatency } from "./observations";
 import { withBackendLock } from "./backend-lock";
 import { checkPdnsUrlSafe } from "./url-safety";
+import { currentRequestIdOverride, hasRequestIdOverride } from "@/lib/request-context";
 import type { PdnsRequestLogInput } from "./request-log";
 
 // Lazy-loaded to keep the DB layer (and pg) out of module-init for tests that
@@ -99,17 +100,24 @@ export async function pdnsRequest<T>(config: PdnsHttpConfig, init: PdnsRequestIn
   const url = joinUrl(config.baseUrl, init.path);
   const log = logger.child({ server: config.serverSlug, op: init.op });
 
-  // Tie the audit row to the per-HTTP-request correlation id when we're
-  // inside a request scope (route handler / Server Component). Outside
-  // a request scope (background samplers, CLI scripts) `headers()`
+  // Tie the audit row to the per-HTTP-request correlation id. If we're inside
+  // an explicit request-context frame (background NOTIFY, poller tick, …) use
+  // ITS id — `next/headers` would otherwise leak the parent route handler's id
+  // into every async task spawned within the handler's scope, producing the
+  // "single user action shows 60+ unrelated PDNS calls under one request-id"
+  // symptom. Outside both frames (background samplers, CLI scripts) `headers()`
   // throws — fall back to null silently.
   let requestId: string | null;
-  try {
-    const { headers: getHeaders } = await import("next/headers");
-    const h = await getHeaders();
-    requestId = h.get("x-request-id");
-  } catch {
-    requestId = null;
+  if (hasRequestIdOverride()) {
+    requestId = currentRequestIdOverride();
+  } else {
+    try {
+      const { headers: getHeaders } = await import("next/headers");
+      const h = await getHeaders();
+      requestId = h.get("x-request-id");
+    } catch {
+      requestId = null;
+    }
   }
   const logCtx = {
     requestId,

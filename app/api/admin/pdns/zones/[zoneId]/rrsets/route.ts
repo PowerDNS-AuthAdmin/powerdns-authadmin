@@ -34,6 +34,7 @@ import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
+import { newSystemRequestId, withRequestId } from "@/lib/request-context";
 import { logger } from "@/lib/logger";
 import { redact } from "@/lib/errors/redact";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
@@ -337,8 +338,15 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     // response returns the moment audits are flushed. The NOTIFY call
     // itself is async telemetry; the operator doesn't need to wait for
     // PDNS to acknowledge it.
+    //
+    // The background runs inside its own request-context frame with a fresh
+    // id so the NOTIFY's PDNS calls + the zone.notify audit row are tagged
+    // to a DISTINCT operation rather than leaking the parent rrset PATCH's
+    // X-Request-Id (which would otherwise attribute every async background
+    // call from this handler to one request id at confusingly varying times).
     if (zoneBefore.kind === "Master" || zoneBefore.kind === "Primary") {
-      void (async () => {
+      const notifyRequestId = newSystemRequestId();
+      void withRequestId(notifyRequestId, async () => {
         let notified = false;
         let notifyError: string | null = null;
         try {
@@ -357,12 +365,14 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
             action: "zone.notify",
             resource: { type: "zone", id: `${server.slug}:${zoneName}` },
             after: { kind: zoneBefore.kind, success: notified, error: notifyError },
-            request: reqInfo,
+            // Use the fresh background id (matches the PDNS NOTIFY call's id)
+            // so the operator can pivot from the audit row to its PDNS log.
+            request: { ...reqInfo, requestId: notifyRequestId },
           });
         } catch {
           // audit row best-effort; the NOTIFY already happened
         }
-      })();
+      });
     }
 
     return Response.json({

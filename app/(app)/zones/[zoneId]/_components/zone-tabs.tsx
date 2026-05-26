@@ -41,8 +41,12 @@ export function ZoneTabs({
   const syncHref = `/zones/${zoneIdEncoded}?${qs}&tab=sync`;
 
   return (
-    <div className="border-b border-[color:var(--color-border)]">
-      <nav className="-mb-px flex gap-6 text-sm">
+    // Mobile (< sm): tabs wrap to multiple rows so the last one ("Change
+    // history" — the widest label) never lives off-screen. From sm+ they
+    // collapse back to a single horizontally-scrollable row, matching the
+    // dense desktop layout.
+    <div className="border-b border-[color:var(--color-border)] sm:overflow-x-auto">
+      <nav className="-mb-px flex flex-wrap gap-x-6 gap-y-2 text-sm sm:w-max sm:flex-nowrap sm:gap-y-0 sm:whitespace-nowrap">
         <TabLink href={detailHref} active={active === "records"}>
           Records
         </TabLink>
@@ -59,7 +63,7 @@ export function ZoneTabs({
         ) : null}
         {canReadMetadata ? (
           <TabLink href={metadataHref} active={active === "metadata"}>
-            Metadata
+            Metadata &amp; TSIG
           </TabLink>
         ) : null}
         <TabLink href={syncHref} active={active === "sync"}>

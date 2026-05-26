@@ -93,6 +93,7 @@ export function TeamsTable({
       initialSort={[{ id: "name", desc: false }]}
       sortParam="sort"
       pageSizeParam="pageSize"
+      rowHref={(r) => `/admin/teams/${r.id}`}
     />
   );
 }

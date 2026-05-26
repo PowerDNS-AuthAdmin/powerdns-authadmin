@@ -142,20 +142,23 @@ export function RoleAssignmentsPanel(props: PanelProps) {
       {props.assignments.length === 0 ? (
         <p className="text-sm text-[color:var(--color-fg-muted)]">No role assignments yet.</p>
       ) : (
-        <div className="overflow-hidden rounded-md border border-[color:var(--color-border)]">
+        <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)]">
           <table className="w-full text-sm">
-            <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+            <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
               <tr>
-                <th className="px-4 py-2">Role</th>
-                <th className="px-4 py-2">Scope</th>
-                <th className="px-4 py-2">Assigned</th>
-                <th className="px-4 py-2"></th>
+                <th className="px-4 py-2.5">Role</th>
+                <th className="px-4 py-2.5">Scope</th>
+                <th className="px-4 py-2.5">Assigned</th>
+                <th className="px-4 py-2.5"></th>
               </tr>
             </thead>
             <tbody>
               {props.assignments.map((a) => (
-                <tr key={a.assignmentId} className="border-t border-[color:var(--color-border)]">
-                  <td className="px-4 py-3">
+                <tr
+                  key={a.assignmentId}
+                  className="border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
+                >
+                  <td className="px-4 py-3 align-top">
                     <span className="font-medium">{a.roleName}</span>
                     {a.isSystem ? (
                       <span className="ml-2 rounded bg-[color:var(--color-bg-muted)] px-1.5 py-0.5 text-[0.65rem] tracking-wide uppercase">
@@ -163,11 +166,11 @@ export function RoleAssignmentsPanel(props: PanelProps) {
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs">{a.scopeLabel}</td>
-                  <td className="px-4 py-3 text-xs">
+                  <td className="px-4 py-3 align-top font-mono text-xs">{a.scopeLabel}</td>
+                  <td className="px-4 py-3 align-top text-xs">
                     <LocalTime ts={a.createdAt} />
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right align-top">
                     {props.canManage ? (
                       <button
                         type="button"

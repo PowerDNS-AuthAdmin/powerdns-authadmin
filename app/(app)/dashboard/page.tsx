@@ -45,6 +45,7 @@ import { Chart } from "@/components/ui/chart";
 import { LocalTime } from "@/components/ui/local-time";
 import { UnverifiedEmailBanner } from "./_components/unverified-email-banner";
 import { DashboardLiveFeed } from "./_components/dashboard-live-feed";
+import { countActiveSessions } from "@/lib/db/repositories/sessions";
 import {
   actionPieOption,
   bucketResponseSizes,
@@ -102,6 +103,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
     backendsLatest,
     backendTimeSeries,
     sessionsTimeSeries,
+    currentActiveSessions,
     recent,
     servers,
     attention,
@@ -118,6 +120,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
     canReadServers ? latestBackendSamples() : Promise.resolve([]),
     canReadServers ? backendSeries(HOURS_7D) : Promise.resolve([]),
     canReadAudit ? sessionsSeries(HOURS_7D) : Promise.resolve([]),
+    canReadAudit ? countActiveSessions() : Promise.resolve(0),
     canReadAudit ? recentAudit(12) : Promise.resolve([]),
     canReadServers ? listAllPdnsServers() : Promise.resolve([]),
     canReadUsers
@@ -154,7 +157,10 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
     }
     return sum + (b.zoneCount ?? 0);
   }, 0);
-  const currentSessions = sessionsTimeSeries[sessionsTimeSeries.length - 1]?.activeSessions ?? 0;
+  // Real-time count for the KPI tile: the metric sampler writes a row every
+  // ~minute, so the last bucket lags freshly-issued sessions (a user logging
+  // in *just now* showed as 0). The 7-day chart still uses the sampled series.
+  const currentSessions = currentActiveSessions;
   const editCountLast24h = editsHourly.reduce((sum, b) => sum + b.count, 0);
   const hasAnyPanel = canReadAudit || canReadServers || canReadZones;
 
@@ -327,14 +333,14 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
               ) : null}
               {canReadServers ? (
                 <Card title="Backends snapshot">
-                  <div className="overflow-hidden rounded-md border border-[color:var(--color-border)] text-sm">
+                  <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)] text-sm">
                     <table className="w-full">
-                      <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+                      <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
                         <tr>
-                          <th className="px-3 py-1.5">Backend</th>
-                          <th className="px-3 py-1.5">Zones</th>
-                          <th className="px-3 py-1.5">p50</th>
-                          <th className="px-3 py-1.5">p95</th>
+                          <th className="px-3 py-2.5">Backend</th>
+                          <th className="px-3 py-2.5">Zones</th>
+                          <th className="px-3 py-2.5">p50</th>
+                          <th className="px-3 py-2.5">p95</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -363,9 +369,9 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
                           backendsLatest.map((b) => (
                             <tr
                               key={b.serverId}
-                              className="border-t border-[color:var(--color-border)]"
+                              className="border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
                             >
-                              <td className="px-3 py-2 font-medium">
+                              <td className="px-3 py-3 align-top font-medium">
                                 <Link
                                   href={`/admin/servers/${b.serverId}`}
                                   className="text-[color:var(--color-accent)] hover:underline"
@@ -373,11 +379,13 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
                                   {b.serverName}
                                 </Link>
                               </td>
-                              <td className="px-3 py-2 font-mono text-xs">{b.zoneCount ?? "—"}</td>
-                              <td className="px-3 py-2 font-mono text-xs">
+                              <td className="px-3 py-3 align-top font-mono text-xs">
+                                {b.zoneCount ?? "—"}
+                              </td>
+                              <td className="px-3 py-3 align-top font-mono text-xs">
                                 {b.latencyP50Ms === null ? "—" : `${Math.round(b.latencyP50Ms)}ms`}
                               </td>
-                              <td className="px-3 py-2 font-mono text-xs">
+                              <td className="px-3 py-3 align-top font-mono text-xs">
                                 {b.latencyP95Ms === null ? "—" : `${Math.round(b.latencyP95Ms)}ms`}
                               </td>
                             </tr>
@@ -407,25 +415,30 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
               {recent.length === 0 ? (
                 <p className="text-sm text-[color:var(--color-fg-muted)]">No audit entries yet.</p>
               ) : (
-                <div className="overflow-hidden rounded-md border border-[color:var(--color-border)] text-sm">
+                <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)] text-sm">
                   <table className="w-full">
-                    <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+                    <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
                       <tr>
-                        <th className="px-3 py-1.5">When</th>
-                        <th className="px-3 py-1.5">Actor</th>
-                        <th className="px-3 py-1.5">Action</th>
-                        <th className="px-3 py-1.5">Resource</th>
+                        <th className="px-3 py-2.5">When</th>
+                        <th className="px-3 py-2.5">Actor</th>
+                        <th className="px-3 py-2.5">Action</th>
+                        <th className="px-3 py-2.5">Resource</th>
                       </tr>
                     </thead>
                     <tbody>
                       {recent.map((row, idx) => (
-                        <tr key={idx} className="border-t border-[color:var(--color-border)]">
-                          <td className="px-3 py-2 font-mono text-xs">
+                        <tr
+                          key={idx}
+                          className="border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
+                        >
+                          <td className="px-3 py-3 align-top font-mono text-[0.6875rem] text-[color:var(--color-fg-muted)]">
                             <LocalTime ts={row.ts} />
                           </td>
-                          <td className="px-3 py-2 text-xs">{row.actorEmail ?? "system"}</td>
-                          <td className="px-3 py-2 font-mono text-xs">{row.action}</td>
-                          <td className="px-3 py-2 text-xs">
+                          <td className="px-3 py-3 align-top text-xs">
+                            {row.actorEmail ?? "system"}
+                          </td>
+                          <td className="px-3 py-3 align-top font-mono text-xs">{row.action}</td>
+                          <td className="px-3 py-3 align-top text-xs">
                             <span className="text-[color:var(--color-fg-muted)]">
                               {row.resourceType}
                             </span>

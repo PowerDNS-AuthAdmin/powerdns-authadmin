@@ -112,6 +112,7 @@ export function RolesTable({
       initialSort={[{ id: "name", desc: false }]}
       sortParam="sort"
       pageSizeParam="pageSize"
+      rowHref={(r) => `/admin/roles/${r.id}`}
     />
   );
 }

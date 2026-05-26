@@ -27,6 +27,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CreateButton } from "@/components/ui/create-button";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import {
   listSelectableBackends,
@@ -208,7 +209,7 @@ export default async function ZonesPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-baseline gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">Zones</h1>
@@ -220,14 +221,7 @@ export default async function ZonesPage() {
             {errors.length > 0 ? ` · ${errors.length} unreachable` : ""}.
           </p>
         </div>
-        {canCreateZone ? (
-          <Link
-            href="/zones/new"
-            className="rounded-md bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
-          >
-            Create zone
-          </Link>
-        ) : null}
+        {canCreateZone ? <CreateButton href="/zones/new" label="Add zone" /> : null}
       </header>
 
       {errors.length > 0 ? (

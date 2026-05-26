@@ -3,7 +3,10 @@
 /**
  * components/ui/theme-toggle.tsx
  *
- * Three-way light / dark / system theme switch.
+ * Light / dark / system theme switch. One button — the icon mirrors the active
+ * preference (Sun / Moon / Monitor) and clicking cycles light → dark → system →
+ * light. Same persistence + live-listener behaviour as before; only the chrome
+ * collapsed from three buttons to one.
  *
  * Behavior:
  *   - Default is "system" (follows the OS / browser preference).
@@ -13,17 +16,27 @@
  *     this prevents a flash-of-wrong-theme on page load.
  *   - This component just updates the preference + the live class and
  *     listens for OS-level changes when in "system" mode.
- *
- * No external icon CDN — Lucide ships SVGs as React components, fully
- * self-hosted per CONTRIBUTING.md.
  */
 
 import { useEffect, useState } from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
 
 type Theme = "light" | "dark" | "system";
 
 const STORAGE_KEY = "pda-theme";
+const CYCLE: readonly Theme[] = ["light", "dark", "system"];
+
+const ICON_BY_THEME: Record<Theme, LucideIcon> = {
+  light: Sun,
+  dark: Moon,
+  system: Monitor,
+};
+
+const LABEL_BY_THEME: Record<Theme, string> = {
+  light: "light",
+  dark: "dark",
+  system: "system",
+};
 
 /** Resolve a user preference to the *effective* theme (light or dark). */
 function resolveEffective(theme: Theme): "light" | "dark" {
@@ -59,58 +72,30 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     return () => media.removeEventListener("change", onChange);
   }, [theme]);
 
-  function choose(next: Theme): void {
+  function cycle(): void {
+    const idx = CYCLE.indexOf(theme);
+    const next = CYCLE[(idx + 1) % CYCLE.length] ?? "system";
     setTheme(next);
     localStorage.setItem(STORAGE_KEY, next);
     applyEffective(resolveEffective(next));
   }
 
-  // Render: three icon buttons. The active one is highlighted via aria-pressed.
-  return (
-    <div
-      role="group"
-      aria-label="Theme"
-      className={`inline-flex items-center gap-0.5 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-0.5 ${className}`}
-    >
-      <ToggleButton label="Light" pressed={theme === "light"} onClick={() => choose("light")}>
-        <Sun aria-hidden className="h-4 w-4" />
-      </ToggleButton>
-      <ToggleButton label="System" pressed={theme === "system"} onClick={() => choose("system")}>
-        <Monitor aria-hidden className="h-4 w-4" />
-      </ToggleButton>
-      <ToggleButton label="Dark" pressed={theme === "dark"} onClick={() => choose("dark")}>
-        <Moon aria-hidden className="h-4 w-4" />
-      </ToggleButton>
-    </div>
-  );
-}
+  const Icon = ICON_BY_THEME[theme];
+  const nextTheme = CYCLE[(CYCLE.indexOf(theme) + 1) % CYCLE.length] ?? "system";
+  const tooltip = `Theme: ${LABEL_BY_THEME[theme]} (click for ${LABEL_BY_THEME[nextTheme]})`;
 
-function ToggleButton({
-  label,
-  pressed,
-  onClick,
-  children,
-}: {
-  label: string;
-  pressed: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      aria-pressed={pressed}
-      aria-label={label}
-      title={label}
+      onClick={cycle}
+      aria-label={tooltip}
+      title={tooltip}
       className={[
-        "flex h-7 w-7 items-center justify-center rounded transition-colors",
-        pressed
-          ? "bg-[color:var(--color-bg-muted)] text-[color:var(--color-fg)]"
-          : "text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-subtle)] hover:text-[color:var(--color-fg)]",
+        "flex h-7 w-7 items-center justify-center rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] text-[color:var(--color-fg-muted)] transition-colors hover:bg-[color:var(--color-bg-subtle)] hover:text-[color:var(--color-fg)]",
+        className,
       ].join(" ")}
     >
-      {children}
+      <Icon aria-hidden className="h-4 w-4" />
     </button>
   );
 }

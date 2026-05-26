@@ -290,7 +290,7 @@ export function RoleForm({
           disabled={!canSubmit}
           className="rounded bg-[color:var(--color-accent)] px-4 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
         >
-          {busy ? "Saving…" : mode === "create" ? "Create role" : "Save changes"}
+          {busy ? "Saving…" : mode === "create" ? "Add role" : "Save changes"}
         </button>
       </div>
     </form>

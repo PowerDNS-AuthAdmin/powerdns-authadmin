@@ -7,12 +7,13 @@
  */
 
 import type { Metadata } from "next";
-import Link from "next/link";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { listAllClusters } from "@/lib/db/repositories/pdns-clusters";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { classifyGroup } from "@/lib/pdns/capabilities";
 import type { PdnsServer } from "@/lib/db/schema";
+import { CreateButton } from "@/components/ui/create-button";
+import { GroupsTable, type GroupRow } from "./_components/groups-table";
 
 export const metadata: Metadata = { title: "Groups" };
 
@@ -29,9 +30,23 @@ export default async function PdnsClustersListPage() {
     membersByCluster.set(s.clusterId, arr);
   }
 
+  const rows: GroupRow[] = clusters.map((c) => {
+    const members = membersByCluster.get(c.id) ?? [];
+    const composition = classifyGroup(members);
+    return {
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      typeLabel: composition.typeLabel,
+      isMultiPrimary: composition.isMultiPrimary,
+      writeStrategy: c.writeStrategy,
+      memberCount: members.length,
+    };
+  });
+
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-4">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Groups</h1>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
@@ -40,14 +55,7 @@ export default async function PdnsClustersListPage() {
             strategy applies only to multi-primary clusters.
           </p>
         </div>
-        {canCreate ? (
-          <Link
-            href="/admin/pdns-clusters/new"
-            className="shrink-0 rounded bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
-          >
-            New group
-          </Link>
-        ) : null}
+        {canCreate ? <CreateButton href="/admin/pdns-clusters/new" label="Add group" /> : null}
       </header>
 
       {clusters.length === 0 ? (
@@ -57,43 +65,7 @@ export default async function PdnsClustersListPage() {
           backends don&rsquo;t need a group.
         </div>
       ) : (
-        <ul className="divide-y divide-[color:var(--color-border)] rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)]">
-          {clusters.map((c) => {
-            const members = membersByCluster.get(c.id) ?? [];
-            const composition = classifyGroup(members);
-            return (
-              <li key={c.id} className="flex items-center justify-between gap-4 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <Link
-                    href={`/admin/pdns-clusters/${c.id}`}
-                    className="block font-medium hover:text-[color:var(--color-accent)] hover:underline"
-                  >
-                    {c.name}
-                  </Link>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-[color:var(--color-fg-muted)]">
-                    <code className="font-mono">{c.slug}</code>
-                    <span className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-1.5 py-0.5 text-[0.625rem] tracking-wide uppercase">
-                      {composition.typeLabel}
-                    </span>
-                    {composition.isMultiPrimary ? (
-                      <span className="rounded bg-[color:var(--color-accent)]/15 px-1.5 py-0.5 font-mono text-[0.625rem] tracking-wide text-[color:var(--color-accent)] uppercase">
-                        {c.writeStrategy.replace("_", " ")}
-                      </span>
-                    ) : null}
-                    <span>
-                      {members.length} member{members.length === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                  {c.description ? (
-                    <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
-                      {c.description}
-                    </p>
-                  ) : null}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <GroupsTable rows={rows} />
       )}
     </div>
   );

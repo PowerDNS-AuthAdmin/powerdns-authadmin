@@ -94,6 +94,7 @@ function SideBySideDiff({
             segments={p.beforeSegments}
             present={p.beforePresent}
             kind="removed"
+            lineNumber={i + 1}
           />
         ))}
       </DiffSection>
@@ -104,6 +105,7 @@ function SideBySideDiff({
             segments={p.afterSegments}
             present={p.afterPresent}
             kind="added"
+            lineNumber={i + 1}
           />
         ))}
       </DiffSection>
@@ -130,6 +132,7 @@ function StackedDiff({ removed, added }: { removed: readonly string[]; added: re
               present
               kind="removed"
               tinted={r.changed}
+              lineNumber={i + 1}
             />
           ))
         )}
@@ -139,7 +142,14 @@ function StackedDiff({ removed, added }: { removed: readonly string[]; added: re
           <EmptyRow kind="added" />
         ) : (
           afterRows.map((r, i) => (
-            <DiffRow key={`a-${i}`} segments={r.segments} present kind="added" tinted={r.changed} />
+            <DiffRow
+              key={`a-${i}`}
+              segments={r.segments}
+              present
+              kind="added"
+              tinted={r.changed}
+              lineNumber={i + 1}
+            />
           ))
         )}
       </DiffSection>
@@ -259,13 +269,9 @@ function DiffSection({ title, children }: { title: string; children: React.React
       <div className="border-b border-[color:var(--color-border)] px-4 py-1.5 text-[0.65rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
         {title}
       </div>
-      {/* Container-level horizontal scroll so wide records get one scrollbar
-          per section instead of one per row. `inline-block` on the row
-          content keeps lines from soft-wrapping; the outer overflow handles
-          horizontal overflow for everything inside. */}
-      <div className="overflow-x-auto">
-        <div className="min-w-full">{children}</div>
-      </div>
+      {/* Lines wrap inside each row (see DiffRow) — no per-section horizontal
+          scrollbar. Long unbroken tokens still break via break-words. */}
+      <div>{children}</div>
     </div>
   );
 }
@@ -287,19 +293,24 @@ function DiffRow({
   present,
   kind,
   tinted,
+  lineNumber,
 }: {
   segments: Segment[];
   present: boolean;
   kind: "added" | "removed";
   /** Force the row tint on for stacked-layout lines flagged as changed. */
   tinted?: boolean;
+  /** 1-based line number shown in the gutter on the left. */
+  lineNumber: number;
 }) {
   if (!present) {
     // Placeholder for one-sided pairs: a muted dash so the row is still
-    // visible and aligned with its counterpart on the other side.
+    // visible and aligned with its counterpart on the other side. The gutter
+    // is preserved so the numbering on both sides stays in lock-step.
     return (
-      <div className="px-4 py-1 font-mono text-xs whitespace-pre text-[color:var(--color-fg-subtle)]">
-        —
+      <div className="flex gap-2 px-2 py-1 font-mono text-xs text-[color:var(--color-fg-subtle)] sm:gap-3 sm:px-3">
+        <LineGutter n={lineNumber} />
+        <span className="flex-1">—</span>
       </div>
     );
   }
@@ -312,16 +323,34 @@ function DiffRow({
 
   return (
     <div
-      className={`px-4 py-1 font-mono text-xs whitespace-pre text-[color:var(--color-fg)] ${rowTint}`}
+      className={`flex gap-2 px-2 py-1 font-mono text-xs text-[color:var(--color-fg)] sm:gap-3 sm:px-3 ${rowTint}`}
     >
-      {segments.length === 0 ? (
-        <span className="text-[color:var(--color-fg-subtle)]">—</span>
-      ) : (
-        segments.map((seg, i) => (
-          <SegmentSpan key={i} text={seg.text} changed={seg.changed} kind={kind} />
-        ))
-      )}
+      <LineGutter n={lineNumber} />
+      {/* `min-w-0` lets the flex child shrink so `break-words` + `whitespace-
+          pre-wrap` can actually wrap the line instead of forcing horizontal
+          overflow. Wrapped continuations indent under THIS column, not under
+          the gutter — same visual as a code editor with soft-wrap. */}
+      <span className="min-w-0 flex-1 break-words whitespace-pre-wrap">
+        {segments.length === 0 ? (
+          <span className="text-[color:var(--color-fg-subtle)]">—</span>
+        ) : (
+          segments.map((seg, i) => (
+            <SegmentSpan key={i} text={seg.text} changed={seg.changed} kind={kind} />
+          ))
+        )}
+      </span>
     </div>
+  );
+}
+
+function LineGutter({ n }: { n: number }) {
+  return (
+    <span
+      aria-hidden
+      className="w-6 shrink-0 text-left text-[color:var(--color-fg-subtle)] tabular-nums select-none sm:w-8"
+    >
+      {n}
+    </span>
   );
 }
 

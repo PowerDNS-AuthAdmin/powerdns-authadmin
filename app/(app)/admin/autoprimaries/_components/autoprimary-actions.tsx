@@ -8,9 +8,13 @@
  */
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Plus } from "lucide-react";
+import { type ColumnDef } from "@tanstack/react-table";
 import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
+import { createCtaClass } from "@/components/ui/create-button";
+import { DataTable } from "@/components/ui/data-table";
 
 interface Row {
   ip: string;
@@ -154,48 +158,91 @@ export function AutoprimaryActions({ serverSlug, rows }: Props) {
             type="button"
             onClick={handleCreate}
             disabled={creating}
-            className="rounded bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+            className={`${createCtaClass} disabled:opacity-50`}
           >
+            <Plus className="h-4 w-4" aria-hidden />
             {creating ? "Adding…" : "Add"}
           </button>
         </div>
       </div>
 
       {rows.length > 0 ? (
-        <div className="overflow-hidden rounded-md border border-[color:var(--color-border)]">
-          <table className="w-full text-sm">
-            <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-              <tr>
-                <th className="px-4 py-2">IP</th>
-                <th className="px-4 py-2">Nameserver</th>
-                <th className="px-4 py-2">Account</th>
-                <th className="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={rowKey(row)} className="border-t border-[color:var(--color-border)]">
-                  <td className="px-4 py-3 font-mono text-xs">{row.ip}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{row.nameserver}</td>
-                  <td className="px-4 py-3 text-xs text-[color:var(--color-fg-muted)]">
-                    {row.account ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(row)}
-                      disabled={deletingKey === rowKey(row)}
-                      className="rounded border border-[color:var(--color-error)] px-2 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
-                    >
-                      {deletingKey === rowKey(row) ? "Removing…" : "Remove"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <AutoprimariesTable
+          rows={rows}
+          onDelete={handleDelete}
+          busyKey={deletingKey}
+          rowKey={rowKey}
+        />
       ) : null}
     </section>
+  );
+}
+
+function AutoprimariesTable({
+  rows,
+  onDelete,
+  busyKey,
+  rowKey,
+}: {
+  rows: Row[];
+  onDelete: (row: Row) => void;
+  busyKey: string | null;
+  rowKey: (row: Row) => string;
+}) {
+  const columns = useMemo<Array<ColumnDef<Row, unknown>>>(
+    () => [
+      {
+        accessorKey: "ip",
+        header: "IP",
+        cell: (ctx) => <span className="font-mono text-xs">{ctx.getValue<string>()}</span>,
+      },
+      {
+        accessorKey: "nameserver",
+        header: "Nameserver",
+        cell: (ctx) => <span className="font-mono text-xs">{ctx.getValue<string>()}</span>,
+      },
+      {
+        accessorKey: "account",
+        header: "Account",
+        cell: (ctx) => (
+          <span className="text-xs text-[color:var(--color-fg-muted)]">
+            {ctx.getValue<string | undefined>() ?? "—"}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: (ctx) => {
+          const row = ctx.row.original;
+          const busy = busyKey === rowKey(row);
+          return (
+            <button
+              type="button"
+              onClick={() => onDelete(row)}
+              disabled={busy}
+              className="rounded border border-[color:var(--color-error)] px-2 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+            >
+              {busy ? "Removing…" : "Remove"}
+            </button>
+          );
+        },
+      },
+    ],
+    [busyKey, onDelete, rowKey],
+  );
+
+  return (
+    <DataTable
+      data={rows}
+      columns={columns}
+      pageSize={Math.max(rows.length, 10)}
+      hidePagination
+      hideSearch
+      noDataMessage="No autoprimaries configured."
+      emptyMessage="No autoprimaries match."
+      stateKey="autoprimaries"
+    />
   );
 }

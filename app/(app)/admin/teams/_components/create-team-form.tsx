@@ -122,7 +122,7 @@ export function CreateTeamForm() {
           disabled={loading}
           className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
         >
-          {loading ? "Creating…" : "Create team"}
+          {loading ? "Adding…" : "Add team"}
         </button>
         <button
           type="button"

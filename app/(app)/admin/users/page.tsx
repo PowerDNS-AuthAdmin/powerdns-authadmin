@@ -8,6 +8,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUserForPage } from "@/lib/auth/require-user";
+import { CreateButton } from "@/components/ui/create-button";
 import { listAllUsers } from "@/lib/db/repositories/users";
 import { countAssignmentsForUsers } from "@/lib/db/repositories/roles";
 import { latestAdminEditTimestampsForUsers } from "@/lib/db/repositories/audit-log";
@@ -66,7 +67,7 @@ export default async function UsersListPage({
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
@@ -74,16 +75,9 @@ export default async function UsersListPage({
             {filter ? ` matching "${FILTER_LABELS[filter]}"` : " — newest first"}.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 [&>*]:w-full sm:[&>*]:w-auto">
           {canBulkRevoke ? <RevokeAllSessionsButton /> : null}
-          {canCreate ? (
-            <Link
-              href="/admin/users/new"
-              className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
-            >
-              Add user
-            </Link>
-          ) : null}
+          {canCreate ? <CreateButton href="/admin/users/new" label="Add user" /> : null}
         </div>
       </header>
 

@@ -1,20 +1,23 @@
 "use client";
 
 /**
- * Zone-detail realtime indicator. Pure SSE-driven via the app-wide
+ * Zone-detail realtime listener. Pure SSE-driven via the app-wide
  * RealtimeProvider — no client-side polling.
  *
- * The server-side poller adaptively quickens (chains a follow-up poll
- * every 2.5 s) while any primary↔secondary mismatch is observed, and
- * publishes a `zone.updated` event each time a serial transitions. So
- * the chip flips back to "live" within seconds of AXFR completing
- * with one router.refresh per actual change — no 1 s RSC refetch
- * storm.
+ * The server-side poller adaptively quickens (chains a follow-up poll every
+ * 2.5 s) while any primary↔secondary mismatch is observed, and publishes a
+ * `zone.updated` event each time a serial transitions. So the page refreshes
+ * within seconds of AXFR completing — one router.refresh per actual change.
+ *
+ * Renders nothing visible: the "SYNCED / DESYNCED" chip lives in the shared
+ * HeaderStatusChip in the top bar — we push the per-zone sync state into it
+ * via <HeaderStatusMode/>.
  */
 
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useRealtimeEvent, useRealtimeStatus } from "@/components/realtime/realtime-provider";
+import { useRealtimeEvent } from "@/components/realtime/realtime-provider";
+import { HeaderStatusMode } from "@/components/realtime/header-status-chip";
 
 interface Props {
   zoneName: string;
@@ -23,7 +26,6 @@ interface Props {
 
 export function ZoneRealtimeSubscriber({ zoneName, inSync }: Props) {
   const router = useRouter();
-  const { status, enabled, setEnabled } = useRealtimeStatus();
   const lastRefreshAt = useRef<number>(0);
 
   useRealtimeEvent(
@@ -39,47 +41,5 @@ export function ZoneRealtimeSubscriber({ zoneName, inSync }: Props) {
     },
   );
 
-  const fastMode = !inSync;
-
-  return (
-    <button
-      type="button"
-      onClick={() => setEnabled(!enabled)}
-      title={
-        status === "live"
-          ? fastMode
-            ? "Replication in flight — waiting for AXFR to complete."
-            : "Synced — click to pause."
-          : status === "paused"
-            ? "Live updates paused — click to resume"
-            : status === "connecting"
-              ? "Connecting…"
-              : "Connection lost — auto-retrying"
-      }
-      className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase hover:bg-[color:var(--color-bg-subtle)]"
-    >
-      <span
-        className={`inline-block h-2 w-2 rounded-full ${
-          status === "live"
-            ? fastMode
-              ? "animate-pulse bg-[color:var(--color-warn)]"
-              : "animate-pulse bg-[color:var(--color-success)]"
-            : status === "connecting"
-              ? "bg-[color:var(--color-warn)]"
-              : status === "paused"
-                ? "bg-[color:var(--color-fg-subtle)]"
-                : "bg-[color:var(--color-error)]"
-        }`}
-      />
-      {status === "live"
-        ? fastMode
-          ? "desynced"
-          : "synced"
-        : status === "connecting"
-          ? "connecting"
-          : status === "paused"
-            ? "paused"
-            : "offline"}
-    </button>
-  );
+  return <HeaderStatusMode kind="sync" inSync={inSync} />;
 }

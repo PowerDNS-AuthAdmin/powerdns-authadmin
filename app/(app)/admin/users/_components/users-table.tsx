@@ -165,6 +165,7 @@ export function UsersTable({
       initialSort={[{ id: "email", desc: false }]}
       sortParam="sort"
       pageSizeParam="pageSize"
+      rowHref={(r) => `/admin/users/${r.id}`}
       noDataMessage="No users match this filter."
     />
   );

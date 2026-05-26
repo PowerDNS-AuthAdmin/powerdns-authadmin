@@ -14,19 +14,17 @@ import { requireUserForPage } from "@/lib/auth/require-user";
 import { queryAuditLog } from "@/lib/db/repositories/audit";
 import { AUDIT_ACTIONS } from "@/lib/audit/actions";
 import { auditQuerySchema } from "@/lib/validators/audit";
-import { BareDiff } from "@/app/(app)/zones/[zoneId]/_components/bare-diff";
-import { Disclosure } from "@/components/ui/disclosure";
-import {
-  PdnsHttpLog,
-  type PdnsHttpLogEntry,
-} from "@/app/(app)/zones/[zoneId]/_components/pdns-http-log";
+import { type PdnsHttpLogEntry } from "@/app/(app)/zones/[zoneId]/_components/pdns-http-log";
 import { findPdnsRequestsByRequestIds } from "@/lib/db/repositories/pdns-requests";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { inArray } from "drizzle-orm";
 import type { PdnsRequestRow } from "@/lib/db/schema";
 import { jsonToDiffLines } from "@/lib/diff/json-lines";
 import { LiveFeedSubscriber } from "@/components/ui/live-feed-subscriber";
-import { LocalTime } from "@/components/ui/local-time";
 import { AuditFilterForm } from "./_components/audit-filter-form";
+import { AuditTable, type AuditRowClient } from "./_components/audit-table";
 
 /**
  * Quick-filter chips. Each is a curated subset of the audit query
@@ -185,6 +183,29 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
   ]);
   const serverById = new Map(allPdnsServers.map((s) => [s.id, s]));
   const serverBySlug = new Map(allPdnsServers.map((s) => [s.slug, s]));
+
+  // Resolve "user" resource ids → emails so the audit row renders the email
+  // (operator-friendly) instead of the UUID. The link still targets the
+  // /admin/users/<uuid> detail page.
+  const userResourceIds = Array.from(
+    new Set(
+      page.entries
+        .filter((e) => e.resourceType === "user" && typeof e.resourceId === "string")
+        .map((e) => e.resourceId!),
+    ),
+  );
+  const userEmailById =
+    userResourceIds.length > 0
+      ? new Map(
+          (
+            await db
+              .select({ id: users.id, email: users.email })
+              .from(users)
+              .where(inArray(users.id, userResourceIds))
+          ).map((u) => [u.id, u.email]),
+        )
+      : new Map<string, string>();
+
   function httpEntriesFor(
     requestId: string | null | undefined,
     action: string,
@@ -317,138 +338,9 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
         ) : null}
       </div>
 
-      {page.entries.length === 0 ? (
-        <div className="rounded-md border border-dashed border-[color:var(--color-border)] p-8 text-center text-sm text-[color:var(--color-fg-muted)]">
-          No entries match.
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-md border border-[color:var(--color-border)]">
-          <table className="w-full text-sm">
-            <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-              <tr>
-                <th className="px-4 py-2">When</th>
-                <th className="px-4 py-2">Actor</th>
-                <th className="px-4 py-2">Action</th>
-                <th className="px-4 py-2">Resource</th>
-                <th className="px-4 py-2">Detail</th>
-              </tr>
-            </thead>
-            <tbody>
-              {page.entries.map((entry) => (
-                <tr
-                  key={String(entry.id)}
-                  className="border-t border-[color:var(--color-border)] align-top"
-                >
-                  <td className="px-4 py-3 font-mono text-xs">
-                    <LocalTime ts={entry.ts} />
-                  </td>
-                  <td className="px-4 py-3 text-xs">
-                    <div>{entry.actorType}</div>
-                    {entry.actorEmail ? (
-                      // Email is the operator-friendly identifier;
-                      // surface it above the UUID when available
-                      // (deleted users / system / token actors fall
-                      // back to UUID-only rendering below). Linked
-                      // to the user-detail page when the operator
-                      // has user.read so investigations get a one-
-                      // click pivot from "who did this" to "manage
-                      // them".
-                      navAbilities.user && entry.actorType === "user" && entry.actorId ? (
-                        <Link
-                          href={`/admin/users/${entry.actorId}`}
-                          className="block truncate text-[color:var(--color-accent)] hover:underline"
-                          title={entry.actorEmail}
-                        >
-                          {entry.actorEmail}
-                        </Link>
-                      ) : (
-                        <div className="truncate" title={entry.actorEmail}>
-                          {entry.actorEmail}
-                        </div>
-                      )
-                    ) : null}
-                    {entry.actorId ? (
-                      <div className="truncate font-mono text-[0.625rem] text-[color:var(--color-fg-muted)]">
-                        {entry.actorId}
-                      </div>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs">{entry.action}</td>
-                  <td className="px-4 py-3 text-xs">
-                    <div>{entry.resourceType}</div>
-                    {entry.resourceId
-                      ? (() => {
-                          const href = resourceLinkHref(
-                            entry.resourceType,
-                            entry.resourceId,
-                            navAbilities,
-                          );
-                          if (href) {
-                            return (
-                              <Link
-                                href={href}
-                                className="block truncate font-mono text-[color:var(--color-accent)] hover:underline"
-                                title={entry.resourceId}
-                              >
-                                {entry.resourceId}
-                              </Link>
-                            );
-                          }
-                          return (
-                            <div
-                              className="truncate font-mono text-[color:var(--color-fg-muted)]"
-                              title={entry.resourceId}
-                            >
-                              {entry.resourceId}
-                            </div>
-                          );
-                        })()
-                      : null}
-                  </td>
-                  <td className="px-4 py-3 text-xs">
-                    {entry.before || entry.after ? (
-                      <Disclosure
-                        label="before/after"
-                        className="space-y-1"
-                        bodyClassName="mt-1 max-w-md overflow-hidden rounded border border-[color:var(--color-border)]"
-                      >
-                        <BareDiff
-                          removed={jsonToDiffLines(entry.before)}
-                          added={jsonToDiffLines(entry.after)}
-                          layout="stacked"
-                        />
-                      </Disclosure>
-                    ) : null}
-                    {(() => {
-                      const httpEntries = httpEntriesFor(entry.requestId, entry.action);
-                      return httpEntries.length > 0 ? (
-                        <div className="mt-1 max-w-md overflow-hidden rounded border border-[color:var(--color-border)]">
-                          <PdnsHttpLog entries={httpEntries} />
-                        </div>
-                      ) : null;
-                    })()}
-                    {entry.ip ? (
-                      <div className="text-[color:var(--color-fg-muted)]">ip: {entry.ip}</div>
-                    ) : null}
-                    {entry.requestId ? (
-                      <div className="text-[color:var(--color-fg-muted)]">
-                        req:{" "}
-                        <Link
-                          href={`/admin/audit?${new URLSearchParams({ requestId: entry.requestId }).toString()}`}
-                          className="font-mono text-[color:var(--color-accent)] hover:underline"
-                          title="Filter to all rows from this request"
-                        >
-                          {entry.requestId}
-                        </Link>
-                      </div>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <AuditTable
+        rows={buildAuditRows(page.entries, navAbilities, userEmailById, httpEntriesFor)}
+      />
 
       <nav className="flex items-center justify-between text-sm">
         {prevHref ? (
@@ -507,6 +399,53 @@ interface NavAbilities {
   template: boolean;
 }
 
+/**
+ * Server-side row builder: resolve user emails, resource hrefs, before/after
+ * line snapshots, and the per-row PDNS HTTP entries into the plain shape the
+ * client AuditTable renders. Keeping this off the client component means the
+ * table itself does no fetching — every value lands ready to render.
+ */
+function buildAuditRows(
+  entries: Awaited<ReturnType<typeof queryAuditLog>>["entries"],
+  nav: NavAbilities,
+  userEmailById: Map<string, string>,
+  httpEntriesFor: (requestId: string | null | undefined, action: string) => PdnsHttpLogEntry[],
+): AuditRowClient[] {
+  return entries.map((entry) => {
+    const resourceHref = entry.resourceId
+      ? resourceLinkHref(entry.resourceType, entry.resourceId, nav)
+      : null;
+    const resourceDisplay = entry.resourceId
+      ? entry.resourceType === "user"
+        ? (userEmailById.get(entry.resourceId) ?? entry.resourceId)
+        : entry.resourceId
+      : null;
+    const actorHref =
+      nav.user && entry.actorType === "user" && entry.actorId
+        ? `/admin/users/${entry.actorId}`
+        : null;
+    const hasBeforeAfter = entry.before != null || entry.after != null;
+    return {
+      id: String(entry.id),
+      ts: entry.ts.toISOString(),
+      actorType: entry.actorType,
+      actorEmail: entry.actorEmail ?? null,
+      actorId: entry.actorId ?? null,
+      actorHref,
+      action: entry.action,
+      resourceType: entry.resourceType,
+      resourceId: entry.resourceId ?? null,
+      resourceDisplay,
+      resourceHref,
+      beforeLines: hasBeforeAfter ? jsonToDiffLines(entry.before) : [],
+      afterLines: hasBeforeAfter ? jsonToDiffLines(entry.after) : [],
+      httpEntries: httpEntriesFor(entry.requestId, entry.action),
+      ip: entry.ip ?? null,
+      requestId: entry.requestId ?? null,
+    };
+  });
+}
+
 function resourceLinkHref(
   resourceType: string,
   resourceId: string,
@@ -526,6 +465,19 @@ function resourceLinkHref(
       return nav.oidc ? `/admin/oidc-providers/${enc}` : null;
     case "zone_template":
       return nav.template ? `/admin/zone-templates/${enc}` : null;
+    case "zone":
+    case "rrset": {
+      // Audit stores the zone resourceId as `<serverSlug>:<zoneName>` (and
+      // rrset as `<serverSlug>:<zoneName>:<rrset>|<type>`). Split on the
+      // first colon and link to the zone detail page so the operator gets a
+      // one-click pivot from the audit row to the actual records.
+      const idx = resourceId.indexOf(":");
+      if (idx < 0) return null;
+      const slug = resourceId.slice(0, idx);
+      const rest = resourceId.slice(idx + 1);
+      const zoneName = resourceType === "rrset" ? rest.split(":")[0]! : rest;
+      return `/zones/${encodeURIComponent(zoneName)}?server=${encodeURIComponent(slug)}`;
+    }
     default:
       return null;
   }

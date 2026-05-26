@@ -27,6 +27,7 @@ import { PdnsAuthError } from "@/lib/pdns/errors";
 import { logger } from "@/lib/logger";
 import { redact } from "@/lib/errors/redact";
 import { TsigActions } from "./_components/tsig-actions";
+import { TsigKeysReadOnly } from "./_components/tsig-keys-readonly";
 
 const PRIMARY_KINDS = new Set(["master", "primary"]);
 
@@ -151,44 +152,7 @@ export default async function TsigKeysPage({ searchParams }: PageProps) {
           zones={primaryZones}
         />
       ) : fetchError ? null : (
-        <div className="overflow-hidden rounded-md border border-[color:var(--color-border)]">
-          <table className="w-full text-sm">
-            <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-              <tr>
-                <th className="px-4 py-2">Name</th>
-                <th className="px-4 py-2">Algorithm</th>
-                <th className="px-4 py-2 font-mono text-[0.625rem] normal-case">id</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted && sorted.length > 0 ? (
-                sorted.map((k) => (
-                  <tr key={k.id} className="border-t border-[color:var(--color-border)]">
-                    <td className="px-4 py-3 font-mono text-xs">{k.name}</td>
-                    <td className="px-4 py-3">
-                      <span className="rounded bg-[color:var(--color-bg-muted)] px-2 py-0.5 font-mono text-xs">
-                        {k.algorithm}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[0.625rem] text-[color:var(--color-fg-muted)]">
-                      {k.id}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr className="border-t border-[color:var(--color-border)]">
-                  <td
-                    colSpan={3}
-                    className="px-4 py-6 text-center text-[color:var(--color-fg-muted)]"
-                  >
-                    No TSIG keys configured on <code>{selected.slug}</code>. AXFR and NOTIFY between
-                    this backend and its peers happens without shared-secret authentication.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <TsigKeysReadOnly serverSlug={selected.slug} rows={sorted ?? []} />
       )}
     </div>
   );
