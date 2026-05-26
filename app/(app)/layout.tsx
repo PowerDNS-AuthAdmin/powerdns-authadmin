@@ -198,16 +198,32 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     </>
   );
 
+  // A user stuck on the must-change-password / MFA-enrolment screen can't reach
+  // /api/realtime (requireUser rejects them with 403). Skipping RealtimeProvider
+  // here avoids the stuck-on-CONNECTING chip + the wasted reconnect storm; the
+  // chip self-hides when no provider is mounted.
+  const realtimeAvailable = compliance.compliant && !current.user.mustChangePassword;
+  const shell = (
+    <AppShell sidebar={sidebar} headerControls={headerControls}>
+      {children}
+    </AppShell>
+  );
+
   return (
     <DialogProvider>
-      <RealtimeProvider>
-        <HeaderStatusProvider>
+      {realtimeAvailable ? (
+        <RealtimeProvider>
+          <HeaderStatusProvider>
+            <FlashListener />
+            {shell}
+          </HeaderStatusProvider>
+        </RealtimeProvider>
+      ) : (
+        <>
           <FlashListener />
-          <AppShell sidebar={sidebar} headerControls={headerControls}>
-            {children}
-          </AppShell>
-        </HeaderStatusProvider>
-      </RealtimeProvider>
+          {shell}
+        </>
+      )}
     </DialogProvider>
   );
 }

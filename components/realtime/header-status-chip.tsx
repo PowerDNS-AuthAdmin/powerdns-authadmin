@@ -19,7 +19,7 @@
  */
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { useRealtimeStatus } from "./realtime-provider";
+import { useRealtimeAvailable, useRealtimeStatus } from "./realtime-provider";
 
 type Mode = { kind: "live" } | { kind: "sync"; inSync: boolean };
 const DEFAULT_MODE: Mode = { kind: "live" };
@@ -62,8 +62,14 @@ export function HeaderStatusMode(props: { kind: "live" } | { kind: "sync"; inSyn
 }
 
 export function HeaderStatusChip() {
+  const available = useRealtimeAvailable();
   const { status, enabled, setEnabled } = useRealtimeStatus();
   const { mode } = useHeaderStatus();
+
+  // When the layout deliberately skips the RealtimeProvider (e.g. a
+  // compliance-redirected user who can't reach /api/realtime) the chip
+  // would otherwise be stuck on "CONNECTING" forever — render nothing.
+  if (!available) return null;
 
   // Map state → { label, dotClass, title }.
   let label: string;

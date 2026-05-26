@@ -25,6 +25,17 @@ import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 import type { Subject } from "@/lib/rbac/ability";
 import { listRoleMfaStatesForUser } from "@/lib/db/repositories/roles";
 import { getCurrentUser, type AuthenticatedRequest } from "./get-current-user";
+
+/** Routes a non-compliant user (forced-MFA-not-enrolled, mustChangePassword) is
+ *  allowed to reach so they can self-remediate. Anything else triggers a
+ *  redirect to /profile. Match by prefix. Mirrors the (app) layout's list — see
+ *  `requireUserForPage` for why we duplicate the gate per page. */
+const COMPLIANCE_ALLOWLIST: readonly string[] = [
+  "/profile",
+  "/api/profile/mfa",
+  "/api/auth/change-password",
+  "/api/auth/logout",
+];
 import { evaluateSessionCompliance } from "./session-compliance";
 
 export interface RequireUserOptions {
@@ -132,10 +143,19 @@ export async function requireUserForPage(
   opts: RequireUserOptions = {},
 ): Promise<AuthenticatedRequest> {
   try {
-    // Pages don't double-gate: the `(app)` layout already enforces compliance
-    // and redirects to /profile (nicer UX than a thrown ForbiddenError). The
-    // permission check still runs.
-    return await requireUser({ ...opts, skipComplianceGate: true });
+    // The (app) layout enforces compliance on the *initial* server render, but
+    // App Router doesn't re-run a sibling layout on soft client navigations —
+    // so without re-checking here, a forced-MFA / must-change-password user
+    // could click around freely until the next full reload. We rerun the same
+    // gate at the page level (cheap; `requireUser` already loaded the user).
+    const result = await requireUser({ ...opts, skipComplianceGate: true });
+    const hdrs = await headers();
+    const pathname = hdrs.get("x-pathname") ?? "/";
+    const allowed = COMPLIANCE_ALLOWLIST.some((p) => pathname.startsWith(p));
+    if (!allowed && result.user.mustChangePassword) {
+      redirect("/profile?must-change-password=1");
+    }
+    return result;
   } catch (err) {
     if (err instanceof UnauthorizedError) {
       // Carry the attempted path so login can return the user there (L-2).

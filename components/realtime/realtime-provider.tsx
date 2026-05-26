@@ -150,6 +150,14 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }
 
+/** True iff a RealtimeProvider is mounted above the caller. The header chip
+ *  uses this to render nothing when the layout deliberately skips realtime
+ *  (e.g. on the must-change-password compliance redirect where /api/realtime
+ *  would reject with 403 and the chip would be stuck on "connecting"). */
+export function useRealtimeAvailable(): boolean {
+  return useContext(RealtimeContext) !== null;
+}
+
 export function useRealtimeStatus(): {
   status: RealtimeStatus;
   enabled: boolean;
