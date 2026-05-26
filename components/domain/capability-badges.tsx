@@ -6,6 +6,8 @@
  *   • primary       → accent (indigo) — write target
  *   • secondary     → warn   (yellow) — read-only mirror
  *   • autosecondary → orange — accepts NOTIFY-from-anyone auto-create
+ *   • standalone    → neutral — no replication flag set (default PDNS Auth
+ *                     config; API still accepts zone creates — fully usable).
  *
  * Renders nothing fancy: a small rounded badge per active flag, joined by a
  * narrow gap. Use anywhere a backend row shows its role (server lists, group
@@ -43,7 +45,7 @@ export function CapabilityBadges({ capabilities }: { capabilities: Capabilities 
   if (capabilities.primary) flags.push("primary");
   if (capabilities.secondary) flags.push("secondary");
   if (capabilities.autosecondary) flags.push("autosecondary");
-  if (flags.length === 0) return <span className={NEUTRAL}>none</span>;
+  if (flags.length === 0) return <span className={NEUTRAL}>standalone</span>;
   // Plain inline <span> wrapper (no flex) so each badge renders exactly like
   // the CLUSTER badge in the zones list — inherited line-height and no
   // cross-axis stretching from a flex container.

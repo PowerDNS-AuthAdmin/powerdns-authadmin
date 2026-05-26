@@ -32,7 +32,9 @@ import { HeaderStatusProvider } from "@/components/realtime/header-status-chip";
 import { MustChangePasswordProvider } from "@/components/auth/must-change-password-guard";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
-import { globalAnyLagging } from "@/lib/pdns/sync";
+import { globalAnyLagging, hasReplicationTopology } from "@/lib/pdns/sync";
+import { decideHeaderChipMode } from "@/lib/realtime/header-chip-mode";
+import { pdnsBackgroundPollingEnabled } from "@/lib/env";
 
 /**
  * Paths a non-compliant user (forced-MFA-not-enrolled, or flagged
@@ -215,12 +217,26 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // signal they have no context for. The helper reads exclusively from the
   // poller's in-process caches, so this is a near-free lookup once the
   // first ensureBackendsObserved warms the store.
-  const showGlobalSync = realtimeAvailable && (canReadZones || canReadServers);
-  let initialChipMode: { kind: "live" } | { kind: "sync"; inSync: boolean } = { kind: "live" };
+  // Sync-mode chip default. Pages that show their own per-zone or per-page
+  // sync state override this via <HeaderStatusMode/>. The decision is a pure
+  // function (`decideHeaderChipMode`) — unit-tested in isolation; the awaits
+  // here are I/O bridges feeding it.
+  const canReadBackends = canReadZones || canReadServers;
+  const showGlobalSync = pdnsBackgroundPollingEnabled && realtimeAvailable && canReadBackends;
+  let topology = false;
+  let lagging = false;
   if (showGlobalSync) {
     await ensureBackendsObserved();
-    initialChipMode = { kind: "sync", inSync: !(await globalAnyLagging()) };
+    topology = await hasReplicationTopology();
+    if (topology) lagging = await globalAnyLagging();
   }
+  const initialChipMode = decideHeaderChipMode({
+    pollingEnabled: pdnsBackgroundPollingEnabled,
+    realtimeAvailable,
+    canReadBackends,
+    hasReplicationTopology: topology,
+    anyLagging: lagging,
+  });
 
   const shell = (
     <AppShell sidebar={sidebar} headerControls={headerControls}>

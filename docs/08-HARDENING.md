@@ -66,6 +66,15 @@ exotic — it's the handful of things worth getting right before you expose the 
 
 ## Operations
 
+- **Keep `PDNS_BACKGROUND_POLLING=false` (default) unless you actually run
+  multi-peer topology.** A standalone PowerDNS doesn't benefit from a
+  30 s / 60 s / 5 min ticker against itself; turning the poller on
+  generates background API traffic you don't need, slightly enlarges
+  the in-process cache footprint, and gives an attacker on the AuthAdmin
+  host one more long-lived authenticated path to your DNS API. Enable
+  it deliberately when you need the sync chip, drift advisories, or the
+  dashboard PDNS metrics — see
+  [Configuration → `PDNS_BACKGROUND_POLLING`](./03-CONFIGURATION.md#pdns_background_polling).
 - **Run on Postgres for anything multi-instance.** Boots are serialised by an
   advisory lock so rolling deploys are safe; SQLite is single-writer.
 - **Gate traffic on `/readyz`**, not just `/healthz` — it fails until migrations
@@ -80,7 +89,7 @@ Each published release is cosign-signed (keyless / Sigstore) by the release
 workflow. Verify before deploying:
 
 ```sh
-cosign verify ghcr.io/powerdns-authadmin/powerdns-authadmin:1.1.5 \
+cosign verify ghcr.io/powerdns-authadmin/powerdns-authadmin:1.2.0 \
   --certificate-identity-regexp '^https://github.com/PowerDNS-AuthAdmin/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```

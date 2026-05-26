@@ -157,6 +157,49 @@ IP into the connection as a DNS-rebinding defense. Link-local addresses (incl. t
 | `APP_PDNS_ALLOW_PRIVATE_NETWORKS` | `false` in production, `true` otherwise | Allow PDNS URLs that resolve to loopback/RFC1918/CGNAT/ULA. Needed for in-cluster/compose PDNS.     |
 | `APP_PDNS_ALLOW_INSECURE_HTTP`    | requires `https://` in production       | Allow `http://` PDNS base URLs. Both flags must be opted in for an internal `http://host:port` URL. |
 
+### `PDNS_BACKGROUND_POLLING`
+
+Opt-in switch for AuthAdmin's replication-awareness layer. **Defaults to
+`false`** so a fresh install (or any deployment without multi-peer
+topology) makes no background calls to PowerDNS — every PDNS interaction
+is a direct consequence of an operator action.
+
+When `false` (default):
+
+- No background `setInterval`. Every PDNS call is triggered by a page
+  render, a mutation, **Test**, or **Refresh All**.
+- The following supplementary surfaces are **hidden**:
+  - Header SYNCED / DESYNCED chip
+  - Per-zone **Sync** + **Statistics** tabs
+  - Servers-list **Sync** column
+  - Zones-list mirror column
+  - Dashboard **PowerDNS metrics** tab
+  - Drift-derived advisories in the bell
+- The dashboard heading carries a small `(i)` hint explaining the flag;
+  a direct URL to a gated feature redirects to the default view with a
+  red error toast naming this env var.
+- Recommended for: single-server / standalone PowerDNS, homelab,
+  small fleets where every PDNS instance is independent.
+
+When `true`:
+
+- The unified background poller ticks on 30 s zone-state / 60 s daemon
+  refresh / 5 min metric-sample cadences against every configured
+  backend.
+- All replication-awareness surfaces above are visible and live.
+- Required for: primary + secondaries (a primary's zones are AXFR'd to
+  one or more secondaries) and multi-primary clusters (≥2 write-capable
+  peers sharing storage), if you want AuthAdmin to surface drift.
+
+The choice is process-wide; a restart applies the change. There is a
+one-time boot log line at the first `/healthz` hit that summarises the
+effective mode and warns when the configured fleet has replication
+topology while the flag is off.
+
+| Variable                  | Default | Notes                                                                                                   |
+| ------------------------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `PDNS_BACKGROUND_POLLING` | `false` | Enables the background poller and all sync-aware UI. See the breakdown above for the full feature list. |
+
 The OIDC issuer/discovery URL is operator-supplied and fetched server-side (provider
 test + live discovery), so it runs through the same outbound-URL guard with its own
 pair of flags. Same rule: link-local / cloud-metadata is always blocked.

@@ -77,6 +77,32 @@ the dashboard's "PDNS backends needing attention" widget.
 - **Test** (per row) does an immediate version probe and updates the status.
 - **Refresh all** re-probes every active backend's version at once.
 
+## Background polling — opt-in for multi-peer topologies
+
+AuthAdmin's replication-awareness layer (SYNCED/DESYNCED chip, per-zone
+Sync and Statistics tabs, servers-list Sync column, dashboard PDNS
+metrics, drift advisories) is powered by a background poller that ticks
+against every configured backend. Whether it runs at all is controlled by
+the `PDNS_BACKGROUND_POLLING` env var, **which defaults to `false`** (see
+[Configuration → `PDNS_BACKGROUND_POLLING`](./03-CONFIGURATION.md#pdns_background_polling)).
+
+The right value depends on the topology you're about to build:
+
+| You're configuring …                                                     | Set `PDNS_BACKGROUND_POLLING` to |
+| ------------------------------------------------------------------------ | -------------------------------- |
+| **Standalone primary** (one PDNS, single instance, no AXFR replication). | `false` (default — leave it)     |
+| Multiple **independent standalones** (no cross-server replication).      | `false`                          |
+| **Primary + secondaries** (one writable backend mirrored over AXFR).     | `true` _(strongly recommended)_  |
+| **Multi-primary cluster** (≥2 writable peers sharing storage).           | `true` _(strongly recommended)_  |
+
+A polling-off install still works for every topology — the standalone /
+single-primary path is its sweet spot, but you can run a primary +
+secondaries on `false` if you prefer to keep AuthAdmin completely
+operator-driven. The trade-off is that AuthAdmin won't show you when a
+secondary has fallen behind on AXFR; you'd notice that through your own
+PowerDNS monitoring (e.g. `pdns_control list-zones` cross-checks) or via
+the **Test** button on `/admin/servers`.
+
 ## Topologies
 
 ### Standalone primary
@@ -88,13 +114,15 @@ A single read/write backend. Add it with `role: primary`, mark one backend
 
 A writable primary plus one or more read-only mirrors that receive zones via
 AXFR/IXFR after a NOTIFY. Add the primary as `role: primary` and each mirror as
-`role: secondary` pointing at it. AuthAdmin routes **all writes to the primary**
-and polls secondaries for sync state + stats.
+`role: secondary` pointing at it. AuthAdmin routes **all writes to the primary**;
+secondary sync state + stats are surfaced when
+`PDNS_BACKGROUND_POLLING=true` (see [above](#background-polling--opt-in-for-multi-peer-topologies)).
 
 For secondaries to auto-bootstrap a zone via PowerDNS supermaster, each zone's NS
 set must include the receiving secondary's registered nameserver — see the
 `zone_templates` notes in [`provisioning.example.yaml`](../provisioning.example.yaml).
-The **Sync** column compares each secondary's serial against the primary's.
+The **Sync** column (visible when `PDNS_BACKGROUND_POLLING=true`) compares
+each secondary's serial against the primary's.
 
 ### Multi-primary cluster
 

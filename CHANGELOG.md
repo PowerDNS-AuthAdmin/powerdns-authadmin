@@ -6,6 +6,121 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-05-26
+
+A **minor release** that combines two closely-related changes:
+
+1. **Standalone-PDNS write-capability fix (#57).** A daemon with the
+   default `primary=no, secondary=no` in `pdns.conf` was incorrectly
+   hidden from `/zones/new`'s backend picker.
+2. **`PDNS_BACKGROUND_POLLING` opt-in flag.** AuthAdmin no longer
+   maintains a background ticker against PDNS unless the operator
+   explicitly opts in. The supplementary "replication-awareness"
+   surfaces (sync chip, zone Sync + Statistics tabs, servers Sync
+   column, dashboard PDNS metrics, drift advisories) are gated on
+   this flag.
+
+> **NOTE — behaviour change on upgrade.** `PDNS_BACKGROUND_POLLING`
+> defaults to `false`. Existing 1.1.x deployments that rely on the
+> sync chip, dashboard PDNS metrics, per-zone Sync tab, or drift
+> advisories **MUST NOW ENABLE** `PDNS_BACKGROUND_POLLING=true` in
+> their environment and restart the app to keep those features. See
+> [Upgrading → 1.2.0](./docs/09-UPGRADING.md#upgrading-to-120-from-11x)
+> for the use-case guidance.
+
+Closes #57; reported by @insxa in
+[discussion #27](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/discussions/27).
+
+### Added
+
+- **`PDNS_BACKGROUND_POLLING` env var (default `false`).** Single
+  opt-in switch for the replication-awareness layer. When off, every
+  PDNS interaction is a direct consequence of an operator action — no
+  background traffic. When on, the unified poller runs on its 30 s /
+  60 s / 5 min cadences and powers the SYNCED/DESYNCED chip, per-zone
+  Sync + Statistics tabs, servers-list Sync column, zones-list mirror
+  column, dashboard PowerDNS-metrics tab, and the drift-derived
+  advisories in the bell. (#57)
+- **`(i)` polling-mode hint** on every polling-gated page heading
+  (`/dashboard`, `/admin/servers`, `/zones`, `/zones/<id>`) when polling
+  is off — hover tooltip explains the current state and links to the live
+  CONFIGURATION doc. One small icon, consistent across the app, so an
+  operator can flip the flag deliberately from wherever they are when
+  they notice a sync-aware feature is missing.
+- **`flash=polling-required` error toast** when an operator follows a
+  direct URL to a gated feature (`/dashboard?tab=pdns`,
+  `/zones/<id>?tab=sync`, `/zones/<id>?tab=statistics`) on a polling-off
+  install — the page redirects to the default view and surfaces a red
+  error toast naming the env var.
+- **Boot-time log line** at the first `/healthz` hit summarising the
+  effective polling mode plus a sharp warning when the configured fleet
+  has replication topology but the flag is off (mirrors / multiple
+  primaries / clusters). Hard 3 s budget — never blocks startup.
+
+### Changed
+
+- **`isWriteCapable` is now `caps ? !isReadOnlyMirror(caps) : true`.**
+  The predicate flipped from gating on the AXFR-primary flag to gating
+  on the explicit observation of a read-only mirror — so standalone
+  (`primary=no, secondary=no`), explicit primary, and dual-role
+  primary+secondary all correctly count as writable. Only a pure
+  secondary mirror is excluded from `/zones/new`'s picker. (#57)
+- **Header sync chip gates on actual replication topology AND the
+  poller flag.** `hasReplicationTopology()` was added in this cycle;
+  the chip only enters SYNCED/DESYNCED mode when both a ≥2-peer cluster
+  (derived primary+secondaries OR configured multi-primary) AND
+  `PDNS_BACKGROUND_POLLING=true` are present. Standalone /
+  single-primary / polling-off fleets see plain "Live". (#57)
+- **Capability badge `none` → `standalone`.** The neutral badge for a
+  daemon with no replication flags now reads `standalone`, matching the
+  semantic ("hosts zones over the API; no DNS-protocol replication")
+  and removing the alarming "none" label. Same neutral tone.
+  `summarizeCapabilities()`'s fallback follows suit (`api` →
+  `standalone`); `api: no` → `unreachable`.
+- **Dashboard tab strip hides** when polling is off — the "Admin" view
+  becomes the default (and only) tab. The PDNS-metrics tab body
+  redirects with the flash toast on direct URL.
+- **Zone-detail Sync + Statistics tabs hide** when polling is off.
+  Direct ?tab=sync / ?tab=statistics URLs redirect to the records tab
+  with the flash toast.
+- **Servers-list Sync column hides** when polling is off (the page's
+  realtime sync subscriber stays unmounted; row reachability still
+  updates on every operator-initiated probe).
+- **Zones-list mirror column hides** when polling is off; default sort
+  collapses to Name asc instead of Sync-desc then Name.
+
+### Fixed
+
+- Standalone-PDNS daemons no longer rendered as `none` /
+  not-a-write-target on `/admin/servers` or hidden from `/zones/new`. (#57)
+- `scheduleImmediatePoll` and the in-flight `scheduleFollowupPoll` are
+  no-ops when polling is off; mutations still publish their own SSE
+  refresh and call `invalidateBackendObservation`, so the next page
+  render warms what it needs via `ensureBackendsObserved`.
+
+### Tests
+
+- Four-way table test for `isWriteCapable` × `isReadOnlyMirror` across
+  the standalone / primary / secondary / dual-role flag matrix.
+- `unprobed (null)` defaults to write-capable so a freshly-added
+  backend stays usable until its first probe.
+- Polling-flag tests pin `ensurePollerRunning` to no `setInterval`,
+  and `scheduleImmediatePoll` to no `setTimeout`, when the flag is off.
+- **`decideHeaderChipMode` pure helper** (extracted from `app/(app)/layout.tsx`)
+  is unit-tested across all five gating inputs (polling enabled, realtime
+  available, can-read-backends, has-topology, lagging) — every false
+  gate falls back to plain "Live"; only the full happy path enters sync
+  mode.
+- **`describeFlash` for `polling-required`** is unit-tested to produce a
+  red error toast naming the env var verbatim (so operators can grep for
+  it), with and without the `need=` parameter.
+- **`logPollingModeOnce` startup log** is unit-tested across three
+  branches (flag on info; flag off + standalone info; flag off + topology
+  warn) plus the 3 s probe budget timing out gracefully and the one-shot
+  guard against re-firing.
+- Integration suite pinned to `PDNS_BACKGROUND_POLLING=true` so the
+  replication-aware code paths stay exercised end-to-end.
+
 ## [1.1.5] — 2026-05-26
 
 A **security-hygiene patch**. No app-code changes; ships only a defensive

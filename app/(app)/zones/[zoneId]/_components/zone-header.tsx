@@ -5,13 +5,16 @@ import type { PdnsZoneDetail } from "@/lib/pdns/types";
 import type { ZoneAuditEntry } from "@/lib/db/repositories/audit-log";
 import { CloneZoneButton } from "./clone-zone-button";
 import { ZoneRealtimeSubscriber } from "./zone-realtime-subscriber";
+import { PollingDisabledHint } from "@/components/domain/polling-disabled-hint";
 
 interface ZoneHeaderProps {
   /**
    * Cached sync verdict (primary vs secondaries). Drives the realtime
-   * indicator into fast-poll mode while replication is in flight.
+   * indicator into fast-poll mode while replication is in flight. `null`
+   * when `PDNS_BACKGROUND_POLLING=false` — the header chip stays in plain
+   * "Live" mode and the subscriber only refreshes on mutation events.
    */
-  inSync: boolean;
+  inSync: boolean | null;
   zone: PdnsZoneDetail;
   zoneIdEncoded: string;
   /**
@@ -63,6 +66,7 @@ export function ZoneHeader({
             {displayZoneName(zone.name)}
           </h1>
           <ZoneRealtimeSubscriber zoneName={zone.name} inSync={inSync} />
+          {inSync === null ? <PollingDisabledHint /> : null}
         </div>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
           <Stat label="Kind" value={zone.kind} />

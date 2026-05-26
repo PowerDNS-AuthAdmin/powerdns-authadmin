@@ -37,6 +37,82 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.2.0 (from 1.1.x)
+
+A **minor release** — no schema migration, no API changes, drop-in upgrade.
+There is **one new env var with a behaviour-change default**, and a fix for
+operators running standalone PowerDNS.
+
+> **NOTE: This release introduces `PDNS_BACKGROUND_POLLING` which defaults to `false`.**
+> If you currently rely on the SYNCED/DESYNCED chip, the dashboard
+> "PowerDNS metrics" tab, the per-zone "Sync" or "Statistics" tabs, the
+> servers-list Sync column, the zones-list mirror column, or drift-derived
+> advisories in the bell, **you MUST NOW ENABLE** `PDNS_BACKGROUND_POLLING=true`
+> in your environment and restart the app to keep those surfaces working.
+> With the flag at its default (`false`), all of those features hide;
+> the rest of AuthAdmin (zones, records, DNSSEC, TSIG, autoprimaries,
+> audit, RBAC, OIDC, signup) is unchanged.
+
+What also changes after the upgrade:
+
+- **Standalone PDNS Auth instances (no `primary=yes` or `secondary=yes`
+  in `pdns.conf`) become usable as zone-create targets.** Until 1.2.0,
+  AuthAdmin was treating "no replication flag set" as "not writable" —
+  hiding the backend from `/zones/new`'s picker even though **Test**
+  went green. After upgrading those backends appear on the create-zone
+  page automatically; nothing to reconfigure. (Closes #57.)
+- **Capability badge `none` → `standalone`** for those backends. Same
+  neutral tone, accurate label.
+- If you applied the **`primary=yes` workaround** mentioned in #57 to
+  unblock zone creation on a standalone, you can now revert it from
+  `pdns.conf`. The override was operationally harmless either way — no
+  slaves to NOTIFY — but the badge will read `standalone` correctly
+  once it's gone.
+
+#### Choosing your `PDNS_BACKGROUND_POLLING` value
+
+| Deployment shape                                                          | Set `PDNS_BACKGROUND_POLLING` to     |
+| ------------------------------------------------------------------------- | ------------------------------------ |
+| Single PowerDNS server / standalone / homelab — no AXFR replication.      | `false` (the new default — leave it) |
+| Multiple standalone PowerDNS instances, none acting as primary/secondary. | `false`                              |
+| One primary with one or more secondaries replicating its zones via AXFR.  | `true` _(strongly recommended)_      |
+| Two or more PowerDNS instances forming a multi-primary cluster.           | `true` _(strongly recommended)_      |
+
+**With `PDNS_BACKGROUND_POLLING=false` (default):**
+
+- AuthAdmin contacts PDNS only in direct response to operator actions:
+  page renders, **Test**, **Refresh All**, zone create/edit/delete,
+  DNSSEC/TSIG/autoprimaries actions. No background traffic.
+- The supplementary "replication-awareness" surfaces are hidden — see
+  the list under "MUST NOW ENABLE" above.
+- The dashboard renders the Admin view only; a small `(i)` icon by the
+  page heading explains how to enable polling.
+- Operator clicks on a direct URL to a gated feature get a red error
+  toast naming the env var.
+
+**With `PDNS_BACKGROUND_POLLING=true`:**
+
+- The unified background poller runs on its 30 s / 60 s / 5 min
+  cadences against every configured backend.
+- All replication-awareness features are visible and live:
+  - SYNCED / DESYNCED chip in the top header (per-page where
+    relevant; fleet-wide on most pages).
+  - **Sync** + **Statistics** tabs on every zone-detail page.
+  - **Sync** column on `/admin/servers`.
+  - Mirror column on `/zones`.
+  - **PowerDNS metrics** tab on the dashboard, including the live
+    time-series charts (query rate, latency, cache hit, response
+    composition by qtype/rcode/size).
+  - Drift-derived advisories surfaced in the bell.
+- A boot-time log line confirms the mode and (when off) whether the
+  configured fleet looks like it would benefit from being on.
+
+At the moment of the upgrade decision: most single-PowerDNS / small
+deployments will get a quieter, friendlier experience by leaving the
+flag at its default. Multi-replica and clustered operators will want
+to set it `true` immediately and restart so AuthAdmin's full
+operational surface is back.
+
 ### Upgrading to 1.1.5 (from 1.1.x)
 
 A **security-hygiene patch.** No app-code changes; no schema, API, or

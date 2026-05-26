@@ -30,10 +30,12 @@ every primary and secondary.
   <img src="./light/dashboard.png" alt="Dashboard" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/dashboard-mobile.png" />
   <img src="./light/dashboard-mobile.png" alt="Dashboard on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Dashboard feature notes](../docs/FEATURES.md#11-dashboard)
 
@@ -52,10 +54,12 @@ automatically.
   <img src="./light/backend-health.png" alt="Backend health popover" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/backend-health-mobile.png" />
   <img src="./light/backend-health-mobile.png" alt="Backend health popover on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Backend health advisories](../docs/FEATURES.md#37-backend-health-advisories)
 · [ADR-0015](../docs/adr/0015-backend-health-advisories.md)
@@ -74,10 +78,12 @@ view. Live-updates over SSE; sort/filter/paginate client-side.
   <img src="./light/zones-list.png" alt="Zones list" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/zones-list-mobile.png" />
   <img src="./light/zones-list-mobile.png" alt="Zones list on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Amalgamated zones list](../docs/FEATURES.md#41-amalgamated-zones-list)
 · [Sync probes](../docs/FEATURES.md#33-sync-probes)
@@ -97,10 +103,12 @@ value / comment in a per-row editor.
   <img src="./light/zone-detail.png" alt="Zone detail" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/zone-detail-mobile.png" />
   <img src="./light/zone-detail-mobile.png" alt="Zone detail on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Per-RRset editor](../docs/FEATURES.md#42-per-rrset-editor-with-diff-before-apply)
 · [Per-RRset optimistic concurrency (ADR-0010)](../docs/adr/0010-per-rrset-optimistic-concurrency.md)
@@ -120,10 +128,12 @@ checkbox so risky edits are intentional, not accidental.
   <img src="./light/zone-edit.png" alt="Edit record dialog" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/zone-edit-mobile.png" />
   <img src="./light/zone-edit-mobile.png" alt="Edit record dialog on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Diff-before-apply editor](../docs/FEATURES.md#42-per-rrset-editor-with-diff-before-apply)
 
@@ -141,10 +151,12 @@ lands in [Audit log](#audit-log)).
   <img src="./light/zone-edit-diff.png" alt="Review changes diff" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/zone-edit-diff-mobile.png" />
   <img src="./light/zone-edit-diff-mobile.png" alt="Review changes diff on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Per-RRset optimistic concurrency (ADR-0010)](../docs/adr/0010-per-rrset-optimistic-concurrency.md)
 
@@ -162,10 +174,12 @@ date range; click any row to reveal the full diff in place.
   <img src="./light/zone-change-history.png" alt="Zone change history" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/zone-change-history-mobile.png" />
   <img src="./light/zone-change-history-mobile.png" alt="Zone change history on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Zone change history](../docs/FEATURES.md#45-zone-change-history)
 
@@ -184,10 +198,12 @@ explicit group membership **or** poller-derived topology.
   <img src="./light/powerdns-servers.png" alt="PowerDNS servers" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/powerdns-servers-mobile.png" />
   <img src="./light/powerdns-servers-mobile.png" alt="PowerDNS servers on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Multi-backend management](../docs/FEATURES.md#31-multi-backend-management)
 · [Backend capability model (ADR-0014)](../docs/adr/0014-backend-capability-model.md)
@@ -207,10 +223,12 @@ MFA enrolment, password reset, and active sessions.
   <img src="./light/users.png" alt="Users" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/users-mobile.png" />
   <img src="./light/users-mobile.png" alt="Users on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Authentication](../docs/FEATURES.md#1-authentication)
 · [Sessions](../docs/FEATURES.md#16-sessions)
@@ -228,10 +246,12 @@ the team's resources.
   <img src="./light/teams.png" alt="Teams" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/teams-mobile.png" />
   <img src="./light/teams-mobile.png" alt="Teams on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Scoped assignments](../docs/FEATURES.md#23-scoped-assignments)
 
@@ -250,10 +270,12 @@ templates).
   <img src="./light/roles.png" alt="Roles" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/roles-mobile.png" />
   <img src="./light/roles-mobile.png" alt="Roles on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Permissions vocabulary](../docs/FEATURES.md#21-permissions-vocabulary)
 · [System + custom roles](../docs/FEATURES.md#22-system--custom-roles)
@@ -274,10 +296,12 @@ admin changes, session revocations).
   <img src="./light/audit-log.png" alt="Audit log" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/audit-log-mobile.png" />
   <img src="./light/audit-log-mobile.png" alt="Audit log on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Audit log](../docs/FEATURES.md#9-audit-log)
 
@@ -295,10 +319,12 @@ audit row points at a PDNS failure and you need the raw exchange.
   <img src="./light/pdns-requests.png" alt="PDNS request log" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/pdns-requests-mobile.png" />
   <img src="./light/pdns-requests-mobile.png" alt="PDNS request log on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [PDNS request log](../docs/FEATURES.md#36-pdns-request-log)
 · [PDNS HTTP client](../docs/FEATURES.md#35-pdns-http-client)
@@ -319,10 +345,12 @@ and a one-click Test discovery probe.
   <img src="./light/oidc-providers.png" alt="OIDC providers" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/oidc-providers-mobile.png" />
   <img src="./light/oidc-providers-mobile.png" alt="OIDC providers on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [OIDC SSO](../docs/FEATURES.md#12-oidc-sso)
 · [Group → role mapping](../docs/FEATURES.md#13-group--role-mapping-oidc)
@@ -341,10 +369,12 @@ on peer secondaries → activate for zones, in one flow.
   <img src="./light/tsig-keys.png" alt="TSIG keys" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/tsig-keys-mobile.png" />
   <img src="./light/tsig-keys-mobile.png" alt="TSIG keys on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [TSIG keys](../docs/FEATURES.md#7-tsig-keys)
 
@@ -360,10 +390,12 @@ from for auto-creation of secondary zones.
   <img src="./light/autoprimaries.png" alt="Autoprimaries" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/autoprimaries-mobile.png" />
   <img src="./light/autoprimaries-mobile.png" alt="Autoprimaries on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Autoprimaries](../docs/FEATURES.md#8-autoprimaries)
 
@@ -381,10 +413,12 @@ one-click apply.
   <img src="./light/zone-templates.png" alt="Zone templates" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/zone-templates-mobile.png" />
   <img src="./light/zone-templates-mobile.png" alt="Zone templates on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Zone templates](../docs/FEATURES.md#44-zone-templates)
 
@@ -402,10 +436,12 @@ so a fresh deploy lands on the same configuration each time.
   <img src="./light/settings.png" alt="Settings" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/settings-mobile.png" />
   <img src="./light/settings-mobile.png" alt="Settings on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [Settings](../docs/FEATURES.md#10-settings)
 · [Provisioning](../docs/FEATURES.md#12-provisioning-first-boot-yaml)
@@ -424,10 +460,12 @@ A forced-password user lands here automatically until they rotate.
   <img src="./light/profile.png" alt="Profile" />
 </picture>
 
-<picture>
+<p align="center">
+  <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/profile-mobile.png" />
   <img src="./light/profile-mobile.png" alt="Profile on mobile" width="300" />
-</picture>
+  </picture>
+</p>
 
 → [TOTP (multi-factor)](../docs/FEATURES.md#14-totp-multi-factor)
 · [API tokens](../docs/FEATURES.md#15-api-tokens)

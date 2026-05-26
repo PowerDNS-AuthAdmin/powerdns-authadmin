@@ -19,11 +19,15 @@
  */
 
 import { ensurePollerRunning } from "@/lib/realtime/zone-poller";
+import { logPollingModeOnce } from "@/lib/realtime/polling-mode-startup-log";
 
 export const dynamic = "force-dynamic";
 
 export function GET(): Response {
   ensurePollerRunning();
+  // One-shot hint about the polling mode + topology mismatch (if any).
+  // Fire-and-forget with a hard 3s internal budget — never blocks the probe.
+  void logPollingModeOnce();
   return Response.json(
     { status: "ok", service: "powerdns-authadmin" },
     { status: 200, headers: { "Cache-Control": "no-store" } },

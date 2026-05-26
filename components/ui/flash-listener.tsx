@@ -19,12 +19,12 @@ import { useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDialog } from "@/components/ui/dialog";
 
-interface FlashConfig {
+export interface FlashConfig {
   kind: "info" | "success" | "error";
   description: string;
 }
 
-function describeFlash(flash: string, need: string | null): FlashConfig | null {
+export function describeFlash(flash: string, need: string | null): FlashConfig | null {
   switch (flash) {
     case "forbidden":
       return {
@@ -37,6 +37,13 @@ function describeFlash(flash: string, need: string | null): FlashConfig | null {
       return {
         kind: "info",
         description: "Your session expired — please sign in again.",
+      };
+    case "polling-required":
+      return {
+        kind: "error",
+        description: need
+          ? `This view (${need}) requires PDNS_BACKGROUND_POLLING=true. Set it in your environment and restart the app to enable.`
+          : "This view requires PDNS_BACKGROUND_POLLING=true. Set it in your environment and restart the app to enable.",
       };
     default:
       return null;

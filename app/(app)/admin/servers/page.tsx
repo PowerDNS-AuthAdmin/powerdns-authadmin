@@ -25,6 +25,8 @@ import { CapabilityBadges } from "@/components/domain/capability-badges";
 import { ClickableTr, ClickableDiv } from "@/components/ui/clickable-row";
 import { SyncIndicator } from "@/components/ui/sync-indicator";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
+import { pdnsBackgroundPollingEnabled } from "@/lib/env";
+import { PollingDisabledHint } from "@/components/domain/polling-disabled-hint";
 import { backendUnreachability } from "@/lib/realtime/backend-status";
 import type { PdnsServer } from "@/lib/db/schema";
 import { TestServerButton } from "./_components/test-server-button";
@@ -99,8 +101,12 @@ export default async function PdnsServersListPage() {
 
   // Precompute sync chips for secondaries off the zone-state cache —
   // never hits PDNS itself. "in sync" means every cached zone serial on
-  // the secondary matches its primary's cached serial.
-  const syncBySecondary = computeSecondarySync(primaries, secondariesByPrimary);
+  // the secondary matches its primary's cached serial. Skipped entirely
+  // when `PDNS_BACKGROUND_POLLING=false` — the Sync column is hidden, no
+  // verdict to compute.
+  const syncBySecondary = pdnsBackgroundPollingEnabled
+    ? computeSecondarySync(primaries, secondariesByPrimary)
+    : new Map<string, "in-sync" | "lagging" | "unknown">();
   let anyLagging = false;
   for (const verdict of syncBySecondary.values()) {
     if (verdict === "lagging") {
@@ -113,13 +119,16 @@ export default async function PdnsServersListPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">PowerDNS servers</h1>
+          <div className="flex items-baseline gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">PowerDNS servers</h1>
+            {!pdnsBackgroundPollingEnabled ? <PollingDisabledHint /> : null}
+          </div>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
             One row per upstream PowerDNS Authoritative backend.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 [&>*]:w-full sm:[&>*]:w-auto">
-          {servers.some((s) => s.disabledAt === null) ? (
+          {pdnsBackgroundPollingEnabled && servers.some((s) => s.disabledAt === null) ? (
             <ServersPageHeartbeat inSync={!anyLagging} />
           ) : null}
           {servers.some((s) => s.disabledAt === null) ? <RefreshAllButton /> : null}
@@ -210,7 +219,7 @@ export default async function PdnsServersListPage() {
                     <th className="px-4 py-2.5">Base URL</th>
                     <th className="px-4 py-2.5">Status</th>
                     <th className="px-4 py-2.5">Version</th>
-                    <th className="px-4 py-2.5">Sync</th>
+                    {pdnsBackgroundPollingEnabled ? <th className="px-4 py-2.5">Sync</th> : null}
                     {canReadAudit ? <th className="px-4 py-2.5">Last admin edit</th> : null}
                     <th className="w-px px-4 py-2.5 whitespace-nowrap"></th>
                   </tr>
@@ -246,7 +255,7 @@ export default async function PdnsServersListPage() {
                     <Fragment>
                       <tr className="border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)]">
                         <td
-                          colSpan={canReadAudit ? 7 : 6}
+                          colSpan={(pdnsBackgroundPollingEnabled ? 7 : 6) + (canReadAudit ? 0 : -1)}
                           className="px-4 py-1.5 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase"
                         >
                           Standalone secondaries (mirror an external / unmanaged primary)
@@ -269,7 +278,7 @@ export default async function PdnsServersListPage() {
                     <Fragment>
                       <tr className="border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)]">
                         <td
-                          colSpan={canReadAudit ? 7 : 6}
+                          colSpan={(pdnsBackgroundPollingEnabled ? 7 : 6) + (canReadAudit ? 0 : -1)}
                           className="px-4 py-1.5 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase"
                         >
                           Orphan secondaries (parent disabled or deleted)
@@ -458,9 +467,11 @@ function ServerRow({
         />
       </td>
       <td className="px-4 py-3 align-top text-xs">{row.versionCache?.version ?? "—"}</td>
-      <td className="px-4 py-3 align-top text-xs">
-        <SyncChip verdict={syncChip} isMirror={isReadOnlyMirror(row.capabilities)} />
-      </td>
+      {pdnsBackgroundPollingEnabled ? (
+        <td className="px-4 py-3 align-top text-xs">
+          <SyncChip verdict={syncChip} isMirror={isReadOnlyMirror(row.capabilities)} />
+        </td>
+      ) : null}
       {canReadAudit ? (
         <td className="px-4 py-3 align-top text-xs text-[color:var(--color-fg-muted)]">
           {lastEdits.has(row.id) ? (
@@ -529,9 +540,11 @@ function ServerCard({ row, canReadAudit, lastEdits, syncChip, reachability }: Se
         <Field label="Version">
           <span className="text-xs">{row.versionCache?.version ?? "—"}</span>
         </Field>
-        <Field label="Sync">
-          <SyncChip verdict={syncChip} isMirror={isMirror} />
-        </Field>
+        {pdnsBackgroundPollingEnabled ? (
+          <Field label="Sync">
+            <SyncChip verdict={syncChip} isMirror={isMirror} />
+          </Field>
+        ) : null}
         {canReadAudit ? (
           <Field label="Last admin edit">
             <span className="text-xs text-[color:var(--color-fg-muted)]">

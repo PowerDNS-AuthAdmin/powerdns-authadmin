@@ -58,12 +58,21 @@ export function deriveCapabilities(
  * Whether a backend is a write target — the ADR-0014 classification that
  * replaces the old `role`. An unprobed backend (no capability snapshot yet) is
  * treated as writable so a freshly-added one is usable until its first probe;
- * once observed, the daemon's `primary` flag is the truth. A daemon that is
- * both primary AND secondary counts as a write target (its mirror zones stay
- * read-only per zone kind).
+ * once observed, anything that isn't a pure read-only AXFR mirror is a write
+ * target. That covers the three usable shapes a PDNS Auth daemon can take:
+ *
+ *   - **standalone** (`primary=no, secondary=no`) — the *default* PDNS Auth
+ *     config; no DNS-protocol replication, but the API still accepts zone
+ *     creates. This is the case the previous `caps.primary` check incorrectly
+ *     excluded (#57).
+ *   - **primary** (`primary=yes`) — write target plus AXFR primary.
+ *   - **dual-role** (`primary=yes, secondary=yes`) — primary for some zones,
+ *     secondary for others; the per-zone `kind` decides which.
+ *
+ * Only a pure mirror (`secondary=yes && !primary`) returns false here.
  */
 export function isWriteCapable(caps: PdnsDaemonCapabilities | null | undefined): boolean {
-  return caps ? caps.primary : true;
+  return caps ? !isReadOnlyMirror(caps) : true;
 }
 
 /**
@@ -114,8 +123,9 @@ export function classifyGroup(
  * are `yes`, verbatim ("primary", "secondary", "autosecondary"), joined with
  * " + ". NOT paraphrased: the badge shows exactly the capability the API reports,
  * so it never invents a label like "Secondary (auto)". With no replication flag
- * set it falls back to the only flag that's on (`api`); "unknown" when the daemon
- * has never been observed.
+ * set it falls back to "standalone" (the daemon hosts zones over the API but does
+ * no DNS-protocol replication — the default PDNS Auth shape); "unknown" when the
+ * daemon has never been observed, "unreachable" when the API itself is down.
  */
 export function summarizeCapabilities(caps: PdnsDaemonCapabilities | null): string {
   if (!caps) return "unknown";
@@ -123,6 +133,6 @@ export function summarizeCapabilities(caps: PdnsDaemonCapabilities | null): stri
   if (caps.primary) flags.push("primary");
   if (caps.secondary) flags.push("secondary");
   if (caps.autosecondary) flags.push("autosecondary");
-  if (flags.length === 0) flags.push(caps.api ? "api" : "unknown");
+  if (flags.length === 0) flags.push(caps.api ? "standalone" : "unreachable");
   return flags.join(" + ");
 }

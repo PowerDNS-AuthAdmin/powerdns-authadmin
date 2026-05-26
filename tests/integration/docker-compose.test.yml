@@ -42,3 +42,7 @@ services:
       BOOTSTRAP_ADMIN_PASSWORD: test-bootstrap-pw-changeme-now
       PROVISION_ON_BOOT: "true"
       SEED_ON_BOOT: "true"
+      # Integration suite exercises the replication-aware code paths (sync
+      # state, mirror discovery, advisory eval). Default in production is
+      # `false`; the test stack pins it `true` so those paths are covered.
+      PDNS_BACKGROUND_POLLING: "true"

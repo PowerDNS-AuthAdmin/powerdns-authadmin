@@ -20,6 +20,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import {
   actionBreakdown,
@@ -39,6 +40,8 @@ import {
 } from "@/lib/db/repositories/pdns-servers";
 import { readRecentMetrics } from "@/lib/metrics/pdns-stats-sampler";
 import { ensurePollerRunning, ensureBackendsObserved } from "@/lib/realtime/zone-poller";
+import { pdnsBackgroundPollingEnabled } from "@/lib/env";
+import { PollingDisabledHint } from "@/components/domain/polling-disabled-hint";
 import { getBackendStatus } from "@/lib/realtime/backend-status";
 import { CounterRateChart, MapPieChart, ValueLineChart } from "@/components/domain/pdns-stat-chart";
 import { Chart } from "@/components/ui/chart";
@@ -68,9 +71,21 @@ interface DashboardProps {
 export default async function DashboardPage({ searchParams }: DashboardProps) {
   const { user, ability } = await requireUserForPage();
   const { tab: requestedTab } = await searchParams;
-  // Two tabs: pdns (PowerDNS server statistics — default) vs. admin
-  // (audit/user/server admin metrics, reached via ?tab=admin).
-  const tab: "admin" | "pdns" = requestedTab === "admin" ? "admin" : "pdns";
+  // Two tabs: pdns (PowerDNS server statistics) vs. admin (audit / user /
+  // server admin metrics). With background polling enabled, "pdns" is the
+  // default; with polling disabled there's nothing to chart, so "admin"
+  // becomes the default and the tab strip hides — the PDNS-stats tab still
+  // resolves but renders a subtle inline note pointing at the env flag.
+  const defaultTab: "admin" | "pdns" = pdnsBackgroundPollingEnabled ? "pdns" : "admin";
+  // Direct URL ?tab=pdns with the flag off bounces to the admin tab with a
+  // flash toast ("This view requires PDNS_BACKGROUND_POLLING=true"). A bare
+  // `/dashboard` falls back to the admin tab silently — the dashboard heading
+  // already carries a <PollingDisabledHint/> that explains the flag.
+  if (requestedTab === "pdns" && !pdnsBackgroundPollingEnabled) {
+    redirect("/dashboard?tab=admin&flash=polling-required&need=PDNS+statistics");
+  }
+  const tab: "admin" | "pdns" =
+    requestedTab === "admin" ? "admin" : requestedTab === "pdns" ? "pdns" : defaultTab;
 
   // Permission gates. Every section below is scoped to the perms the actor
   // has — a freshly-provisioned OIDC user with no roles sees just the
@@ -172,6 +187,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
             <h1 className="text-3xl font-semibold tracking-tight">
               Welcome, {user.name ?? user.email.split("@")[0]}
             </h1>
+            {!pdnsBackgroundPollingEnabled && canReadServers ? <PollingDisabledHint /> : null}
             {canReadAudit ? <DashboardLiveFeed /> : null}
           </div>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
@@ -246,7 +262,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
         <OidcAttentionWidget counts={oidcAttention} />
       ) : null}
 
-      <DashboardTabStrip active={tab} />
+      {pdnsBackgroundPollingEnabled ? <DashboardTabStrip active={tab} /> : null}
 
       {tab === "pdns" ? (
         canReadServers ? (

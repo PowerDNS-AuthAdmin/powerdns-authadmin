@@ -85,12 +85,16 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
   <img src="screenshots/light/dashboard.png" alt="Dashboard" />
 </picture>
 
-**Multi-backend** — clusters, primary + secondaries groups, and standalone primaries side by side with live sync status.
+<br>
+
+**Multi-backend** — clusters, primary + secondaries groups, and standalone primaries side by side. Live sync state, drift advisories, and the dashboard PowerDNS-metrics tab are opt-in via [`PDNS_BACKGROUND_POLLING=true`](./docs/03-CONFIGURATION.md#pdns_background_polling) — recommended for replication topologies, off by default for standalone installs.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/powerdns-servers.png" />
   <img src="screenshots/light/powerdns-servers.png" alt="PowerDNS servers" />
 </picture>
+
+<br>
 
 **Amalgamated zones** — every backend's zones in one searchable list with serial + per-row sync state.
 
@@ -99,12 +103,16 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
   <img src="screenshots/light/zones-list.png" alt="Zones" />
 </picture>
 
+<br>
+
 **Per-RRset editor** — per-type structured editors with inline validation.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zone-edit.png" />
   <img src="screenshots/light/zone-edit.png" alt="Edit record dialog" />
 </picture>
+
+<br>
 
 **Diff-before-apply** — every change previewed as a BIND-style before / after diff before it's written.
 
@@ -113,12 +121,16 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
   <img src="screenshots/light/zone-edit-diff.png" alt="Review changes diff" />
 </picture>
 
+<br>
+
 **Backend health** — bell-driven advisories for unreachable hosts, replication drift, missing TSIG keys, daemon-config drift.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/backend-health.png" />
   <img src="screenshots/light/backend-health.png" alt="Backend health alerts" />
 </picture>
+
+<br>
 
 **Append-only audit log** — redacted before/after snapshots, per-row PDNS HTTP trail, CSV export.
 

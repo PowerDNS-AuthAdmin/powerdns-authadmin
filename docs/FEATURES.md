@@ -579,10 +579,12 @@ this baseline.
     <img src="../screenshots/light/dashboard-mobile.png" alt="Dashboard on mobile" width="240" />
   </picture>
   &nbsp;
-  <picture>
+  <p align="center">
+    <picture>
     <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/zones-list-mobile.png" />
     <img src="../screenshots/light/zones-list-mobile.png" alt="Zones list on mobile" width="240" />
-  </picture>
+    </picture>
+  </p>
 </p>
 
 ### 19.2 One DataTable, every list

@@ -150,6 +150,26 @@ export async function checkZoneSync(
  * Pages that need sub-second reactivity push their own state via
  * `HeaderStatusMode` and a `useRealtimeEvent` listener.
  */
+/**
+ * True iff the fleet contains at least one cluster of ≥2 peers sharing zones —
+ * a derived primary+secondaries group OR a configured multi-primary cluster.
+ * Standalone servers and single primaries with zero secondaries do NOT
+ * qualify; there's nothing to be "in sync" against.
+ *
+ * The app shell uses this to decide whether the header chip surfaces a
+ * SYNCED/DESYNCED verdict at all — a fleet of standalones or single primaries
+ * sees only the plain "Live" connectivity label, which is the truthful read
+ * for that topology (issue #57 widened "no replication" to the common case).
+ */
+export async function hasReplicationTopology(): Promise<boolean> {
+  const primaries = (await listAllActiveBackends()).filter((b) => isWriteCapable(b.capabilities));
+  for (const primary of primaries) {
+    const mirrors = await discoverMirrors(primary);
+    if (mirrors.length > 0) return true;
+  }
+  return false;
+}
+
 export async function globalAnyLagging(): Promise<boolean> {
   const primaries = (await listAllActiveBackends()).filter((b) => isWriteCapable(b.capabilities));
   if (primaries.length === 0) return false;
