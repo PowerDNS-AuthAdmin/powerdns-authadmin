@@ -17,8 +17,12 @@ import { Wordmark } from "./wordmark";
 interface BrandMarkProps {
   siteName: string;
   brandLogoUrl: string | null;
-  /** Maximum pixel width for the rendered mark. */
-  width: number;
+  /**
+   * Maximum width for the rendered mark. Accepts a number (px) or any CSS
+   * length string — pass `"min(100%, 350px)"` from the auth layout so the
+   * wordmark shrinks to fit narrow viewports instead of overflowing the form.
+   */
+  width: number | string;
   /**
    * Maximum pixel height for the rendered mark. Provided when the parent has
    * a height constraint (e.g. the 56px-tall sidebar header). Without it, a
