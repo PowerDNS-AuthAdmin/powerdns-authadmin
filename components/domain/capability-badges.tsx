@@ -21,16 +21,18 @@ interface Capabilities {
   autosecondary: boolean;
 }
 
+// Matches the CLUSTER / DEFAULT badges in the zones + servers lists so every
+// inline role/state badge in the app reads as one family — rounded, mono,
+// tracking-wide, uppercase; the tint colour is the only thing that varies.
 const BASE =
-  "inline-flex items-center rounded border px-1.5 py-0.5 font-mono text-[0.65rem] font-medium";
+  "inline-flex items-center rounded px-1 py-0.5 font-mono text-[0.625rem] tracking-wide uppercase";
 
-const NEUTRAL = `${BASE} border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] text-[color:var(--color-fg-muted)]`;
+const NEUTRAL = `${BASE} bg-[color:var(--color-bg-muted)] text-[color:var(--color-fg-muted)]`;
 
-// Tints use color-mix so they sit on either theme without re-defining.
 const TONE = {
-  primary: `${BASE} border-[color:var(--color-accent)]/40 bg-[color-mix(in_oklch,var(--color-accent)_12%,transparent)] text-[color:var(--color-accent)]`,
-  secondary: `${BASE} border-[color:var(--color-warn)]/40 bg-[color-mix(in_oklch,var(--color-warn)_14%,transparent)] text-[color:var(--color-warn)]`,
-  autosecondary: `${BASE} border-[color:var(--color-orange)]/40 bg-[color-mix(in_oklch,var(--color-orange)_14%,transparent)] text-[color:var(--color-orange)]`,
+  primary: `${BASE} bg-[color:var(--color-accent)]/15 text-[color:var(--color-accent)]`,
+  secondary: `${BASE} bg-[color:var(--color-warn)]/15 text-[color:var(--color-warn)]`,
+  autosecondary: `${BASE} bg-[color:var(--color-orange)]/15 text-[color:var(--color-orange)]`,
 } as const;
 
 export function CapabilityBadges({ capabilities }: { capabilities: Capabilities | null }) {
