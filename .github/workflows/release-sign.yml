@@ -1,8 +1,15 @@
 # =============================================================================
 # Sign release — supply-chain provenance for published releases.
 #
-# Runs when a GitHub release is published (so the release + the :X.Y.Z image
-# already exist). It:
+# Triggered AFTER the CI workflow finishes pushing the multi-arch image to
+# GHCR for a vX.Y.Z tag — never before. This avoids the race that bit v1.1.4:
+# the previous `on: release: published` trigger could fire seconds after the
+# tag/release was published, but the image push completes minutes later, so
+# `cosign sign` against `:X.Y.Z` would fail with "not found" if signing won
+# the race. Listening on `workflow_run` of CI guarantees the image is on the
+# registry when this job starts.
+#
+# It:
 #   1. cosign-signs the published multi-arch image (keyless / Sigstore) — a
 #      verifiable signature attached to the image in GHCR.
 #   2. generates an SPDX SBOM of the image,
@@ -23,8 +30,9 @@
 name: Sign release
 
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -33,16 +41,29 @@ jobs:
   sign:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Fire only when CI succeeded on a vX.Y.Z tag push. workflow_run
+    # delivers every CI completion (PRs, branches, tags) so we filter
+    # tightly here: conclusion success, original event was push, and the
+    # head_branch (which carries the tag name for tag pushes) matches v*.
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      startsWith(github.event.workflow_run.head_branch, 'v')
     permissions:
       contents: write # upload release assets
       packages: write # cosign writes the image signature to GHCR
       id-token: write # cosign keyless (Fulcio OIDC)
     env:
       IMAGE: ghcr.io/powerdns-authadmin/powerdns-authadmin
-      TAG: ${{ github.event.release.tag_name }}
+      TAG: ${{ github.event.workflow_run.head_branch }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          # Pin checkout to the exact commit CI built — workflow_run-triggered
+          # jobs default to the workflow definition from the default branch,
+          # but we want the source tree (e.g. for hashes in checksums.txt) to
+          # match what was just signed in GHCR.
+          ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
 
       - name: Install cosign
@@ -80,6 +101,27 @@ jobs:
           echo "${{ steps.digest.outputs.ref }}" > image-digest.txt
           sha256sum powerdns-authadmin.sbom.spdx.json image-digest.txt > checksums.txt
           cosign sign-blob --yes --bundle checksums.txt.sigstore.json checksums.txt
+
+      - name: Wait for the GitHub release to be published
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The tag push triggers CI before `gh release create` finishes (the
+          # operator runs them seconds apart). CI itself takes ~10 min, so by
+          # the time we're here the release is almost certainly published —
+          # but tolerate up to 5 min slip just in case the release-create call
+          # is delayed by the operator's flow.
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              echo "Release $TAG is published."
+              exit 0
+            fi
+            echo "Waiting for release $TAG... ($i/30)"
+            sleep 10
+          done
+          echo "Release $TAG did not appear within 5 min — failing." >&2
+          exit 1
 
       - name: Upload signed assets to the release
         env:
