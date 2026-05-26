@@ -36,7 +36,7 @@ export default async function RolesListPage() {
             (only the MFA-required toggle); custom roles support full CRUD.
           </p>
         </div>
-        {canCreate ? <CreateButton href="/admin/roles/new" label="New role" /> : null}
+        {canCreate ? <CreateButton href="/admin/roles/new" label="Add role" /> : null}
       </header>
 
       <RolesTable

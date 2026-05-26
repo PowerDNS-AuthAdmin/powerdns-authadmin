@@ -573,7 +573,7 @@ export function CreateZoneForm(props: Props) {
           disabled={saving}
           className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
         >
-          {saving ? "Creating…" : "Create zone"}
+          {saving ? "Adding…" : "Add zone"}
         </button>
         <button
           type="button"

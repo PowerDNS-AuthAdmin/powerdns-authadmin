@@ -37,7 +37,7 @@ export default async function ZoneTemplatesListPage() {
             prelude records you want on every zone of this kind.
           </p>
         </div>
-        {canManage ? <CreateButton href="/admin/zone-templates/new" label="New template" /> : null}
+        {canManage ? <CreateButton href="/admin/zone-templates/new" label="Add template" /> : null}
       </header>
 
       {templates.length === 0 ? (

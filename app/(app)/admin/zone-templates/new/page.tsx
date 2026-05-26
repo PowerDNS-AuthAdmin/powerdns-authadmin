@@ -12,7 +12,7 @@ export default async function NewZoneTemplatePage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">New zone template</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Add zone template</h1>
         <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
           Define defaults for new zones. Operators pick this template on the create-zone form and
           the NS records + SOA timers + prelude records are applied automatically.

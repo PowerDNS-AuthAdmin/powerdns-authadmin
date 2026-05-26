@@ -55,7 +55,7 @@ export default async function PdnsClustersListPage() {
             strategy applies only to multi-primary clusters.
           </p>
         </div>
-        {canCreate ? <CreateButton href="/admin/pdns-clusters/new" label="New group" /> : null}
+        {canCreate ? <CreateButton href="/admin/pdns-clusters/new" label="Add group" /> : null}
       </header>
 
       {clusters.length === 0 ? (

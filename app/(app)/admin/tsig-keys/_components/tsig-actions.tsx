@@ -17,8 +17,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
+import { createCtaClass } from "@/components/ui/create-button";
 import { TsigKeyWizard, type InstallSecondary } from "./tsig-key-wizard";
 
 interface Row {
@@ -125,9 +127,10 @@ export function TsigActions({ serverSlug, rows, isPrimary, secondaries, zones }:
         <button
           type="button"
           onClick={() => setWizard({ mode: "create" })}
-          className="rounded-md bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
+          className={createCtaClass}
         >
-          Create key
+          <Plus className="h-4 w-4" aria-hidden />
+          Add TSIG key
         </button>
       </div>
 

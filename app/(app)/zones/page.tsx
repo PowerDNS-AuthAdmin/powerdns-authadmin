@@ -221,7 +221,7 @@ export default async function ZonesPage() {
             {errors.length > 0 ? ` · ${errors.length} unreachable` : ""}.
           </p>
         </div>
-        {canCreateZone ? <CreateButton href="/zones/new" label="Create zone" /> : null}
+        {canCreateZone ? <CreateButton href="/zones/new" label="Add zone" /> : null}
       </header>
 
       {errors.length > 0 ? (
