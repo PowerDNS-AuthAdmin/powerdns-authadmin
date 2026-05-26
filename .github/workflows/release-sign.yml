@@ -56,6 +56,9 @@ jobs:
     env:
       IMAGE: ghcr.io/powerdns-authadmin/powerdns-authadmin
       TAG: ${{ github.event.workflow_run.head_branch }}
+      # Without `actions/checkout`, `gh` has no git remote to infer the repo
+      # from. GH_REPO is the documented way to set it explicitly.
+      GH_REPO: ${{ github.repository }}
     steps:
       # No `actions/checkout` here — Scorecard `Dangerous-Workflow` flags any
       # privileged `workflow_run`-triggered job that checks out the
