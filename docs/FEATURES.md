@@ -7,6 +7,10 @@ can jump straight into the code that owns each feature.
 > the code lives, then **how** to use / configure it. If you want a quickstart, read the
 > [README](../README.md) first.
 
+> **Visual tour.** Every page below is captured in light + dark, desktop + iPhone-framed mobile,
+> in [`screenshots/`](../screenshots/README.md). Inline shots in this doc auto-switch theme to
+> match your reader; click through for the mobile variant.
+
 ---
 
 ## 1. Authentication
@@ -57,6 +61,11 @@ can jump straight into the code that owns each feature.
     `<end_session_endpoint>?id_token_hint=…&client_id=…` so the IdP ends its own session and
     renders its signed-out screen. No `post_logout_redirect_uri` is sent — most IdPs require
     it pre-registered and silently strip it otherwise.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/oidc-providers.png" />
+  <img src="../screenshots/light/oidc-providers.png" alt="OIDC providers" width="720" />
+</picture>
 
 ### 1.3 Group → role mapping (OIDC)
 
@@ -142,6 +151,11 @@ can jump straight into the code that owns each feature.
 - **How.** Each role carries `permissions` (array of strings from the vocab) + `requires_mfa`
   (forces TOTP enrolment for any user assigned to this role).
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/roles.png" />
+  <img src="../screenshots/light/roles.png" alt="Roles" width="720" />
+</picture>
+
 ### 2.3 Scoped assignments
 
 - **What.** Every assignment is `(user, role, scope)` where scope is one of
@@ -170,6 +184,11 @@ can jump straight into the code that owns each feature.
 - **Where.** `lib/db/schema/pdns-servers.ts`, `lib/db/schema/pdns-clusters.ts`,
   `lib/db/repositories/{pdns-servers,pdns-clusters,selectable-backends}.ts`,
   `app/(app)/admin/{servers,pdns-clusters}/`.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/powerdns-servers.png" />
+  <img src="../screenshots/light/powerdns-servers.png" alt="PowerDNS servers" width="720" />
+</picture>
 
 ### 3.2 Per-cluster peer-selection strategy
 
@@ -216,7 +235,40 @@ can jump straight into the code that owns each feature.
 - **Where.** `lib/pdns/client.ts`, `lib/pdns/registry.ts`, `lib/pdns/types.ts`,
   `lib/pdns/errors.ts`.
 
-### 3.6 SSRF guard
+### 3.6 PDNS request log
+
+- **What.** Every HTTP call the app issues to PowerDNS is recorded with timestamp, server,
+  operation, method, URL, response status, error (if any), and the correlator `requestId` of
+  the audit row that triggered it. Visible at `/admin/pdns-requests` with filters for server,
+  op, status code, request id, and date range. Each row expands inline to the full request +
+  response detail; the `req:` link cross-pivots to / from the matching audit row, so an audit
+  failure is one click from the exact PDNS exchange.
+- **Where.** `lib/pdns/request-log.ts`, `app/(app)/admin/pdns-requests/`,
+  `lib/db/repositories/pdns-requests.ts`.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/pdns-requests.png" />
+  <img src="../screenshots/light/pdns-requests.png" alt="PDNS request log" width="720" />
+</picture>
+
+### 3.7 Backend health advisories
+
+- **What.** A bell in the top header surfaces active advisories computed every poll cycle:
+  unreachable backends, API-key rejections (401/403), replication drift past a threshold, TSIG
+  keys missing on a secondary, mirror zones without `masters`, daemon-config drift between
+  peers. Acknowledged advisories disappear automatically when the underlying condition
+  resolves. Same signal feeds the per-row red/warn tints on
+  [PowerDNS servers](#31-multi-backend-management) — bell and table never disagree.
+- **Where.** `lib/health/evaluator.ts`, `components/domain/health-bell.tsx`,
+  `lib/db/repositories/backend-advisories.ts`. Decision record:
+  [ADR-0015](./adr/0015-backend-health-advisories.md).
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/backend-health.png" />
+  <img src="../screenshots/light/backend-health.png" alt="Backend health bell popover" width="720" />
+</picture>
+
+### 3.8 SSRF guard
 
 - **What.** Config-time + runtime IP-range checks on PDNS `base_url`. Link-local
   (incl. 169.254.169.254 cloud metadata) is always blocked. Private networks gated by
@@ -238,15 +290,42 @@ can jump straight into the code that owns each feature.
   for clusters.
 - **Where.** `app/(app)/zones/page.tsx`, `app/(app)/zones/_components/zones-table.tsx`.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/zones-list.png" />
+  <img src="../screenshots/light/zones-list.png" alt="Amalgamated zones list" width="720" />
+</picture>
+
 ### 4.2 Per-RRset editor with diff-before-apply
 
 - **What.** Edit records inline; the editor batches changes into a single transactional PATCH
-  to PDNS with an audit row carrying full before/after JSONB snapshots.
+  to PDNS with an audit row carrying full before/after JSONB snapshots. Every change runs
+  through a **Review changes** modal that previews the BIND-style before/after diff — Save is
+  the second click, never the first.
 - **Where.** `app/(app)/zones/[zoneId]/_components/editable-record-table.tsx`,
   `app/api/admin/pdns/zones/[zoneId]/rrsets/route.ts`.
 - **How.** Per-RR-type validators live in `lib/validators/rr-types/` and run on every change
   pair. Hard-error for shape/range violations; soft-warn for deprecated-but-legal options
-  (DS digest-type 1, SSHFP DSA, SVCB unknown SvcParamKey, etc.).
+  (DS digest-type 1, SSHFP DSA, SVCB unknown SvcParamKey, etc.). Hard errors are gated by an
+  explicit **Save anyway** checkbox so an override is always intentional and audited verbatim.
+
+<table>
+  <tr>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/zone-edit.png" />
+        <img src="../screenshots/light/zone-edit.png" alt="Edit record dialog" />
+      </picture>
+      <br /><sub>Edit dialog — Name / Type / TTL / Value with per-type structured editors.</sub>
+    </td>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/zone-edit-diff.png" />
+        <img src="../screenshots/light/zone-edit-diff.png" alt="Review changes diff" />
+      </picture>
+      <br /><sub>Review changes — every save previewed as a before/after diff.</sub>
+    </td>
+  </tr>
+</table>
 
 ### 4.3 Zone clone
 
@@ -269,6 +348,11 @@ can jump straight into the code that owns each feature.
   with diff (rrset before/after) and one-line summaries for DNSSEC / metadata events. Chip
   colours match the action vocabulary's tone (`lib/audit/action-color.ts`).
 - **Where.** `app/(app)/zones/[zoneId]/_components/zone-change-log.tsx`.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/zone-change-history.png" />
+  <img src="../screenshots/light/zone-change-history.png" alt="Zone change history" width="720" />
+</picture>
 
 ---
 
@@ -297,6 +381,11 @@ can jump straight into the code that owns each feature.
   so an operator can audit the inventory without ever seeing the secret material.
 - **Where.** `lib/pdns/tsigkeys.ts`, `app/(app)/admin/tsig-keys/`.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/tsig-keys.png" />
+  <img src="../screenshots/light/tsig-keys.png" alt="TSIG keys" width="720" />
+</picture>
+
 ---
 
 ## 8. Autoprimaries
@@ -304,6 +393,11 @@ can jump straight into the code that owns each feature.
 - **What.** Configure supermaster registrations on a secondary PDNS so it auto-creates zones
   on NOTIFY from a registered primary.
 - **Where.** `lib/pdns/autoprimaries.ts`, `app/(app)/admin/servers/[id]/_components/autoprimaries-panel.tsx`.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/autoprimaries.png" />
+  <img src="../screenshots/light/autoprimaries.png" alt="Autoprimaries" width="720" />
+</picture>
 
 ---
 
@@ -316,7 +410,15 @@ can jump straight into the code that owns each feature.
   `app/(app)/admin/audit/`.
 - **How.** Filter by actor, action, resource, time range from `/admin/audit` (gated on
   `audit.read`). Per-resource "Last admin edit" columns on every admin list page are derived
-  from one batched query.
+  from one batched query. Quick-filter chips cover the common incident-response queries
+  (failed sign-ins, MFA admin changes, session revocations). Every row that originated a PDNS
+  call carries a `req:` link that pivots to the matching rows in
+  [the PDNS request log](#36-pdns-request-log), and CSV export honours the active filters.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/audit-log.png" />
+  <img src="../screenshots/light/audit-log.png" alt="Audit log" width="720" />
+</picture>
 
 ---
 
@@ -326,6 +428,11 @@ can jump straight into the code that owns each feature.
   brand logo (https:// URL or inline data: URI), failed-login lockout policy.
 - **Where.** `lib/validators/settings.ts`, `app/(app)/admin/settings/`,
   `lib/settings/app-settings.ts`.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/settings.png" />
+  <img src="../screenshots/light/settings.png" alt="Settings" width="720" />
+</picture>
 
 ---
 
@@ -340,6 +447,11 @@ can jump straight into the code that owns each feature.
 
 - **Where.** `app/(app)/dashboard/page.tsx`,
   `lib/db/repositories/dashboard.ts`.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/dashboard.png" />
+  <img src="../screenshots/light/dashboard.png" alt="Dashboard" width="720" />
+</picture>
 
 ---
 
@@ -423,7 +535,7 @@ folder (`drizzle/`, `drizzle-sqlite/`); the boot entrypoint picks one based on
 
 - **Per-request CSP nonce** (ADR 0006) so injected `<script>` tags don't execute.
 - **CSRF double-submit** on every mutating route via `requireCsrf(request)`.
-- **SSRF guard** on PDNS base URLs (§ 3.6).
+- **SSRF guard** on PDNS base URLs (§ 3.8).
 - **Encryption envelope** for at-rest secrets — versioned AES-256-GCM via HKDF-SHA-256
   subkeys per usage (`lib/crypto/encryption.ts`).
 - **Secret-field redaction** in audit `before`/`after` snapshots and free-form log strings.
@@ -442,3 +554,99 @@ folder (`drizzle/`, `drizzle-sqlite/`); the boot entrypoint picks one based on
   it automatically; programmatic clients omit it when authenticating via a PAT (the PAT itself
   proves the request is intentional).
 - The full route surface mirrors the admin UI — see `app/api/admin/` and `app/api/profile/`.
+
+---
+
+## 19. Operator UX & responsive design
+
+Landed in v1.1.4 ([#51](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/51) /
+[PR #52](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pull/52)) — a top-to-bottom
+pass to make the operator surface usable on phones without giving up the dense desktop
+information density. Every screenshot in [`screenshots/`](../screenshots/README.md) is from
+this baseline.
+
+### 19.1 Mobile-first responsive shell
+
+- **What.** Off-canvas hamburger drawer for navigation under `md`; full sidebar from `md+`.
+  Drawer closes on backdrop tap, Esc, and route changes (no in-drawer close button needed).
+  The top bar reflows: hamburger + status chip + bell + theme + avatar, all reachable at
+  320 px.
+- **Where.** `components/ui/app-shell.tsx`, `app/(app)/layout.tsx`.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/dashboard-mobile.png" />
+    <img src="../screenshots/light/dashboard-mobile.png" alt="Dashboard on mobile" width="240" />
+  </picture>
+  &nbsp;
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/zones-list-mobile.png" />
+    <img src="../screenshots/light/zones-list-mobile.png" alt="Zones list on mobile" width="240" />
+  </picture>
+</p>
+
+### 19.2 One DataTable, every list
+
+- **What.** Every list view (zones, users, roles, teams, OIDC providers, TSIG keys,
+  autoprimaries, zone templates, audit log, PDNS request log, sessions, profile sessions,
+  servers, dashboard sub-tables, role assignments, team members, zone change history) uses
+  the same `<DataTable>` recipe. Desktop: `bg-bg-muted` thead, `even:bg-bg-subtle` striping,
+  accent-tinted hover wash, sticky search + sort + per-column meta widths. Mobile (< md):
+  each row reflows to a labelled card automatically — no horizontal scroll, no truncated
+  cells.
+- **Where.** `components/ui/data-table.tsx`. The Audit Log + Profile Sessions + OIDC
+  Providers + TSIG Keys + Autoprimaries were the final hold-outs converted in v1.1.4.
+
+### 19.3 Live header status chip
+
+- **What.** Single pill in the top bar showing `CONNECTING / CONNECTED / OFFLINE / PAUSED`
+  (SSE connection state) plus a trailing `· SYNCED / · DESYNCED` whenever the page has a
+  notion of sync state. Off-the-shelf default is the fleet-wide `globalAnyLagging()` verdict
+  computed from the in-process zone-state cache (no extra PDNS hit); per-page
+  `<HeaderStatusMode/>` overrides on zone-detail, zones-list, and the servers page. A 5 s
+  grace prevents "OFFLINE" flashes on Ctrl-R.
+- **Where.** `components/realtime/header-status-chip.tsx`,
+  `components/realtime/realtime-provider.tsx`, `lib/pdns/sync.ts` (`globalAnyLagging`).
+
+### 19.4 Animated SyncIndicator
+
+- **What.** Concentric-ring SVG glyph used everywhere a sync verdict is displayed (header
+  chip, zones list per-row chip, servers table). **Synced** = solid centre + two
+  outward-pulsing rings via staggered CSS keyframes — a continuous radar/sonar ping.
+  **Desynced** = hollow centre + two dashed concentric rings that counter-rotate via
+  `stroke-dashoffset` so the icon reads as _actively trying_ rather than as a frozen error.
+  Honours `prefers-reduced-motion`.
+- **Where.** `components/ui/sync-indicator.tsx`, `app/globals.css` (`pda-sync-pulse` +
+  `pda-desync-spin*` keyframes).
+
+### 19.5 One-button theme toggle
+
+- **What.** Was three buttons (sun / monitor / moon). Now one button whose icon mirrors the
+  active preference and cycles `light → dark → system → light` on click. The pre-hydration
+  script in `app/layout.tsx` still applies the `.dark` class before React mounts so there's
+  no flash of wrong theme.
+- **Where.** `components/ui/theme-toggle.tsx`.
+
+### 19.6 Capability badges + clickable rows
+
+- **What.** Per-backend badges (`CLUSTER` / `DEFAULT` / `PRIMARY` / `READ-ONLY MIRROR`) match
+  the visual vocabulary across servers, zones, audit. Every table row + mobile card is
+  clickable to the detail view; embedded links/buttons (Edit / Delete / Refresh) intercept the
+  click so per-row actions still work.
+- **Where.** `components/domain/capability-badges.tsx`, `components/ui/clickable-row.tsx`.
+
+### 19.7 Diff-before-apply (record edits)
+
+The per-RRset editor now insists on a **Review changes** modal between Save and the actual
+PATCH — see [§ 4.2](#42-per-rrset-editor-with-diff-before-apply) for the full story. Validation
+errors are gated behind an explicit "Save anyway" checkbox so an override is never accidental.
+
+### 19.8 Compliance hard-stops
+
+- **What.** Operators with `must_change_password = true` or unmet MFA-per-role requirements
+  are pinned to `/profile` (or an allow-list of self-service routes) on every navigation —
+  not just the initial render. The header status chip is suppressed in that state because
+  the SSE endpoint would 403 the request, which would otherwise leave the chip stuck on
+  `CONNECTING`.
+- **Where.** `lib/auth/require-user.ts` (page gate), `app/(app)/layout.tsx` (compliance
+  redirect), `components/auth/must-change-password-guard.tsx` (client-side intercept).

@@ -4,6 +4,11 @@ PowerDNS-AuthAdmin talks to one or many PowerDNS Authoritative servers over thei
 HTTP API. This guide covers enabling that API on PowerDNS, adding a backend, and
 the three supported topologies.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/powerdns-servers.png" />
+  <img src="../screenshots/light/powerdns-servers.png" alt="PowerDNS servers — standalone, primary+secondaries, and cluster side by side" width="720" />
+</picture>
+
 ## 1. Enable the PowerDNS HTTP API
 
 On each PowerDNS Authoritative server, the API and webserver must be on. In

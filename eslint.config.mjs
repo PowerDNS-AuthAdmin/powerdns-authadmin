@@ -51,6 +51,10 @@ export default tseslint.config(
       "postcss.config.mjs",
       "eslint.config.mjs",
       "docker/entrypoint.mjs",
+      // Plain Node ESM scripts in scripts/ that aren't part of the TS
+      // project (Playwright + docker-stack drivers). The .ts ones in the
+      // same folder stay linted.
+      "scripts/*.mjs",
     ],
   },
 

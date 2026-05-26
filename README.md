@@ -105,36 +105,63 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
   <tr>
     <td>
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/record-editor.png" />
-        <img src="screenshots/light/record-editor.png" alt="Record editor" />
+        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zone-edit.png" />
+        <img src="screenshots/light/zone-edit.png" alt="Edit record dialog" />
       </picture>
-      <br /><sub><b>Per-RRset editor</b> with per-type validation.</sub>
+      <br /><sub><b>Per-RRset editor</b> — per-type structured editors with inline validation.</sub>
     </td>
     <td>
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/record-diff.png" />
-        <img src="screenshots/light/record-diff.png" alt="Diff before apply" />
+        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zone-edit-diff.png" />
+        <img src="screenshots/light/zone-edit-diff.png" alt="Review changes diff" />
       </picture>
-      <br /><sub><b>Diff-before-apply</b> — a before/after diff on every save.</sub>
+      <br /><sub><b>Diff-before-apply</b> — every change previewed as a before/after diff before save.</sub>
     </td>
   </tr>
   <tr>
     <td>
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/roles.png" />
-        <img src="screenshots/light/roles.png" alt="Roles" />
+        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/backend-health.png" />
+        <img src="screenshots/light/backend-health.png" alt="Backend health alerts" />
       </picture>
-      <br /><sub><b>RBAC</b> — system + custom roles, scoped global / team / zone / server.</sub>
+      <br /><sub><b>Backend health</b> — bell-driven advisories for unreachable hosts, replication drift, missing TSIG keys.</sub>
     </td>
     <td>
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/audit-log.png" />
         <img src="screenshots/light/audit-log.png" alt="Audit log" />
       </picture>
-      <br /><sub><b>Append-only audit log</b> with redacted before/after snapshots.</sub>
+      <br /><sub><b>Append-only audit log</b> with redacted before/after snapshots + per-row PDNS HTTP trail.</sub>
     </td>
   </tr>
 </table>
+
+### Mobile-first
+
+Every page is responsive down to a phone viewport — the off-canvas hamburger
+drawer, the bell + theme + avatar cluster, and the record table all reflow
+cleanly. Screenshots are rendered inside an iPhone 16 Pro bezel by
+[`scripts/screenshots.mjs`](./scripts/screenshots.mjs).
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/dashboard-mobile.png" />
+    <img src="screenshots/light/dashboard-mobile.png" alt="Dashboard on mobile" width="260" />
+  </picture>
+  &nbsp;
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zone-detail-mobile.png" />
+    <img src="screenshots/light/zone-detail-mobile.png" alt="Zone detail on mobile" width="260" />
+  </picture>
+  &nbsp;
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/audit-log-mobile.png" />
+    <img src="screenshots/light/audit-log-mobile.png" alt="Audit log on mobile" width="260" />
+  </picture>
+</p>
+
+Full gallery — every page, four variants:
+[**screenshots/README.md**](./screenshots/README.md).
 
 ## Run it
 
