@@ -22,42 +22,65 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useRealtimeAvailable, useRealtimeStatus } from "./realtime-provider";
 
 type Mode = { kind: "live" } | { kind: "sync"; inSync: boolean };
-const DEFAULT_MODE: Mode = { kind: "live" };
+const FALLBACK_MODE: Mode = { kind: "live" };
 
 interface HeaderStatusContextValue {
   mode: Mode;
-  setMode: (mode: Mode) => void;
+  setOverride: (mode: Mode | null) => void;
 }
 
 const HeaderStatusContext = createContext<HeaderStatusContextValue | null>(null);
 
-export function HeaderStatusProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<Mode>(DEFAULT_MODE);
+/**
+ * `initialMode` is the chip's default for pages that don't push their own
+ * sync state via `<HeaderStatusMode/>`. The app shell passes the fleet-wide
+ * verdict from `globalAnyLagging()` here so every page has a meaningful chip,
+ * not a generic "Live" label. Per-page `<HeaderStatusMode/>` sets a transient
+ * override (zone detail's per-zone view, zones-list's amalgamated view); on
+ * unmount the override clears and the chip falls back to whatever the layout
+ * is currently rendering — a router.refresh after a mutation re-runs the
+ * layout, so the global verdict stays fresh without prop-syncing into state.
+ */
+export function HeaderStatusProvider({
+  children,
+  initialMode = FALLBACK_MODE,
+}: {
+  children: ReactNode;
+  initialMode?: Mode;
+}) {
+  const [override, setOverride] = useState<Mode | null>(null);
+  const mode = override ?? initialMode;
   return (
-    <HeaderStatusContext.Provider value={{ mode, setMode }}>
+    <HeaderStatusContext.Provider value={{ mode, setOverride }}>
       {children}
     </HeaderStatusContext.Provider>
   );
 }
 
 function useHeaderStatus(): HeaderStatusContextValue {
-  return useContext(HeaderStatusContext) ?? { mode: DEFAULT_MODE, setMode: () => undefined };
+  return (
+    useContext(HeaderStatusContext) ?? {
+      mode: FALLBACK_MODE,
+      setOverride: () => undefined,
+    }
+  );
 }
 
 /**
  * Tiny no-UI helper a page mounts to tell the header chip what label/state to
- * show. Resets back to the default "Live" mode on unmount.
+ * show. Clears the override on unmount, so leaving the page falls the chip
+ * back to the provider's initialMode (the layout's fleet-wide verdict).
  */
 export function HeaderStatusMode(props: { kind: "live" } | { kind: "sync"; inSync: boolean }) {
-  const { setMode } = useHeaderStatus();
+  const { setOverride } = useHeaderStatus();
   // Stringify the props so the effect only re-runs when something *actually*
   // changes (object identity changes every render otherwise).
   const key = props.kind === "sync" ? `sync:${props.inSync}` : "live";
   useEffect(() => {
-    setMode(props.kind === "sync" ? { kind: "sync", inSync: props.inSync } : { kind: "live" });
-    return () => setMode(DEFAULT_MODE);
+    setOverride(props.kind === "sync" ? { kind: "sync", inSync: props.inSync } : { kind: "live" });
+    return () => setOverride(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, setMode]);
+  }, [key, setOverride]);
   return null;
 }
 
@@ -67,41 +90,51 @@ export function HeaderStatusChip() {
   const { mode } = useHeaderStatus();
 
   // When the layout deliberately skips the RealtimeProvider (e.g. a
-  // compliance-redirected user who can't reach /api/realtime) the chip
-  // would otherwise be stuck on "CONNECTING" forever — render nothing.
+  // compliance-redirected user who can't reach /api/realtime) the chip would
+  // otherwise be stuck on "CONNECTING" forever — render nothing.
   if (!available) return null;
 
-  // Map state → { label, dotClass, title }.
-  let label: string;
-  let dotClass: string;
-  let title: string;
-  if (status === "paused") {
-    label = "paused";
-    dotClass = "bg-[color:var(--color-fg-subtle)]";
-    title = "Live updates paused — click to resume";
-  } else if (status === "offline") {
-    label = "offline";
-    dotClass = "bg-[color:var(--color-error)]";
-    title = "Connection lost — auto-retrying";
-  } else if (status === "connecting") {
-    label = "connecting";
-    dotClass = "bg-[color:var(--color-warn)]";
-    title = "Connecting…";
-  } else if (mode.kind === "sync") {
-    if (mode.inSync) {
-      label = "synced";
-      dotClass = "animate-pulse bg-[color:var(--color-success)]";
-      title = "Synced — click to pause";
-    } else {
-      label = "desynced";
-      dotClass = "animate-pulse bg-[color:var(--color-warn)]";
-      title = "Replication in flight — waiting for AXFR to complete";
-    }
-  } else {
-    label = "live";
-    dotClass = "animate-pulse bg-[color:var(--color-success)]";
-    title = "Live updates streaming — click to pause";
-  }
+  // Connection state is the first half of the chip and is ALWAYS shown:
+  // connecting / connected / offline / paused. The sync half (synced/desynced)
+  // is appended only when actually connected on a page that pushed sync mode —
+  // never show two stale states (offline AND synced doesn't make sense).
+  const isConnected = status === "live";
+  const connLabel =
+    status === "paused"
+      ? "paused"
+      : status === "offline"
+        ? "offline"
+        : status === "connecting"
+          ? "connecting"
+          : "connected";
+  const showSync = isConnected && mode.kind === "sync";
+  const syncLabel = showSync && mode.kind === "sync" ? (mode.inSync ? "synced" : "desynced") : null;
+
+  // The dot reflects the most critical signal — desynced beats synced, and
+  // offline/connecting beat everything.
+  const dotClass =
+    status === "paused"
+      ? "bg-[color:var(--color-fg-subtle)]"
+      : status === "offline"
+        ? "bg-[color:var(--color-error)]"
+        : status === "connecting"
+          ? "bg-[color:var(--color-warn)]"
+          : showSync && mode.kind === "sync" && !mode.inSync
+            ? "animate-pulse bg-[color:var(--color-warn)]"
+            : "animate-pulse bg-[color:var(--color-success)]";
+
+  const title =
+    status === "paused"
+      ? "Live updates paused — click to resume"
+      : status === "offline"
+        ? "Connection lost — auto-retrying"
+        : status === "connecting"
+          ? "Connecting…"
+          : showSync && mode.kind === "sync" && !mode.inSync
+            ? "Connected — replication in flight (waiting for AXFR)"
+            : showSync
+              ? "Connected — all backends in sync"
+              : "Connected — live updates streaming";
 
   return (
     <button
@@ -111,7 +144,9 @@ export function HeaderStatusChip() {
       className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase hover:bg-[color:var(--color-bg-subtle)]"
     >
       <span className={`inline-block h-2 w-2 rounded-full ${dotClass}`} aria-hidden />
-      {label}
+      {connLabel}
+      {syncLabel ? <span className="text-[color:var(--color-fg-subtle)]">·</span> : null}
+      {syncLabel ? <span>{syncLabel}</span> : null}
     </button>
   );
 }

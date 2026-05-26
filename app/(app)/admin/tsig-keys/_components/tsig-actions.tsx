@@ -16,11 +16,13 @@
  */
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
+import { type ColumnDef } from "@tanstack/react-table";
 import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
 import { createCtaClass } from "@/components/ui/create-button";
+import { DataTable } from "@/components/ui/data-table";
 import { TsigKeyWizard, type InstallSecondary } from "./tsig-key-wizard";
 
 interface Row {
@@ -135,63 +137,14 @@ export function TsigActions({ serverSlug, rows, isPrimary, secondaries, zones }:
       </div>
 
       {rows !== null ? (
-        <div className="overflow-hidden rounded-md border border-[color:var(--color-border)]">
-          <table className="w-full text-sm">
-            <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-              <tr>
-                <th className="px-4 py-2">Name</th>
-                <th className="px-4 py-2">Algorithm</th>
-                <th className="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {keys.map((row) => (
-                <tr key={row.id} className="border-t border-[color:var(--color-border)]">
-                  <td className="px-4 py-3 font-mono text-xs">{row.name}</td>
-                  <td className="px-4 py-3">
-                    <span className="rounded bg-[color:var(--color-bg-muted)] px-2 py-0.5 font-mono text-xs">
-                      {row.algorithm}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-1.5">
-                      {canInstall ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setWizard({ mode: "existing", keyId: row.id, keyName: row.name })
-                          }
-                          className="rounded border border-[color:var(--color-border)] px-2 py-1 text-xs hover:bg-[color:var(--color-bg-muted)]"
-                        >
-                          Set up
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(row)}
-                        disabled={deletingId === row.id}
-                        className="rounded border border-[color:var(--color-error)] px-2 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
-                      >
-                        {deletingId === row.id ? "Deleting…" : "Delete"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {keys.length === 0 ? (
-                <tr className="border-t border-[color:var(--color-border)]">
-                  <td
-                    colSpan={3}
-                    className="px-4 py-6 text-center text-[color:var(--color-fg-muted)]"
-                  >
-                    No TSIG keys configured on <code>{serverSlug}</code>. AXFR and NOTIFY between
-                    this backend and its peers happens without shared-secret authentication.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+        <TsigKeysTable
+          serverSlug={serverSlug}
+          keys={keys}
+          canInstall={canInstall}
+          busyDeleteId={deletingId}
+          onDelete={handleDelete}
+          onSetUp={(row) => setWizard({ mode: "existing", keyId: row.id, keyName: row.name })}
+        />
       ) : null}
 
       {wizard ? (
@@ -212,5 +165,83 @@ export function TsigActions({ serverSlug, rows, isPrimary, secondaries, zones }:
         />
       ) : null}
     </section>
+  );
+}
+
+function TsigKeysTable({
+  serverSlug,
+  keys,
+  canInstall,
+  busyDeleteId,
+  onDelete,
+  onSetUp,
+}: {
+  serverSlug: string;
+  keys: Row[];
+  canInstall: boolean;
+  busyDeleteId: string | null;
+  onDelete: (row: Row) => void;
+  onSetUp: (row: Row) => void;
+}) {
+  const columns = useMemo<Array<ColumnDef<Row, unknown>>>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Name",
+        cell: (ctx) => <span className="font-mono text-xs">{ctx.getValue<string>()}</span>,
+      },
+      {
+        accessorKey: "algorithm",
+        header: "Algorithm",
+        cell: (ctx) => (
+          <span className="rounded bg-[color:var(--color-bg-muted)] px-2 py-0.5 font-mono text-xs">
+            {ctx.getValue<string>()}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: (ctx) => {
+          const row = ctx.row.original;
+          return (
+            <div className="flex justify-end gap-1.5">
+              {canInstall ? (
+                <button
+                  type="button"
+                  onClick={() => onSetUp(row)}
+                  className="rounded border border-[color:var(--color-border)] px-2 py-1 text-xs hover:bg-[color:var(--color-bg-muted)]"
+                >
+                  Set up
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => onDelete(row)}
+                disabled={busyDeleteId === row.id}
+                className="rounded border border-[color:var(--color-error)] px-2 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+              >
+                {busyDeleteId === row.id ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          );
+        },
+      },
+    ],
+    [canInstall, busyDeleteId, onDelete, onSetUp],
+  );
+
+  return (
+    <DataTable
+      data={keys}
+      columns={columns}
+      pageSize={Math.max(keys.length, 10)}
+      hidePagination
+      hideSearch
+      stateKey={`tsig:${serverSlug}`}
+      emptyMessage="No keys match."
+      noDataMessage={`No TSIG keys configured on ${serverSlug}. AXFR and NOTIFY between this backend and its peers happens without shared-secret authentication.`}
+    />
   );
 }

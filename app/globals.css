@@ -73,6 +73,32 @@
   --radius-lg: 0.75rem;
 }
 
+/* Used by the must-change-password banner when the operator tries to navigate
+ * away — shaken every time a click on a nav link is blocked, so the "you
+ * can't go anywhere until you change this" reason is unmistakable. */
+@keyframes pda-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-8px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(8px);
+  }
+}
+.animate-shake {
+  animation: pda-shake 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
 .dark {
   --color-bg: oklch(15% 0 0);
   --color-bg-subtle: oklch(20% 0 0);
@@ -83,10 +109,12 @@
   --color-border: oklch(30% 0 0);
   --color-accent: oklch(65% 0.18 270);
   --color-accent-fg: oklch(15% 0 0);
-  /* On dark bg the warn/orange /15 tint is a dim wash — flip the badge
-   * text to the bright variant so it still reads cleanly. */
-  --color-warn-fg: oklch(85% 0.15 80);
-  --color-orange-fg: oklch(82% 0.15 55);
+  /* On dark bg the warn/orange /15 tint is a dim wash of the same hue, so
+   * same-hue text (even at high lightness) visually blends. Use near-white
+   * with a faint tone instead — max lightness contrast against the dim tint,
+   * still tinted enough to read as "yellow" / "orange". */
+  --color-warn-fg: oklch(96% 0.06 80);
+  --color-orange-fg: oklch(95% 0.07 55);
 }
 
 /* ---------------------------------------------------------------------------

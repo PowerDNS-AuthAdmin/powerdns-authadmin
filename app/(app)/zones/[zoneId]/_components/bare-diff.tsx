@@ -347,7 +347,7 @@ function LineGutter({ n }: { n: number }) {
   return (
     <span
       aria-hidden
-      className="w-6 shrink-0 text-right tabular-nums text-[color:var(--color-fg-subtle)] select-none sm:w-8"
+      className="w-6 shrink-0 text-left text-[color:var(--color-fg-subtle)] tabular-nums select-none sm:w-8"
     >
       {n}
     </span>

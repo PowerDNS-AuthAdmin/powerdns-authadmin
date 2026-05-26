@@ -14,7 +14,7 @@
  */
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { SelectMenu } from "@/components/ui/select-menu";
 
@@ -52,6 +52,25 @@ export function AuditFilterForm({ initial, actionGroups, hasFilters }: Props) {
   const [q, setQ] = useState(initial.q);
   const [from, setFrom] = useState(initial.from);
   const [to, setTo] = useState(initial.to);
+
+  // Sync the inputs with the URL: when an outside link populates query params
+  // (e.g. clicking a `req:` link on a row, or a quick-filter chip) the page
+  // re-renders with a new `initial`, but useState only takes the first value.
+  // Without this the inputs stay blank even though the URL is filtered — the
+  // operator can't see WHAT they're filtered to.
+  const initialKey = JSON.stringify(initial);
+  useEffect(() => {
+    setAction(initial.action);
+    setActorType(initial.actorType);
+    setResourceType(initial.resourceType);
+    setActorId(initial.actorId);
+    setResourceId(initial.resourceId);
+    setRequestId(initial.requestId);
+    setQ(initial.q);
+    setFrom(initial.from);
+    setTo(initial.to);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialKey]);
 
   function apply(e: React.FormEvent) {
     e.preventDefault();

@@ -21,8 +21,9 @@ import {
 } from "@/lib/db/repositories/pdns-servers";
 import { canonicalTxtContent } from "@/lib/dns/txt";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
-import { readCachedZone } from "@/lib/pdns/zone-state-cache";
+import { readCachedZone, readCachedZones } from "@/lib/pdns/zone-state-cache";
 import { derivedMirrorsForPrimary } from "@/lib/pdns/topology-cache";
+import { isWriteCapable } from "@/lib/pdns/capabilities";
 import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
 
@@ -129,6 +130,45 @@ export async function checkZoneSync(
   return mirrors
     .filter((m) => mirrorsZone(m, zoneName))
     .map((m) => statusFromCache(m, zoneName, primarySerial));
+}
+
+/**
+ * Site-wide rollup of mirror sync state — true when ANY group or derived mirror
+ * of ANY managed primary isn't fully caught up to its primary's serial for at
+ * least one zone. Reads exclusively from the in-process caches the poller
+ * maintains (no PDNS calls, no DB write), so it's cheap enough to call from
+ * the app shell on every page render.
+ *
+ * Used as the default mode for the header sync chip: pages that don't mount
+ * their own `<HeaderStatusMode/>` (i.e. most non-zone pages) inherit this
+ * single fleet-wide verdict. A return value of `false` covers both "every
+ * mirror is in-sync" and "there are no mirrors to compare" — the chip stays
+ * green in either case.
+ *
+ * Note on staleness: the chip is server-rendered, so the verdict only
+ * refreshes on a layout re-execution (navigation or `router.refresh()`).
+ * Pages that need sub-second reactivity push their own state via
+ * `HeaderStatusMode` and a `useRealtimeEvent` listener.
+ */
+export async function globalAnyLagging(): Promise<boolean> {
+  const primaries = (await listAllActiveBackends()).filter((b) => isWriteCapable(b.capabilities));
+  if (primaries.length === 0) return false;
+  for (const primary of primaries) {
+    const cached = readCachedZones(primary.id);
+    if (!cached) continue;
+    const zoneSerials = [...cached.zones.values()].map((z) => ({
+      name: z.name,
+      serial: z.serial,
+    }));
+    if (zoneSerials.length === 0) continue;
+    const sync = await checkZonesSyncBatch(primary, zoneSerials);
+    for (const statuses of sync.values()) {
+      for (const s of statuses) {
+        if (s.state !== "in-sync") return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**

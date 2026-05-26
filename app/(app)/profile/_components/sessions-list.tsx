@@ -7,12 +7,14 @@
  * Refreshes the page after a successful revoke so the list reflects state.
  *
  * We don't try to identify "this is your current session" here — that
- * requires reading the session cookie which is HttpOnly.can add
- * a server-prop pass for "current session id".
+ * requires reading the session cookie which is HttpOnly. can add a
+ * server-prop pass for "current session id".
  */
 
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { type ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/ui/data-table";
 import { useDialog } from "@/components/ui/dialog";
 import { LocalTime } from "@/components/ui/local-time";
 import { mutate } from "@/lib/client/api-fetch";
@@ -57,49 +59,72 @@ export function SessionsList({ sessions }: { sessions: SessionSummary[] }) {
     }
   }
 
-  if (sessions.length === 0) {
-    return <p className="text-sm text-[color:var(--color-fg-muted)]">No active sessions.</p>;
-  }
+  const columns = useMemo<Array<ColumnDef<SessionSummary, unknown>>>(
+    () => [
+      {
+        accessorKey: "lastSeenAt",
+        header: "Last seen",
+        cell: (ctx) => <LocalTime ts={ctx.getValue<string>()} className="text-xs" />,
+        meta: { className: "w-44" },
+      },
+      {
+        accessorKey: "ip",
+        header: "IP",
+        cell: (ctx) => (
+          <span className="font-mono text-xs">{ctx.getValue<string | null>() ?? "—"}</span>
+        ),
+        meta: { className: "w-44" },
+      },
+      {
+        accessorKey: "userAgent",
+        header: "User agent",
+        cell: (ctx) => (
+          <span className="line-clamp-2 max-w-[36ch] text-xs">
+            {ctx.getValue<string | null>() ?? "—"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "expiresAt",
+        header: "Expires",
+        cell: (ctx) => <LocalTime ts={ctx.getValue<string>()} className="text-xs" />,
+        meta: { className: "w-44" },
+      },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: (ctx) => {
+          const row = ctx.row.original;
+          return (
+            <button
+              type="button"
+              onClick={() => revoke(row.id)}
+              disabled={busy === row.id}
+              className="text-xs text-[color:var(--color-error)] hover:underline disabled:opacity-50"
+            >
+              {busy === row.id ? "Revoking…" : "Revoke"}
+            </button>
+          );
+        },
+      },
+    ],
+    // `revoke` closes over busy + the dialog/toast/router refs; rebuilt each
+    // render is fine for a short list, and avoids stale-busy reads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [busy],
+  );
 
   return (
-    <div className="overflow-hidden rounded-md border border-[color:var(--color-border)]">
-      <table className="w-full text-sm">
-        <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-          <tr>
-            <th className="px-4 py-2">Last seen</th>
-            <th className="px-4 py-2">IP</th>
-            <th className="px-4 py-2">User agent</th>
-            <th className="px-4 py-2">Expires</th>
-            <th className="px-4 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {sessions.map((s) => (
-            <tr key={s.id} className="border-t border-[color:var(--color-border)] align-top">
-              <td className="px-4 py-3 text-xs">
-                <LocalTime ts={s.lastSeenAt} />
-              </td>
-              <td className="px-4 py-3 font-mono text-xs">{s.ip ?? "—"}</td>
-              <td className="px-4 py-3 text-xs">
-                <span className="line-clamp-2 max-w-[36ch]">{s.userAgent ?? "—"}</span>
-              </td>
-              <td className="px-4 py-3 text-xs">
-                <LocalTime ts={s.expiresAt} />
-              </td>
-              <td className="px-4 py-3 text-right">
-                <button
-                  type="button"
-                  onClick={() => revoke(s.id)}
-                  disabled={busy === s.id}
-                  className="text-xs text-[color:var(--color-error)] hover:underline disabled:opacity-50"
-                >
-                  {busy === s.id ? "Revoking…" : "Revoke"}
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      data={sessions}
+      columns={columns}
+      pageSize={Math.max(sessions.length, 10)}
+      hidePagination
+      hideSearch
+      noDataMessage="No active sessions."
+      emptyMessage="No active sessions."
+      stateKey="profile-sessions"
+    />
   );
 }

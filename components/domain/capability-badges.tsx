@@ -44,10 +44,13 @@ export function CapabilityBadges({ capabilities }: { capabilities: Capabilities 
   if (capabilities.secondary) flags.push("secondary");
   if (capabilities.autosecondary) flags.push("autosecondary");
   if (flags.length === 0) return <span className={NEUTRAL}>none</span>;
+  // Plain inline <span> wrapper (no flex) so each badge renders exactly like
+  // the CLUSTER badge in the zones list — inherited line-height and no
+  // cross-axis stretching from a flex container.
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
-      {flags.map((f) => (
-        <span key={f} className={TONE[f]}>
+    <span className="whitespace-nowrap">
+      {flags.map((f, i) => (
+        <span key={f} className={i > 0 ? `${TONE[f]} ml-1` : TONE[f]}>
           {f}
         </span>
       ))}

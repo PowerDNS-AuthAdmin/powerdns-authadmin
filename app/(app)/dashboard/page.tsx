@@ -45,6 +45,7 @@ import { Chart } from "@/components/ui/chart";
 import { LocalTime } from "@/components/ui/local-time";
 import { UnverifiedEmailBanner } from "./_components/unverified-email-banner";
 import { DashboardLiveFeed } from "./_components/dashboard-live-feed";
+import { countActiveSessions } from "@/lib/db/repositories/sessions";
 import {
   actionPieOption,
   bucketResponseSizes,
@@ -102,6 +103,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
     backendsLatest,
     backendTimeSeries,
     sessionsTimeSeries,
+    currentActiveSessions,
     recent,
     servers,
     attention,
@@ -118,6 +120,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
     canReadServers ? latestBackendSamples() : Promise.resolve([]),
     canReadServers ? backendSeries(HOURS_7D) : Promise.resolve([]),
     canReadAudit ? sessionsSeries(HOURS_7D) : Promise.resolve([]),
+    canReadAudit ? countActiveSessions() : Promise.resolve(0),
     canReadAudit ? recentAudit(12) : Promise.resolve([]),
     canReadServers ? listAllPdnsServers() : Promise.resolve([]),
     canReadUsers
@@ -154,7 +157,10 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
     }
     return sum + (b.zoneCount ?? 0);
   }, 0);
-  const currentSessions = sessionsTimeSeries[sessionsTimeSeries.length - 1]?.activeSessions ?? 0;
+  // Real-time count for the KPI tile: the metric sampler writes a row every
+  // ~minute, so the last bucket lags freshly-issued sessions (a user logging
+  // in *just now* showed as 0). The 7-day chart still uses the sampled series.
+  const currentSessions = currentActiveSessions;
   const editCountLast24h = editsHourly.reduce((sum, b) => sum + b.count, 0);
   const hasAnyPanel = canReadAudit || canReadServers || canReadZones;
 

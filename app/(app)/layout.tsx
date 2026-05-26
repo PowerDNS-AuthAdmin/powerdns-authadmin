@@ -29,7 +29,10 @@ import { FlashListener } from "@/components/ui/flash-listener";
 import { NavLink } from "@/components/ui/nav-link";
 import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 import { HeaderStatusProvider } from "@/components/realtime/header-status-chip";
+import { MustChangePasswordProvider } from "@/components/auth/must-change-password-guard";
 import { getAppSettings } from "@/lib/settings/app-settings";
+import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
+import { globalAnyLagging } from "@/lib/pdns/sync";
 
 /**
  * Paths a non-compliant user (forced-MFA-not-enrolled, or flagged
@@ -203,6 +206,22 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // here avoids the stuck-on-CONNECTING chip + the wasted reconnect storm; the
   // chip self-hides when no provider is mounted.
   const realtimeAvailable = compliance.compliant && !current.user.mustChangePassword;
+
+  // Fleet-wide sync verdict as the chip's default mode. Pages that show
+  // their own (per-zone or per-page) sync state push it via
+  // <HeaderStatusMode/> and override this. Computed only when realtime is
+  // available + the operator can see backend state at all — otherwise the
+  // chip falls back to plain "Live" so a profile-only user doesn't see a
+  // signal they have no context for. The helper reads exclusively from the
+  // poller's in-process caches, so this is a near-free lookup once the
+  // first ensureBackendsObserved warms the store.
+  const showGlobalSync = realtimeAvailable && (canReadZones || canReadServers);
+  let initialChipMode: { kind: "live" } | { kind: "sync"; inSync: boolean } = { kind: "live" };
+  if (showGlobalSync) {
+    await ensureBackendsObserved();
+    initialChipMode = { kind: "sync", inSync: !(await globalAnyLagging()) };
+  }
+
   const shell = (
     <AppShell sidebar={sidebar} headerControls={headerControls}>
       {children}
@@ -211,19 +230,21 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   return (
     <DialogProvider>
-      {realtimeAvailable ? (
-        <RealtimeProvider>
-          <HeaderStatusProvider>
+      <MustChangePasswordProvider blocked={current.user.mustChangePassword}>
+        {realtimeAvailable ? (
+          <RealtimeProvider>
+            <HeaderStatusProvider initialMode={initialChipMode}>
+              <FlashListener />
+              {shell}
+            </HeaderStatusProvider>
+          </RealtimeProvider>
+        ) : (
+          <>
             <FlashListener />
             {shell}
-          </HeaderStatusProvider>
-        </RealtimeProvider>
-      ) : (
-        <>
-          <FlashListener />
-          {shell}
-        </>
-      )}
+          </>
+        )}
+      </MustChangePasswordProvider>
     </DialogProvider>
   );
 }
