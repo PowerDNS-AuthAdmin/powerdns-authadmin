@@ -1,6 +1,6 @@
 {
   "name": "powerdns-authadmin",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "Modern, self-hosted DNS administration UI for PowerDNS — multi-team RBAC, real audit, real SSO. From-scratch rebuild of PowerDNS-Admin in Node.js + TypeScript.",
   "license": "MIT",
@@ -18,6 +18,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:boot": "node scripts/build-boot.mjs",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",

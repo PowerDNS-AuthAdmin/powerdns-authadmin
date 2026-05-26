@@ -192,8 +192,16 @@ jobs:
         uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6
         with:
           images: ${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=false
+          # Tag convention:
+          #   :latest         most recent release  (vX.Y.Z tag push)
+          #   :X.Y.Z, :X.Y    that release + its minor channel
+          #   :edge           tip of main          (every push)
+          #   :sha-xxxxxxx    exact commit         (always)
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=edge,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short

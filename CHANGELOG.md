@@ -6,6 +6,94 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.2.1] — 2026-05-27
+
+A **build-pipeline patch** — significant image-size reduction with
+no operator-facing behaviour change. The published image goes from
+**~1.18 GB local / ~225 MB compressed pull** to **~290 MB local /
+~80 MB compressed pull** (about a 75% local / 65% compressed cut).
+Drop-in upgrade — no schema, API, or operator-config changes.
+
+### Changed — build pipeline
+
+- **Boot scripts pre-bundled at image-build time.** `scripts/migrate.ts`,
+  `scripts/seed.ts`, and `scripts/provision.ts` are now built into
+  self-contained ESM files under `boot/` via `npm run build:boot`
+  (esbuild). The runner runs them directly with `node`, so the runtime
+  image no longer needs:
+  - `tsx` (the on-the-fly TS transpiler the previous entrypoint shelled
+    out to),
+  - the full `lib/` and `scripts/` source trees,
+  - `tsconfig.json`, or
+  - the separate prod-deps `node_modules` overlay (the previous `deps`
+    stage — ~700 MB on disk used solely to make boot succeed).
+- **Dockerfile: `deps` stage removed; runner switched to distroless.**
+  The build now goes builder → fs-prep → runner, where the final
+  runner is `gcr.io/distroless/nodejs24-debian12:nonroot`. Boot
+  externals (`better-sqlite3`, `@node-rs/argon2`, `pg`, `pino` +
+  transports) resolve at runtime from the standalone bundle's
+  already-traced `node_modules` — Next's image-tracer has been
+  ensuring those are present all along; the dedicated `deps` overlay
+  was redundant.
+- **Next.js trace exclusion for `@img/sharp*`** combined with
+  `images: { unoptimized: true }` in `next.config.ts`. Sharp was a
+  ~16 MB optionalDep used only by Next's built-in image optimizer;
+  with the optimizer off (the wordmark PNGs in `/public` are tiny
+  pre-sized assets, and brand-logo uploads render via a plain `<img>`)
+  it never runs and can be left out of the runner entirely.
+- **Native-binary debug symbols stripped** during the build. Sub-MB
+  but free; the binaries `dlopen` identically.
+
+### Operator-facing trade-offs
+
+- **No shell in the runtime image.** `docker exec <container> sh` is
+  not available anymore — the distroless base ships only the `node`
+  binary, glibc, openssl, and ca-certificates. For incident triage
+  that needs a shell, build a `:debug` tag against bookworm-slim using
+  the same builder stage. Day-to-day operations (logs, healthz/readyz
+  probes, env reload, image upgrades) are unaffected.
+- **Container user is now `nonroot` (uid 65532)** instead of `node`
+  (uid 1000). If you'd hand-set ownership on a host-mounted `/data`
+  volume to uid 1000 prior, re-chown it to 65532 before the first
+  upgraded boot. The compose files in this repo's docker-compose-\*.yml
+  examples don't pin a uid and need no change.
+- **Next.js built-in image optimizer is disabled.** `<Image>` tags
+  still render — they just serve the file at its intrinsic size, no
+  resize or format conversion at the edge. No PowerDNS-AuthAdmin page
+  relied on the optimizer (our images are static brand assets); this
+  is only a difference for downstream customisation that adds dynamic
+  image processing via `next/image`.
+
+### Changed — image tags
+
+`:latest` now follows releases, not `main`.
+
+| Tag              | Points to                               |
+| ---------------- | --------------------------------------- |
+| `:latest`        | most recent release (`vX.Y.Z` tag push) |
+| `:X.Y.Z`, `:X.Y` | that release + its minor channel        |
+| `:edge`          | tip of `main` (every push)              |
+| `:sha-xxxxxxx`   | exact commit, immutable                 |
+
+Operators following `:latest` will jump to `1.2.1` on next pull and
+then stay there until the next release tag. Use `:edge` to track
+`main`.
+
+### Unchanged
+
+- Same Next.js standalone server, same migration SQL files, same
+  entrypoint flow (migrate → seed → provision → server).
+- `/healthz` + `/readyz` semantics unchanged.
+- All API, auth, RBAC, OIDC, signup, audit, and PDNS-backend behaviour
+  identical.
+- Cosign signing + SBOM attachment unchanged.
+
+### Upgrading
+
+Pull the new image and recreate the container — that's the whole
+upgrade. See [Upgrading → 1.2.1](./docs/09-UPGRADING.md#upgrading-to-121-from-12x)
+for the no-shell / non-root caveats.
+
 ## [1.2.0] — 2026-05-26
 
 A **minor release** that combines two closely-related changes:

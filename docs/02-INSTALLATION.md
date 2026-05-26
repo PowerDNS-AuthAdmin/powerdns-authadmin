@@ -135,8 +135,21 @@ volumes:
   pg-data:
 ```
 
-> **Production tip:** pin a version (`:1.1.2`) instead of `:latest` so deploys
-> are deterministic. See [Upgrading](./09-UPGRADING.md).
+### Image tags
+
+| Tag            | Points to                                                                     |
+| -------------- | ----------------------------------------------------------------------------- |
+| `:latest`      | The most recent stable release. Updated only on `vX.Y.Z` tag pushes.          |
+| `:X.Y`         | The latest patch in a minor channel — e.g. `:1.2` follows `1.2.0` → `1.2.1`.  |
+| `:X.Y.Z`       | A single immutable release. Use this in production for deterministic deploys. |
+| `:edge`        | The tip of `main`. Updates on every push; not for production.                 |
+| `:sha-xxxxxxx` | An exact commit, kept forever.                                                |
+
+Pin a version in production:
+
+```yaml
+image: ghcr.io/powerdns-authadmin/powerdns-authadmin:1.2
+```
 
 ---
 
