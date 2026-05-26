@@ -21,18 +21,20 @@ interface Capabilities {
   autosecondary: boolean;
 }
 
-// Matches the CLUSTER / DEFAULT badges in the zones + servers lists so every
-// inline role/state badge in the app reads as one family — rounded, mono,
-// tracking-wide, uppercase; the tint colour is the only thing that varies.
-const BASE =
-  "inline-flex items-center rounded px-1 py-0.5 font-mono text-[0.625rem] tracking-wide uppercase";
+// Same recipe as the CLUSTER badge in the zones list and the DEFAULT badge in
+// the servers list — rounded, mono, tracking-wide, uppercase, bg-<tone>/15 —
+// so every inline role/state badge in the app reads as one family. Yellow and
+// orange need a darker -fg variant for the text (their semantic hue is too
+// light to read on top of a /15 tint of itself; accent indigo is dark enough
+// that text-accent works without a separate fg token).
+const BASE = "rounded px-1 py-0.5 font-mono text-[0.625rem] tracking-wide uppercase";
 
 const NEUTRAL = `${BASE} bg-[color:var(--color-bg-muted)] text-[color:var(--color-fg-muted)]`;
 
 const TONE = {
   primary: `${BASE} bg-[color:var(--color-accent)]/15 text-[color:var(--color-accent)]`,
-  secondary: `${BASE} bg-[color:var(--color-warn)]/15 text-[color:var(--color-warn)]`,
-  autosecondary: `${BASE} bg-[color:var(--color-orange)]/15 text-[color:var(--color-orange)]`,
+  secondary: `${BASE} bg-[color:var(--color-warn)]/15 text-[color:var(--color-warn-fg)]`,
+  autosecondary: `${BASE} bg-[color:var(--color-orange)]/15 text-[color:var(--color-orange-fg)]`,
 } as const;
 
 export function CapabilityBadges({ capabilities }: { capabilities: Capabilities | null }) {

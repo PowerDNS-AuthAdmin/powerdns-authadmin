@@ -52,6 +52,13 @@
   --color-orange: oklch(65% 0.18 55);
   --color-error: oklch(55% 0.22 25);
 
+  /* Foreground variants for tinted badges. Yellow/orange at their semantic
+   * lightness are unreadable on top of a /15 tint of themselves — these are
+   * the darker hue used for text in that pairing (CLUSTER works because the
+   * accent indigo is already dark enough; warn/orange aren't). */
+  --color-warn-fg: oklch(38% 0.12 80);
+  --color-orange-fg: oklch(40% 0.13 55);
+
   /* Typography — system stack, zero font downloads, instant render. No CDN. */
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -76,6 +83,10 @@
   --color-border: oklch(30% 0 0);
   --color-accent: oklch(65% 0.18 270);
   --color-accent-fg: oklch(15% 0 0);
+  /* On dark bg the warn/orange /15 tint is a dim wash — flip the badge
+   * text to the bright variant so it still reads cleanly. */
+  --color-warn-fg: oklch(85% 0.15 80);
+  --color-orange-fg: oklch(82% 0.15 55);
 }
 
 /* ---------------------------------------------------------------------------
