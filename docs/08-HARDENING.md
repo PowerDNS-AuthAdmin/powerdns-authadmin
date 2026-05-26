@@ -80,7 +80,7 @@ Each published release is cosign-signed (keyless / Sigstore) by the release
 workflow. Verify before deploying:
 
 ```sh
-cosign verify ghcr.io/powerdns-authadmin/powerdns-authadmin:1.1.4 \
+cosign verify ghcr.io/powerdns-authadmin/powerdns-authadmin:1.1.5 \
   --certificate-identity-regexp '^https://github.com/PowerDNS-AuthAdmin/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```

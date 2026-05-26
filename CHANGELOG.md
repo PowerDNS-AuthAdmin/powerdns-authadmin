@@ -6,6 +6,37 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.1.5] — 2026-05-26
+
+A **security-hygiene patch**. No app-code changes; ships only a defensive
+dependency pin to neutralise the **Mini Shai-Hulud** npm supply-chain
+campaign (MAL-2026-4153) at the resolver level. See
+[GHSA-…-…-…](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/security/advisories)
+for the full advisory.
+
+### Security
+
+- **Defensive pin: `size-sensor` → `1.0.3` via package.json `overrides`.**
+  The npm package `size-sensor` (an indirect dependency through
+  `echarts-for-react`) was hijacked on 2026-05-19 — versions `1.0.4`,
+  `1.1.4`, and `1.2.4` were published by an attacker who took over the
+  `atool` npm account and contain a `preinstall` hook that runs an
+  obfuscated Bun script exfiltrating secrets to GitHub via
+  `harkonnen-melange-*` repositories (Mini Shai-Hulud / TeamPCP).
+  Tracked as
+  [MAL-2026-4153](https://osv.dev/vulnerability/MAL-2026-4153) /
+  [GHSA-gx6x-v325-85g4](https://github.com/advisories/GHSA-gx6x-v325-85g4).
+
+  **PowerDNS-AuthAdmin was never affected** — every `1.1.x` release
+  shipped `size-sensor@1.0.3`, the last clean version (published before
+  the takeover). `npm audit` was clean throughout. This release adds an
+  explicit `"size-sensor": "1.0.3"` to `package.json` `overrides` so that
+  no future `npm install --save <…>` can let the resolver pick up
+  `1.0.4`+ from a freshly-resolved subtree. OpenSSF Scorecard's
+  `Vulnerabilities` check, which flags any version inside the OSV
+  advisory's overly-broad SEMVER range, should clear on its next
+  refresh.
+
 ## [1.1.4] — 2026-05-26
 
 A **major operator-UX release**: top-to-bottom responsive overhaul, every table
@@ -446,7 +477,8 @@ First production release.
 - **Distribution** — multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.4...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.5...HEAD
+[1.1.5]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.1...v1.1.2
