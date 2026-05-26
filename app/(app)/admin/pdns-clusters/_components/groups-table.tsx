@@ -86,6 +86,7 @@ export function GroupsTable({ rows }: { rows: GroupRow[] }) {
       initialSort={[{ id: "name", desc: false }]}
       sortParam="sort"
       pageSizeParam="pageSize"
+      rowHref={(r) => `/admin/pdns-clusters/${r.id}`}
     />
   );
 }

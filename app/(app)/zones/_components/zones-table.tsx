@@ -119,6 +119,14 @@ interface ZonesTableProps {
   showLastEdit: boolean;
 }
 
+/** Detail URL for a zone row — cluster-backed zones carry ?cluster=, standalone
+ *  ones carry ?server=. Shared by the name link and the clickable row. */
+function zoneHref(row: ZoneRow): string {
+  return row.backend.clusterSlug
+    ? `/zones/${encodeURIComponent(row.id)}?cluster=${encodeURIComponent(row.backend.clusterSlug)}`
+    : `/zones/${encodeURIComponent(row.id)}?server=${encodeURIComponent(row.backend.serverSlug)}`;
+}
+
 export function ZonesTable({ zones, showLastEdit }: ZonesTableProps) {
   const columns = useMemo<Array<ColumnDef<ZoneRow, unknown>>>(() => {
     const cols: Array<ColumnDef<ZoneRow, unknown>> = [
@@ -127,12 +135,9 @@ export function ZonesTable({ zones, showLastEdit }: ZonesTableProps) {
         header: "Name",
         cell: (ctx) => {
           const row = ctx.row.original;
-          const href = row.backend.clusterSlug
-            ? `/zones/${encodeURIComponent(row.id)}?cluster=${encodeURIComponent(row.backend.clusterSlug)}`
-            : `/zones/${encodeURIComponent(row.id)}?server=${encodeURIComponent(row.backend.serverSlug)}`;
           return (
             <Link
-              href={href}
+              href={zoneHref(row)}
               prefetch={false}
               className="font-medium text-[color:var(--color-accent)] hover:underline"
             >
@@ -287,6 +292,7 @@ export function ZonesTable({ zones, showLastEdit }: ZonesTableProps) {
         sortParam="sort"
         pageSizeParam="pageSize"
         stateKey="zones"
+        rowHref={zoneHref}
         noDataMessage={
           scope === "forward"
             ? "No forward zones across any backend yet."

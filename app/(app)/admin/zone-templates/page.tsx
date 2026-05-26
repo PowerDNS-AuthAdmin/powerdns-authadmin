@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import { requireUserForPage } from "@/lib/auth/require-user";
+import { CreateButton } from "@/components/ui/create-button";
 import { listAllZoneTemplates } from "@/lib/db/repositories/zone-templates";
 import { latestAdminEditTimestampsForZoneTemplates } from "@/lib/db/repositories/audit-log";
 import { listAllPrimaries } from "@/lib/db/repositories/pdns-servers";
@@ -36,14 +37,7 @@ export default async function ZoneTemplatesListPage() {
             prelude records you want on every zone of this kind.
           </p>
         </div>
-        {canManage ? (
-          <Link
-            href="/admin/zone-templates/new"
-            className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
-          >
-            New template
-          </Link>
-        ) : null}
+        {canManage ? <CreateButton href="/admin/zone-templates/new" label="New template" /> : null}
       </header>
 
       {templates.length === 0 ? (
@@ -70,7 +64,7 @@ export default async function ZoneTemplatesListPage() {
                 <th className="px-3 py-2">Nameservers</th>
                 <th className="px-3 py-2">Records</th>
                 {canReadAudit ? <th className="px-3 py-2">Last admin edit</th> : null}
-                <th className="px-3 py-2"></th>
+                <th className="w-px px-3 py-2 whitespace-nowrap"></th>
               </tr>
             </thead>
             <tbody>
@@ -129,7 +123,7 @@ export default async function ZoneTemplatesListPage() {
                       )}
                     </td>
                   ) : null}
-                  <td className="px-3 py-2 text-right text-xs">
+                  <td className="w-px px-3 py-2 text-right text-xs whitespace-nowrap">
                     <Link
                       href={`/admin/zone-templates/${t.id}`}
                       className="text-[color:var(--color-accent)] hover:underline"

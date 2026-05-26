@@ -142,9 +142,22 @@ export interface DataTableProps<TData> {
    * the PDNS-requests viewer to expand a request's full HTTP log in place.
    */
   renderRowDetail?: (row: TData) => React.ReactNode;
+  /**
+   * When set, the whole row (desktop) and card (mobile) become clickable,
+   * navigating to `rowHref(row)`. Clicks that land on an inner link, button, or
+   * form control are left alone, so per-row actions (Edit, Delete, …) and the
+   * name link still work. Pair it with the same href the name cell links to.
+   */
+  rowHref?: (row: TData) => string;
 }
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+/** A column with no header text is an "action" column (View, Edit, …). We size
+ *  those to their content so spare table width lands on the data columns. */
+function isUnlabeledColumn(def: { header?: unknown }): boolean {
+  return def.header == null || def.header === "";
+}
 
 export function DataTable<TData>({
   columns,
@@ -163,6 +176,7 @@ export function DataTable<TData>({
   stateKey,
   layout = "auto",
   renderRowDetail,
+  rowHref,
 }: DataTableProps<TData>) {
   const router = useRouter();
   const pathname = usePathname();
@@ -321,6 +335,15 @@ export function DataTable<TData>({
     return flexRender(def, h.getContext());
   };
 
+  // Row/card click → navigate, unless the click landed on an interactive
+  // element (link, button, form control) so per-row actions keep working.
+  const activateRow = (target: EventTarget | null, original: TData) => {
+    if (!rowHref) return;
+    const el = target as HTMLElement | null;
+    if (el?.closest("a,button,input,select,textarea,label,[role=button]")) return;
+    router.push(rowHref(original));
+  };
+
   return (
     <div className={`space-y-3 ${className}`}>
       {!hideSearch ? (
@@ -363,7 +386,12 @@ export function DataTable<TData>({
             return (
               <div
                 key={row.id}
-                className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-4"
+                onClick={(e) => activateRow(e.target, row.original)}
+                className={`rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-4 ${
+                  rowHref
+                    ? "cursor-pointer transition-colors active:bg-[color:var(--color-bg-subtle)]"
+                    : ""
+                }`}
               >
                 {cells.map((cell, i) => {
                   const label = headerLabel(cell.column.id);
@@ -418,6 +446,12 @@ export function DataTable<TData>({
                         scope="col"
                         className={[
                           "px-4 py-2.5",
+                          // Action columns (no header text) shrink to content so
+                          // the table's spare width spreads across the data
+                          // columns instead of opening a gap before the actions.
+                          layout === "auto" && isUnlabeledColumn(header.column.columnDef)
+                            ? "w-px whitespace-nowrap"
+                            : "",
                           canSort
                             ? "cursor-pointer select-none hover:bg-[color:var(--color-bg-muted)]"
                             : "",
@@ -470,6 +504,7 @@ export function DataTable<TData>({
                   return (
                     <Fragment key={row.id}>
                       <tr
+                        onClick={(e) => activateRow(e.target, row.original)}
                         // Four visually distinct row states, all token-driven so
                         // both themes track automatically:
                         //   header → bg-muted (the strongest neutral, anchors the top)
@@ -481,13 +516,18 @@ export function DataTable<TData>({
                         // it reads identically on odd and even rows. Tailwind emits
                         // the `hover:` variant after `even:`, so hover wins the
                         // cascade on striped rows without needing `!important`.
-                        className="border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
+                        className={`border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)] ${
+                          rowHref ? "cursor-pointer" : ""
+                        }`}
                       >
                         {row.getVisibleCells().map((cell) => (
                           <td
                             key={cell.id}
                             className={[
                               "px-4 py-3 align-top",
+                              layout === "auto" && isUnlabeledColumn(cell.column.columnDef)
+                                ? "w-px whitespace-nowrap"
+                                : "",
                               cell.column.columnDef.meta?.className ?? "",
                             ].join(" ")}
                           >

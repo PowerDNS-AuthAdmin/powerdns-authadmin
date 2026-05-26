@@ -11,6 +11,7 @@
 import Link from "next/link";
 import { env } from "@/lib/env";
 import { requireUserForPage } from "@/lib/auth/require-user";
+import { CreateButton } from "@/components/ui/create-button";
 import { listAllOidcProviders } from "@/lib/db/repositories/oidc-providers";
 import { envOidcProviderSummary, type EnvOidcProviderSummary } from "@/lib/auth/providers/oidc";
 import { latestAdminEditTimestampsForOidcProviders } from "@/lib/db/repositories/audit-log";
@@ -68,15 +69,10 @@ export default async function OidcProvidersPage() {
             .
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 [&>*]:w-full sm:[&>*]:w-auto">
           {providers.length > 0 ? <RefreshAllButton /> : null}
           {canManage ? (
-            <Link
-              href="/admin/oidc-providers/new"
-              className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
-            >
-              Add provider
-            </Link>
+            <CreateButton href="/admin/oidc-providers/new" label="Add provider" />
           ) : null}
         </div>
       </header>

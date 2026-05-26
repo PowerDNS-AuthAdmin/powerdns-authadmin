@@ -13,6 +13,7 @@
 import type { Metadata } from "next";
 import { Fragment } from "react";
 import Link from "next/link";
+import { CreateButton } from "@/components/ui/create-button";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { latestAdminEditTimestampsForServers } from "@/lib/db/repositories/audit-log";
@@ -114,19 +115,12 @@ export default async function PdnsServersListPage() {
             One row per upstream PowerDNS Authoritative backend.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 [&>*]:w-full sm:[&>*]:w-auto">
           {servers.some((s) => s.disabledAt === null) ? (
             <ServersPageHeartbeat inSync={!anyLagging} />
           ) : null}
           {servers.some((s) => s.disabledAt === null) ? <RefreshAllButton /> : null}
-          {canCreate ? (
-            <Link
-              href="/admin/servers/new"
-              className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
-            >
-              Add server
-            </Link>
-          ) : null}
+          {canCreate ? <CreateButton href="/admin/servers/new" label="Add server" /> : null}
         </div>
       </header>
 
@@ -213,7 +207,7 @@ export default async function PdnsServersListPage() {
                     <th className="px-4 py-2">Version</th>
                     <th className="px-4 py-2">Sync</th>
                     {canReadAudit ? <th className="px-4 py-2">Last admin edit</th> : null}
-                    <th className="px-4 py-2"></th>
+                    <th className="w-px px-4 py-2 whitespace-nowrap"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -477,7 +471,7 @@ function ServerRow({
           )}
         </td>
       ) : null}
-      <td className="px-4 py-3 text-right">
+      <td className="w-px px-4 py-3 text-right whitespace-nowrap">
         <span className="inline-flex items-center gap-2">
           <TestServerButton serverId={row.id} />
           <Link

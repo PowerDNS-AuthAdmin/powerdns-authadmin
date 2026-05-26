@@ -7,12 +7,12 @@
  */
 
 import type { Metadata } from "next";
-import Link from "next/link";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { listAllClusters } from "@/lib/db/repositories/pdns-clusters";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { classifyGroup } from "@/lib/pdns/capabilities";
 import type { PdnsServer } from "@/lib/db/schema";
+import { CreateButton } from "@/components/ui/create-button";
 import { GroupsTable, type GroupRow } from "./_components/groups-table";
 
 export const metadata: Metadata = { title: "Groups" };
@@ -55,14 +55,7 @@ export default async function PdnsClustersListPage() {
             strategy applies only to multi-primary clusters.
           </p>
         </div>
-        {canCreate ? (
-          <Link
-            href="/admin/pdns-clusters/new"
-            className="shrink-0 rounded bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
-          >
-            New group
-          </Link>
-        ) : null}
+        {canCreate ? <CreateButton href="/admin/pdns-clusters/new" label="New group" /> : null}
       </header>
 
       {clusters.length === 0 ? (

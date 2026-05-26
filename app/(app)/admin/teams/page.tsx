@@ -3,8 +3,8 @@
  */
 
 import type { Metadata } from "next";
-import Link from "next/link";
 import { requireUserForPage } from "@/lib/auth/require-user";
+import { CreateButton } from "@/components/ui/create-button";
 import { countMembersByTeam, listAllTeams } from "@/lib/db/repositories/teams";
 import { latestAdminEditTimestampsForTeams } from "@/lib/db/repositories/audit-log";
 import { TeamsTable, type TeamRow } from "./_components/teams-table";
@@ -31,14 +31,7 @@ export default async function TeamsListPage() {
             {teams.length} team{teams.length === 1 ? "" : "s"}.
           </p>
         </div>
-        {canCreate ? (
-          <Link
-            href="/admin/teams/new"
-            className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
-          >
-            Add team
-          </Link>
-        ) : null}
+        {canCreate ? <CreateButton href="/admin/teams/new" label="Add team" /> : null}
       </header>
 
       {teams.length === 0 ? (

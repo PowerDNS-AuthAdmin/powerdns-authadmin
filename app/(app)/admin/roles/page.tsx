@@ -8,8 +8,8 @@
  */
 
 import type { Metadata } from "next";
-import Link from "next/link";
 import { requireUserForPage } from "@/lib/auth/require-user";
+import { CreateButton } from "@/components/ui/create-button";
 import { listRoles } from "@/lib/db/repositories/roles";
 import { latestAdminEditTimestampsForRoles } from "@/lib/db/repositories/audit-log";
 import { RolesTable, type RoleRow } from "./_components/roles-table";
@@ -36,14 +36,7 @@ export default async function RolesListPage() {
             (only the MFA-required toggle); custom roles support full CRUD.
           </p>
         </div>
-        {canCreate ? (
-          <Link
-            href="/admin/roles/new"
-            className="shrink-0 rounded bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
-          >
-            New role
-          </Link>
-        ) : null}
+        {canCreate ? <CreateButton href="/admin/roles/new" label="New role" /> : null}
       </header>
 
       <RolesTable
