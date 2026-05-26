@@ -105,6 +105,12 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Distroless puts `node` at /nodejs/bin/node and runs it as the image's
+# ENTRYPOINT, but does NOT add /nodejs/bin to $PATH. Compose health-
+# checks of the form `CMD ["node", ...]` bypass ENTRYPOINT and exec
+# `node` directly from PATH — they need it visible there.
+ENV PATH=/nodejs/bin:$PATH
+
 # Build provenance surfaced in the UI (sidebar version chip + GitHub/Docs
 # links, see lib/app-meta.ts). The CI docker job sets GIT_SHA to the
 # commit and APP_RELEASE=true only for vX.Y.Z tag builds. Both default
