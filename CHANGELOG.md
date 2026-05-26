@@ -6,23 +6,130 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.1.4] — 2026-05-26
+
+A **major operator-UX release**: top-to-bottom responsive overhaul, every table
+unified onto one mobile-friendly recipe, live fleet-wide sync state in the header
+chrome, a new animated sync indicator, full screenshots gallery regen, plus the
+security and supply-chain hardening previously parked in `[Unreleased]`. No
+schema or API breaking changes — drop-in upgrade.
+
+### Added — operator UX
+
+- **Mobile-first responsive shell.** Off-canvas hamburger drawer under `md`,
+  full sidebar from `md+`. The drawer closes on backdrop tap, Esc, and route
+  changes (no in-drawer close button needed). The top bar reflows so every
+  control (hamburger, status chip, bell, theme, avatar) is reachable on a
+  320 px viewport. (#51, #52)
+- **Live header status chip with fleet-wide sync verdict.** Single pill in the
+  top bar shows `CONNECTING / CONNECTED / OFFLINE / PAUSED` (SSE connection
+  state) plus a trailing `· SYNCED / · DESYNCED` whenever the page has a
+  notion of sync state. The off-the-shelf default is the fleet-wide
+  `globalAnyLagging()` verdict computed from the in-process zone-state cache
+  (no extra PDNS hit). Per-page `<HeaderStatusMode/>` overrides on zone
+  detail, the zones list, and the servers page. A 5 s grace prevents
+  "OFFLINE" flashes on Ctrl-R. (#52)
+- **Animated SyncIndicator.** New concentric-ring SVG used everywhere a sync
+  verdict is displayed (header chip, zones list per-row chip, servers table).
+  **Synced** = solid centre + two outward-pulsing rings via staggered CSS
+  keyframes (radar/sonar ping). **Desynced** = hollow centre + two dashed
+  concentric rings that counter-rotate via `stroke-dashoffset` so the icon
+  reads as _actively trying to sync_, not a frozen error. Honours
+  `prefers-reduced-motion`. (#52)
+- **One DataTable everywhere.** The audit log, profile sessions, autoprimaries,
+  OIDC providers, TSIG keys (read-only + manage), dashboard backends + recent
+  activity, role-assignments panel, team-members panel, zone change-history,
+  and the zone-templates / servers / users / roles / teams lists now all use
+  the same `<DataTable>` recipe — `bg-bg-muted` thead, `even:bg-bg-subtle`
+  body stripes, accent-tinted hover wash, mobile auto-reflow to labelled
+  cards. No more bespoke `<table>` markup outside dialog-internal review
+  panels. (#52)
+- **Diff-before-apply for record edits.** The per-RRset editor now insists on
+  a **Review changes** modal between Save and the PATCH; the diff is
+  BIND-style before/after, validation errors are gated behind an explicit
+  _Save anyway_ checkbox so overrides are intentional and audited verbatim.
+  (#52)
+- **One-button theme toggle.** Was three buttons (sun / monitor / moon). Now
+  one button whose icon mirrors the active preference and cycles
+  `light → dark → system → light` on click. Pre-hydration `.dark` class
+  unchanged — no flash of wrong theme. (#52)
+- **Capability badges + clickable rows.** Per-backend badges (`CLUSTER`,
+  `DEFAULT`, `PRIMARY`, `READ-ONLY MIRROR`) standardised across every list.
+  Rows + mobile cards are now click-to-detail; embedded links/buttons (Edit,
+  Delete, Test) intercept so per-row actions still work. (#52)
+- **Compliance hard-stops on every navigation.** Operators with
+  `must_change_password = true` or unmet MFA-per-role requirements are pinned
+  to `/profile` (or an allow-list of self-service routes) on every page nav,
+  not just the initial render. The header status chip is suppressed in that
+  state because the SSE endpoint would 403 anyway. (#52)
+- **Mobile zone-tabs no longer truncate, change history reflows.** Tabs
+  `flex-wrap` on `< sm` so "Change history" (the widest label) never falls
+  off-screen. New `<ScrollToTab/>` auto-scrolls to the tab strip when
+  `?tab=` is set in the URL. Zone change-log gets a mobile-card layout
+  alongside the desktop table — same expand-on-click pattern, but no clipped
+  Resource/Actor columns on a 360 px viewport. (#52)
+- **CTAs no longer wrap their labels.** `whitespace-nowrap` on the shared
+  green "+ Add" button class — fixes the "+ Add role" rendering as
+  "+ Add" / "role" on narrow flex rows. (#52)
+- **PDNS request log documented.** The per-call HTTP audit surface at
+  `/admin/pdns-requests` was undocumented despite shipping since 1.1.0.
+  Filters by server / op / status / `requestId` / time range; every row
+  expands inline to the request + response detail; cross-pivots to / from
+  the audit log via shared `requestId`. ([FEATURES § 3.6](./docs/FEATURES.md#36-pdns-request-log))
+- **Backend health bell documented.** The alert bell + popover that surfaces
+  active advisories (unreachable hosts, API-key rejections, replication
+  drift, missing TSIG keys, mirror zones without `masters`, daemon-config
+  drift between peers) is now an explicit feature in the catalog.
+  ([FEATURES § 3.7](./docs/FEATURES.md#37-backend-health-advisories) · [ADR-0015](./docs/adr/0015-backend-health-advisories.md))
+
+### Added — documentation
+
+- **Visual gallery regen.** Every page is captured at four parities —
+  desktop+light, desktop+dark, mobile+light, mobile+dark — and rendered with
+  `<picture>` so they auto-switch to match the reader's theme. Mobile shots
+  are wrapped in a CSS-rendered iPhone 16 Pro bezel (status bar with Dynamic
+  Island sits above the page; Action Button left, Camera Control right).
+  See [`screenshots/`](./screenshots/README.md). (#53)
+- **`scripts/screenshots.mjs`.** Playwright-driven regen tool. Per-page
+  `prepare(page)` hooks for surfaces that need a click or two (zone-edit,
+  zone-edit-diff, zone-change-history, backend-health). Comma-separated
+  CLI page filter or `PAGES_FILTER` env. Optional `pngquant + oxipng`
+  post-pass shrinks the gallery by ~70 % when both binaries are on PATH.
+  Documented in [`docs/dev-setup.md`](./docs/dev-setup.md#regenerating-screenshots).
+  (#53)
+- **`docs/FEATURES.md` § 19 — Operator UX & responsive design.** Eight
+  sub-sections covering everything new in this release with module pointers.
+  Cross-linked from the screenshots gallery. (#53)
+- **Root README mobile-first showcase.** Three iPhone-framed mobile shots
+  (dashboard, zone detail, audit log) below the desktop grid + a link to the
+  full gallery. (#53)
+- **Inline screenshot embeds** at every feature section in `docs/FEATURES.md`
+  and hero shots in `docs/01-QUICKSTART.md`, `docs/04-BACKENDS.md`,
+  `docs/05-OIDC.md`, `docs/07-RBAC.md`. (#53)
+
 ### Security
 
 - **Patched dev/build dependency CVEs** via `overrides` — the deprecated `@esbuild-kit`
   chain is forced onto `esbuild@0.25.12` (dev-server CORS) and `next`'s pinned `postcss`
   up to `8.5.15` (`</style>` XSS). `npm audit` is clean. (OpenSSF Scorecard: Vulnerabilities.)
+  (#47)
 
-### Added
+### Added — supply-chain
 
 - **Property-based fuzz tests** (`fast-check`) for the DNS parsers — TXT presentation,
   DynDNS request/auth, and every RR-type content validator — running in the unit suite as
   `*.fuzz.test.ts`. Hardens the hand-rolled parsers (which have shipped real bugs) and
-  satisfies the OpenSSF Scorecard Fuzzing check.
+  satisfies the OpenSSF Scorecard Fuzzing check. (#48)
 - **Signed releases + image provenance.** A `release-sign` workflow (on release publish)
   cosign-signs the published multi-arch image (keyless / Sigstore) and attaches an SPDX SBOM
   plus a signed checksums bundle (`*.sigstore.json`) to the GitHub release. Verify the image
-  with `cosign verify ghcr.io/powerdns-authadmin/powerdns-authadmin:<version>` (see
+  with `cosign verify ghcr.io/powerdns-authadmin/powerdns-authadmin:1.1.4` (see
   [Hardening → verifying the image](./docs/08-HARDENING.md)). (OpenSSF Scorecard: Signed-Releases.)
+  (#49)
+
+### Fixed
+
+- **Stale CODEOWNERS path** (`middleware.ts` → `proxy.ts`). (#50)
 
 ## [1.1.3] — 2026-05-26
 
@@ -339,7 +446,8 @@ First production release.
 - **Distribution** — multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.3...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.4...HEAD
+[1.1.4]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.0...v1.1.1

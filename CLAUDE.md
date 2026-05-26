@@ -97,9 +97,12 @@ proxy.ts              per-request CSP nonce + security headers (Next 16 proxy co
 docker/               entrypoint that runs migrations then boots the server
 drizzle/              generated PG migrations
 drizzle-sqlite/       generated SQLite migrations
-scripts/              migrate.ts, seed.ts, provision.ts
+scripts/              migrate.ts, seed.ts, provision.ts, screenshots.mjs
 tests/                vitest unit + integration (the latter wants a real Postgres on $TEST_DB_URL)
 docs/                 ADRs, FEATURES, dev-setup
+screenshots/          gallery of every page in 4 variants — desktop+light, desktop+dark,
+                      mobile+light, mobile+dark; regen with `npm run screenshots`
+                      (Playwright + iPhone-frame CSS, optional pngquant+oxipng post-pass)
 ```
 
 ## Working conventions
@@ -142,6 +145,36 @@ the code embodies a constraint a future reader would otherwise have to reverse-e
 `npm run test` runs the vitest unit suite (no external deps). Integration tests under
 `tests/integration/` need a Postgres instance — the runner skips them when `TEST_DATABASE_URL`
 isn't set. CI runs both.
+
+### Responsive UI (v1.1.4+)
+
+Every page is **mobile-first responsive**. Lists use the shared `<DataTable>`
+(`components/ui/data-table.tsx`) which reflows to labelled cards under `md`;
+chrome (app-shell, header chip, theme toggle, capability badges) is built to
+operate at 320 px. Sync state is communicated by `<SyncIndicator>` (animated
+concentric rings, honours `prefers-reduced-motion`); fleet-wide verdict is
+`globalAnyLagging()` from `lib/pdns/sync.ts`.
+
+When adding a new list view, use `<DataTable>`. When showing replication
+status, use `<SyncIndicator>` — don't roll a new dot/badge. See
+[`docs/FEATURES.md` § 19](./docs/FEATURES.md#19-operator-ux--responsive-design)
+for the full vocabulary.
+
+### Screenshots
+
+Every page lives in `screenshots/<light|dark>/<name>{-mobile}.png` and is
+referenced from `screenshots/README.md` with `<picture>` for auto theme
+switching. When you add a page or change a major surface, regen the relevant
+shot:
+
+```sh
+node scripts/screenshots.mjs <page-name>          # one page, all 4 variants
+SKIP_MOBILE=1 node scripts/screenshots.mjs <name> # desktop only
+```
+
+The runner expects the combined demo stack up + `must_change_password`
+cleared on `admin@example.com` — full prereqs in
+[`docs/dev-setup.md` → Regenerating screenshots](./docs/dev-setup.md#regenerating-screenshots).
 
 ## When working in this repo
 

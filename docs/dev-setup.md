@@ -129,6 +129,81 @@ For exercising multi-backend topologies side-by-side:
 - `docker-compose-combined.yml` — all three topologies in one stack, plus generated demo zones
   via the provisioning file.
 
+## Regenerating screenshots
+
+Every page in [`screenshots/`](../screenshots/README.md) is shot four ways —
+desktop+light, desktop+dark, mobile+light, mobile+dark — by
+[`scripts/screenshots.mjs`](../scripts/screenshots.mjs). Mobile shots are
+wrapped in a CSS-rendered iPhone 16 Pro bezel; pure Playwright, no extra
+deps.
+
+### One-time prep
+
+```sh
+# Optional but recommended: PNG optimizers (~70 % shrink at the end of the run).
+brew install pngquant oxipng           # macOS
+# or: sudo apt-get install pngquant && cargo install oxipng   (Linux)
+
+npx playwright install chromium
+```
+
+### Bring up the demo stack the script needs
+
+```sh
+APP_SECRET_KEY="$(openssl rand -base64 32)" \
+APP_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+  docker compose -f docker-compose-combined.yml up -d --build
+
+# Demo admin is locked behind `must_change_password=true` on first boot —
+# clear it so the script can navigate freely:
+docker exec powerdns-authadmin-combined-postgres-1 \
+  psql -U pdns -d powerdns_authadmin \
+  -c "UPDATE users SET must_change_password=false WHERE email='admin@example.com';"
+```
+
+### Shoot
+
+```sh
+npm run screenshots                              # full sweep — every page × 4 variants
+node scripts/screenshots.mjs zones-list audit    # subset (positional)
+node scripts/screenshots.mjs --pages=dashboard,profile
+PAGES_FILTER=audit-log npm run screenshots       # subset (env)
+SKIP_MOBILE=1 npm run screenshots                # desktop only
+SKIP_DESKTOP=1 npm run screenshots               # mobile only
+SHOWCASE_ZONE="ps-6.demo." SHOWCASE_CLUSTER=ps-group \
+  node scripts/screenshots.mjs zone-detail zone-change-history zone-edit zone-edit-diff
+```
+
+Output lands in `screenshots/{light,dark}/<page>{-mobile}.png`. The post-pass
+runs `pngquant` + `oxipng` if both are on PATH and shrinks the gallery by
+~70 %; `SKIP_OPTIMIZE=1` bypasses it.
+
+### Adding a new page
+
+Edit the `PAGES` array in `scripts/screenshots.mjs`:
+
+```js
+{ name: "my-new-page", path: "/admin/my-new-page" },
+
+// Or with a click / scroll / dialog-open before the shot:
+{
+  name: "my-new-page",
+  path: "/admin/my-new-page",
+  async prepare(page) {
+    await page.getByRole("button", { name: "Add thing" }).click();
+    await page.getByRole("heading", { name: "Add thing" }).waitFor();
+  },
+},
+```
+
+Then add a section to [`screenshots/README.md`](../screenshots/README.md) with
+the `<picture>` block (auto dark/light) + a cross-link into `docs/FEATURES.md`.
+
+If your `prepare` clicks elements that share a generic selector with chrome
+controls (hamburger, alert bell — both use `aria-expanded`), add a scoped
+`data-…` attribute on the target component and use it in the selector — see
+how `data-change-entry-toggle` is used by the change-log shot.
+
 ## What's where
 
 - `app/` — Next.js routes.

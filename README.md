@@ -78,63 +78,54 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
 
 ## Screenshots
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/dashboard.png" />
-    <img src="screenshots/light/dashboard.png" alt="Dashboard — live PowerDNS stats and operator attention surfaces" width="900" />
-  </picture>
-</p>
+**Dashboard** — live PowerDNS stats, active sessions, and operator-attention surfaces.
 
-<table>
-  <tr>
-    <td width="50%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/powerdns-servers.png" />
-        <img src="screenshots/light/powerdns-servers.png" alt="PowerDNS servers" />
-      </picture>
-      <br /><sub><b>Multi-backend</b> — clusters, primary + secondaries, and standalone primaries side by side with live sync status.</sub>
-    </td>
-    <td width="50%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zones-list.png" />
-        <img src="screenshots/light/zones-list.png" alt="Zones" />
-      </picture>
-      <br /><sub><b>Amalgamated zones</b> — every backend's zones in one searchable list with serial + sync state.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zone-edit.png" />
-        <img src="screenshots/light/zone-edit.png" alt="Edit record dialog" />
-      </picture>
-      <br /><sub><b>Per-RRset editor</b> — per-type structured editors with inline validation.</sub>
-    </td>
-    <td>
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zone-edit-diff.png" />
-        <img src="screenshots/light/zone-edit-diff.png" alt="Review changes diff" />
-      </picture>
-      <br /><sub><b>Diff-before-apply</b> — every change previewed as a before/after diff before save.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/backend-health.png" />
-        <img src="screenshots/light/backend-health.png" alt="Backend health alerts" />
-      </picture>
-      <br /><sub><b>Backend health</b> — bell-driven advisories for unreachable hosts, replication drift, missing TSIG keys.</sub>
-    </td>
-    <td>
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/audit-log.png" />
-        <img src="screenshots/light/audit-log.png" alt="Audit log" />
-      </picture>
-      <br /><sub><b>Append-only audit log</b> with redacted before/after snapshots + per-row PDNS HTTP trail.</sub>
-    </td>
-  </tr>
-</table>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/dashboard.png" />
+  <img src="screenshots/light/dashboard.png" alt="Dashboard" />
+</picture>
+
+**Multi-backend** — clusters, primary + secondaries groups, and standalone primaries side by side with live sync status.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/powerdns-servers.png" />
+  <img src="screenshots/light/powerdns-servers.png" alt="PowerDNS servers" />
+</picture>
+
+**Amalgamated zones** — every backend's zones in one searchable list with serial + per-row sync state.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zones-list.png" />
+  <img src="screenshots/light/zones-list.png" alt="Zones" />
+</picture>
+
+**Per-RRset editor** — per-type structured editors with inline validation.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zone-edit.png" />
+  <img src="screenshots/light/zone-edit.png" alt="Edit record dialog" />
+</picture>
+
+**Diff-before-apply** — every change previewed as a BIND-style before / after diff before it's written.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zone-edit-diff.png" />
+  <img src="screenshots/light/zone-edit-diff.png" alt="Review changes diff" />
+</picture>
+
+**Backend health** — bell-driven advisories for unreachable hosts, replication drift, missing TSIG keys, daemon-config drift.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/backend-health.png" />
+  <img src="screenshots/light/backend-health.png" alt="Backend health alerts" />
+</picture>
+
+**Append-only audit log** — redacted before/after snapshots, per-row PDNS HTTP trail, CSV export.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/audit-log.png" />
+  <img src="screenshots/light/audit-log.png" alt="Audit log" />
+</picture>
 
 ### Mobile-first
 
@@ -343,4 +334,4 @@ contributions welcome, read [`CONTRIBUTING.md`](./CONTRIBUTING.md) first.
 
 ## License
 
-[![License: MIT](https://img.shields.io/github/license/PowerDNS-AuthAdmin/powerdns-authadmin)](./LICENSE) — copy, modify, distribute, or sell with attribution.
+[![License: MIT](https://img.shields.io/github/license/PowerDNS-AuthAdmin/powerdns-authadmin)](./LICENSE)
