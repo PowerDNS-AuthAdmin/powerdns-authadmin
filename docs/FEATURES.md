@@ -614,7 +614,7 @@ this baseline.
   chip, zones list per-row chip, servers table). **Synced** = solid centre + two
   outward-pulsing rings via staggered CSS keyframes — a continuous radar/sonar ping.
   **Desynced** = hollow centre + two dashed concentric rings that counter-rotate via
-  `stroke-dashoffset` so the icon reads as *actively trying* rather than as a frozen error.
+  `stroke-dashoffset` so the icon reads as _actively trying_ rather than as a frozen error.
   Honours `prefers-reduced-motion`.
 - **Where.** `components/ui/sync-indicator.tsx`, `app/globals.css` (`pda-sync-pulse` +
   `pda-desync-spin*` keyframes).
