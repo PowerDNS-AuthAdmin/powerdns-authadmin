@@ -15,6 +15,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
+import { HeaderStatusChip } from "@/components/realtime/header-status-chip";
 
 export function AppShell({
   sidebar,
@@ -54,7 +55,7 @@ export function AppShell({
 
       {/* Sidebar — off-canvas drawer on mobile, static column on md+. */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-80 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -81,6 +82,9 @@ export function AppShell({
           >
             <Menu className="h-5 w-5" aria-hidden />
           </button>
+          {/* Single SSE chip for the whole app — its label is driven per page
+              via <HeaderStatusMode/> in components that own a "synced" notion. */}
+          <HeaderStatusChip />
           <div className="ml-auto flex items-center gap-3">{headerControls}</div>
         </header>
 

@@ -13,10 +13,12 @@
 
 [![CI](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/ci.yml?query=branch%3Amain)
 [![Release](https://img.shields.io/github/v/release/PowerDNS-AuthAdmin/powerdns-authadmin)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/releases/latest)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PowerDNS-AuthAdmin/powerdns-authadmin/badge)](https://scorecard.dev/viewer/?uri=github.com/PowerDNS-AuthAdmin/powerdns-authadmin)
+
 [![Container: GHCR](https://img.shields.io/badge/ghcr.io-powerdns--authadmin-2496ED?logo=docker&logoColor=white)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)
 [![GHCR version](https://ghcr-badge.egpl.dev/powerdns-authadmin/powerdns-authadmin/latest_tag?ignore=latest,edge&label=ghcr.io&color=%232ea44f)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)
-[![GHCR image size](https://ghcr-badge.egpl.dev/powerdns-authadmin/powerdns-authadmin/size?tag=latest&label=image%20size&color=%232ea44f)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)
 [![GHCR pulls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fghcr-badge.elias.eu.org%2Fapi%2Fpowerdns-authadmin%2Fpowerdns-authadmin&query=%24.downloadCount&label=ghcr%20pulls&logo=docker&logoColor=white&color=2496ED)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)
+[![GHCR image size](https://ghcr-badge.egpl.dev/powerdns-authadmin/powerdns-authadmin/size?tag=latest&label=image%20size&color=%232ea44f)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)
 
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)](.nvmrc)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=next.js)](https://nextjs.org)

@@ -28,6 +28,7 @@ import { DialogProvider } from "@/components/ui/dialog";
 import { FlashListener } from "@/components/ui/flash-listener";
 import { NavLink } from "@/components/ui/nav-link";
 import { RealtimeProvider } from "@/components/realtime/realtime-provider";
+import { HeaderStatusProvider } from "@/components/realtime/header-status-chip";
 import { getAppSettings } from "@/lib/settings/app-settings";
 
 /**
@@ -129,7 +130,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   const sidebar = (
     <>
-      <div className="flex h-14 shrink-0 items-center overflow-hidden border-b border-[color:var(--color-border)] px-4">
+      <div className="flex h-20 shrink-0 items-center overflow-hidden border-b border-[color:var(--color-border)] px-4 pt-3">
         <Link
           href="/dashboard"
           aria-label={`${appSettings.siteName} home`}
@@ -138,13 +139,13 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <BrandMark
             siteName={appSettings.siteName}
             brandLogoUrl={appSettings.brandLogoUrl}
-            width={224}
-            maxHeight={40}
+            width={280}
+            maxHeight={56}
             priority
           />
         </Link>
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3 text-sm">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3 text-base">
         <NavLink href="/dashboard" label="Dashboard" />
         {canReadZones ? <NavLink href="/zones" label="Zones" /> : null}
 
@@ -200,10 +201,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   return (
     <DialogProvider>
       <RealtimeProvider>
-        <FlashListener />
-        <AppShell sidebar={sidebar} headerControls={headerControls}>
-          {children}
-        </AppShell>
+        <HeaderStatusProvider>
+          <FlashListener />
+          <AppShell sidebar={sidebar} headerControls={headerControls}>
+            {children}
+          </AppShell>
+        </HeaderStatusProvider>
       </RealtimeProvider>
     </DialogProvider>
   );

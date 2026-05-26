@@ -39,7 +39,11 @@ export type RealtimeEvent = RealtimeEventBase & Record<string, unknown>;
 type Listener = (event: RealtimeEvent) => void;
 type Predicate = (event: RealtimeEvent) => boolean;
 
-export type RealtimeStatus = "connecting" | "live" | "error" | "paused";
+/** Public connection status — "offline" only fires after a 5s grace so a fresh
+ *  page load (or a transient blip) doesn't flash "offline" before the SSE
+ *  stream has even had a chance to open. */
+export type RealtimeStatus = "connecting" | "live" | "paused" | "offline";
+type RawStatus = "connecting" | "live" | "paused" | "error";
 
 interface ContextValue {
   status: RealtimeStatus;
@@ -59,17 +63,21 @@ interface ListenerEntry {
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {
   const [enabled, setEnabled] = useState(true);
+  // `raw` is the immediate EventSource state; `status` is the public view that
+  // applies a 5 s grace before reporting "offline" — so a Ctrl-R never flashes
+  // offline → connecting → live, only connecting → live.
+  const [raw, setRaw] = useState<RawStatus>("connecting");
   const [status, setStatus] = useState<RealtimeStatus>("connecting");
   const listenersRef = useRef<Set<ListenerEntry>>(new Set());
 
   useEffect(() => {
     if (!enabled) {
-      setStatus("paused");
+      setRaw("paused");
       return;
     }
     const es = new EventSource("/api/realtime", { withCredentials: true });
-    setStatus("connecting");
-    es.onopen = () => setStatus("live");
+    setRaw("connecting");
+    es.onopen = () => setRaw("live");
     es.onmessage = (e) => {
       const data: unknown = e.data;
       if (typeof data !== "string") return;
@@ -82,7 +90,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       if (!parsed || typeof parsed !== "object") return;
       const event = parsed as RealtimeEvent;
       if (event.type === "ready") {
-        setStatus("live");
+        setRaw("live");
         return;
       }
       for (const entry of listenersRef.current) {
@@ -93,11 +101,33 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         }
       }
     };
-    es.onerror = () => setStatus("error");
+    es.onerror = () => setRaw("error");
     return () => {
       es.close();
     };
   }, [enabled]);
+
+  // Derive the public `status` from `raw` with a 5 s grace before "offline":
+  // an erroring connection keeps reading as "connecting" for the first 5 s so a
+  // freshly-loaded page (or a transient blip) never flashes "offline".
+  useEffect(() => {
+    if (raw === "live") {
+      setStatus("live");
+      return;
+    }
+    if (raw === "paused") {
+      setStatus("paused");
+      return;
+    }
+    if (raw === "connecting") {
+      setStatus("connecting");
+      return;
+    }
+    // raw === "error": keep "connecting" for 5 s, then declare "offline".
+    setStatus("connecting");
+    const t = setTimeout(() => setStatus("offline"), 5000);
+    return () => clearTimeout(t);
+  }, [raw]);
 
   const on = useCallback<ContextValue["on"]>((predicate, listener) => {
     const entry: ListenerEntry = { predicate, listener };
