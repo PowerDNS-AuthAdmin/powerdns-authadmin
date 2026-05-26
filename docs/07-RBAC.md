@@ -4,6 +4,11 @@ Access is granted by assigning **roles** to users, optionally **scoped** to a
 team, zone, or server. A role is a named bundle of permissions; the effective
 permission set is the union of a user's assignments that apply in context.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/roles.png" />
+  <img src="../screenshots/light/roles.png" alt="Roles — seeded system roles + operator-defined custom roles" width="720" />
+</picture>
+
 ## The five system roles
 
 Seeded on first boot and protected from deletion. Each builds on the previous:

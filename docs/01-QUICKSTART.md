@@ -4,6 +4,11 @@ Get a working PowerDNS-AuthAdmin — with a bundled PowerDNS Authoritative and
 10 demo zones — running locally in a couple of minutes. This is for evaluation
 and clicking around. For a real deployment, read [Installation](./02-INSTALLATION.md).
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/dashboard.png" />
+  <img src="../screenshots/light/dashboard.png" alt="Dashboard after a successful first boot" width="720" />
+</picture>
+
 ## Prerequisites
 
 - **Docker** with the Compose plugin (`docker compose version` ≥ v2).

@@ -6,6 +6,11 @@ sign-in it can **map IdP groups to roles** (with global / team / zone / server
 scope) and do **RP-initiated logout** so signing out ends the session at the IdP,
 not just locally.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/oidc-providers.png" />
+  <img src="../screenshots/light/oidc-providers.png" alt="OIDC providers — DB + env, with discovery health badges" width="720" />
+</picture>
+
 ## The three ways to configure OIDC — and how they relate
 
 This is the part that trips people up, so read it once carefully. There are two
