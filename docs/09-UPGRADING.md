@@ -37,6 +37,19 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.1.5 (from 1.1.x)
+
+A **security-hygiene patch.** No app-code changes; no schema, API, or
+config changes. Pull-and-recreate.
+
+Adds a defensive `package.json` `overrides` pin keeping `size-sensor` at
+`1.0.3` (the last clean version) — closes the resolver attack window for
+the **Mini Shai-Hulud** npm campaign that hijacked `size-sensor` `1.0.4`
+/ `1.1.4` / `1.2.4` on 2026-05-19. **PowerDNS-AuthAdmin was never
+shipped with the affected versions**; this release just locks the door.
+See the [Security Advisory](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/security/advisories)
+and `MAL-2026-4153` / `GHSA-gx6x-v325-85g4` for the threat detail.
+
 ### Upgrading to 1.1.4 (from 1.1.x)
 
 A **major operator-UX release** — drop-in upgrade. **No schema migration, no API
