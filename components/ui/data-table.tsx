@@ -539,13 +539,14 @@ export function DataTable<TData>({
                 onClick={() => table.setPageIndex(0)}
                 disabled={!table.getCanPreviousPage()}
                 label="First"
+                className="hidden sm:inline-block"
               />
               <PaginationButton
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
                 label="Prev"
               />
-              <span className="px-2 tabular-nums">
+              <span className="px-2 whitespace-nowrap tabular-nums">
                 {table.getState().pagination.pageIndex + 1} / {Math.max(1, table.getPageCount())}
               </span>
               <PaginationButton
@@ -557,6 +558,7 @@ export function DataTable<TData>({
                 onClick={() => table.setPageIndex(table.getPageCount() - 1)}
                 disabled={!table.getCanNextPage()}
                 label="Last"
+                className="hidden sm:inline-block"
               />
             </div>
           </div>
@@ -570,17 +572,19 @@ function PaginationButton({
   onClick,
   disabled,
   label,
+  className = "",
 }: {
   onClick: () => void;
   disabled: boolean;
   label: string;
+  className?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-40"
+      className={`rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-40 ${className}`}
     >
       {label}
     </button>

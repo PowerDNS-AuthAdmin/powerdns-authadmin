@@ -17,6 +17,7 @@ import { Lock, Unlock } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { freshnessOf, freshnessOfDay } from "@/lib/freshness";
 import { isReverseZone } from "@/lib/dns/zone-kind";
+import { displayZoneName } from "@/lib/dns/zone-name";
 
 type ScopeFilter = "all" | "forward" | "reverse";
 const SCOPE_STORAGE_KEY = "pda.zones.scope";
@@ -135,7 +136,7 @@ export function ZonesTable({ zones, showLastEdit }: ZonesTableProps) {
               prefetch={false}
               className="font-medium text-[color:var(--color-accent)] hover:underline"
             >
-              {ctx.getValue<string>()}
+              {displayZoneName(ctx.getValue<string>())}
             </Link>
           );
         },

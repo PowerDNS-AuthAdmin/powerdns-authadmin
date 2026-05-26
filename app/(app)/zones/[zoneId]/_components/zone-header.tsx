@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { freshnessOf } from "@/lib/freshness";
+import { displayZoneName } from "@/lib/dns/zone-name";
 import type { PdnsZoneDetail } from "@/lib/pdns/types";
 import type { ZoneAuditEntry } from "@/lib/db/repositories/audit-log";
 import { CloneZoneButton } from "./clone-zone-button";
@@ -58,7 +59,9 @@ export function ZoneHeader({
 
       <header className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h1 className="font-mono text-2xl font-semibold tracking-tight">{zone.name}</h1>
+          <h1 className="font-mono text-2xl font-semibold tracking-tight">
+            {displayZoneName(zone.name)}
+          </h1>
           <ZoneRealtimeSubscriber zoneName={zone.name} inSync={inSync} />
         </div>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">

@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
+import { displayZoneName } from "@/lib/dns/zone-name";
 
 interface Props {
   sourceName: string;
@@ -31,7 +32,7 @@ export function CloneZoneButton({ sourceName, serverSlug }: Props) {
   async function handleClick() {
     const target = await prompt({
       title: "Clone zone",
-      description: `Creates a new zone seeded with every rrset from ${sourceName} except the SOA. PDNS regenerates the SOA on the new zone.`,
+      description: `Creates a new zone seeded with every rrset from ${displayZoneName(sourceName)} except the SOA. PDNS regenerates the SOA on the new zone.`,
       label: "New zone name",
       defaultValue: suggestTargetName(sourceName),
       placeholder: "new-zone-name.example.",
