@@ -44,6 +44,7 @@ import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { backendUnreachability } from "@/lib/realtime/backend-status";
 import type { PdnsServer } from "@/lib/db/schema";
 import { ZonesTable, type ZoneRow } from "./_components/zones-table";
+import { pdnsBackgroundPollingEnabled } from "@/lib/env";
 import { ServerRealtimeSubscriber } from "./_components/server-realtime-subscriber";
 
 export const metadata: Metadata = { title: "Zones" };
@@ -204,8 +205,12 @@ export default async function ZonesPage() {
 
   // "anyLagging" drives the chip's fast-mode color — true when ANY row
   // on the amalgamated list isn't fully in-sync. Standalone primaries
-  // have null syncWorst and don't contribute.
-  const anyLagging = visibleRows.some((r) => r.syncWorst !== null && r.syncWorst !== "in-sync");
+  // have null syncWorst and don't contribute. With background polling
+  // disabled, the verdict is always "in-sync" (we don't show a sync
+  // chip at all on this page in that mode).
+  const anyLagging =
+    pdnsBackgroundPollingEnabled &&
+    visibleRows.some((r) => r.syncWorst !== null && r.syncWorst !== "in-sync");
 
   return (
     <div className="space-y-6">
@@ -213,7 +218,9 @@ export default async function ZonesPage() {
         <div>
           <div className="flex items-baseline gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">Zones</h1>
-            <ServerRealtimeSubscriber serverSlugs={channelSlugs} inSync={!anyLagging} />
+            {pdnsBackgroundPollingEnabled ? (
+              <ServerRealtimeSubscriber serverSlugs={channelSlugs} inSync={!anyLagging} />
+            ) : null}
           </div>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
             {visibleRows.length} zone{visibleRows.length === 1 ? "" : "s"} across {backends.length}{" "}
@@ -255,7 +262,11 @@ export default async function ZonesPage() {
         </div>
       ) : null}
 
-      <ZonesTable zones={visibleRows} showLastEdit={canReadAudit} />
+      <ZonesTable
+        zones={visibleRows}
+        showLastEdit={canReadAudit}
+        showSync={pdnsBackgroundPollingEnabled}
+      />
     </div>
   );
 }
@@ -305,18 +316,24 @@ async function rowsFromBackend(backend: SelectableBackend): Promise<FetchResult>
   const zones = [...cached.zones.values()];
 
   // Sync state — branches on the group's composition (ADR-0014). All variants
-  // read serials from the cache (poller-maintained), never live.
+  // read serials from the cache (poller-maintained), never live. With
+  // `PDNS_BACKGROUND_POLLING=false` we skip the computation entirely — the
+  // Sync column is hidden so nothing reads `syncByZone`.
   let syncByZone: Map<string, SecondarySyncStatus[]>;
-  const zoneSerials = zones.map((z) => ({ name: z.name, serial: z.serial }));
-  if (backend.kind === "server" || backend.secondaries.length > 0) {
-    // Standalone primary, or a primary + its secondaries → primary→secondary.
-    syncByZone = await checkZonesSyncBatch(
-      backend.kind === "cluster" ? backend.representativeServer : backend.server,
-      zoneSerials,
-    );
+  if (!pdnsBackgroundPollingEnabled) {
+    syncByZone = new Map();
   } else {
-    // True multi-primary cluster — compare every peer's cached serials.
-    syncByZone = clusterSyncFromCache(backend, readPeer, zones);
+    const zoneSerials = zones.map((z) => ({ name: z.name, serial: z.serial }));
+    if (backend.kind === "server" || backend.secondaries.length > 0) {
+      // Standalone primary, or a primary + its secondaries → primary→secondary.
+      syncByZone = await checkZonesSyncBatch(
+        backend.kind === "cluster" ? backend.representativeServer : backend.server,
+        zoneSerials,
+      );
+    } else {
+      // True multi-primary cluster — compare every peer's cached serials.
+      syncByZone = clusterSyncFromCache(backend, readPeer, zones);
+    }
   }
 
   const rowsBackend: ZoneRow["backend"] = {

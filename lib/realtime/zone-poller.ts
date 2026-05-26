@@ -63,6 +63,7 @@ import {
   type CachedZoneSnapshot,
 } from "@/lib/pdns/zone-state-cache";
 import { publishHealthEvent, publishZoneEvent } from "./event-bus";
+import { pdnsBackgroundPollingEnabled } from "@/lib/env";
 
 const POLL_INTERVAL_MS = 30_000;
 // When a poll cycle observes any primary↔secondary serial mismatch
@@ -147,6 +148,11 @@ export function registerPollerSubscriber(): () => void {
 
 export function ensurePollerRunning(): void {
   state.lastSubscriberAt = Date.now();
+  // PDNS_BACKGROUND_POLLING=false (default) — no setInterval. Every PDNS
+  // interaction is operator-initiated; supplementary sync-aware features are
+  // surfaced as hidden in the UI. `ensureBackendsObserved` (the per-request
+  // warm-up) still calls `pollOnce` directly, so pages keep working.
+  if (!pdnsBackgroundPollingEnabled) return;
   if (state.timer) return;
   // The timer never self-stops: with zero subscribers it keeps ticking but each
   // cycle is STATS-ONLY (the only background work that should run when nobody's
@@ -182,6 +188,12 @@ export function ensurePollerRunning(): void {
  */
 let immediatePollPending = false;
 export function scheduleImmediatePoll(): void {
+  // PDNS_BACKGROUND_POLLING=false → no eager background refresh after a
+  // mutation. The mutation route still calls `invalidateBackendObservation`
+  // and publishes its own SSE event, so the next page render refetches via
+  // `ensureBackendsObserved` and the UI shows the new state on the next
+  // navigation. No background cycle is the point of the flag.
+  if (!pdnsBackgroundPollingEnabled) return;
   state.consecutiveFollowups = 0;
   if (immediatePollPending) return;
   immediatePollPending = true;
@@ -926,6 +938,11 @@ function computeNotSynced(
 
 let followupPollPending = false;
 function scheduleFollowupPoll(): void {
+  // PDNS_BACKGROUND_POLLING=false → no follow-up cycle to observe AXFR catch-up.
+  // There is no replication topology we surface in this mode, so the in-flight
+  // tracking is moot. The next operator-initiated page render warms what it
+  // needs via `ensureBackendsObserved`.
+  if (!pdnsBackgroundPollingEnabled) return;
   if (followupPollPending) return;
   followupPollPending = true;
   setTimeout(() => {

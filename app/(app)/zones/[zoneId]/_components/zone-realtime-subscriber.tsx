@@ -21,7 +21,13 @@ import { HeaderStatusMode } from "@/components/realtime/header-status-chip";
 
 interface Props {
   zoneName: string;
-  inSync: boolean;
+  /**
+   * Cached primary↔secondaries sync verdict, OR `null` when
+   * `PDNS_BACKGROUND_POLLING=false` — there is no live mirror state to
+   * push, so the header chip stays in plain "Live" mode. The mutation-driven
+   * router.refresh below still fires either way.
+   */
+  inSync: boolean | null;
 }
 
 export function ZoneRealtimeSubscriber({ zoneName, inSync }: Props) {
@@ -41,5 +47,6 @@ export function ZoneRealtimeSubscriber({ zoneName, inSync }: Props) {
     },
   );
 
+  if (inSync === null) return null;
   return <HeaderStatusMode kind="sync" inSync={inSync} />;
 }

@@ -9,9 +9,11 @@ import { ZoneRealtimeSubscriber } from "./zone-realtime-subscriber";
 interface ZoneHeaderProps {
   /**
    * Cached sync verdict (primary vs secondaries). Drives the realtime
-   * indicator into fast-poll mode while replication is in flight.
+   * indicator into fast-poll mode while replication is in flight. `null`
+   * when `PDNS_BACKGROUND_POLLING=false` — the header chip stays in plain
+   * "Live" mode and the subscriber only refreshes on mutation events.
    */
-  inSync: boolean;
+  inSync: boolean | null;
   zone: PdnsZoneDetail;
   zoneIdEncoded: string;
   /**

@@ -249,6 +249,32 @@ const envSchema = z.object({
     .pipe(z.boolean())
     .optional(),
 
+  // Background polling of PDNS backends — opt-in supplementary features.
+  //
+  // When TRUE, the unified background poller ticks on a 30 s zone-state /
+  // 60 s daemon refresh / 5 min metric-sample schedule and powers:
+  //   • Header SYNCED / DESYNCED chip
+  //   • Zone-detail "Sync" + "Statistics" tabs
+  //   • Zone-list mirror-state column
+  //   • Servers-list lag column
+  //   • Dashboard "PDNS metrics" tab (time-series graphs)
+  //   • Background drift-derived advisories in the bell
+  //
+  // When FALSE (default), AuthAdmin only talks to PDNS in response to user
+  // actions — every page render warms what it needs on demand, every Test /
+  // Refresh All is a one-shot, mutations publish their own SSE refresh.
+  // The supplementary surfaces above hide; the rest of the app (zone CRUD,
+  // DNSSEC, TSIG, autoprimaries, audit, RBAC, OIDC, …) is unchanged.
+  // Recommended for single-server / standalone PDNS deployments where
+  // there is no replication topology for the poller to be aware of.
+  // REQUIRED for primary+secondaries and multi-primary cluster operators who
+  // want AuthAdmin to surface replication drift.
+  PDNS_BACKGROUND_POLLING: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .optional(),
+
   // --- OIDC issuer connectivity (SSRF guard, mirrors the PDNS pair) ---
   // The OIDC issuer/discovery URL is operator-supplied and fetched server-side
   // (probe + live discovery), so it runs through the same outbound-URL guard.
@@ -393,6 +419,7 @@ const ENV_KEYS = [
   "TURNSTILE_SECRET_KEY",
   "APP_PDNS_ALLOW_PRIVATE_NETWORKS",
   "APP_PDNS_ALLOW_INSECURE_HTTP",
+  "PDNS_BACKGROUND_POLLING",
   "APP_OIDC_ALLOW_PRIVATE_NETWORKS",
   "APP_OIDC_ALLOW_INSECURE_HTTP",
   "SMTP_HOST",
@@ -599,3 +626,13 @@ export const isTest: boolean = env.NODE_ENV === "test";
 
 /** Hostname for cookie scoping. */
 export const cookieDomain: string | undefined = env.COOKIE_DOMAIN ?? new URL(env.APP_URL).hostname;
+
+/**
+ * Whether the background PDNS poller is enabled. When false (the default),
+ * AuthAdmin makes no scheduled PDNS calls and the supplementary sync-aware
+ * UI surfaces (header SYNCED/DESYNCED chip, zone Sync + Statistics tabs,
+ * zone-list mirror column, servers-list lag column, dashboard PDNS
+ * statistics tab, drift advisories) are hidden. See `PDNS_BACKGROUND_POLLING`
+ * docstring above for full feature matrix.
+ */
+export const pdnsBackgroundPollingEnabled: boolean = env.PDNS_BACKGROUND_POLLING === true;

@@ -85,7 +85,7 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
   <img src="screenshots/light/dashboard.png" alt="Dashboard" />
 </picture>
 
-**Multi-backend** — clusters, primary + secondaries groups, and standalone primaries side by side with live sync status.
+**Multi-backend** — clusters, primary + secondaries groups, and standalone primaries side by side. Live sync state, drift advisories, and the dashboard PowerDNS-metrics tab are opt-in via [`PDNS_BACKGROUND_POLLING=true`](./docs/03-CONFIGURATION.md#pdns_background_polling) — recommended for replication topologies, off by default for standalone installs.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/powerdns-servers.png" />

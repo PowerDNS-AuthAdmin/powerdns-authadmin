@@ -33,6 +33,7 @@ import { MustChangePasswordProvider } from "@/components/auth/must-change-passwo
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { globalAnyLagging, hasReplicationTopology } from "@/lib/pdns/sync";
+import { pdnsBackgroundPollingEnabled } from "@/lib/env";
 
 /**
  * Paths a non-compliant user (forced-MFA-not-enrolled, or flagged
@@ -215,12 +216,16 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // signal they have no context for. The helper reads exclusively from the
   // poller's in-process caches, so this is a near-free lookup once the
   // first ensureBackendsObserved warms the store.
-  // Sync-mode chip is only meaningful when there's actually replication
-  // topology in the fleet — a derived primary+secondaries group or a configured
-  // multi-primary cluster. Standalone or single-primary-only fleets fall back
-  // to plain "Live" so we don't surface a SYNCED verdict against nothing
-  // (issue #57).
-  const showGlobalSync = realtimeAvailable && (canReadZones || canReadServers);
+  // Sync-mode chip is only meaningful when:
+  //   • PDNS_BACKGROUND_POLLING is enabled (#57 + v1.2.0 opt-in) — without
+  //     the poller there's no live sync state to surface; the chip stays
+  //     in plain "Live" connectivity-only mode, and
+  //   • the fleet actually has replication topology (derived primary+
+  //     secondaries group or configured multi-primary cluster) to be
+  //     in-sync about.
+  // Standalone / single-primary fleets see only the "Live" pulse.
+  const showGlobalSync =
+    pdnsBackgroundPollingEnabled && realtimeAvailable && (canReadZones || canReadServers);
   let initialChipMode: { kind: "live" } | { kind: "sync"; inSync: boolean } = { kind: "live" };
   if (showGlobalSync) {
     await ensureBackendsObserved();

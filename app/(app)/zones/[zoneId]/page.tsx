@@ -36,6 +36,7 @@ import { derivedUpstreamFor } from "@/lib/pdns/topology-cache";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { PdnsNotFoundError } from "@/lib/pdns/errors";
 import { logger } from "@/lib/logger";
+import { pdnsBackgroundPollingEnabled } from "@/lib/env";
 import { redact } from "@/lib/errors/redact";
 import { parseSoaContent, type SoaFields } from "@/lib/validators/soa";
 import { Lock } from "lucide-react";
@@ -287,6 +288,15 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   const canReadDnssec = zoneCan("dnssec.read");
   const canReadMetadata = zoneCan("metadata.read");
 
+  // Direct ?tab=sync / ?tab=statistics on a polling-off install bounces
+  // back to the default records view with an error flash toast — these
+  // surfaces are powered by the background poller, which is opt-in
+  // (`PDNS_BACKGROUND_POLLING=true`). See lib/env.ts + #57.
+  if (!pdnsBackgroundPollingEnabled && (requestedTab === "sync" || requestedTab === "statistics")) {
+    const back = `/zones/${encodeURIComponent(zoneId)}?server=${encodeURIComponent(selected.slug)}&flash=polling-required&need=${encodeURIComponent(requestedTab === "sync" ? "per-zone Sync" : "per-zone Statistics")}`;
+    redirect(back);
+  }
+
   const tab: ZoneTab =
     requestedTab === "history" && canReadAudit
       ? "history"
@@ -355,7 +365,10 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
         lastEdit={lastEdit}
         canReadAudit={canReadAudit}
         canCreateZone={canCreateZone}
-        inSync={syncVerdict.inSync}
+        // null hides the header chip's sync mode for the standalone /
+        // polling-off path; the subscriber still listens for mutation
+        // refresh events.
+        inSync={pdnsBackgroundPollingEnabled ? syncVerdict.inSync : null}
       />
 
       {isReadOnlyZone ? (
@@ -391,6 +404,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
           canReadDnssec={canReadDnssec}
           canReadMetadata={canReadMetadata}
           canReadAudit={canReadAudit}
+          showPollingFeatures={pdnsBackgroundPollingEnabled}
         />
       </div>
       <ScrollToTab anchorId="zone-tabs-anchor" />
@@ -492,6 +506,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
         ) : tab === "statistics" ? (
           <ZoneStatisticsSection serverSlugs={auditSlugs} zoneName={zone.name} />
         ) : tab === "sync" ? (
+          // tab === "sync"
           // Cluster (peer) comparison only for a TRUE multi-primary group — ≥2
           // write-capable peers and no secondaries. A primary+secondaries group
           // (one writable peer mirrored by secondaries) uses primary→secondary

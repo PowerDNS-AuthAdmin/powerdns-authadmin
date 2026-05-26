@@ -118,6 +118,12 @@ interface ZonesTableProps {
    * compact for actors without audit.read.
    */
   showLastEdit: boolean;
+  /**
+   * Whether the polled mirror-state column should render. Off when
+   * `PDNS_BACKGROUND_POLLING=false` — there is no live primary↔secondary
+   * verdict to display, so the column is dropped entirely.
+   */
+  showSync: boolean;
 }
 
 /** Detail URL for a zone row — cluster-backed zones carry ?cluster=, standalone
@@ -128,7 +134,7 @@ function zoneHref(row: ZoneRow): string {
     : `/zones/${encodeURIComponent(row.id)}?server=${encodeURIComponent(row.backend.serverSlug)}`;
 }
 
-export function ZonesTable({ zones, showLastEdit }: ZonesTableProps) {
+export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
   const columns = useMemo<Array<ColumnDef<ZoneRow, unknown>>>(() => {
     const cols: Array<ColumnDef<ZoneRow, unknown>> = [
       {
@@ -196,7 +202,10 @@ export function ZonesTable({ zones, showLastEdit }: ZonesTableProps) {
         cell: (ctx) => <DnssecCell on={ctx.getValue<boolean>()} />,
         meta: { className: "w-[8%]" },
       },
-      {
+    ];
+
+    if (showSync) {
+      cols.push({
         id: "sync",
         // Numeric rank so `desc: true` orders desync first, in-sync
         // last. Standalone primaries (no peers, `syncWorst === null`)
@@ -208,8 +217,8 @@ export function ZonesTable({ zones, showLastEdit }: ZonesTableProps) {
         header: "Sync",
         cell: (ctx) => <SyncCell row={ctx.row.original} />,
         meta: { className: "w-[14%]" },
-      },
-    ];
+      });
+    }
 
     if (showLastEdit) {
       cols.push({
@@ -235,7 +244,7 @@ export function ZonesTable({ zones, showLastEdit }: ZonesTableProps) {
     }
 
     return cols;
-  }, [showLastEdit]);
+  }, [showLastEdit, showSync]);
 
   // Forward / Reverse / All segmented filter above the table. Persisted to
   // localStorage so the choice sticks across navigations (same pattern as
@@ -285,11 +294,17 @@ export function ZonesTable({ zones, showLastEdit }: ZonesTableProps) {
         // Default order: desynced first (Sync desc), then name asc.
         // When every row is in-sync the Sync rank ties and Name asc
         // becomes the visible order — i.e. "show me anything that
-        // needs attention first; otherwise alphabetical."
-        initialSort={[
-          { id: "sync", desc: true },
-          { id: "name", desc: false },
-        ]}
+        // needs attention first; otherwise alphabetical." With the Sync
+        // column hidden (`PDNS_BACKGROUND_POLLING=false`), the initial
+        // sort collapses to Name asc.
+        initialSort={
+          showSync
+            ? [
+                { id: "sync", desc: true },
+                { id: "name", desc: false },
+              ]
+            : [{ id: "name", desc: false }]
+        }
         sortParam="sort"
         pageSizeParam="pageSize"
         stateKey="zones"

@@ -17,6 +17,12 @@ interface ZoneTabsProps {
   canReadDnssec: boolean;
   canReadMetadata: boolean;
   canReadAudit: boolean;
+  /**
+   * Whether to render the Sync + Statistics tabs. Both depend on the
+   * background poller (zone-state cache for Sync, metric_samples for
+   * Statistics), so they hide when `PDNS_BACKGROUND_POLLING=false`.
+   */
+  showPollingFeatures: boolean;
 }
 
 export function ZoneTabs({
@@ -26,6 +32,7 @@ export function ZoneTabs({
   canReadDnssec,
   canReadMetadata,
   canReadAudit,
+  showPollingFeatures,
 }: ZoneTabsProps) {
   const qs = `server=${encodeURIComponent(serverSlug)}`;
   const detailHref = `/zones/${zoneIdEncoded}?${qs}`;
@@ -66,12 +73,16 @@ export function ZoneTabs({
             Metadata &amp; TSIG
           </TabLink>
         ) : null}
-        <TabLink href={syncHref} active={active === "sync"}>
-          Sync
-        </TabLink>
-        <TabLink href={statisticsHref} active={active === "statistics"}>
-          Statistics
-        </TabLink>
+        {showPollingFeatures ? (
+          <>
+            <TabLink href={syncHref} active={active === "sync"}>
+              Sync
+            </TabLink>
+            <TabLink href={statisticsHref} active={active === "statistics"}>
+              Statistics
+            </TabLink>
+          </>
+        ) : null}
         {canReadAudit ? (
           <TabLink href={historyHref} active={active === "history"}>
             Change history
