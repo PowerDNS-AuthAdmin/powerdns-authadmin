@@ -54,6 +54,7 @@ import { ZoneChangeLog, type ZoneAuditEntryClient } from "./_components/zone-cha
 import type { PdnsHttpLogEntry } from "./_components/pdns-http-log";
 import { ZoneHeader } from "./_components/zone-header";
 import { ZoneTabs } from "./_components/zone-tabs";
+import { ScrollToTab } from "./_components/scroll-to-tab";
 import { redactSnapshot } from "@/lib/audit/log";
 import type { PdnsZoneDetail } from "@/lib/pdns/types";
 
@@ -382,14 +383,17 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
         </div>
       ) : null}
 
-      <ZoneTabs
-        active={tab}
-        zoneIdEncoded={encodeURIComponent(zoneId)}
-        serverSlug={selected.slug}
-        canReadDnssec={canReadDnssec}
-        canReadMetadata={canReadMetadata}
-        canReadAudit={canReadAudit}
-      />
+      <div id="zone-tabs-anchor" className="scroll-mt-4">
+        <ZoneTabs
+          active={tab}
+          zoneIdEncoded={encodeURIComponent(zoneId)}
+          serverSlug={selected.slug}
+          canReadDnssec={canReadDnssec}
+          canReadMetadata={canReadMetadata}
+          canReadAudit={canReadAudit}
+        />
+      </div>
+      <ScrollToTab anchorId="zone-tabs-anchor" />
 
       {/*
        * `key={tab}` makes React treat each tab switch as a fresh

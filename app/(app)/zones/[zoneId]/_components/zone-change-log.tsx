@@ -187,34 +187,57 @@ export function ZoneChangeLog({ entries, zoneName, pdnsHttpByRequestId }: ZoneCh
           No events match the current filters.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)]">
-          <table className="w-full text-sm">
-            <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-              <tr>
-                <th className="w-8 px-4 py-2.5"></th>
-                <th className="px-4 py-2.5">When</th>
-                <th className="px-4 py-2.5">Action</th>
-                <th className="px-4 py-2.5">Resource</th>
-                <th className="px-4 py-2.5">Actor</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((entry) => (
-                <ChangeRow
-                  key={entry.id}
-                  entry={entry}
-                  zoneName={zoneName}
-                  expanded={expanded.has(entry.id)}
-                  onToggle={() => toggleRow(entry.id)}
-                  httpLog={httpEntriesForAuditAction(
-                    entry.action,
-                    entry.requestId ? (pdnsHttpByRequestId?.get(entry.requestId) ?? []) : [],
-                  )}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Mobile (< md): a stacked card per entry. The desktop 5-column
+              table doesn't fit a phone viewport — Resource + Actor get clipped
+              on the right. Cards reflow to one entry per line with the same
+              expand-to-diff interaction. */}
+          <div className="space-y-2 md:hidden">
+            {shown.map((entry) => (
+              <ChangeCard
+                key={entry.id}
+                entry={entry}
+                zoneName={zoneName}
+                expanded={expanded.has(entry.id)}
+                onToggle={() => toggleRow(entry.id)}
+                httpLog={httpEntriesForAuditAction(
+                  entry.action,
+                  entry.requestId ? (pdnsHttpByRequestId?.get(entry.requestId) ?? []) : [],
+                )}
+              />
+            ))}
+          </div>
+
+          {/* Desktop (md+): the dense 5-column table. */}
+          <div className="hidden overflow-hidden rounded-lg border border-[color:var(--color-border)] md:block">
+            <table className="w-full text-sm">
+              <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+                <tr>
+                  <th className="w-8 px-4 py-2.5"></th>
+                  <th className="px-4 py-2.5">When</th>
+                  <th className="px-4 py-2.5">Action</th>
+                  <th className="px-4 py-2.5">Resource</th>
+                  <th className="px-4 py-2.5">Actor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((entry) => (
+                  <ChangeRow
+                    key={entry.id}
+                    entry={entry}
+                    zoneName={zoneName}
+                    expanded={expanded.has(entry.id)}
+                    onToggle={() => toggleRow(entry.id)}
+                    httpLog={httpEntriesForAuditAction(
+                      entry.action,
+                      entry.requestId ? (pdnsHttpByRequestId?.get(entry.requestId) ?? []) : [],
+                    )}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {filtered.length > 0 ? (
@@ -227,6 +250,73 @@ export function ZoneChangeLog({ entries, zoneName, pdnsHttpByRequestId }: ZoneCh
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Shared body for the expand-on-click section — same content for both the
+ * desktop table row and the mobile card. Holds the `requestId` deep link,
+ * the BareDiff (for diffable actions) or one-line event summary, and the
+ * per-operation PDNS HTTP log.
+ */
+function ExpandedPanel({
+  entry,
+  httpLog,
+}: {
+  entry: ZoneAuditEntryClient;
+  httpLog: PdnsHttpLogEntry[];
+}) {
+  const { removed, added } = useMemo(() => computeEntryDiff(entry), [entry]);
+  const diffable = isDiffableAction(entry.action);
+  return (
+    <>
+      {entry.requestId ? (
+        <div className="flex justify-end border-b border-[color:var(--color-border)] px-4 py-2 text-[0.6875rem]">
+          <a
+            href={`/admin/audit?${new URLSearchParams({ requestId: entry.requestId }).toString()}`}
+            className="text-[color:var(--color-accent)] hover:underline"
+            title="See every audit row from this operation — record edit, notify, etc."
+          >
+            View operation in audit log →
+          </a>
+        </div>
+      ) : null}
+      {diffable ? (
+        removed.length === 0 && added.length === 0 ? (
+          <p className="px-4 py-3 text-xs text-[color:var(--color-fg-muted)]">
+            Audit row carries no diffable snapshot.
+          </p>
+        ) : (
+          <BareDiff removed={removed} added={added} />
+        )
+      ) : (
+        <div className="px-4 py-3">
+          <ZoneEventLine entry={entry} />
+        </div>
+      )}
+      {httpLog.length > 0 ? <PdnsHttpLog entries={httpLog} /> : null}
+    </>
+  );
+}
+
+function Chevron({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      aria-hidden
+      className={`transition-transform ${expanded ? "rotate-90" : ""}`}
+    >
+      <path
+        d="M3 2l4 3-4 3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -243,9 +333,7 @@ function ChangeRow({
   onToggle: () => void;
   httpLog: PdnsHttpLogEntry[];
 }) {
-  const { removed, added } = useMemo(() => computeEntryDiff(entry), [entry]);
   const resourceLabel = describeResource(entry, zoneName);
-  const diffable = isDiffableAction(entry.action);
   const actor = entry.actorEmail ?? (entry.actorType === "system" ? "system" : "—");
 
   return (
@@ -254,24 +342,10 @@ function ChangeRow({
         className="cursor-pointer border-t border-[color:var(--color-border)] transition-colors hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
         onClick={onToggle}
         aria-expanded={expanded}
+        data-change-entry-toggle="true"
       >
         <td className="w-8 px-4 py-3 align-top text-[color:var(--color-fg-muted)]">
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
-            aria-hidden
-            className={`transition-transform ${expanded ? "rotate-90" : ""}`}
-          >
-            <path
-              d="M3 2l4 3-4 3"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <Chevron expanded={expanded} />
         </td>
         <td className="px-4 py-3 align-top font-mono text-[0.6875rem] whitespace-nowrap text-[color:var(--color-fg-muted)]">
           {formatTimestamp(entry.ts)}
@@ -292,35 +366,70 @@ function ChangeRow({
       {expanded ? (
         <tr className="border-t border-[color:var(--color-border)]">
           <td colSpan={5} className="bg-[color:var(--color-bg)] p-0">
-            {entry.requestId ? (
-              <div className="flex justify-end border-b border-[color:var(--color-border)] px-4 py-2 text-[0.6875rem]">
-                <a
-                  href={`/admin/audit?${new URLSearchParams({ requestId: entry.requestId }).toString()}`}
-                  className="text-[color:var(--color-accent)] hover:underline"
-                  title="See every audit row from this operation — record edit, notify, etc."
-                >
-                  View operation in audit log →
-                </a>
-              </div>
-            ) : null}
-            {diffable ? (
-              removed.length === 0 && added.length === 0 ? (
-                <p className="px-4 py-3 text-xs text-[color:var(--color-fg-muted)]">
-                  Audit row carries no diffable snapshot.
-                </p>
-              ) : (
-                <BareDiff removed={removed} added={added} />
-              )
-            ) : (
-              <div className="px-4 py-3">
-                <ZoneEventLine entry={entry} />
-              </div>
-            )}
-            {httpLog.length > 0 ? <PdnsHttpLog entries={httpLog} /> : null}
+            <ExpandedPanel entry={entry} httpLog={httpLog} />
           </td>
         </tr>
       ) : null}
     </>
+  );
+}
+
+/**
+ * Mobile (< md) replacement for ChangeRow. A clickable card whose header
+ * stacks timestamp + action chip + resource + actor vertically so nothing
+ * gets clipped at 360 px wide. The expanded body reuses ExpandedPanel.
+ */
+function ChangeCard({
+  entry,
+  zoneName,
+  expanded,
+  onToggle,
+  httpLog,
+}: {
+  entry: ZoneAuditEntryClient;
+  zoneName: string;
+  expanded: boolean;
+  onToggle: () => void;
+  httpLog: PdnsHttpLogEntry[];
+}) {
+  const resourceLabel = describeResource(entry, zoneName);
+  const actor = entry.actorEmail ?? (entry.actorType === "system" ? "system" : "—");
+  return (
+    <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)]">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        data-change-entry-toggle="true"
+        className="flex w-full items-start gap-2 p-3 text-left transition-colors hover:bg-[color:var(--color-bg-subtle)]"
+      >
+        <span className="mt-1.5 shrink-0 text-[color:var(--color-fg-muted)]">
+          <Chevron expanded={expanded} />
+        </span>
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+            <span className="font-mono text-[0.6875rem] whitespace-nowrap text-[color:var(--color-fg-muted)]">
+              {formatTimestamp(entry.ts)}
+            </span>
+            <ActionChip action={entry.action} />
+          </div>
+          <div className="font-mono text-xs break-all text-[color:var(--color-fg)]">
+            {resourceLabel ?? "—"}
+          </div>
+          <div className="text-xs text-[color:var(--color-fg-muted)]">
+            {actor}
+            {entry.actorName ? (
+              <span className="ml-1 text-[color:var(--color-fg-subtle)]">({entry.actorName})</span>
+            ) : null}
+          </div>
+        </div>
+      </button>
+      {expanded ? (
+        <div className="border-t border-[color:var(--color-border)]">
+          <ExpandedPanel entry={entry} httpLog={httpLog} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

@@ -13,7 +13,7 @@ import { Plus } from "lucide-react";
  * (e.g. "Add record", which opens a dialog) rather than links.
  */
 export const createCtaClass =
-  "inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-[color:var(--color-success)] px-4 py-2 text-sm font-medium text-white hover:opacity-95 sm:w-auto";
+  "inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-[color:var(--color-success)] px-4 py-2 text-sm font-medium whitespace-nowrap text-white hover:opacity-95 sm:w-auto";
 
 export function CreateButton({
   href,
