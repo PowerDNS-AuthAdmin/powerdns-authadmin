@@ -99,7 +99,10 @@ export function HealthBell({ advisories }: { advisories: BellAdvisory[] }) {
             className="fixed inset-0 z-10 cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute right-0 z-20 mt-2 w-96 max-w-[90vw] overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] shadow-lg">
+          {/* Mobile: fixed to the viewport with small gutters so the dropdown
+              can't overflow the right edge (the bell sits near it). sm+: back
+              to absolute-anchored under the bell at a fixed 24rem width. */}
+          <div className="fixed inset-x-3 top-14 z-20 mt-2 overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] shadow-lg sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:w-96">
             <div className="border-b border-[color:var(--color-border)] px-3 py-2 text-xs font-semibold tracking-wide text-[color:var(--color-fg-muted)] uppercase">
               Backend health
             </div>

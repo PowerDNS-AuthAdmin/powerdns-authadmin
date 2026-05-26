@@ -20,7 +20,9 @@ import { latestAdminEditTimestampsForServers } from "@/lib/db/repositories/audit
 import { freshnessOf } from "@/lib/freshness";
 import { rawCache } from "@/lib/pdns/zone-state-cache";
 import { derivedParentOf } from "@/lib/pdns/topology-cache";
-import { isReadOnlyMirror, summarizeCapabilities } from "@/lib/pdns/capabilities";
+import { isReadOnlyMirror } from "@/lib/pdns/capabilities";
+import { CapabilityBadges } from "@/components/domain/capability-badges";
+import { ClickableTr, ClickableDiv } from "@/components/ui/clickable-row";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { backendUnreachability } from "@/lib/realtime/backend-status";
 import type { PdnsServer } from "@/lib/db/schema";
@@ -409,7 +411,8 @@ function ServerRow({
   reachability,
 }: ServerRowProps) {
   return (
-    <tr
+    <ClickableTr
+      href={`/admin/servers/${row.id}`}
       className={`border-t border-[color:var(--color-border)] ${serverRowAttentionClass(
         row.disabledAt,
         row.lastSeenAt,
@@ -424,15 +427,7 @@ function ServerRow({
             </span>
           ) : null}
           <div className="font-medium">{row.name}</div>
-          <span
-            className={
-              isReadOnlyMirror(row.capabilities)
-                ? "rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-1.5 py-0.5 font-mono text-[0.6rem] font-medium text-[color:var(--color-fg-muted)]"
-                : "rounded-full border border-[color:var(--color-accent)] bg-[color-mix(in_oklch,var(--color-accent)_12%,transparent)] px-1.5 py-0.5 font-mono text-[0.6rem] font-medium text-[color:var(--color-accent)]"
-            }
-          >
-            {summarizeCapabilities(row.capabilities)}
-          </span>
+          <CapabilityBadges capabilities={row.capabilities} />
         </div>
         <div className="mt-0.5 text-xs text-[color:var(--color-fg-muted)]">
           {row.slug}
@@ -482,7 +477,7 @@ function ServerRow({
           </Link>
         </span>
       </td>
-    </tr>
+    </ClickableTr>
   );
 }
 
@@ -490,7 +485,8 @@ function ServerRow({
 function ServerCard({ row, canReadAudit, lastEdits, syncChip, reachability }: ServerRowProps) {
   const isMirror = isReadOnlyMirror(row.capabilities);
   return (
-    <div
+    <ClickableDiv
+      href={`/admin/servers/${row.id}`}
       className={`rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-4 ${serverRowAttentionClass(
         row.disabledAt,
         row.lastSeenAt,
@@ -499,15 +495,7 @@ function ServerCard({ row, canReadAudit, lastEdits, syncChip, reachability }: Se
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-base font-medium">{row.name}</span>
-        <span
-          className={
-            isMirror
-              ? "rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-1.5 py-0.5 font-mono text-[0.6rem] font-medium text-[color:var(--color-fg-muted)]"
-              : "rounded-full border border-[color:var(--color-accent)] bg-[color-mix(in_oklch,var(--color-accent)_12%,transparent)] px-1.5 py-0.5 font-mono text-[0.6rem] font-medium text-[color:var(--color-accent)]"
-          }
-        >
-          {summarizeCapabilities(row.capabilities)}
-        </span>
+        <CapabilityBadges capabilities={row.capabilities} />
         {row.isDefault ? (
           <span className="rounded bg-[color:var(--color-bg-muted)] px-1.5 py-0.5 text-[0.65rem] tracking-wide uppercase">
             default
@@ -558,7 +546,7 @@ function ServerCard({ row, canReadAudit, lastEdits, syncChip, reachability }: Se
           Edit
         </Link>
       </div>
-    </div>
+    </ClickableDiv>
   );
 }
 

@@ -14,7 +14,8 @@ import { findPdnsServerById, listSecondariesForPrimary } from "@/lib/db/reposito
 import { listAllClusters } from "@/lib/db/repositories/pdns-clusters";
 import { latestServerAdminEdit, recentAdminEditsForServer } from "@/lib/db/repositories/audit-log";
 import { freshnessOf } from "@/lib/freshness";
-import { isWriteCapable, summarizeCapabilities } from "@/lib/pdns/capabilities";
+import { isWriteCapable } from "@/lib/pdns/capabilities";
+import { CapabilityBadges } from "@/components/domain/capability-badges";
 import { type SafeConfigRow } from "@/lib/pdns/config-advice";
 import { readDaemonConfig } from "@/lib/pdns/daemon-config-cache";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
@@ -95,9 +96,9 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
           )}
         </p>
         {row.capabilities ? (
-          <p className="text-xs text-[color:var(--color-fg-muted)]">
-            <span className="font-medium text-[color:var(--color-fg)]">Observed:</span>{" "}
-            {summarizeCapabilities(row.capabilities)}
+          <p className="flex flex-wrap items-center gap-2 text-xs text-[color:var(--color-fg-muted)]">
+            <span className="font-medium text-[color:var(--color-fg)]">Observed:</span>
+            <CapabilityBadges capabilities={row.capabilities} />
             {row.capabilities.backends.length > 0 ? (
               <> · {row.capabilities.backends.join(", ")}</>
             ) : null}
