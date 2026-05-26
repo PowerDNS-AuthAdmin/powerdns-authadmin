@@ -104,93 +104,92 @@ export function AuditFilterForm({ initial, actionGroups, hasFilters }: Props) {
   return (
     <form
       onSubmit={apply}
-      className="grid gap-3 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-4 text-sm sm:grid-cols-3"
+      className="grid gap-3 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-3 text-xs sm:grid-cols-3"
     >
-      <label className="space-y-1">
-        <span className="block text-xs text-[color:var(--color-fg-muted)]">Action</span>
+      <Field label="Action">
         <SelectMenu
           value={action}
           onChange={setAction}
           placeholder="All actions"
           ariaLabel="Action"
-          className="w-full"
+          className="w-full text-xs"
           options={actionGroups.flatMap((g) =>
             g.actions.map((a) => ({ value: a, label: a, description: g.ns })),
           )}
         />
-      </label>
-      <label className="space-y-1">
-        <span className="block text-xs text-[color:var(--color-fg-muted)]">Actor type</span>
+      </Field>
+      <Field label="Actor type">
         <SelectMenu
           value={actorType}
           onChange={setActorType}
           placeholder="Any"
           ariaLabel="Actor type"
-          className="w-full"
+          className="w-full text-xs"
           options={[
             { value: "user", label: "user" },
             { value: "token", label: "token" },
             { value: "system", label: "system" },
           ]}
         />
-      </label>
-      <label className="space-y-1">
-        <span className="block text-xs text-[color:var(--color-fg-muted)]">Resource type</span>
+      </Field>
+      <Field label="Resource type">
         <input
           value={resourceType}
           onChange={(e) => setResourceType(e.target.value)}
           placeholder="e.g. user, pdns_server"
-          className="block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5"
+          className="block w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs"
         />
-      </label>
-      <label className="space-y-1">
-        <span className="block text-xs text-[color:var(--color-fg-muted)]">Actor id (UUID)</span>
+      </Field>
+      <Field label="Actor id (UUID)">
         <input
           value={actorId}
           onChange={(e) => setActorId(e.target.value)}
-          className="block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5 font-mono"
+          className="block w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 font-mono text-xs"
         />
-      </label>
-      <label className="space-y-1">
-        <span className="block text-xs text-[color:var(--color-fg-muted)]">Resource id</span>
+      </Field>
+      <Field label="Resource id">
         <input
           value={resourceId}
           onChange={(e) => setResourceId(e.target.value)}
-          className="block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5 font-mono"
+          className="block w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 font-mono text-xs"
         />
-      </label>
-      <label className="space-y-1">
-        <span className="block text-xs text-[color:var(--color-fg-muted)]">Request id</span>
+      </Field>
+      <Field label="Request id">
         <input
           value={requestId}
           onChange={(e) => setRequestId(e.target.value)}
           placeholder="From a log line or error toast"
-          className="block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5 font-mono"
+          className="block w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 font-mono text-xs"
         />
-      </label>
-      <label className="space-y-1 sm:col-span-3">
-        <span className="block text-xs text-[color:var(--color-fg-muted)]">
-          Search (action / resource / before / after)
-        </span>
+      </Field>
+      <Field label="Search (action / resource / before / after)" colSpan={3}>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="e.g. example.com, captcha-failed, 169.254"
-          className="block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5 font-mono"
+          className="block w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 font-mono text-xs"
         />
-      </label>
-      <label className="space-y-1">
-        <span className="block text-xs text-[color:var(--color-fg-muted)]">From</span>
-        <DateTimePicker value={from} onChange={setFrom} side="from" />
-      </label>
-      <label className="space-y-1">
-        <span className="block text-xs text-[color:var(--color-fg-muted)]">To</span>
-        <DateTimePicker value={to} onChange={setTo} side="to" />
-      </label>
-      <div className="flex items-end gap-2">
+      </Field>
+      <Field label="From">
+        <DateTimePicker
+          value={from}
+          onChange={setFrom}
+          side="from"
+          className="block w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs"
+        />
+      </Field>
+      <Field label="To">
+        <DateTimePicker
+          value={to}
+          onChange={setTo}
+          side="to"
+          className="block w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs"
+        />
+      </Field>
+      <div className="flex items-end gap-2 sm:col-span-3">
         <button
           type="submit"
-          className="rounded-md bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
+          className="rounded bg-[color:var(--color-accent)] px-3 py-1 text-xs font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
         >
           Apply
         </button>
@@ -198,12 +197,32 @@ export function AuditFilterForm({ initial, actionGroups, hasFilters }: Props) {
           <button
             type="button"
             onClick={clear}
-            className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)]"
+            className="rounded border border-[color:var(--color-border)] px-3 py-1 text-xs hover:bg-[color:var(--color-bg-muted)]"
           >
             Clear
           </button>
         ) : null}
       </div>
     </form>
+  );
+}
+
+function Field({
+  label,
+  colSpan,
+  children,
+}: {
+  label: string;
+  colSpan?: 2 | 3;
+  children: React.ReactNode;
+}) {
+  const col = colSpan === 3 ? "sm:col-span-3" : colSpan === 2 ? "sm:col-span-2" : "";
+  return (
+    <label className={`space-y-1 ${col}`}>
+      <span className="block text-[0.625rem] tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }

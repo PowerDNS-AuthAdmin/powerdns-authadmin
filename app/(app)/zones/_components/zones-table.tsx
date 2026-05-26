@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Lock, Unlock } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
+import { SyncIndicator } from "@/components/ui/sync-indicator";
 import { freshnessOf, freshnessOfDay } from "@/lib/freshness";
 import { isReverseZone } from "@/lib/dns/zone-kind";
 import { displayZoneName } from "@/lib/dns/zone-name";
@@ -384,20 +385,35 @@ function SyncCell({ row }: { row: ZoneRow }) {
     return <span className="text-xs text-[color:var(--color-fg-muted)]">—</span>;
   }
   const worst = row.syncWorst;
-  const tone =
-    worst === "in-sync"
+  const isSynced = worst === "in-sync";
+  const tone: "success" | "warn" | "error" = isSynced
+    ? "success"
+    : worst === "ahead" || worst === "lagging"
+      ? "warn"
+      : "error";
+  const textClass =
+    tone === "success"
       ? "text-[color:var(--color-success)]"
-      : worst === "ahead" || worst === "lagging"
+      : tone === "warn"
         ? "text-[color:var(--color-warn)]"
         : "text-[color:var(--color-error)]";
-  const label = worst === "in-sync" ? "synced" : "desynced";
+  const label = isSynced ? "synced" : "desynced";
+  // Include the row's own backend in the count — `syncStates` enumerates the
+  // OTHER peers (secondaries, or non-anchor cluster peers), so +1 surfaces
+  // the total fleet size the operator is looking at.
+  const total = row.syncStates.length + 1;
   const detail = row.syncStates
     .map((s) => `${s.name}: ${s.state}${s.serial !== null ? ` (serial ${s.serial})` : ""}`)
     .join("\n");
   return (
-    <span className={`text-xs ${tone}`} title={detail}>
-      ● {label}
-      <span className="ml-1 text-[color:var(--color-fg-muted)]">({row.syncStates.length})</span>
+    <span title={detail}>
+      <span
+        className={`pda-sync-chip-pad inline-flex items-center gap-1.5 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-bg)] text-[0.625rem] font-medium tracking-wide uppercase ${textClass}`}
+      >
+        <SyncIndicator state={isSynced ? "synced" : "desynced"} size={14} tone={tone} />
+        {label}
+        <span className="text-[color:var(--color-fg-muted)] tabular-nums">{total}</span>
+      </span>
     </span>
   );
 }

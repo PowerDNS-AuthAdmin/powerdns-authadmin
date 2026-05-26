@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import { HeaderStatusChip } from "@/components/realtime/header-status-chip";
 
 export function AppShell({
@@ -59,14 +59,6 @@ export function AppShell({
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          aria-label="Close navigation"
-          className="absolute top-3 right-2 z-10 rounded-md p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg)] hover:text-[color:var(--color-fg)] md:hidden"
-        >
-          <X className="h-5 w-5" aria-hidden />
-        </button>
         {sidebar}
       </aside>
 

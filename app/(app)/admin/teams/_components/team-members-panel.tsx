@@ -110,26 +110,29 @@ export function TeamMembersPanel(props: PanelProps) {
       {props.members.length === 0 ? (
         <p className="text-sm text-[color:var(--color-fg-muted)]">No members yet.</p>
       ) : (
-        <div className="overflow-hidden rounded-md border border-[color:var(--color-border)]">
+        <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)]">
           <table className="w-full text-sm">
-            <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+            <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
               <tr>
-                <th className="px-4 py-2">Email</th>
-                <th className="px-4 py-2">Role</th>
-                <th className="px-4 py-2">Joined</th>
-                <th className="px-4 py-2"></th>
+                <th className="px-4 py-2.5">Email</th>
+                <th className="px-4 py-2.5">Role</th>
+                <th className="px-4 py-2.5">Joined</th>
+                <th className="px-4 py-2.5"></th>
               </tr>
             </thead>
             <tbody>
               {props.members.map((m) => (
-                <tr key={m.userId} className="border-t border-[color:var(--color-border)]">
-                  <td className="px-4 py-3">
+                <tr
+                  key={m.userId}
+                  className="border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
+                >
+                  <td className="px-4 py-3 align-top">
                     <div className="font-medium">{m.email}</div>
                     {m.name ? (
                       <div className="text-xs text-[color:var(--color-fg-muted)]">{m.name}</div>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-xs">
+                  <td className="px-4 py-3 align-top text-xs">
                     {props.canManage ? (
                       <SelectMenu
                         value={m.teamRole}
@@ -145,10 +148,10 @@ export function TeamMembersPanel(props: PanelProps) {
                       m.teamRole
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs">
+                  <td className="px-4 py-3 align-top text-xs">
                     <LocalTime ts={m.addedAt} />
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right align-top">
                     {props.canManage ? (
                       <button
                         type="button"

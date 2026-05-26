@@ -99,6 +99,71 @@
   animation: pda-shake 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
 
+/* Sonar/radar ping used by <SyncIndicator state="synced"/>. Two rings expand
+ * outward + fade with only a mild stroke taper, so they stay solid-line
+ * (not broken/dotted) even at small inline sizes. Second ring uses a
+ * negative animation-delay so the pulse is continuous from the first frame
+ * — no two-stationary-rings warm-up. */
+@keyframes pda-sync-pulse {
+  0% {
+    r: 10;
+    opacity: 0.85;
+    stroke-width: 4;
+  }
+  100% {
+    r: 26;
+    opacity: 0;
+    stroke-width: 3;
+  }
+}
+.pda-sync-pulse-a {
+  animation: pda-sync-pulse 2.4s ease-out infinite;
+}
+.pda-sync-pulse-b {
+  animation: pda-sync-pulse 2.4s ease-out -1.2s infinite;
+}
+
+/* "Actively trying to sync" rotation for <SyncIndicator state="desynced"/>.
+ * Both rings rotate via stroke-dashoffset (counter-direction inner vs outer)
+ * so the pattern reads as motion/search rather than a frozen error. */
+@keyframes pda-desync-spin {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+@keyframes pda-desync-spin-reverse {
+  to {
+    stroke-dashoffset: 40;
+  }
+}
+.pda-desync-ring-outer {
+  animation: pda-desync-spin 6s linear infinite;
+}
+.pda-desync-ring-inner {
+  animation: pda-desync-spin-reverse 4s linear infinite;
+}
+
+/* Padding override for the zone-list sync chip — asymmetric (tight left, wide
+ * right) so the icon hugs the left edge and the trailing count number sits
+ * comfortably on the right. `!important` wins against any utility class that
+ * might inadvertently re-add padding. */
+.pda-sync-chip-pad {
+  padding: 0 16px 0 6px !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pda-sync-pulse-a,
+  .pda-sync-pulse-b,
+  .pda-desync-ring-outer,
+  .pda-desync-ring-inner {
+    animation: none;
+  }
+  .pda-sync-pulse-a,
+  .pda-sync-pulse-b {
+    opacity: 0.4;
+  }
+}
+
 .dark {
   --color-bg: oklch(15% 0 0);
   --color-bg-subtle: oklch(20% 0 0);

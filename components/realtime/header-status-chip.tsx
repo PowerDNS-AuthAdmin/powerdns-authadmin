@@ -19,6 +19,7 @@
  */
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { SyncIndicator } from "@/components/ui/sync-indicator";
 import { useRealtimeAvailable, useRealtimeStatus } from "./realtime-provider";
 
 type Mode = { kind: "live" } | { kind: "sync"; inSync: boolean };
@@ -110,8 +111,10 @@ export function HeaderStatusChip() {
   const showSync = isConnected && mode.kind === "sync";
   const syncLabel = showSync && mode.kind === "sync" ? (mode.inSync ? "synced" : "desynced") : null;
 
-  // The dot reflects the most critical signal — desynced beats synced, and
-  // offline/connecting beat everything.
+  // The dot purely reflects connection state. Sync state has its own glyph
+  // (<SyncIndicator/>) appended next to the synced/desynced label below — so
+  // the dot stays green-pulsing as long as the SSE stream is live, even when
+  // a backend is mid-replication.
   const dotClass =
     status === "paused"
       ? "bg-[color:var(--color-fg-subtle)]"
@@ -119,9 +122,7 @@ export function HeaderStatusChip() {
         ? "bg-[color:var(--color-error)]"
         : status === "connecting"
           ? "bg-[color:var(--color-warn)]"
-          : showSync && mode.kind === "sync" && !mode.inSync
-            ? "animate-pulse bg-[color:var(--color-warn)]"
-            : "animate-pulse bg-[color:var(--color-success)]";
+          : "animate-pulse bg-[color:var(--color-success)]";
 
   const title =
     status === "paused"
@@ -145,8 +146,13 @@ export function HeaderStatusChip() {
     >
       <span className={`inline-block h-2 w-2 rounded-full ${dotClass}`} aria-hidden />
       {connLabel}
-      {syncLabel ? <span className="text-[color:var(--color-fg-subtle)]">·</span> : null}
-      {syncLabel ? <span>{syncLabel}</span> : null}
+      {syncLabel && mode.kind === "sync" ? (
+        <>
+          <span className="text-[color:var(--color-fg-subtle)]">·</span>
+          <SyncIndicator state={mode.inSync ? "synced" : "desynced"} size={14} />
+          <span>{syncLabel}</span>
+        </>
+      ) : null}
     </button>
   );
 }

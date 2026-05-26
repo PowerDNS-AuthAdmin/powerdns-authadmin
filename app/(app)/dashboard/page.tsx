@@ -333,14 +333,14 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
               ) : null}
               {canReadServers ? (
                 <Card title="Backends snapshot">
-                  <div className="overflow-hidden rounded-md border border-[color:var(--color-border)] text-sm">
+                  <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)] text-sm">
                     <table className="w-full">
-                      <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+                      <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
                         <tr>
-                          <th className="px-3 py-1.5">Backend</th>
-                          <th className="px-3 py-1.5">Zones</th>
-                          <th className="px-3 py-1.5">p50</th>
-                          <th className="px-3 py-1.5">p95</th>
+                          <th className="px-3 py-2.5">Backend</th>
+                          <th className="px-3 py-2.5">Zones</th>
+                          <th className="px-3 py-2.5">p50</th>
+                          <th className="px-3 py-2.5">p95</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -369,9 +369,9 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
                           backendsLatest.map((b) => (
                             <tr
                               key={b.serverId}
-                              className="border-t border-[color:var(--color-border)]"
+                              className="border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
                             >
-                              <td className="px-3 py-2 font-medium">
+                              <td className="px-3 py-3 align-top font-medium">
                                 <Link
                                   href={`/admin/servers/${b.serverId}`}
                                   className="text-[color:var(--color-accent)] hover:underline"
@@ -379,11 +379,13 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
                                   {b.serverName}
                                 </Link>
                               </td>
-                              <td className="px-3 py-2 font-mono text-xs">{b.zoneCount ?? "—"}</td>
-                              <td className="px-3 py-2 font-mono text-xs">
+                              <td className="px-3 py-3 align-top font-mono text-xs">
+                                {b.zoneCount ?? "—"}
+                              </td>
+                              <td className="px-3 py-3 align-top font-mono text-xs">
                                 {b.latencyP50Ms === null ? "—" : `${Math.round(b.latencyP50Ms)}ms`}
                               </td>
-                              <td className="px-3 py-2 font-mono text-xs">
+                              <td className="px-3 py-3 align-top font-mono text-xs">
                                 {b.latencyP95Ms === null ? "—" : `${Math.round(b.latencyP95Ms)}ms`}
                               </td>
                             </tr>
@@ -413,25 +415,30 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
               {recent.length === 0 ? (
                 <p className="text-sm text-[color:var(--color-fg-muted)]">No audit entries yet.</p>
               ) : (
-                <div className="overflow-hidden rounded-md border border-[color:var(--color-border)] text-sm">
+                <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)] text-sm">
                   <table className="w-full">
-                    <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+                    <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
                       <tr>
-                        <th className="px-3 py-1.5">When</th>
-                        <th className="px-3 py-1.5">Actor</th>
-                        <th className="px-3 py-1.5">Action</th>
-                        <th className="px-3 py-1.5">Resource</th>
+                        <th className="px-3 py-2.5">When</th>
+                        <th className="px-3 py-2.5">Actor</th>
+                        <th className="px-3 py-2.5">Action</th>
+                        <th className="px-3 py-2.5">Resource</th>
                       </tr>
                     </thead>
                     <tbody>
                       {recent.map((row, idx) => (
-                        <tr key={idx} className="border-t border-[color:var(--color-border)]">
-                          <td className="px-3 py-2 font-mono text-xs">
+                        <tr
+                          key={idx}
+                          className="border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
+                        >
+                          <td className="px-3 py-3 align-top font-mono text-[0.6875rem] text-[color:var(--color-fg-muted)]">
                             <LocalTime ts={row.ts} />
                           </td>
-                          <td className="px-3 py-2 text-xs">{row.actorEmail ?? "system"}</td>
-                          <td className="px-3 py-2 font-mono text-xs">{row.action}</td>
-                          <td className="px-3 py-2 text-xs">
+                          <td className="px-3 py-3 align-top text-xs">
+                            {row.actorEmail ?? "system"}
+                          </td>
+                          <td className="px-3 py-3 align-top font-mono text-xs">{row.action}</td>
+                          <td className="px-3 py-3 align-top text-xs">
                             <span className="text-[color:var(--color-fg-muted)]">
                               {row.resourceType}
                             </span>

@@ -187,15 +187,15 @@ export function ZoneChangeLog({ entries, zoneName, pdnsHttpByRequestId }: ZoneCh
           No events match the current filters.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-md border border-[color:var(--color-border)]">
-          <table className="w-full text-xs">
-            <thead className="bg-[color:var(--color-bg-subtle)] text-left text-[0.625rem] tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+        <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)]">
+          <table className="w-full text-sm">
+            <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
               <tr>
-                <th className="w-8 py-2 pr-2 pl-3"></th>
-                <th className="py-2 pr-3 font-medium">When</th>
-                <th className="py-2 pr-3 font-medium">Action</th>
-                <th className="py-2 pr-3 font-medium">Resource</th>
-                <th className="py-2 pr-3 font-medium">Actor</th>
+                <th className="w-8 px-4 py-2.5"></th>
+                <th className="px-4 py-2.5">When</th>
+                <th className="px-4 py-2.5">Action</th>
+                <th className="px-4 py-2.5">Resource</th>
+                <th className="px-4 py-2.5">Actor</th>
               </tr>
             </thead>
             <tbody>
@@ -251,11 +251,11 @@ function ChangeRow({
   return (
     <>
       <tr
-        className="cursor-pointer border-t border-[color:var(--color-border)] hover:bg-[color:var(--color-bg-subtle)]"
+        className="cursor-pointer border-t border-[color:var(--color-border)] transition-colors hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
         onClick={onToggle}
         aria-expanded={expanded}
       >
-        <td className="py-2 pr-2 pl-3 text-[color:var(--color-fg-muted)]">
+        <td className="w-8 px-4 py-3 align-top text-[color:var(--color-fg-muted)]">
           <svg
             width="10"
             height="10"
@@ -273,14 +273,16 @@ function ChangeRow({
             />
           </svg>
         </td>
-        <td className="py-2 pr-3 font-mono whitespace-nowrap text-[color:var(--color-fg-muted)]">
+        <td className="px-4 py-3 align-top font-mono text-[0.6875rem] whitespace-nowrap text-[color:var(--color-fg-muted)]">
           {formatTimestamp(entry.ts)}
         </td>
-        <td className="py-2 pr-3">
+        <td className="px-4 py-3 align-top">
           <ActionChip action={entry.action} />
         </td>
-        <td className="py-2 pr-3 font-mono text-[color:var(--color-fg)]">{resourceLabel ?? "—"}</td>
-        <td className="py-2 pr-3 text-[color:var(--color-fg-muted)]">
+        <td className="px-4 py-3 align-top font-mono text-xs text-[color:var(--color-fg)]">
+          {resourceLabel ?? "—"}
+        </td>
+        <td className="px-4 py-3 align-top text-xs text-[color:var(--color-fg-muted)]">
           {actor}
           {entry.actorName ? (
             <span className="ml-1 text-[color:var(--color-fg-subtle)]">({entry.actorName})</span>

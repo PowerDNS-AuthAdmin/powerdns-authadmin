@@ -23,6 +23,7 @@ import { derivedParentOf } from "@/lib/pdns/topology-cache";
 import { isReadOnlyMirror } from "@/lib/pdns/capabilities";
 import { CapabilityBadges } from "@/components/domain/capability-badges";
 import { ClickableTr, ClickableDiv } from "@/components/ui/clickable-row";
+import { SyncIndicator } from "@/components/ui/sync-indicator";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { backendUnreachability } from "@/lib/realtime/backend-status";
 import type { PdnsServer } from "@/lib/db/schema";
@@ -197,19 +198,21 @@ export default async function PdnsServersListPage() {
             ) : null}
           </div>
 
-          {/* Desktop (md+): the dense grouped table. */}
-          <div className="hidden overflow-hidden rounded-md border border-[color:var(--color-border)] md:block">
+          {/* Desktop (md+): the dense grouped table. Header + row styling kept
+              in lock-step with components/ui/data-table.tsx so the bespoke
+              grouped layout reads as one of the standard tables. */}
+          <div className="hidden overflow-hidden rounded-lg border border-[color:var(--color-border)] md:block">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-[color:var(--color-bg-subtle)] text-left text-xs tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+                <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
                   <tr>
-                    <th className="px-4 py-2">Name</th>
-                    <th className="px-4 py-2">Base URL</th>
-                    <th className="px-4 py-2">Status</th>
-                    <th className="px-4 py-2">Version</th>
-                    <th className="px-4 py-2">Sync</th>
-                    {canReadAudit ? <th className="px-4 py-2">Last admin edit</th> : null}
-                    <th className="w-px px-4 py-2 whitespace-nowrap"></th>
+                    <th className="px-4 py-2.5">Name</th>
+                    <th className="px-4 py-2.5">Base URL</th>
+                    <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5">Version</th>
+                    <th className="px-4 py-2.5">Sync</th>
+                    {canReadAudit ? <th className="px-4 py-2.5">Last admin edit</th> : null}
+                    <th className="w-px px-4 py-2.5 whitespace-nowrap"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -410,16 +413,19 @@ function ServerRow({
   syncChip,
   reachability,
 }: ServerRowProps) {
+  // Mirror DataTable's row styling exactly. The attention tint (warn/error
+  // backgrounds for not-yet-reached / unreachable rows) replaces the
+  // even-stripe on those rows — they're already noisier than a stripe, and
+  // letting both render would mean the same status renders differently
+  // depending on row parity.
+  const attentionClass = serverRowAttentionClass(row.disabledAt, row.lastSeenAt, reachability);
+  const stripeClass = attentionClass ? "" : "even:bg-[color:var(--color-bg-subtle)]";
   return (
     <ClickableTr
       href={`/admin/servers/${row.id}`}
-      className={`border-t border-[color:var(--color-border)] ${serverRowAttentionClass(
-        row.disabledAt,
-        row.lastSeenAt,
-        reachability,
-      )}`}
+      className={`border-t border-[color:var(--color-border)] transition-colors hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)] ${stripeClass} ${attentionClass}`}
     >
-      <td className={`px-4 py-3 ${indented ? "pl-10" : ""}`}>
+      <td className={`px-4 py-3 align-top ${indented ? "pl-10" : ""}`}>
         <div className="flex items-center gap-2">
           {indented ? (
             <span aria-hidden className="font-mono text-[color:var(--color-fg-subtle)] select-none">
@@ -443,20 +449,20 @@ function ServerRow({
           </div>
         ) : null}
       </td>
-      <td className="px-4 py-3 font-mono text-xs">{row.baseUrl}</td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 align-top font-mono text-xs">{row.baseUrl}</td>
+      <td className="px-4 py-3 align-top">
         <HealthBadge
           disabledAt={row.disabledAt}
           lastSeenAt={row.lastSeenAt}
           reachability={reachability}
         />
       </td>
-      <td className="px-4 py-3 text-xs">{row.versionCache?.version ?? "—"}</td>
-      <td className="px-4 py-3 text-xs">
+      <td className="px-4 py-3 align-top text-xs">{row.versionCache?.version ?? "—"}</td>
+      <td className="px-4 py-3 align-top text-xs">
         <SyncChip verdict={syncChip} isMirror={isReadOnlyMirror(row.capabilities)} />
       </td>
       {canReadAudit ? (
-        <td className="px-4 py-3 text-xs text-[color:var(--color-fg-muted)]">
+        <td className="px-4 py-3 align-top text-xs text-[color:var(--color-fg-muted)]">
           {lastEdits.has(row.id) ? (
             <span title={lastEdits.get(row.id)!.toISOString()}>
               {freshnessOf(lastEdits.get(row.id)!.toISOString()).label}
@@ -466,7 +472,7 @@ function ServerRow({
           )}
         </td>
       ) : null}
-      <td className="w-px px-4 py-3 text-right whitespace-nowrap">
+      <td className="w-px px-4 py-3 text-right align-top whitespace-nowrap">
         <span className="inline-flex items-center gap-2">
           <TestServerButton serverId={row.id} />
           <Link
@@ -574,15 +580,15 @@ function SyncChip({ verdict, isMirror }: { verdict: SyncVerdict | null; isMirror
   }
   if (verdict === "in-sync") {
     return (
-      <span className="inline-flex items-center gap-1">
-        <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
+      <span className="inline-flex items-center gap-1.5">
+        <SyncIndicator state="synced" />
         Synced
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 text-[color:var(--color-warn)]">
-      <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-warn)]" />
+    <span className="inline-flex items-center gap-1.5 text-[color:var(--color-error)]">
+      <SyncIndicator state="desynced" />
       Desynced
     </span>
   );

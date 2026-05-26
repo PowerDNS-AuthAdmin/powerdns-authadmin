@@ -53,10 +53,10 @@ export function AuditTable({ rows }: { rows: AuditRowClient[] }) {
         cell: (ctx) => (
           <LocalTime
             ts={ctx.getValue<string>()}
-            className="font-mono text-xs whitespace-nowrap text-[color:var(--color-fg-muted)]"
+            className="font-mono text-[0.6875rem] whitespace-nowrap text-[color:var(--color-fg-muted)]"
           />
         ),
-        meta: { className: "w-44 align-top" },
+        meta: { className: "w-44" },
       },
       {
         id: "actor",
@@ -65,8 +65,7 @@ export function AuditTable({ rows }: { rows: AuditRowClient[] }) {
         cell: (ctx) => {
           const row = ctx.row.original;
           return (
-            <div className="text-xs">
-              <div>{row.actorType}</div>
+            <div>
               {row.actorEmail ? (
                 row.actorHref ? (
                   <Link
@@ -81,22 +80,23 @@ export function AuditTable({ rows }: { rows: AuditRowClient[] }) {
                     {row.actorEmail}
                   </div>
                 )
-              ) : null}
-              {row.actorId ? (
-                <div className="truncate font-mono text-[0.625rem] text-[color:var(--color-fg-muted)]">
-                  {row.actorId}
-                </div>
-              ) : null}
+              ) : (
+                <div>{row.actorType}</div>
+              )}
+              <div className="text-xs text-[color:var(--color-fg-muted)]">
+                {row.actorType}
+                {row.actorId ? (
+                  <span className="ml-1 font-mono text-[0.625rem]">{row.actorId}</span>
+                ) : null}
+              </div>
             </div>
           );
         },
-        meta: { className: "align-top" },
       },
       {
         accessorKey: "action",
         header: "Action",
-        cell: (ctx) => <span className="font-mono text-xs">{ctx.getValue<string>()}</span>,
-        meta: { className: "align-top" },
+        cell: (ctx) => <span className="font-mono">{ctx.getValue<string>()}</span>,
       },
       {
         id: "resource",
@@ -105,8 +105,7 @@ export function AuditTable({ rows }: { rows: AuditRowClient[] }) {
         cell: (ctx) => {
           const row = ctx.row.original;
           return (
-            <div className="text-xs">
-              <div>{row.resourceType}</div>
+            <div>
               {row.resourceId ? (
                 row.resourceHref ? (
                   <Link
@@ -125,10 +124,10 @@ export function AuditTable({ rows }: { rows: AuditRowClient[] }) {
                   </div>
                 )
               ) : null}
+              <div className="text-xs text-[color:var(--color-fg-muted)]">{row.resourceType}</div>
             </div>
           );
         },
-        meta: { className: "align-top" },
       },
       {
         id: "detail",
@@ -177,7 +176,6 @@ export function AuditTable({ rows }: { rows: AuditRowClient[] }) {
             </div>
           );
         },
-        meta: { className: "align-top" },
       },
     ],
     [],
