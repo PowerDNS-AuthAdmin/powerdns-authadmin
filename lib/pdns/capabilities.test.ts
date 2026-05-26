@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { deriveCapabilities, summarizeCapabilities } from "./capabilities";
+import {
+  deriveCapabilities,
+  isReadOnlyMirror,
+  isWriteCapable,
+  summarizeCapabilities,
+} from "./capabilities";
 import type { PdnsConfigSetting } from "./types";
 
 const cfg = (entries: Record<string, string>): PdnsConfigSetting[] =>
@@ -63,7 +68,36 @@ describe("summarizeCapabilities", () => {
     expect(
       summarizeCapabilities(deriveCapabilities(cfg({ primary: "yes", secondary: "yes" }))),
     ).toBe("primary + secondary");
-    // No replication flag set → falls back to the only capability that's on.
-    expect(summarizeCapabilities(deriveCapabilities(cfg({ launch: "gsqlite3" })))).toBe("api");
+    // No replication flag set → standalone (#57): API hosts zones, no AXFR.
+    expect(summarizeCapabilities(deriveCapabilities(cfg({ launch: "gsqlite3" })))).toBe(
+      "standalone",
+    );
+    // API reported off → unreachable (we couldn't actually have read /config in
+    // that case, but the predicate has to be total).
+    expect(summarizeCapabilities(deriveCapabilities(cfg({ api: "no" })))).toBe("unreachable");
+  });
+});
+
+// #57 — A standalone PDNS Auth (no `primary` / `secondary` in pdns.conf) is the
+// default config and accepts zone creates over the HTTP API. The old
+// `isWriteCapable` checked `caps.primary` directly and so excluded standalones
+// from /zones/new's backend picker. Pin the four-way matrix here so it stays
+// fixed.
+describe("isWriteCapable / isReadOnlyMirror", () => {
+  it.each<[string, Record<string, string>, boolean, boolean]>([
+    ["standalone (no flags)", {}, true, false],
+    ["primary only", { primary: "yes" }, true, false],
+    ["secondary only", { secondary: "yes" }, false, true],
+    ["dual-role primary+secondary", { primary: "yes", secondary: "yes" }, true, false],
+  ])("%s → write=%s, mirror=%s", (_label, flags, writeExpected, mirrorExpected) => {
+    const caps = deriveCapabilities(cfg(flags));
+    expect(isWriteCapable(caps)).toBe(writeExpected);
+    expect(isReadOnlyMirror(caps)).toBe(mirrorExpected);
+  });
+
+  it("treats unprobed (null) as write-capable so newly-added backends are usable", () => {
+    expect(isWriteCapable(null)).toBe(true);
+    expect(isWriteCapable(undefined)).toBe(true);
+    expect(isReadOnlyMirror(null)).toBe(false);
   });
 });

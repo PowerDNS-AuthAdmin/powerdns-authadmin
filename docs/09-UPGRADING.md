@@ -37,6 +37,36 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.1.6 (from 1.1.x)
+
+A **model fix** — drop-in upgrade. **No schema migration, no API
+changes, no config changes.** Pull-and-recreate the container.
+
+What changes after the upgrade:
+
+- **Standalone PDNS Auth instances (no `primary=yes` or `secondary=yes`
+  in `pdns.conf`) become usable as zone-create targets.** Until 1.1.6,
+  AuthAdmin was treating "no replication flag set" as "not writable" —
+  hiding the backend from `/zones/new`'s picker even though Test went
+  green. After upgrading, those backends appear on the create-zone
+  page automatically; nothing to reconfigure. (Closes #57.)
+- **The capability badge previously labelled `none` now reads
+  `standalone`** for those backends — same neutral tone, just an
+  accurate label. No semantic change beyond the wording.
+- **The header chip's SYNCED/DESYNCED verdict only renders when there
+  is replication topology to be in-sync about** — i.e. at least one
+  backend has ≥1 mirror (derived primary+secondaries group or a
+  configured multi-primary cluster of ≥2 peers). A fleet of
+  standalones or single-primaries-without-secondaries sees the plain
+  "Live" connectivity label instead. Operators with primary+secondaries
+  or multi-primary clusters see no change.
+
+If you applied the **`primary=yes` workaround** mentioned in the
+discussion / #57 to unblock zone creation on a standalone instance,
+you can now revert it from your `pdns.conf` (it was operationally
+harmless either way — no slaves to NOTIFY — but the badge will read
+`standalone` correctly once it's gone).
+
 ### Upgrading to 1.1.5 (from 1.1.x)
 
 A **security-hygiene patch.** No app-code changes; no schema, API, or

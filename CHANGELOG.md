@@ -6,6 +6,54 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.1.6] — 2026-05-26
+
+A **model fix** for standalone PowerDNS Authoritative instances. A daemon
+running with the default `primary=no, secondary=no` in `pdns.conf` —
+i.e. a single-server PDNS Auth with no AXFR replication wired up — is
+fully write-capable through its HTTP API. PowerDNS-AuthAdmin was
+incorrectly treating that configuration as not-a-write-target, which
+hid the backend from `/zones/new` and surfaced _"No PowerDNS backends
+configured"_ even though Test went green. Patch-release upgrade — no
+schema, API, or config changes. Closes #57; reported by @insxa in
+[discussion #27](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/discussions/27).
+
+### Fixed
+
+- **Standalone PDNS Auth instances now appear on the zone-create
+  picker.** `isWriteCapable` previously gated on `caps.primary` —
+  which only reflects PDNS's AXFR-primary flag, not whether the API
+  accepts zone writes. Replaced with the inverse of `isReadOnlyMirror`,
+  so the predicate is: **write-capable unless explicitly observed as a
+  pure secondary mirror** (`secondary=yes && primary=no`). The three
+  shapes that now correctly count as writable: standalone
+  (`primary=no, secondary=no`), explicit primary, and dual-role
+  primary+secondary. (#57)
+- **Header sync chip no longer claims SYNCED/DESYNCED against a fleet
+  with no replication topology.** New `hasReplicationTopology()`
+  predicate in `lib/pdns/sync.ts`; the app shell only enters the
+  sync-mode chip when at least one backend has ≥1 mirror (derived
+  primary+secondaries group or configured multi-primary cluster of
+  ≥2 peers). Fleets of standalones or single-primaries-without-secondaries
+  see plain "Live" — the truthful read for that topology. (#57)
+
+### Changed — UI
+
+- **Capability badge `none` → `standalone`.** The neutral badge for a
+  daemon with no replication flags now reads `standalone`, matching
+  the semantic ("hosts zones over the API; no DNS-protocol
+  replication") and removing the alarming "none" label. Same neutral
+  tone. `summarizeCapabilities()`'s fallback string follows
+  suit (`api` → `standalone`); `api: no` → `unreachable`.
+
+### Tests
+
+- Four-way table test for `isWriteCapable` × `isReadOnlyMirror`
+  pinning the predicate's behaviour across the standalone / primary /
+  secondary / dual-role flag matrix.
+- `unprobed (null)` continues to default to write-capable so a
+  freshly-added backend stays usable until its first probe.
+
 ## [1.1.5] — 2026-05-26
 
 A **security-hygiene patch**. No app-code changes; ships only a defensive

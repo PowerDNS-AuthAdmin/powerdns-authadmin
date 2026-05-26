@@ -32,7 +32,7 @@ import { HeaderStatusProvider } from "@/components/realtime/header-status-chip";
 import { MustChangePasswordProvider } from "@/components/auth/must-change-password-guard";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
-import { globalAnyLagging } from "@/lib/pdns/sync";
+import { globalAnyLagging, hasReplicationTopology } from "@/lib/pdns/sync";
 
 /**
  * Paths a non-compliant user (forced-MFA-not-enrolled, or flagged
@@ -215,11 +215,18 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // signal they have no context for. The helper reads exclusively from the
   // poller's in-process caches, so this is a near-free lookup once the
   // first ensureBackendsObserved warms the store.
+  // Sync-mode chip is only meaningful when there's actually replication
+  // topology in the fleet — a derived primary+secondaries group or a configured
+  // multi-primary cluster. Standalone or single-primary-only fleets fall back
+  // to plain "Live" so we don't surface a SYNCED verdict against nothing
+  // (issue #57).
   const showGlobalSync = realtimeAvailable && (canReadZones || canReadServers);
   let initialChipMode: { kind: "live" } | { kind: "sync"; inSync: boolean } = { kind: "live" };
   if (showGlobalSync) {
     await ensureBackendsObserved();
-    initialChipMode = { kind: "sync", inSync: !(await globalAnyLagging()) };
+    if (await hasReplicationTopology()) {
+      initialChipMode = { kind: "sync", inSync: !(await globalAnyLagging()) };
+    }
   }
 
   const shell = (
