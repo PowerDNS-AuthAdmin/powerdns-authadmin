@@ -57,15 +57,16 @@ jobs:
       IMAGE: ghcr.io/powerdns-authadmin/powerdns-authadmin
       TAG: ${{ github.event.workflow_run.head_branch }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          # Pin checkout to the exact commit CI built — workflow_run-triggered
-          # jobs default to the workflow definition from the default branch,
-          # but we want the source tree (e.g. for hashes in checksums.txt) to
-          # match what was just signed in GHCR.
-          ref: ${{ github.event.workflow_run.head_sha }}
-          persist-credentials: false
-
+      # No `actions/checkout` here — Scorecard `Dangerous-Workflow` flags any
+      # privileged `workflow_run`-triggered job that checks out the
+      # triggering run's `head_sha`, because in some scenarios that ref
+      # could be from a fork's PR (in our `if:` filter we already restrict
+      # to push-event tag refs, so it's not actually exploitable for us, but
+      # we want to keep the rule passing too).
+      #
+      # Nothing in this workflow needs the source tree: cosign operates on
+      # the image, anchore/sbom-action operates on the image, `gh release
+      # upload` uses files we generate in-place from cosign / sbom output.
       - name: Install cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
