@@ -16,30 +16,21 @@
  * Any stage failure aborts the boot — a broken migrate, seed, or
  * malformed provisioning file produces a refused start, not a degraded run.
  *
- * Why we run the .ts sources via `tsx` instead of pre-compiling to JS:
- * the rest of the codebase uses bundler-style imports (no .js extensions,
- * `@/*` path aliases) that the Next.js build accepts natively. Compiling
- * those modules to Node-runnable JS with `tsc --module nodenext` triggers
- * a rewrite of every relative import in the tree, which costs more churn
- * than the boot scripts are worth. `tsx` reads the existing tsconfig +
- * source files and transpiles on the fly — single-digit-MB extra in the
- * image, no compile step in the Dockerfile.
+ * The three boot stages run pre-bundled ESM files under `./boot/`,
+ * produced by `scripts/build-boot.mjs` at image-build time. Each bundle
+ * carries its transitive `lib/*` imports inline; only the externals
+ * named in the bundler config (native bindings, pg, pino transports)
+ * stay dynamic, and those live in the standalone bundle's own
+ * node_modules. No `tsx`, no source-tree at runtime — that was the
+ * single biggest contributor to the previous image size.
  */
 
 import { spawnSync } from "node:child_process";
 
-const TSX_CLI = "./node_modules/tsx/dist/cli.mjs";
-
 function runStep(label, scriptPath) {
-  const env = { ...process.env };
-  // tsx needs the `react-server` condition to resolve the server-only
-  // marker module the same way Next.js does at app runtime; otherwise the
-  // ESM-only `client.js` export wins and any `import "server-only"` in
-  // the boot scripts' transitive imports throws.
-  env.NODE_OPTIONS = [env.NODE_OPTIONS, "--conditions=react-server"].filter(Boolean).join(" ");
-  const result = spawnSync(process.execPath, [TSX_CLI, scriptPath], {
+  const result = spawnSync(process.execPath, [scriptPath], {
     stdio: "inherit",
-    env,
+    env: process.env,
   });
   if (result.error) {
     console.error(`[entrypoint] ${label}.spawn-failed:`, result.error);
@@ -56,7 +47,7 @@ if (skipMigrate) {
   console.log("[entrypoint] MIGRATE_ON_BOOT=false — skipping migrations");
 } else {
   console.log("[entrypoint] running DB migrations");
-  runStep("migrate", "./scripts/migrate.ts");
+  runStep("migrate", "./boot/migrate.js");
 }
 
 const skipSeed = (process.env.SEED_ON_BOOT ?? "").toLowerCase() === "false";
@@ -64,7 +55,7 @@ if (skipSeed) {
   console.log("[entrypoint] SEED_ON_BOOT=false — skipping seed");
 } else {
   console.log("[entrypoint] running seed (system roles + bootstrap admin)");
-  runStep("seed", "./scripts/seed.ts");
+  runStep("seed", "./boot/seed.js");
 }
 
 const skipProvision = (process.env.PROVISION_ON_BOOT ?? "").toLowerCase() === "false";
@@ -75,7 +66,7 @@ if (skipProvision) {
   console.log("[entrypoint] PROVISIONING_FILE not set — skipping provisioning");
 } else {
   console.log("[entrypoint] running first-boot provisioning");
-  runStep("provision", "./scripts/provision.ts");
+  runStep("provision", "./boot/provision.js");
 }
 
 console.log("[entrypoint] starting Next.js server");

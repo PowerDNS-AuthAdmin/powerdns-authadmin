@@ -31,6 +31,33 @@ const config: NextConfig = {
   // and a focused `node_modules` tree, ~80% smaller than full output.
   output: "standalone",
 
+  // Disable Next's built-in image optimizer at runtime: the wordmark PNGs in
+  // /public are tiny pre-sized assets (no resizing or format conversion
+  // needed), and operator-uploaded brand logos render via a plain <img> in
+  // BrandMark. With this on, `<Image>` tags still work — they just serve
+  // the file at its intrinsic size — and the outputFileTracingExcludes
+  // below keeps the ~16 MB of @img/sharp prebuilt binaries out of the
+  // standalone bundle entirely.
+  images: { unoptimized: true },
+
+  // Explicit trace exclusions for packages that Next.js statically follows
+  // into the standalone bundle but that we don't actually invoke at
+  // runtime in production:
+  //
+  //   • @img/sharp* (16 MB) — optionalDep of `next`, only used by
+  //     `images.unoptimized: false`. Disabled above; this drops the
+  //     binaries from the runner.
+  //
+  // jsdom (~8 MB) is intentionally NOT excluded here: it's used at
+  // runtime by `isomorphic-dompurify` in `lib/security/svg.ts` to
+  // sanitize operator-uploaded SVG logos. A future swap to a lighter
+  // DOM (linkedom failed compatibility testing; xmldom + custom
+  // sanitizer is the candidate path) would let us add jsdom to this
+  // list and shed another ~8 MB.
+  outputFileTracingExcludes: {
+    "*": ["node_modules/@img/**", "node_modules/sharp/**"],
+  },
+
   // External packages that should not be bundled by the server build (native bindings,
   // dynamic `require('fs'|'path')`, optional deps). Drizzle's pg driver is the classic
   // case; better-sqlite3 ships a `.node` binding via `bindings` (which itself requires

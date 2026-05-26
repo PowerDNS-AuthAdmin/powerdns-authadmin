@@ -37,6 +37,55 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.2.1 (from 1.2.x)
+
+A **build-pipeline patch** — drop-in upgrade. No schema, no API, no
+operator-config changes. Pull-and-recreate the container:
+
+```sh
+docker compose pull && docker compose up -d
+```
+
+What changes:
+
+- **Image is significantly smaller.** ~1.18 GB → ~290 MB local
+  (-75%); the compressed pull from GHCR drops from ~225 MB to ~80 MB
+  (-65%). Pull time on a rolling deploy drops accordingly.
+- **No `tsx`, no `/app/scripts/`, `/app/lib/`, or `/app/tsconfig.json`
+  in the runtime image.** Boot stages run pre-bundled ESM files under
+  `/app/boot/{migrate,seed,provision}.js`.
+- **Runner is now distroless.** Base swapped from
+  `node:24-bookworm-slim` to `gcr.io/distroless/nodejs24-debian12:nonroot`.
+  No shell, no apt, no package manager in the runtime image — only
+  `node`, glibc, openssl, ca-certificates.
+- **Container user is `nonroot` (uid 65532)**, replacing `node`
+  (uid 1000).
+- **Next.js built-in image optimizer is disabled** (`images.unoptimized: true`);
+  `<Image>` tags still render at intrinsic size.
+- **`:latest` follows releases**, not `main`. `:edge` tracks `main`.
+  See [Installation → Image tags](./02-INSTALLATION.md#image-tags).
+
+> **NOTE — operator-facing trade-offs (read before upgrading a
+> production deployment):**
+>
+> 1.  **No shell in the runtime container.** `docker exec <id> sh` is
+>     unavailable; the distroless base ships only the Node binary.
+>     For incident triage that needs a shell, build a `:debug` tag
+>     against the same builder stage with a bookworm-slim runner.
+>     Day-to-day operations (logs, `/healthz`, `/readyz`, env reload,
+>     image upgrades) are unaffected.
+> 2.  **Container user changed from `node` (uid 1000) to `nonroot`
+>     (uid 65532).** If you'd manually chown'd a host-mounted `/data`
+>     volume to uid 1000 prior, re-chown it to 65532 before the first
+>     boot of v1.2.1. The compose examples shipped in this repo don't
+>     pin a uid and need no change.
+
+If you mounted anything inside the image at one of the dropped paths
+(`/app/scripts`, `/app/lib`, `/app/tsconfig.json`) for custom tooling,
+that's the only meaningful breakage — those are build-time artefacts
+and shouldn't be mounted in production, but the upgrade now enforces
+it.
+
 ### Upgrading to 1.2.0 (from 1.1.x)
 
 A **minor release** — no schema migration, no API changes, drop-in upgrade.
