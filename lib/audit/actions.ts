@@ -164,6 +164,13 @@ export const AUDIT_ACTIONS = [
   // slug + type and the count of derived ability sources, so audit
   // search can spot "a user's perms shifted under them" patterns.
   "auth.token.idp_perms_refreshed",
+
+  // App-DB backup (#84). Super-admin-gated export + restore of the
+  // entire app database (excluding PDNS zone data). The `after`
+  // snapshot carries row counts per table — useful for audit search
+  // to spot empty / partial exports.
+  "system.backup.exported",
+  "system.backup.restored",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

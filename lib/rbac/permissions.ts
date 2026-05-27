@@ -107,6 +107,12 @@ export const PERMISSIONS = [
   // the unified `/admin/auth-providers` surface.
   "auth.read",
   "auth.manage",
+
+  // === System / backup ===
+  // App-DB export + restore (#84). Reveals every configured admin object
+  // (users, providers, settings, audit) and can wholesale replace them
+  // on restore. Default-granted only to the seeded Super Admin role.
+  "system.backup",
 ] as const;
 
 /** Union type of every valid permission. */

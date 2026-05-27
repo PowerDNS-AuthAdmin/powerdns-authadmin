@@ -99,6 +99,7 @@ const SUPER_ADMIN: Permission[] = [
   "settings.write",
   "auth.read",
   "auth.manage",
+  "system.backup",
 ];
 
 export const DEFAULT_ROLES: readonly DefaultRoleSpec[] = [
