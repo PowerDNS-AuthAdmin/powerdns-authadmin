@@ -285,6 +285,47 @@ const samlProviderEntry = z
   })
   .strict();
 
+const ldapGroupMapping = z
+  .object({
+    group: z.string().min(1),
+    role: z.string().min(1),
+    scope: z.string().min(1),
+  })
+  .strict();
+
+const ldapProviderEntry = z
+  .object({
+    slug: z
+      .string()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z][a-z0-9-]*$/),
+    name: z.string().min(1).max(120),
+    server_url: z
+      .string()
+      .min(1)
+      .regex(/^(ldaps:\/\/|ldap:\/\/)[^\s]+$/i, "server_url must use ldap:// or ldaps://"),
+    start_tls: z.boolean().default(false),
+    bind_dn: z.string().min(1),
+    /** Plaintext in YAML; encrypted before write. */
+    bind_password: z.string().min(1),
+    user_search_base: z.string().min(1),
+    user_search_filter: z
+      .string()
+      .min(3)
+      .default("(|(uid={{username}})(sAMAccountName={{username}})(mail={{username}}))"),
+    group_search_base: z.string().min(1).optional(),
+    group_search_filter: z.string().min(3).optional(),
+    group_attr: z.string().min(1).default("memberOf"),
+    claim_email: z.string().min(1).default("mail"),
+    claim_name: z.string().min(1).default("displayName"),
+    tls_ca_cert: z.string().min(1).optional(),
+    enabled: z.boolean().default(true),
+    allowed_email_domains: z.array(z.string().min(1)).optional(),
+    group_mappings: z.array(ldapGroupMapping).default([]),
+  })
+  .strict();
+
 export const provisioningSchema = z
   .object({
     /**
@@ -304,6 +345,7 @@ export const provisioningSchema = z
     demo_zones: z.array(demoZonesEntry).optional(),
     oidc: z.array(oidcProviderEntry).optional(),
     saml: z.array(samlProviderEntry).optional(),
+    ldap: z.array(ldapProviderEntry).optional(),
   })
   .strict();
 
@@ -318,6 +360,8 @@ export type ProvisioningPdnsServerEntry = z.infer<typeof pdnsServerEntry>;
 export type ProvisioningDemoZonesEntry = z.infer<typeof demoZonesEntry>;
 export type ProvisioningOidcProviderEntry = z.infer<typeof oidcProviderEntry>;
 export type ProvisioningOidcGroupMapping = z.infer<typeof oidcGroupMapping>;
+export type ProvisioningLdapProviderEntry = z.infer<typeof ldapProviderEntry>;
+export type ProvisioningLdapGroupMapping = z.infer<typeof ldapGroupMapping>;
 
 /**
  * Parse a `scope` string from a group mapping into the (type, id) pair the

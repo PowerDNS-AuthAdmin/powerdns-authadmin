@@ -57,6 +57,13 @@
       "when": 1779918102133,
       "tag": "0007_saml_providers",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779918300000,
+      "tag": "0008_ldap_providers",
+      "breakpoints": true
     }
   ]
 }

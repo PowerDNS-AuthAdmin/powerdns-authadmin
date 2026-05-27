@@ -5,15 +5,14 @@
  *
  * Stateful wrapper for /admin/authentication/new. Owns:
  *
- *   1. URL-driven type selection (`?type=oidc` survives reload + back/forward).
- *   2. The conditional form switch: OIDC renders the existing
- *      `<OidcProviderForm mode="create">`; SAML and LDAP render a brief
- *      "lands in PR N" panel because those protocols aren't implemented
- *      yet (the cards in the picker are also disabled for those types).
+ *   1. URL-driven type selection (`?type=oidc|saml|ldap` survives reload + back/forward).
+ *   2. The conditional form switch: OIDC renders <OidcProviderForm mode="create">,
+ *      SAML renders <SamlProviderForm mode="create"> (ADR-0021), LDAP renders
+ *      <LdapProviderForm mode="create"> (ADR-0020).
  *
- * The pre-fetched pickers (`roles` / `teams` / `servers`) the OIDC group-
- * mapping editor needs are loaded server-side and passed down — same shape
- * the legacy `/admin/oidc-providers/new` used.
+ * The pre-fetched pickers (`roles` / `teams` / `servers`) the group-mapping
+ * editors need are loaded server-side and passed down. All three forms share
+ * the same pickers shape.
  */
 
 import { useRouter, useSearchParams } from "next/navigation";
@@ -22,6 +21,7 @@ import {
   type PickerData,
 } from "@/app/(app)/admin/oidc-providers/_components/oidc-provider-form";
 import { SamlProviderForm } from "@/app/(app)/admin/saml-providers/_components/saml-provider-form";
+import { LdapProviderForm } from "@/app/(app)/admin/ldap-providers/_components/ldap-provider-form";
 import { ProviderTypePicker, type ProviderType } from "./provider-type-picker";
 
 function parseType(raw: string | null): ProviderType | null {
@@ -39,8 +39,6 @@ export function NewProviderClient({ pickers }: Props) {
   const selected = parseType(params.get("type"));
 
   function handleSelect(next: ProviderType) {
-    // `replace` (not push) so the picker doesn't pile up history entries
-    // every time the operator clicks between cards.
     const url = next ? `/admin/authentication/new?type=${next}` : "/admin/authentication/new";
     router.replace(url);
   }
@@ -72,34 +70,18 @@ export function NewProviderClient({ pickers }: Props) {
           <SamlProviderForm mode="create" pickers={pickers} />
         </section>
       ) : selected === "ldap" ? (
-        <ComingSoonPanel type={selected} />
+        <section className="space-y-4 border-t border-[color:var(--color-border)] pt-6">
+          <header>
+            <h2 className="text-lg font-semibold">LDAP provider</h2>
+            <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
+              Configure the directory below. Bind-then-search-then-rebind: we use the service
+              account to look up the user, then re-bind as the user with the password they type.
+              Strict TLS by default — see ADR-0020 for the security posture.
+            </p>
+          </header>
+          <LdapProviderForm mode="create" pickers={pickers} />
+        </section>
       ) : null}
     </div>
-  );
-}
-
-function ComingSoonPanel({ type: _type }: { type: "ldap" }) {
-  const label = "LDAP";
-  const pr = "PR 2";
-  const adr = "ADR-0020";
-  return (
-    <section className="space-y-2 rounded-md border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-6 text-sm">
-      <h2 className="text-base font-semibold">{label} — coming soon</h2>
-      <p className="text-[color:var(--color-fg-muted)]">
-        The {label} provider lands in {pr} of the
-        <code className="mx-1 rounded bg-[color:var(--color-bg)] px-1 font-mono text-xs">
-          feat/auth-providers-ldap-saml-webauthn
-        </code>
-        feature branch. The design is locked in {adr}; the configuration form will appear here once
-        the schema, validators, and admin routes are wired.
-      </p>
-      <p className="text-xs text-[color:var(--color-fg-muted)]">
-        Pick another protocol from the cards above, or set
-        <code className="mx-1 rounded bg-[color:var(--color-bg)] px-1 font-mono text-xs">
-          PDNS_AUTHADMIN_VERSION
-        </code>
-        to a release that includes {pr} once it ships.
-      </p>
-    </section>
   );
 }

@@ -20,6 +20,7 @@ export * from "./backend-advisories";
 export * from "./settings";
 export * from "./oidc-providers";
 export * from "./saml-providers";
+export * from "./ldap-providers";
 export * from "./auth-provider-slugs";
 export * from "./zone-templates";
 export * from "./zone-grants";

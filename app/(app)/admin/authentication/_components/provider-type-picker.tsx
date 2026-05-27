@@ -46,8 +46,8 @@ const CARDS: readonly CardSpec[] = [
     blurb:
       "Direct bind against Active Directory or OpenLDAP. Strict TLS default; group memberships via memberOf or search filter.",
     icon: <Server className="h-5 w-5" aria-hidden />,
-    available: false,
-    comingChip: "Lands in PR 2",
+    available: true,
+    comingChip: null,
   },
   {
     type: "saml",

@@ -36,6 +36,38 @@ true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
 - Docs: new [`docs/13-SAML.md`](./docs/13-SAML.md) with worked AD FS,
   Authentik, and Keycloak setup. ADR-0021 captures the architecture.
 
+### Added — LDAP authentication (ADR-0020)
+
+- Direct-bind sign-in against **Active Directory** and **OpenLDAP**. Operators
+  configure providers under **Admin → Authentication** (the LDAP card on the
+  "Add provider" picker is now live alongside OIDC and SAML).
+- Bind-then-search-then-rebind flow via the maintained TypeScript-first
+  [`ldapts`](https://www.npmjs.com/package/ldapts) library. Strict TLS by
+  default — plain `ldap://` is refused unless either StartTLS is enabled on
+  the provider row OR `LDAP_ALLOW_INSECURE_PORT_389=true` is set. A new
+  `LDAP_TLS_INSECURE_SKIP_VERIFY=true` env knob exists for lab use only;
+  production deploys should pin the internal CA on the provider row instead.
+- Group → role mappings (global / team / zone / server scope) feed the
+  shared `applyGroupSync` materialiser. AD's `memberOf` is read first; an
+  optional second search (`group_search_base` + `group_search_filter` with a
+  `{{userDn}}` placeholder) handles OpenLDAP installs without the `memberof`
+  overlay.
+- New `POST /api/auth/ldap/<slug>/login` route — same captcha + per-IP
+  rate-limit pipeline as the local + OIDC paths.
+- New `ldap_providers` table (PG + SQLite); migrations
+  `drizzle/0008_ldap_providers.sql` and
+  `drizzle-sqlite/0008_ldap_providers.sql`.
+- Provisioning gains an `ldap:` block (worked AD + OpenLDAP examples in
+  `provisioning.example.yaml`). A bare-slug `auth_default_provider` resolves
+  to an LDAP provider through the existing `auth_provider_slugs` table.
+- New audit actions: `ldap.provider.created` / `.updated` / `.deleted` and
+  `auth.ldap.rejected_provisioning`. `auth.login.success` after-state now
+  carries `method: "ldap"` and `provider: "<slug>"` for sign-ins through
+  this path.
+- Operator guide: [`docs/12-LDAP.md`](./docs/12-LDAP.md) (worked AD example
+  with KB4520412 channel-binding note, OpenLDAP 2.6 example with
+  `olcTLSCipherSuite` + memberof-overlay setup).
+
 ### Changed — admin sidebar restructure + URL alignment
 
 - **Sidebar "Infrastructure" section renamed to "PowerDNS"**, with shorter

@@ -82,6 +82,18 @@ export const AUDIT_ACTIONS = [
   "saml.provider.created",
   "saml.provider.updated",
   "saml.provider.deleted",
+
+  // LDAP providers (ADR-0020). Sign-in events reuse the generic
+  // `auth.login.success` / `auth.login.failure` vocabulary; the after-
+  // state carries `method: "ldap"` (and `provider: "<slug>"`) to
+  // disambiguate without an extra action.
+  "ldap.provider.created",
+  "ldap.provider.updated",
+  "ldap.provider.deleted",
+  // The LDAP analog of `auth.oidc.rejected_provisioning` — emitted
+  // when sign-in succeeds at the directory but the auto-provision
+  // step rejects the email's domain.
+  "auth.ldap.rejected_provisioning",
   // Fleet-level refresh of every enabled provider's discovery cache
   // (T-107). One audit row per operator click — per-provider cache
   // writes don't audit individually (would dwarf the signal).

@@ -23,6 +23,7 @@ import { requireUserForPage } from "@/lib/auth/require-user";
 import { CreateButton } from "@/components/ui/create-button";
 import { listAllOidcProviders } from "@/lib/db/repositories/oidc-providers";
 import { listAllSamlProviders } from "@/lib/db/repositories/saml-providers";
+import { listAllLdapProviders } from "@/lib/db/repositories/ldap-providers";
 import { envOidcProviderSummary } from "@/lib/auth/providers/oidc";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { ensureFreshOidcDiscovery } from "@/lib/auth/providers/oidc-discovery-sampler";
@@ -47,9 +48,10 @@ export default async function AuthenticationPage() {
     );
   }
 
-  const [providers, samlProviders, settings] = await Promise.all([
+  const [providers, samlProviders, ldapProviders, settings] = await Promise.all([
     listAllOidcProviders(),
     listAllSamlProviders(),
+    listAllLdapProviders(),
     getAppSettings(),
   ]);
   const envProvider = envOidcProviderSummary();
@@ -104,6 +106,21 @@ export default async function AuthenticationPage() {
       iconUrl: null,
     });
   }
+  for (const l of ldapProviders) {
+    rows.push({
+      kind: "ldap-db",
+      id: l.id,
+      slug: l.slug,
+      name: l.name,
+      // Show the server URL — bind DN lives on the detail page.
+      description: l.serverUrl,
+      enabled: l.enabled,
+      protocol: "LDAP",
+      detailHref: `/admin/ldap-providers/${l.id}`,
+      canEdit: canManage,
+      iconUrl: null,
+    });
+  }
   if (showEnvRow && envProvider) {
     rows.push({
       kind: "oidc-env",
@@ -154,6 +171,15 @@ export default async function AuthenticationPage() {
       protocol: "SAML",
     });
   }
+  for (const l of ldapProviders) {
+    if (!l.enabled) continue;
+    defaultProviderOptions.push({
+      value: `ldap:${l.slug}`,
+      label: l.name,
+      description: l.serverUrl,
+      protocol: "LDAP",
+    });
+  }
   if (showEnvRow && envProvider) {
     defaultProviderOptions.push({
       value: `oidc:${envProvider.slug}`,
@@ -169,7 +195,7 @@ export default async function AuthenticationPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Authentication</h1>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
-            Every configured way to sign in — local password, OIDC, and (soon) SAML and LDAP. The
+            Every configured way to sign in — local password, OIDC, LDAP, and (soon) SAML. The
             default below decides which one <code>/login</code> auto-redirects to on a fresh visit.
           </p>
         </div>

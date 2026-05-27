@@ -60,6 +60,7 @@
     "isomorphic-dompurify": "3.13.0",
     "jose": "6.2.3",
     "js-yaml": "4.1.1",
+    "ldapts": "8.1.8",
     "lucide-react": "1.16.0",
     "next": "16.2.6",
     "nodemailer": "8.0.7",

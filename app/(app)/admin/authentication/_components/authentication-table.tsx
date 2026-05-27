@@ -26,9 +26,10 @@ export interface AuthRow {
   /**
    * Disambiguates rendering for the same protocol — `oidc-env` is read-only,
    * `oidc-db` is editable, `local` routes to the global Settings page,
-   * `saml-db` routes to the SAML provider detail page.
+   * `saml-db` routes to the SAML provider detail page,
+   * `ldap-db` is the per-row LDAP entry (no env analogue).
    */
-  kind: "local" | "oidc-db" | "oidc-env" | "saml-db";
+  kind: "local" | "oidc-db" | "oidc-env" | "saml-db" | "ldap-db";
   /** Stable react key. For "local" and "oidc-env" not a DB id. */
   id: string;
   slug: string;

@@ -28,6 +28,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   authProviderSlugs,
+  ldapProviders,
   oidcProviders,
   pdnsClusters,
   pdnsServers,
@@ -36,6 +37,7 @@ import {
   settings,
   teams,
   zoneTemplates,
+  type LdapGroupMapping,
   type OidcGroupMapping,
   type SamlGroupMapping,
   type TemplateRecord,
@@ -70,9 +72,11 @@ export interface ProvisioningResult {
   demoZonesFailed: number;
   oidcProvidersUpserted: number;
   samlProvidersUpserted: number;
+  ldapProvidersUpserted: number;
   /** Unresolvable scope references in group mappings (logged + audited; the
    *  rest of the mapping list is still persisted, with the bad entries
-   *  filtered out). */
+   *  filtered out). Covers both OIDC and LDAP mappings — the shape is
+   *  identical. */
   unresolvedGroupMappings: Array<{ provider: string; group: string; scope: string }>;
 }
 
@@ -94,6 +98,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
     demoZonesFailed: 0,
     oidcProvidersUpserted: 0,
     samlProvidersUpserted: 0,
+    ldapProvidersUpserted: 0,
     unresolvedGroupMappings: [],
   };
 
@@ -486,7 +491,8 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
     }
   }
 
-  // 6b. saml providers — same resolution pattern as OIDC.
+  // 6b. saml providers (ADR-0021) — same slug-reservation + upsert pattern
+  // as OIDC. Mappings re-use the shared `parseScopeString` resolver.
   if (config.saml) {
     const teamsBySlug = new Map(
       (await db.select({ id: teams.id, slug: teams.slug }).from(teams)).map((r) => [r.slug, r.id]),
@@ -609,6 +615,114 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
           },
         });
       result.samlProvidersUpserted += 1;
+    }
+  }
+
+  // 6c. ldap providers (ADR-0020). Same shape as the OIDC block — slug
+  // reservation in `auth_provider_slugs` then a per-provider upsert.
+  // Mappings re-use the shared `parseScopeString` resolver because the
+  // group-mapping shape is identical to OIDC's.
+  if (config.ldap) {
+    const teamsBySlug = new Map(
+      (await db.select({ id: teams.id, slug: teams.slug }).from(teams)).map((r) => [r.slug, r.id]),
+    );
+    const serversBySlug = new Map(
+      (await db.select({ id: pdnsServers.id, slug: pdnsServers.slug }).from(pdnsServers)).map(
+        (r) => [r.slug, r.id],
+      ),
+    );
+
+    for (const p of config.ldap) {
+      const resolvedMappings: LdapGroupMapping[] = [];
+      for (const m of p.group_mappings) {
+        const parsed = parseScopeString(m.scope);
+        if (!parsed) {
+          result.unresolvedGroupMappings.push({ provider: p.slug, group: m.group, scope: m.scope });
+          continue;
+        }
+        let scopeId: string | null = null;
+        if (parsed.scopeType === "team") {
+          const id = teamsBySlug.get(parsed.scopeRef!);
+          if (!id) {
+            result.unresolvedGroupMappings.push({
+              provider: p.slug,
+              group: m.group,
+              scope: m.scope,
+            });
+            continue;
+          }
+          scopeId = id;
+        } else if (parsed.scopeType === "server") {
+          const id = serversBySlug.get(parsed.scopeRef!);
+          if (!id) {
+            result.unresolvedGroupMappings.push({
+              provider: p.slug,
+              group: m.group,
+              scope: m.scope,
+            });
+            continue;
+          }
+          scopeId = id;
+        } else if (parsed.scopeType === "zone") {
+          scopeId = parsed.scopeRef;
+        }
+        resolvedMappings.push({
+          group: m.group,
+          roleSlug: m.role,
+          scopeType: parsed.scopeType,
+          scopeId,
+        });
+      }
+
+      const bindPasswordEncrypted = encrypt(p.bind_password, "ldap-bind-password");
+      await db
+        .insert(authProviderSlugs)
+        .values({ slug: p.slug, providerType: "ldap" })
+        .onConflictDoNothing({ target: authProviderSlugs.slug });
+      await db
+        .insert(ldapProviders)
+        .values({
+          slug: p.slug,
+          name: p.name,
+          serverUrl: p.server_url,
+          startTls: p.start_tls,
+          bindDn: p.bind_dn,
+          bindPasswordEncrypted,
+          userSearchBase: p.user_search_base,
+          userSearchFilter: p.user_search_filter,
+          groupSearchBase: p.group_search_base ?? null,
+          groupSearchFilter: p.group_search_filter ?? null,
+          groupAttr: p.group_attr,
+          claimEmail: p.claim_email,
+          claimName: p.claim_name,
+          tlsCaCert: p.tls_ca_cert ?? null,
+          enabled: p.enabled,
+          allowedEmailDomains: p.allowed_email_domains ?? null,
+          groupMappings: resolvedMappings,
+        })
+        .onConflictDoUpdate({
+          target: ldapProviders.slug,
+          set: {
+            name: p.name,
+            serverUrl: p.server_url,
+            startTls: p.start_tls,
+            bindDn: p.bind_dn,
+            bindPasswordEncrypted,
+            userSearchBase: p.user_search_base,
+            userSearchFilter: p.user_search_filter,
+            groupSearchBase: p.group_search_base ?? null,
+            groupSearchFilter: p.group_search_filter ?? null,
+            groupAttr: p.group_attr,
+            claimEmail: p.claim_email,
+            claimName: p.claim_name,
+            tlsCaCert: p.tls_ca_cert ?? null,
+            enabled: p.enabled,
+            allowedEmailDomains: p.allowed_email_domains ?? null,
+            groupMappings: resolvedMappings,
+            updatedAt: new Date(),
+          },
+        });
+      result.ldapProvidersUpserted += 1;
     }
   }
 

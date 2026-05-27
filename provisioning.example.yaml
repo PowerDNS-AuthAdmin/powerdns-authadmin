@@ -598,3 +598,100 @@ saml:
       - group: NocZoneEditors
         role: zone-editor
         scope: team:noc
+
+# -----------------------------------------------------------------------------
+# LDAP providers (ADR-0020)
+#
+# Direct-bind sign-in against Active Directory or OpenLDAP. The applier
+# encrypts `bind_password` (and `tls_ca_cert`, if you pin a CA) with the
+# same AES-256-GCM envelope used everywhere else — they NEVER round-trip
+# back through the API in plaintext.
+#
+# Slugs are reserved in the cross-type `auth_provider_slugs` table the
+# same way as OIDC + SAML; a slug collision across types fails the
+# provisioning step with a clean error.
+# -----------------------------------------------------------------------------
+ldap:
+  # ----- Worked AD example -----------------------------------------------
+  - slug: corp-ad
+    name: "Corporate AD"
+    server_url: "ldaps://ad.corp.example.com:636"
+    # StartTLS upgrades a plain ldap:// connection after connect.
+    # MUST be false on ldaps:// URLs (the implicit-TLS port doesn't
+    # speak StartTLS) — the validator refuses the redundant pairing.
+    start_tls: false
+    bind_dn: "CN=svc-authadmin,OU=ServiceAccounts,DC=corp,DC=example,DC=com"
+    bind_password: "REPLACE_ME_ad_service_account_password"
+    user_search_base: "OU=Employees,DC=corp,DC=example,DC=com"
+    # AD's typical OR filter — matches `sAMAccountName` (the
+    # Active Directory login name), `userPrincipalName`, or `mail`.
+    user_search_filter: "(|(sAMAccountName={{username}})(userPrincipalName={{username}})(mail={{username}}))"
+    # AD fully resolves `memberOf` on the user record at query time,
+    # so the optional second-search pair is unnecessary. Leave
+    # group_search_base / group_search_filter out for AD.
+    group_attr: memberOf
+    claim_email: mail
+    claim_name: displayName
+    # Optional CA pin for an internal certificate authority. Concatenated
+    # PEM is accepted (cert + intermediates). Use this OR
+    # LDAP_TLS_INSECURE_SKIP_VERIFY=true (NEVER both — the pin is the
+    # secure equivalent).
+    # tls_ca_cert: |
+    #   -----BEGIN CERTIFICATE-----
+    #   ...
+    #   -----END CERTIFICATE-----
+    enabled: true
+    allowed_email_domains:
+      - corp.example.com
+    group_mappings:
+      # Map AD groups (by their full DN — AD's memberOf is DN-valued)
+      # to roles. Group strings are case-sensitive matches against the
+      # values in the user's memberOf attribute.
+      - group: "CN=PDNS Super Admins,OU=Groups,DC=corp,DC=example,DC=com"
+        role: super-admin
+        scope: global
+
+      - group: "CN=NOC,OU=Groups,DC=corp,DC=example,DC=com"
+        role: zone-editor
+        scope: team:noc
+
+      - group: "CN=DNS Public Zone Readers,OU=Groups,DC=corp,DC=example,DC=com"
+        role: read-only
+        scope: zone:corp.example.
+
+  # ----- Worked OpenLDAP 2.6 example -----------------------------------
+  # OpenLDAP with the memberof overlay enabled in cn=config behaves
+  # like AD (group memberships resolved on the user record). Without
+  # the overlay, configure the optional second search below — we
+  # match groupOfNames / groupOfUniqueNames by `member={{userDn}}`.
+  - slug: dev-openldap
+    name: "Dev OpenLDAP"
+    # Plain ldap:// is refused by the validator unless start_tls=true
+    # is set here (RFC 4511 §4.14 upgrade) or
+    # LDAP_ALLOW_INSECURE_PORT_389=true is set in the environment.
+    server_url: "ldap://openldap.dev.example.com:389"
+    start_tls: true
+    bind_dn: "cn=svc-authadmin,ou=ServiceAccounts,dc=example,dc=com"
+    bind_password: "REPLACE_ME_openldap_service_account_password"
+    user_search_base: "ou=Users,dc=example,dc=com"
+    user_search_filter: "(|(uid={{username}})(mail={{username}}))"
+    # OpenLDAP without the memberof overlay: configure the second
+    # search. The filter substitutes {{userDn}} with the LDAP-escaped
+    # DN of the just-authenticated user.
+    group_search_base: "ou=Groups,dc=example,dc=com"
+    group_search_filter: "(&(objectClass=groupOfNames)(member={{userDn}}))"
+    # Empty attr is the conventional "no in-entry attribute, always
+    # consult the second search" path; keep memberOf as the default
+    # so installs that later flip the overlay on don't need a config
+    # change here.
+    group_attr: memberOf
+    claim_email: mail
+    claim_name: cn
+    enabled: true
+    group_mappings:
+      - group: "cn=admins,ou=Groups,dc=example,dc=com"
+        role: super-admin
+        scope: global
+      - group: "cn=devs,ou=Groups,dc=example,dc=com"
+        role: read-only
+        scope: global

@@ -22,6 +22,7 @@ demo zones in about two minutes — then come back for the production guides.
 | [Hardening & best practices](./08-HARDENING.md)  | Lock down a production deployment.                            |
 | [Upgrading](./09-UPGRADING.md)                   | Move to a new version safely.                                 |
 | [Troubleshooting](./10-TROUBLESHOOTING.md)       | Fix a startup error or a backend that won't connect.          |
+| [LDAP sign-in (AD / OpenLDAP)](./12-LDAP.md)     | Authenticate directly against an existing directory.          |
 
 ## Reference
 
