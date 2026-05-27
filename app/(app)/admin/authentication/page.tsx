@@ -12,8 +12,8 @@
  * app, persisted in `settings.auth_default_provider` as a typed-prefix
  * string (`local` | `oidc:<slug>` | `saml:<slug>` | `ldap:<slug>`).
  *
- * The per-protocol edit pages stay where they are: `/admin/oidc-providers/[id]`
- * for OIDC (and `/admin/ldap-providers/[id]` + `/admin/saml-providers/[id]`
+ * The per-protocol edit pages stay where they are: `/admin/auth-providers/oidc/[id]`
+ * for OIDC (and `/admin/auth-providers/ldap/[id]` + `/admin/auth-providers/saml/[id]`
  * once they exist). This page is the index that hands off to them.
  */
 
@@ -34,8 +34,8 @@ import { DefaultProviderSelector } from "./_components/default-provider-selector
 export const metadata: Metadata = { title: "Authentication" };
 
 export default async function AuthenticationPage() {
-  const { ability } = await requireUserForPage({ can: "oidc.read" });
-  const canManage = ability.can("manage", "Oidc");
+  const { ability } = await requireUserForPage({ can: "auth.read" });
+  const canManage = ability.can("manage", "Auth");
 
   // Opportunistic discovery refresh — same staleness-gated probe the old
   // OIDC list page ran. Best-effort; failures here don't stall the render.
@@ -87,7 +87,7 @@ export default async function AuthenticationPage() {
       description: p.issuerUrl,
       enabled: p.enabled,
       protocol: "OIDC",
-      detailHref: `/admin/oidc-providers/${p.id}`,
+      detailHref: `/admin/auth-providers/oidc/${p.id}`,
       canEdit: canManage,
       iconUrl: p.iconUrl,
     });
@@ -101,7 +101,7 @@ export default async function AuthenticationPage() {
       description: p.idpEntityId,
       enabled: p.enabled,
       protocol: "SAML",
-      detailHref: `/admin/saml-providers/${p.id}`,
+      detailHref: `/admin/auth-providers/saml/${p.id}`,
       canEdit: canManage,
       iconUrl: null,
     });
@@ -116,7 +116,7 @@ export default async function AuthenticationPage() {
       description: l.serverUrl,
       enabled: l.enabled,
       protocol: "LDAP",
-      detailHref: `/admin/ldap-providers/${l.id}`,
+      detailHref: `/admin/auth-providers/ldap/${l.id}`,
       canEdit: canManage,
       iconUrl: null,
     });

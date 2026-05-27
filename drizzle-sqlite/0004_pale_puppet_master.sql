@@ -118,4 +118,15 @@ CREATE UNIQUE INDEX `zone_grants_user_unique_idx` ON `zone_grants` (`user_id`,`s
 CREATE UNIQUE INDEX `zone_grants_team_unique_idx` ON `zone_grants` (`team_id`,`server_id`,`zone_name`) WHERE "zone_grants"."team_id" IS NOT NULL;--> statement-breakpoint
 ALTER TABLE `sessions` ADD `derived_permissions` text DEFAULT '[]' NOT NULL;--> statement-breakpoint
 ALTER TABLE `sessions` ADD `oidc_refresh_token_encrypted` text;--> statement-breakpoint
-ALTER TABLE `oidc_providers` DROP COLUMN `force_default`;
+ALTER TABLE `oidc_providers` DROP COLUMN `force_default`;--> statement-breakpoint
+
+-- #74: rename `oidc.read` / `oidc.manage` permission strings inside existing
+-- `roles.permissions` JSON arrays to the protocol-neutral `auth.read` /
+-- `auth.manage`. SQLite stores the JSON as text; do the substitution at the
+-- string level since SQLite doesn't have jsonb_agg. The replace is scoped
+-- to the exact strings (with quotes + comma boundaries) so adjacent
+-- permissions like `oidc.read.something-else` (none exist today) wouldn't be
+-- mangled.
+UPDATE `roles`
+SET `permissions` = REPLACE(REPLACE(`permissions`, '"oidc.manage"', '"auth.manage"'), '"oidc.read"', '"auth.read"')
+WHERE `permissions` LIKE '%"oidc.read"%' OR `permissions` LIKE '%"oidc.manage"%';

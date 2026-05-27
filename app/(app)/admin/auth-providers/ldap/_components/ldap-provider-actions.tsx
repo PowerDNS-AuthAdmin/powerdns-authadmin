@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * app/(app)/admin/ldap-providers/_components/ldap-provider-actions.tsx
+ * app/(app)/admin/auth-providers/ldap/_components/ldap-provider-actions.tsx
  *
  * Delete button for the LDAP provider edit page. Same shape as the OIDC
  * actions component — in-app dialog (no native confirm).

@@ -78,4 +78,22 @@ CREATE UNIQUE INDEX "zone_grants_user_unique_idx" ON "zone_grants" USING btree (
 CREATE UNIQUE INDEX "zone_grants_team_unique_idx" ON "zone_grants" USING btree ("team_id","server_id","zone_name") WHERE "zone_grants"."team_id" IS NOT NULL;--> statement-breakpoint
 ALTER TABLE "oidc_providers" DROP COLUMN "force_default";--> statement-breakpoint
 ALTER TABLE "role_assignments" DROP COLUMN "provider_id";--> statement-breakpoint
-ALTER TABLE "zone_grants" ADD CONSTRAINT "zone_grants_principal_check" CHECK (("zone_grants"."user_id" IS NULL) <> ("zone_grants"."team_id" IS NULL));
+ALTER TABLE "zone_grants" ADD CONSTRAINT "zone_grants_principal_check" CHECK (("zone_grants"."user_id" IS NULL) <> ("zone_grants"."team_id" IS NULL));--> statement-breakpoint
+
+-- #74: rename the OIDC-only `oidc.read` / `oidc.manage` permission strings
+-- inside existing `roles.permissions` arrays to the protocol-neutral
+-- `auth.read` / `auth.manage` form. Now that SAML + LDAP share the same
+-- admin surface, the OIDC-prefixed names are misleading. Operators don't
+-- need to hand-edit roles.
+UPDATE "roles"
+SET "permissions" = (
+  SELECT jsonb_agg(
+    CASE
+      WHEN p = 'oidc.read'   THEN 'auth.read'
+      WHEN p = 'oidc.manage' THEN 'auth.manage'
+      ELSE p
+    END
+  )
+  FROM jsonb_array_elements_text("permissions") p
+)
+WHERE "permissions" @> '["oidc.read"]'::jsonb OR "permissions" @> '["oidc.manage"]'::jsonb;

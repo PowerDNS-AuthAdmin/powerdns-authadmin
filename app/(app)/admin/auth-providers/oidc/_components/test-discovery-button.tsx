@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * app/(app)/admin/oidc-providers/_components/test-discovery-button.tsx
+ * app/(app)/admin/auth-providers/oidc/_components/test-discovery-button.tsx
  *
  * Operator-triggered "Test" for an OIDC provider's discovery
  * endpoint. Same UX shape as the PDNS server Test button:

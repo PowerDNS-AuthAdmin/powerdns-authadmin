@@ -97,8 +97,8 @@ const SUPER_ADMIN: Permission[] = [
   "token.delete.all",
   "audit.read",
   "settings.write",
-  "oidc.read",
-  "oidc.manage",
+  "auth.read",
+  "auth.manage",
 ];
 
 export const DEFAULT_ROLES: readonly DefaultRoleSpec[] = [

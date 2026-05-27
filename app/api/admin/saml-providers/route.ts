@@ -39,7 +39,7 @@ function safeRow<
 
 export async function GET(): Promise<Response> {
   try {
-    await requireUser({ can: "oidc.read" });
+    await requireUser({ can: "auth.read" });
     const rows = await listAllSamlProviders();
     return Response.json(
       { providers: rows.map(safeRow) },
@@ -52,7 +52,7 @@ export async function GET(): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const { user } = await requireUser({ can: "oidc.manage" });
+    const { user } = await requireUser({ can: "auth.manage" });
     await requireCsrf(request);
 
     let input;

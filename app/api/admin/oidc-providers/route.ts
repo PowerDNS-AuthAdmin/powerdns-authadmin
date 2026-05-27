@@ -37,7 +37,7 @@ import { logger } from "@/lib/logger";
 
 export async function GET(): Promise<Response> {
   try {
-    await requireUser({ can: "oidc.read" });
+    await requireUser({ can: "auth.read" });
     const rows = await listAllOidcProviders();
     // Never return the encrypted secret over the wire.
     const safe = rows.map(({ clientSecretEncrypted: _unused, ...rest }) => rest);
@@ -49,7 +49,7 @@ export async function GET(): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const { user } = await requireUser({ can: "oidc.manage" });
+    const { user } = await requireUser({ can: "auth.manage" });
     await requireCsrf(request);
 
     let input;

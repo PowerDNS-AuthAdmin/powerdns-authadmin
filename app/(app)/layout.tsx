@@ -109,7 +109,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const canReadTeams = current.ability.can("read", "Team");
   const canReadAudit = current.ability.can("read", "Audit");
   const canReadSettings = current.ability.can("read", "Settings");
-  const canReadOidc = current.ability.can("read", "Oidc");
+  const canReadAuth = current.ability.can("read", "Auth");
   const canUseTemplates = current.ability.can("use", "Template");
 
   // Health-bell advisories (ADR-0015) — only for users who can read backends.
@@ -131,7 +131,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // Request log (moved from System), which is `audit.read`-gated.
   const hasInfrastructure =
     canReadServers || canReadTsig || canManageAutoprimary || canUseTemplates || canReadAudit;
-  const hasAccess = canReadUsers || canReadRoles || canReadTeams || canReadOidc;
+  const hasAccess = canReadUsers || canReadRoles || canReadTeams || canReadAuth;
   const hasSystem = canReadSettings || canReadAudit;
 
   const sidebar = (
@@ -174,7 +174,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             {canReadUsers ? <NavLink nested href="/admin/users" label="Users" /> : null}
             {canReadTeams ? <NavLink nested href="/admin/teams" label="Teams" /> : null}
             {canReadRoles ? <NavLink nested href="/admin/roles" label="Roles" /> : null}
-            {canReadOidc ? (
+            {canReadAuth ? (
               <NavLink nested href="/admin/authentication" label="Authentication" />
             ) : null}
           </NavSection>

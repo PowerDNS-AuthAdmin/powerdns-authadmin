@@ -25,7 +25,7 @@ import { NewProviderClient } from "../_components/new-provider-client";
 export const metadata: Metadata = { title: "Add provider" };
 
 export default async function NewAuthProviderPage() {
-  await requireUserForPage({ can: "oidc.manage" });
+  await requireUserForPage({ can: "auth.manage" });
   const [roles, teams, servers] = await Promise.all([
     listRoles(),
     listAllTeams(),

@@ -2,7 +2,7 @@
  * lib/auth/providers/oidc.ts
  *
  * OIDC provider dispatcher. Providers are stored in the `oidc_providers`
- * table and managed from `/admin/oidc-providers`. The env-driven config
+ * table and managed from `/admin/auth-providers/oidc`. The env-driven config
  * (`OIDC_*`) is surfaced as a single, READ-ONLY provider ("Configured by
  * ENV") that is always offered alongside DB providers — both the login page
  * and the admin list show it. A DB provider with the same slug takes

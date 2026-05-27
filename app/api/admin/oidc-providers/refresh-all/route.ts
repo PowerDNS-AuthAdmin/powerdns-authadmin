@@ -25,7 +25,7 @@ import { logger } from "@/lib/logger";
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const { user } = await requireUser({ can: "oidc.read" });
+    const { user } = await requireUser({ can: "auth.read" });
     await requireCsrf(request);
 
     const hdrs = await headers();

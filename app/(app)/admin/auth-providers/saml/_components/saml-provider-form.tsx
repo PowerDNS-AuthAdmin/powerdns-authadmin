@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * app/(app)/admin/saml-providers/_components/saml-provider-form.tsx
+ * app/(app)/admin/auth-providers/saml/_components/saml-provider-form.tsx
  *
  * Shared create / edit form for a SAML provider. Structurally parallel to
  * the OIDC form (`../../oidc-providers/_components/oidc-provider-form.tsx`).

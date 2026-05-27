@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * app/(app)/admin/saml-providers/_components/saml-provider-actions.tsx
+ * app/(app)/admin/auth-providers/oidc/_components/oidc-provider-actions.tsx
  *
- * Delete button for the SAML provider edit page. Mirrors the OIDC
- * equivalent — uses the in-app dialog system (no native confirm).
+ * Delete button for the provider edit page. Uses the in-app dialog system
+ * (no native confirm — banned by project convention).
  */
 
 import { useRouter } from "next/navigation";
@@ -17,7 +17,7 @@ interface ActionsProps {
   name: string;
 }
 
-export function SamlProviderActions({ id, name }: ActionsProps) {
+export function OidcProviderActions({ id, name }: ActionsProps) {
   const router = useRouter();
   const { confirm, toast } = useDialog();
   const [deleting, setDeleting] = useState(false);
@@ -34,7 +34,7 @@ export function SamlProviderActions({ id, name }: ActionsProps) {
     if (!ok) return;
     setDeleting(true);
     try {
-      const res = await apiFetch(`/api/admin/saml-providers/${id}`, {
+      const res = await apiFetch(`/api/admin/oidc-providers/${id}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -46,7 +46,7 @@ export function SamlProviderActions({ id, name }: ActionsProps) {
         return;
       }
       toast({ kind: "success", description: "Provider deleted." });
-      router.push("/admin/authentication");
+      router.push("/admin/auth-providers/oidc");
       router.refresh();
     } catch {
       toast({ kind: "error", description: "Network error. Please try again." });

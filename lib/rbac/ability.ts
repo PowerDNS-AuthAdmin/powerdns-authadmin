@@ -50,7 +50,7 @@ export type SubjectType =
   | "Token"
   | "Audit"
   | "Settings"
-  | "Oidc";
+  | "Auth";
 
 /**
  * The shape of a resource instance we pass at check time. The `__type` field

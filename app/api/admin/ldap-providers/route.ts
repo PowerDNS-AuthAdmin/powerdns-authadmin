@@ -33,7 +33,7 @@ import { errorResponse } from "@/lib/http/error-response";
 
 export async function GET(): Promise<Response> {
   try {
-    await requireUser({ can: "oidc.read" });
+    await requireUser({ can: "auth.read" });
     const rows = await listAllLdapProviders();
     // Never return the encrypted secret over the wire. Strip the CA cert
     // too — it can be sizable and isn't needed by the list view.
@@ -49,7 +49,7 @@ export async function GET(): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const { user } = await requireUser({ can: "oidc.manage" });
+    const { user } = await requireUser({ can: "auth.manage" });
     await requireCsrf(request);
 
     let input;

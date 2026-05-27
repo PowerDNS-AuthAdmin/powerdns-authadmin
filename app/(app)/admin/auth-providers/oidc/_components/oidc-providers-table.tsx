@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * app/(app)/admin/oidc-providers/_components/oidc-providers-table.tsx
+ * app/(app)/admin/auth-providers/oidc/_components/oidc-providers-table.tsx
  *
  * Client wrapper using the shared <DataTable>. The env-configured provider (when
  * not shadowed by a DB row) is folded into the same row list so it renders with
@@ -175,7 +175,7 @@ export function OidcProvidersTable({ rows, canManage, canReadAudit }: Props) {
         return (
           <span className="inline-flex items-center gap-2">
             <TestDiscoveryButton providerId={row.id} />
-            <Link href={`/admin/oidc-providers/${row.id}`} className="text-sm underline">
+            <Link href={`/admin/auth-providers/oidc/${row.id}`} className="text-sm underline">
               {canManage ? "Edit" : "View"}
             </Link>
           </span>

@@ -1,14 +1,11 @@
 "use client";
 
 /**
- * app/(app)/admin/ldap-providers/_components/ldap-provider-form.tsx
+ * app/(app)/admin/auth-providers/oidc/_components/oidc-provider-form.tsx
  *
- * Shared create / edit form for an LDAP provider. The structure mirrors
- * `oidc-provider-form.tsx` — same field component, same group-mapping
- * editor (LDAP groups go through the same `applyGroupSync` differ).
- *
- * Bind password is required in create mode, optional in edit mode
- * (blank keeps the existing encrypted envelope; non-blank rotates it).
+ * Shared create / edit form for an OIDC provider. Client-secret is required
+ * in create mode and optional in edit mode (blank keeps the existing
+ * encrypted value).
  */
 
 import { useRouter } from "next/navigation";
@@ -16,24 +13,28 @@ import { useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/client/api-fetch";
 import { SelectMenu } from "@/components/ui/select-menu";
 
-export interface LdapFormInitial {
+interface FormInitial {
   id: string;
   slug: string;
   name: string;
-  serverUrl: string;
-  startTls: boolean;
-  bindDn: string;
-  userSearchBase: string;
-  userSearchFilter: string;
-  groupSearchBase: string | null;
-  groupSearchFilter: string | null;
-  groupAttr: string;
+  issuerUrl: string;
+  clientId: string;
+  scopes: string;
   claimEmail: string;
   claimName: string;
-  /** Bytes are not round-tripped — only the "is one set?" state. */
-  tlsCaCertSet: boolean;
   enabled: boolean;
+  /** Per-provider opt-out of the email_verified claim check. Default
+   *  true — secure-by-default. */
+  requireEmailVerified: boolean;
+  /**
+   * Null = inherit env. Array (possibly empty) = override env.
+   * See S-7 follow-up in lib/auth/email-domain-allowlist.ts for the
+   * three-state semantics.
+   */
   allowedEmailDomains: string[] | null;
+  /** Optional login-button icon. URL or data: URI. */
+  iconUrl: string | null;
+  /** Per-provider group → role rules. Empty array or null = no mappings. */
   groupMappings: GroupMappingForm[];
 }
 
@@ -42,12 +43,6 @@ export interface GroupMappingForm {
   roleSlug: string;
   scopeType: "global" | "team" | "zone" | "server";
   scopeId: string | null;
-}
-
-export interface PickerData {
-  roles: Array<{ slug: string; name: string }>;
-  teams: Array<{ slug: string; name: string }>;
-  servers: Array<{ slug: string; name: string }>;
 }
 
 interface CreateProps {
@@ -59,63 +54,68 @@ interface CreateProps {
 
 interface EditProps {
   mode: "edit";
-  initial: LdapFormInitial;
+  initial: FormInitial;
   canEdit: boolean;
   pickers: PickerData;
 }
 
 type Props = CreateProps | EditProps;
 
+/**
+ * Pre-fetched lists the group-mapping editor needs for its
+ * dropdowns. Loaded once by the server component that renders the
+ * form so operators get autocomplete-quality pickers without a
+ * runtime fetch round-trip.
+ */
+export interface PickerData {
+  roles: Array<{ slug: string; name: string }>;
+  teams: Array<{ slug: string; name: string }>;
+  servers: Array<{ slug: string; name: string }>;
+}
+
 interface ErrorBody {
   error?: string;
   details?: { fieldErrors?: Record<string, string[]> };
 }
 
-const DEFAULTS: LdapFormInitial = {
+const DEFAULTS: FormInitial = {
   id: "",
   slug: "",
   name: "",
-  serverUrl: "",
-  startTls: false,
-  bindDn: "",
-  userSearchBase: "",
-  userSearchFilter: "(|(uid={{username}})(sAMAccountName={{username}})(mail={{username}}))",
-  groupSearchBase: null,
-  groupSearchFilter: null,
-  groupAttr: "memberOf",
-  claimEmail: "mail",
-  claimName: "displayName",
-  tlsCaCertSet: false,
+  issuerUrl: "",
+  clientId: "",
+  scopes: "openid profile email",
+  claimEmail: "email",
+  claimName: "name",
   enabled: true,
+  // Trust the IdP by default — see the schema comment. Operators
+  // can flip on per-provider via the form checkbox.
+  requireEmailVerified: false,
   allowedEmailDomains: null,
+  iconUrl: null,
   groupMappings: [],
 };
 
-export function LdapProviderForm(props: Props) {
+export function OidcProviderForm(props: Props) {
   const router = useRouter();
   const initial = props.mode === "edit" ? props.initial : DEFAULTS;
   const canEdit = props.mode === "create" ? true : props.canEdit;
 
   const [slug, setSlug] = useState(initial.slug);
   const [name, setName] = useState(initial.name);
-  const [serverUrl, setServerUrl] = useState(initial.serverUrl);
-  const [startTls, setStartTls] = useState(initial.startTls);
-  const [bindDn, setBindDn] = useState(initial.bindDn);
-  const [bindPassword, setBindPassword] = useState("");
-  const [userSearchBase, setUserSearchBase] = useState(initial.userSearchBase);
-  const [userSearchFilter, setUserSearchFilter] = useState(initial.userSearchFilter);
-  const [groupSearchBase, setGroupSearchBase] = useState(initial.groupSearchBase ?? "");
-  const [groupSearchFilter, setGroupSearchFilter] = useState(initial.groupSearchFilter ?? "");
-  const [groupAttr, setGroupAttr] = useState(initial.groupAttr);
+  const [issuerUrl, setIssuerUrl] = useState(initial.issuerUrl);
+  const [clientId, setClientId] = useState(initial.clientId);
+  const [clientSecret, setClientSecret] = useState("");
+  const [scopes, setScopes] = useState(initial.scopes);
   const [claimEmail, setClaimEmail] = useState(initial.claimEmail);
   const [claimName, setClaimName] = useState(initial.claimName);
-  const [tlsCaCert, setTlsCaCert] = useState("");
-  const [clearCaCert, setClearCaCert] = useState(false);
   const [enabled, setEnabled] = useState(initial.enabled);
+  const [requireEmailVerified, setRequireEmailVerified] = useState(initial.requireEmailVerified);
   const [overrideDomains, setOverrideDomains] = useState(initial.allowedEmailDomains !== null);
   const [domainsText, setDomainsText] = useState(
     initial.allowedEmailDomains ? initial.allowedEmailDomains.join("\n") : "",
   );
+  const [iconUrl, setIconUrl] = useState(initial.iconUrl ?? "");
   const [groupMappings, setGroupMappings] = useState<GroupMappingForm[]>(initial.groupMappings);
 
   function addGroupMapping() {
@@ -134,6 +134,8 @@ export function LdapProviderForm(props: Props) {
       prev.map((m, idx) => {
         if (idx !== i) return m;
         const next = { ...m, ...patch };
+        // Switching to "global" clears scopeId; switching away
+        // initializes scopeId so the second select has a valid value.
         if (patch.scopeType === "global") next.scopeId = null;
         else if (patch.scopeType && m.scopeType === "global") {
           next.scopeId =
@@ -162,43 +164,48 @@ export function LdapProviderForm(props: Props) {
     setError(null);
     setFieldErrors({});
 
+    interface Body {
+      slug?: string;
+      name: string;
+      issuerUrl: string;
+      clientId: string;
+      clientSecret?: string;
+      scopes: string;
+      claimEmail: string;
+      claimName: string;
+      enabled: boolean;
+      requireEmailVerified: boolean;
+      // `null` = clear override (inherit env). Array (possibly empty) =
+      // set override. Field omitted (undefined) = leave unchanged.
+      // Always sent here because the override toggle is always shown.
+      allowedEmailDomains: string[] | null;
+      iconUrl?: string | null;
+      groupMappings: GroupMappingForm[];
+    }
+    // Parse the textarea: one domain per line, trim, drop empties,
+    // lower-case (the server re-validates with regex).
     const parsedDomains: string[] = domainsText
       .split(/\r?\n/)
       .map((s) => s.trim().toLowerCase())
       .filter((s) => s.length > 0);
 
-    interface Body {
-      slug?: string;
-      name: string;
-      serverUrl: string;
-      startTls: boolean;
-      bindDn: string;
-      bindPassword?: string;
-      userSearchBase: string;
-      userSearchFilter: string;
-      groupSearchBase?: string | null;
-      groupSearchFilter?: string | null;
-      groupAttr: string;
-      claimEmail: string;
-      claimName: string;
-      tlsCaCert?: string | null;
-      enabled: boolean;
-      allowedEmailDomains: string[] | null;
-      groupMappings: GroupMappingForm[];
-    }
-
     const body: Body = {
       name,
-      serverUrl,
-      startTls,
-      bindDn,
-      userSearchBase,
-      userSearchFilter,
-      groupAttr,
+      issuerUrl,
+      clientId,
+      scopes,
       claimEmail,
       claimName,
       enabled,
+      requireEmailVerified,
       allowedEmailDomains: overrideDomains ? parsedDomains : null,
+      // Empty string → null clears the icon back to text-only
+      // button. Trimmed value otherwise. Server re-validates.
+      iconUrl: iconUrl.trim() === "" ? null : iconUrl.trim(),
+      // Strip rows where required fields are blank — the user added
+      // a row then walked away. The server's Zod refine would reject
+      // these anyway, but the better UX is to silently drop them
+      // (they're empty placeholders, not malformed data).
       groupMappings: groupMappings
         .map((m) => ({
           ...m,
@@ -210,39 +217,12 @@ export function LdapProviderForm(props: Props) {
         .filter((m) => m.scopeType === "global" || (m.scopeId !== null && m.scopeId.length > 0)),
     };
     if (props.mode === "create") body.slug = slug;
-    if (bindPassword !== "") body.bindPassword = bindPassword;
-
-    // Group search pair: either both set, both cleared, or both omitted.
-    // The form coalesces blank into "leave unchanged" on edit / "unset"
-    // on create. Operators clear the pair by emptying both fields.
-    if (props.mode === "create") {
-      if (groupSearchBase.trim() !== "") body.groupSearchBase = groupSearchBase.trim();
-      if (groupSearchFilter.trim() !== "") body.groupSearchFilter = groupSearchFilter.trim();
-    } else {
-      const baseChanged = groupSearchBase !== (initial.groupSearchBase ?? "");
-      const filterChanged = groupSearchFilter !== (initial.groupSearchFilter ?? "");
-      if (baseChanged) {
-        body.groupSearchBase = groupSearchBase.trim() === "" ? null : groupSearchBase.trim();
-      }
-      if (filterChanged) {
-        body.groupSearchFilter = groupSearchFilter.trim() === "" ? null : groupSearchFilter.trim();
-      }
-    }
-
-    // CA pin. Three states in edit mode (unchanged / clear / set);
-    // create mode is just "set or omit".
-    if (props.mode === "create") {
-      if (tlsCaCert.trim() !== "") body.tlsCaCert = tlsCaCert.trim();
-    } else if (clearCaCert) {
-      body.tlsCaCert = null;
-    } else if (tlsCaCert.trim() !== "") {
-      body.tlsCaCert = tlsCaCert.trim();
-    }
+    if (clientSecret !== "") body.clientSecret = clientSecret;
 
     const url =
       props.mode === "edit"
-        ? `/api/admin/ldap-providers/${props.initial.id}`
-        : "/api/admin/ldap-providers";
+        ? `/api/admin/oidc-providers/${props.initial.id}`
+        : "/api/admin/oidc-providers";
     const method = props.mode === "edit" ? "PATCH" : "POST";
 
     try {
@@ -258,6 +238,8 @@ export function LdapProviderForm(props: Props) {
         if (data?.details?.fieldErrors) setFieldErrors(data.details.fieldErrors);
         return;
       }
+      // Land on the unified Authentication index — `/admin/auth-providers/oidc`
+      // also redirects there now, but pushing directly avoids the extra hop.
       router.push("/admin/authentication");
       router.refresh();
     } catch {
@@ -269,14 +251,19 @@ export function LdapProviderForm(props: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <Field id="name" label="Display name" errors={fieldErrors["name"]}>
+      <Field
+        id="name"
+        label="Display name"
+        hint="Shown on the login button — e.g. 'Continue with Google'."
+        errors={fieldErrors["name"]}
+      >
         <input
           id="name"
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={!canEdit}
-          placeholder="Corp AD"
+          placeholder="Google"
           className={inputClass}
         />
       </Field>
@@ -285,7 +272,7 @@ export function LdapProviderForm(props: Props) {
         <Field
           id="slug"
           label="Slug"
-          hint="URL-safe identifier used in the login route path. Lowercase letters, digits, and dashes. Cannot be changed later."
+          hint="URL-safe identifier used in the callback path. Lowercase letters, digits, and dashes. Cannot be changed later."
           errors={fieldErrors["slug"]}
         >
           <input
@@ -293,83 +280,58 @@ export function LdapProviderForm(props: Props) {
             required
             value={slug}
             onChange={(e) => setSlug(e.target.value.toLowerCase())}
-            placeholder="corp-ad"
+            placeholder="google"
             className={inputClass}
           />
         </Field>
       ) : null}
 
       <Field
-        id="serverUrl"
-        label="Server URL"
-        hint="ldaps://host:636 (preferred) or ldap://host:389. Plain ldap:// is refused unless StartTLS is enabled below or LDAP_ALLOW_INSECURE_PORT_389=true is set in the env."
-        errors={fieldErrors["serverUrl"]}
+        id="issuerUrl"
+        label="Issuer URL"
+        hint="OIDC discovery base — the app fetches /.well-known/openid-configuration below this."
+        errors={fieldErrors["issuerUrl"]}
       >
         <input
-          id="serverUrl"
+          id="issuerUrl"
           type="url"
           required
-          value={serverUrl}
-          onChange={(e) => setServerUrl(e.target.value)}
+          value={issuerUrl}
+          onChange={(e) => setIssuerUrl(e.target.value)}
           disabled={!canEdit}
-          placeholder="ldaps://ad.example.com:636"
+          placeholder="https://accounts.google.com"
           className={inputClass}
         />
       </Field>
 
-      <label className="flex items-start gap-2 text-sm">
+      <Field id="clientId" label="Client ID" errors={fieldErrors["clientId"]}>
         <input
-          type="checkbox"
-          checked={startTls}
-          onChange={(e) => setStartTls(e.target.checked)}
-          disabled={!canEdit}
-          className="mt-0.5"
-        />
-        <span>
-          Upgrade the connection with StartTLS (RFC 4511 §4.14) after connecting
-          <span className="block text-xs text-[color:var(--color-fg-muted)]">
-            Only valid on plain <code>ldap://</code> URLs. Most servers reject StartTLS on the
-            implicit-TLS port — pick this OR <code>ldaps://</code>, not both.
-          </span>
-        </span>
-      </label>
-
-      <Field
-        id="bindDn"
-        label="Service-account DN"
-        hint="The DN we bind with first to look up the user. Common shape: CN=svc-authadmin,OU=ServiceAccounts,DC=example,DC=com"
-        errors={fieldErrors["bindDn"]}
-      >
-        <input
-          id="bindDn"
+          id="clientId"
           required
-          value={bindDn}
-          onChange={(e) => setBindDn(e.target.value)}
+          value={clientId}
+          onChange={(e) => setClientId(e.target.value)}
           disabled={!canEdit}
-          placeholder="CN=svc-authadmin,OU=ServiceAccounts,DC=example,DC=com"
-          className={`${inputClass} font-mono text-xs`}
+          className={inputClass}
         />
       </Field>
 
       <Field
-        id="bindPassword"
-        label={
-          props.mode === "edit" ? "Rotate service-account password" : "Service-account password"
-        }
+        id="clientSecret"
+        label={props.mode === "edit" ? "Rotate client secret" : "Client secret"}
         hint={
           props.mode === "edit"
-            ? "Leave blank to keep the existing password. Submitting a new value rotates it."
+            ? "Leave blank to keep the existing secret. Submitting a new value rotates it."
             : "Stored AES-256-GCM-encrypted at rest. Shown only at creation time."
         }
-        errors={fieldErrors["bindPassword"]}
+        errors={fieldErrors["clientSecret"]}
       >
         <input
-          id="bindPassword"
+          id="clientSecret"
           type="password"
           autoComplete="off"
           required={props.mode === "create"}
-          value={bindPassword}
-          onChange={(e) => setBindPassword(e.target.value)}
+          value={clientSecret}
+          onChange={(e) => setClientSecret(e.target.value)}
           disabled={!canEdit}
           placeholder={props.mode === "edit" ? "•••••••• (unchanged)" : ""}
           className={inputClass}
@@ -377,139 +339,83 @@ export function LdapProviderForm(props: Props) {
       </Field>
 
       <Field
-        id="userSearchBase"
-        label="User search base"
-        hint="The DN under which the user record lives. The search is `sub` — nested OUs are fine."
-        errors={fieldErrors["userSearchBase"]}
+        id="scopes"
+        label="Scopes"
+        hint='Space-separated. "openid" is required.'
+        errors={fieldErrors["scopes"]}
       >
         <input
-          id="userSearchBase"
+          id="scopes"
           required
-          value={userSearchBase}
-          onChange={(e) => setUserSearchBase(e.target.value)}
+          value={scopes}
+          onChange={(e) => setScopes(e.target.value)}
           disabled={!canEdit}
-          placeholder="OU=Users,DC=example,DC=com"
-          className={`${inputClass} font-mono text-xs`}
+          className={inputClass}
         />
       </Field>
-
-      <Field
-        id="userSearchFilter"
-        label="User search filter"
-        hint="RFC 4515 filter. The {{username}} placeholder is replaced with the LDAP-escaped username at sign-in time. Default matches both AD's sAMAccountName and OpenLDAP's uid."
-        errors={fieldErrors["userSearchFilter"]}
-      >
-        <input
-          id="userSearchFilter"
-          required
-          value={userSearchFilter}
-          onChange={(e) => setUserSearchFilter(e.target.value)}
-          disabled={!canEdit}
-          className={`${inputClass} font-mono text-xs`}
-        />
-      </Field>
-
-      <fieldset className="space-y-3 rounded-md border border-[color:var(--color-border)] p-3">
-        <legend className="px-1 text-sm font-medium">Group resolution</legend>
-        <p className="text-xs text-[color:var(--color-fg-muted)]">
-          The group list is read first from the <code>{groupAttr || "memberOf"}</code> attribute on
-          the user record (AD's default). When that's empty AND a group search base + filter is
-          configured below, a second search resolves group memberships (OpenLDAP without the
-          memberof overlay).
-        </p>
-        <Field id="groupAttr" label="Group attribute" errors={fieldErrors["groupAttr"]}>
-          <input
-            id="groupAttr"
-            value={groupAttr}
-            onChange={(e) => setGroupAttr(e.target.value)}
-            disabled={!canEdit}
-            placeholder="memberOf"
-            className={`${inputClass} font-mono text-xs`}
-          />
-        </Field>
-        <Field
-          id="groupSearchBase"
-          label="Optional group search base"
-          errors={fieldErrors["groupSearchBase"]}
-        >
-          <input
-            id="groupSearchBase"
-            value={groupSearchBase}
-            onChange={(e) => setGroupSearchBase(e.target.value)}
-            disabled={!canEdit}
-            placeholder="OU=Groups,DC=example,DC=com"
-            className={`${inputClass} font-mono text-xs`}
-          />
-        </Field>
-        <Field
-          id="groupSearchFilter"
-          label="Optional group search filter"
-          hint="Use {{userDn}} for the user's DN. Common: (&(objectClass=group)(member={{userDn}}))"
-          errors={fieldErrors["groupSearchFilter"]}
-        >
-          <input
-            id="groupSearchFilter"
-            value={groupSearchFilter}
-            onChange={(e) => setGroupSearchFilter(e.target.value)}
-            disabled={!canEdit}
-            placeholder="(&(objectClass=group)(member={{userDn}}))"
-            className={`${inputClass} font-mono text-xs`}
-          />
-        </Field>
-      </fieldset>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field id="claimEmail" label="Email attribute" errors={fieldErrors["claimEmail"]}>
+        <Field
+          id="claimEmail"
+          label="Email claim"
+          hint='Default: "email".'
+          errors={fieldErrors["claimEmail"]}
+        >
           <input
             id="claimEmail"
             required
             value={claimEmail}
             onChange={(e) => setClaimEmail(e.target.value)}
             disabled={!canEdit}
-            className={`${inputClass} font-mono text-xs`}
+            className={inputClass}
           />
         </Field>
-        <Field id="claimName" label="Display name attribute" errors={fieldErrors["claimName"]}>
+        <Field
+          id="claimName"
+          label="Display name claim"
+          hint='Default: "name".'
+          errors={fieldErrors["claimName"]}
+        >
           <input
             id="claimName"
             required
             value={claimName}
             onChange={(e) => setClaimName(e.target.value)}
             disabled={!canEdit}
-            className={`${inputClass} font-mono text-xs`}
+            className={inputClass}
           />
         </Field>
       </div>
 
       <Field
-        id="tlsCaCert"
-        label="TLS CA pin (PEM, optional)"
-        hint="Paste one or more PEM-encoded CA certificates to trust an internal CA without disabling verification. Combine with rejectUnauthorized=true."
-        errors={fieldErrors["tlsCaCert"]}
+        id="iconUrl"
+        label="Login-button icon (optional)"
+        hint="Absolute URL (https://example.com/google.svg) or a small inline data: URI. Renders next to the 'Continue with…' label on the login page. Leave blank for text-only."
+        errors={fieldErrors["iconUrl"]}
       >
-        <textarea
-          id="tlsCaCert"
-          rows={5}
-          value={tlsCaCert}
-          onChange={(e) => setTlsCaCert(e.target.value)}
+        <input
+          id="iconUrl"
+          value={iconUrl}
+          onChange={(e) => setIconUrl(e.target.value)}
           disabled={!canEdit}
-          placeholder={
-            initial.tlsCaCertSet
-              ? "(CA pin set — paste a new PEM to replace, or check Clear)"
-              : "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
-          }
-          className={`${inputClass} font-mono text-xs`}
+          placeholder="https://cdn.example.com/google-logo.svg"
+          className={inputClass}
         />
-        {props.mode === "edit" && initial.tlsCaCertSet ? (
-          <label className="mt-2 flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              checked={clearCaCert}
-              onChange={(e) => setClearCaCert(e.target.checked)}
-              disabled={!canEdit}
+        {iconUrl.trim() !== "" ? (
+          <div className="mt-2 flex items-center gap-2 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-2 text-xs text-[color:var(--color-fg-muted)]">
+            <span>Preview:</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={iconUrl}
+              alt="Provider icon preview"
+              style={{
+                width: 20,
+                height: 20,
+                objectFit: "contain",
+                display: "block",
+              }}
             />
-            <span>Clear the stored CA pin on save</span>
-          </label>
+          </div>
         ) : null}
       </Field>
 
@@ -523,10 +429,10 @@ export function LdapProviderForm(props: Props) {
             className="mt-0.5"
           />
           <span>
-            Restrict auto-provisioning to specific email domains
+            Override <code>OIDC_ALLOWED_EMAIL_DOMAINS</code> for this provider
             <span className="block text-xs text-[color:var(--color-fg-muted)]">
-              Off: any directory user with a valid email gets a local account on first sign-in. On:
-              only addresses in the list below are accepted.
+              Off: inherit the env allow-list. On: use the list below instead (REPLACES env — leave
+              empty to allow any email).
             </span>
           </span>
         </label>
@@ -534,7 +440,7 @@ export function LdapProviderForm(props: Props) {
           <Field
             id="allowedEmailDomains"
             label="Allowed email domains"
-            hint="One bare domain per line (e.g. example.com). Lowercase."
+            hint="One bare domain per line (e.g. example.com). Lowercase. Empty = no restriction at this provider."
             errors={fieldErrors["allowedEmailDomains"]}
           >
             <textarea
@@ -553,14 +459,15 @@ export function LdapProviderForm(props: Props) {
       <fieldset className="space-y-3 rounded-md border border-[color:var(--color-border)] p-3">
         <legend className="px-1 text-sm font-medium">Group → role mappings</legend>
         <p className="text-xs text-[color:var(--color-fg-muted)]">
-          On every successful sign-in, the group set (from <code>{groupAttr || "memberOf"}</code> or
-          the second search) is matched against the rules below. Each matching row materialises a
-          role assignment tagged with this provider — the NEXT sign-in revokes it if the user is no
-          longer in the group. Admin-issued assignments are never touched.
+          On every successful sign-in, the user&apos;s{" "}
+          <code>{initial.scopes && claimEmail ? "claim_groups" : "groups"}</code> claim is matched
+          against the rules below. Each matching row materialises a role assignment tagged with this
+          provider — the NEXT sign-in revokes it if the user is no longer in the group. Admin-issued
+          assignments are never touched.
         </p>
         {groupMappings.length === 0 ? (
           <p className="text-xs text-[color:var(--color-fg-muted)] italic">
-            No mappings yet. Add one to grant roles based on directory group membership.
+            No mappings yet. Add one to grant roles based on the IdP&apos;s group claim.
           </p>
         ) : (
           <ul className="space-y-2">
@@ -570,12 +477,12 @@ export function LdapProviderForm(props: Props) {
                 className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-2"
               >
                 <label className="text-xs">
-                  LDAP group
+                  IdP group
                   <input
                     value={m.group}
                     onChange={(e) => updateGroupMapping(i, { group: e.target.value })}
                     disabled={!canEdit}
-                    placeholder="CN=Admins,OU=Groups,DC=example,DC=com"
+                    placeholder="authentik Admins"
                     className={`${inputClass} font-mono text-xs`}
                   />
                 </label>
@@ -696,6 +603,25 @@ export function LdapProviderForm(props: Props) {
           disabled={!canEdit}
         />
         Enabled (shown on the login page)
+      </label>
+
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={requireEmailVerified}
+          onChange={(e) => setRequireEmailVerified(e.target.checked)}
+          disabled={!canEdit}
+          className="mt-0.5"
+        />
+        <span>
+          Require <code>email_verified</code> claim from the IdP
+          <span className="block text-xs text-[color:var(--color-fg-muted)]">
+            On by default. Blocks sign-in for an existing local account unless the IdP attests the
+            email is verified — the account-takeover guard for IdPs that let users set arbitrary
+            unverified emails. Turn off only for IdPs that don&apos;t emit the claim at all (some
+            custom OIDC bridges, SAML→OIDC translators).
+          </span>
+        </span>
       </label>
 
       {error ? (
