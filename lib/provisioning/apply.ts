@@ -347,6 +347,42 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
       ),
     );
 
+    // Legacy per-provider `force_default: true` is retired in favour of the
+    // single `auth_default_provider` setting. If any OIDC entry still carries
+    // the flag, pick the LAST one mentioned in the YAML — same tie-break
+    // semantics as the schema migration (last-wins on the storage layer is
+    // most recent created; here last-listed approximates that). Log a
+    // deprecation so operators clean up their files.
+    let legacyForceDefaultSlug: string | null = null;
+    for (const p of config.oidc) {
+      if (p.force_default && p.enabled !== false) {
+        if (legacyForceDefaultSlug !== null) {
+          logger.warn(
+            {
+              previous: legacyForceDefaultSlug,
+              superseded: p.slug,
+            },
+            "provisioning.oidc.force_default-multiple-set",
+          );
+        }
+        legacyForceDefaultSlug = p.slug;
+      }
+    }
+    if (legacyForceDefaultSlug !== null) {
+      logger.warn(
+        { slug: legacyForceDefaultSlug },
+        "provisioning.oidc.force_default-deprecated: translating to settings.auth_default_provider",
+      );
+      await db
+        .insert(settings)
+        .values({
+          key: "auth_default_provider",
+          value: `oidc:${legacyForceDefaultSlug}`,
+          updatedAt: new Date(),
+        })
+        .onConflictDoNothing({ target: settings.key });
+    }
+
     for (const p of config.oidc) {
       const resolvedMappings: OidcGroupMapping[] = [];
       for (const m of p.group_mappings) {
@@ -404,7 +440,6 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
           claimName: p.claim_name,
           claimGroups: p.claim_groups,
           enabled: p.enabled,
-          forceDefault: p.force_default,
           iconUrl: p.icon_url ?? null,
           allowedEmailDomains: p.allowed_email_domains ?? null,
           groupMappings: resolvedMappings,
@@ -421,7 +456,6 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
             claimName: p.claim_name,
             claimGroups: p.claim_groups,
             enabled: p.enabled,
-            forceDefault: p.force_default,
             iconUrl: p.icon_url ?? null,
             allowedEmailDomains: p.allowed_email_domains ?? null,
             groupMappings: resolvedMappings,

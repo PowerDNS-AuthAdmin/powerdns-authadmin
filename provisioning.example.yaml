@@ -81,6 +81,12 @@ settings:
   # local accounts only; SSO users always reset through their IdP.
   allow_password_reset: true
 
+  # Default sign-in method. Decides which provider /login auto-redirects to
+  # on a fresh visit. Format: `local` | `oidc:<slug>` | `saml:<slug>` |
+  # `ldap:<slug>`. `local` (the default) shows the form. Recovery escape
+  # hatch: `/login?force-local=1`. Edited at runtime from /admin/authentication.
+  auth_default_provider: "local"
+
 # -----------------------------------------------------------------------------
 # roles  —  custom (org-specific) roles
 # -----------------------------------------------------------------------------
@@ -453,7 +459,11 @@ oidc:
     claim_name: name
     claim_groups: groups
     enabled: true # false hides the provider from the login page
-    force_default: false # true ⇒ /login auto-redirects to this provider's initiate
+    # DEPRECATED — kept for one minor for backward compat. Set the global
+    # `auth_default_provider` setting from /admin/authentication instead;
+    # the applier translates a legacy `force_default: true` here into that
+    # setting at apply time and logs a deprecation warning.
+    force_default: false
     # Optional inline logo for the login button. https:// only.
     # icon_url: "https://auth.example.com/static/logo.png"
     # Restrict auto-provisioning of NEW users to these email domains.
@@ -506,5 +516,6 @@ oidc:
     claim_name: name
     claim_groups: groups
     enabled: false
+    # DEPRECATED — see the note on the first provider above.
     force_default: false
     group_mappings: [] # explicit empty list — no group sync

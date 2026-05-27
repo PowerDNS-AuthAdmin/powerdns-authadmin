@@ -79,22 +79,26 @@ export default async function LoginPage({
       : []),
   ];
 
-  // Force-default OIDC: if any DB provider is marked `forceDefault`, send the
-  // user straight to its initiate URL instead of showing the form. Skipped on
-  // post-signout, post-error, flash redirects, and when the operator opts out
-  // explicitly via `?force-local=1` (the escape hatch for fixing a broken IdP
-  // or local-admin recovery). Most recent `forceDefault` row wins if multiple
-  // are set — the admin form warns about that.
-  //
+  // Default sign-in method: when `authDefaultProvider` resolves to a typed-
+  // prefix value (e.g. `oidc:company-sso`), auto-redirect to that provider's
+  // initiate URL instead of showing the form. Skipped on post-signout, post-
+  // error, flash redirects, and when the operator opts out explicitly via
+  // `?force-local=1` (the escape hatch for fixing a broken IdP or local-admin
+  // recovery). The setting is global (one value across the app); per-provider
+  // `force_default` is retired (migrated to this setting at upgrade time).
   const forceLocalRequested = forceLocal !== undefined;
   const isFreshArrival = !error && !signedOut && !flash && !forceLocalRequested;
-  if (isFreshArrival && dbProviders.length > 0) {
-    const forceProvider = [...dbProviders]
-      .filter((p) => p.forceDefault)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
-    if (forceProvider) {
-      const target = `/api/auth/oidc/${forceProvider.slug}/initiate${nextParam}`;
-      redirect(target);
+  const { authDefaultProvider } = await getAppSettings();
+  if (isFreshArrival && authDefaultProvider !== "local") {
+    const sep = authDefaultProvider.indexOf(":");
+    const type = sep > 0 ? authDefaultProvider.slice(0, sep) : "";
+    const slug = sep > 0 ? authDefaultProvider.slice(sep + 1) : "";
+    // For now only OIDC is supported — LDAP/SAML providers land in PR 2/3
+    // and will plug into this same dispatch. A setting that resolves to an
+    // unsupported type (or a provider whose row was deleted) silently falls
+    // back to showing the form rather than redirecting to a 404.
+    if (type === "oidc" && slug && dbProviders.some((p) => p.slug === slug && p.enabled)) {
+      redirect(`/api/auth/oidc/${slug}/initiate${nextParam}`);
     }
   }
 

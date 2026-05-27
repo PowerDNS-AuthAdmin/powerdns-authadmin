@@ -80,7 +80,6 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     if (input.claimEmail !== undefined) patch.claimEmail = input.claimEmail;
     if (input.claimName !== undefined) patch.claimName = input.claimName;
     if (input.enabled !== undefined) patch.enabled = input.enabled;
-    if (input.forceDefault !== undefined) patch.forceDefault = input.forceDefault;
     if (input.requireEmailVerified !== undefined) {
       patch.requireEmailVerified = input.requireEmailVerified;
     }
@@ -196,7 +195,6 @@ function snapshot(row: {
   claimEmail: string;
   claimName: string;
   enabled: boolean;
-  forceDefault: boolean;
   requireEmailVerified: boolean;
   allowedEmailDomains: string[] | null;
   groupMappings: ReadonlyArray<{
@@ -217,7 +215,6 @@ function snapshot(row: {
     claimEmail: row.claimEmail,
     claimName: row.claimName,
     enabled: row.enabled,
-    forceDefault: row.forceDefault,
     requireEmailVerified: row.requireEmailVerified,
     allowedEmailDomains: row.allowedEmailDomains,
     groupMappingsCount: row.groupMappings?.length ?? 0,

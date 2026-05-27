@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed — unified authentication admin
+
+- **New `Admin → Authentication` page** consolidates the view of every
+  sign-in method into one list. Local Auth appears as a synthetic row
+  alongside every configured OIDC provider (and, when PR 2 + PR 3 of
+  `feat/auth-providers-ldap-saml-webauthn` land, SAML and LDAP). The old
+  `/admin/oidc-providers` index redirects here; per-provider edit pages
+  (`/admin/oidc-providers/<id>`, `/admin/oidc-providers/new`) keep their
+  URLs. Sidebar nav renames from "OIDC providers" to "Authentication".
+- **Default sign-in method is now a single global setting** edited from
+  the new page via a themed dropdown — replaces the per-OIDC-provider
+  `force_default` checkbox. Stored as `settings.auth_default_provider`
+  in the `local` / `oidc:<slug>` / `saml:<slug>` / `ldap:<slug>` format.
+  Existing deployments are migrated automatically by the Drizzle migration
+  in both dialects (most recently created enabled `force_default=true`
+  wins). The `force_default` column is dropped.
+- **Provisioning compat**: `force_default: true` in YAML still parses; the
+  applier translates it into `auth_default_provider` and logs a
+  deprecation warning. Will be removed in a future minor.
+
 ### Added
 
 - **Login: inline APP_URL mismatch banner.** Detects when the request host

@@ -175,7 +175,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             {canReadTeams ? <NavLink nested href="/admin/teams" label="Teams" /> : null}
             {canReadRoles ? <NavLink nested href="/admin/roles" label="Roles" /> : null}
             {canReadOidc ? (
-              <NavLink nested href="/admin/oidc-providers" label="OIDC providers" />
+              <NavLink nested href="/admin/authentication" label="Authentication" />
             ) : null}
           </NavSection>
         ) : null}

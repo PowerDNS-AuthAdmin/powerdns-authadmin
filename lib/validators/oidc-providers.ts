@@ -126,7 +126,6 @@ export const createOidcProviderSchema = z.object({
   claimEmail: claimSchema.default("email"),
   claimName: claimSchema.default("name"),
   enabled: z.boolean().default(true),
-  forceDefault: z.boolean().default(false),
   /** Default `true` — the account-takeover guard is on for new providers.
    *  Operators flip it off only for IdPs that don't emit `email_verified`
    *  at all (custom OIDC bridges, some SAML→OIDC translators). Existing DB
@@ -156,7 +155,6 @@ export const updateOidcProviderSchema = z.object({
   claimEmail: claimSchema.optional(),
   claimName: claimSchema.optional(),
   enabled: z.boolean().optional(),
-  forceDefault: z.boolean().optional(),
   requireEmailVerified: z.boolean().optional(),
   /** Per-provider group → role rules. Send `[]` to clear; omit to leave unchanged. */
   groupMappings: groupMappingsSchema.optional(),

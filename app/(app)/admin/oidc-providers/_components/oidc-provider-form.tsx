@@ -23,7 +23,6 @@ interface FormInitial {
   claimEmail: string;
   claimName: string;
   enabled: boolean;
-  forceDefault: boolean;
   /** Per-provider opt-out of the email_verified claim check. Default
    *  true — secure-by-default. */
   requireEmailVerified: boolean;
@@ -89,7 +88,6 @@ const DEFAULTS: FormInitial = {
   claimEmail: "email",
   claimName: "name",
   enabled: true,
-  forceDefault: false,
   // Trust the IdP by default — see the schema comment. Operators
   // can flip on per-provider via the form checkbox.
   requireEmailVerified: false,
@@ -112,7 +110,6 @@ export function OidcProviderForm(props: Props) {
   const [claimEmail, setClaimEmail] = useState(initial.claimEmail);
   const [claimName, setClaimName] = useState(initial.claimName);
   const [enabled, setEnabled] = useState(initial.enabled);
-  const [forceDefault, setForceDefault] = useState(initial.forceDefault);
   const [requireEmailVerified, setRequireEmailVerified] = useState(initial.requireEmailVerified);
   const [overrideDomains, setOverrideDomains] = useState(initial.allowedEmailDomains !== null);
   const [domainsText, setDomainsText] = useState(
@@ -177,7 +174,6 @@ export function OidcProviderForm(props: Props) {
       claimEmail: string;
       claimName: string;
       enabled: boolean;
-      forceDefault: boolean;
       requireEmailVerified: boolean;
       // `null` = clear override (inherit env). Array (possibly empty) =
       // set override. Field omitted (undefined) = leave unchanged.
@@ -201,7 +197,6 @@ export function OidcProviderForm(props: Props) {
       claimEmail,
       claimName,
       enabled,
-      forceDefault,
       requireEmailVerified,
       allowedEmailDomains: overrideDomains ? parsedDomains : null,
       // Empty string → null clears the icon back to text-only
@@ -606,24 +601,6 @@ export function OidcProviderForm(props: Props) {
           disabled={!canEdit}
         />
         Enabled (shown on the login page)
-      </label>
-
-      <label className="flex items-start gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={forceDefault}
-          onChange={(e) => setForceDefault(e.target.checked)}
-          disabled={!canEdit}
-          className="mt-0.5"
-        />
-        <span>
-          Force as default login
-          <span className="block text-xs text-[color:var(--color-fg-muted)]">
-            Hitting <code>/login</code> redirects here immediately instead of showing the form. The
-            escape hatch for admins is <code>/login?force-local=1</code>. If multiple providers have
-            this ticked, the most recently created one wins.
-          </span>
-        </span>
       </label>
 
       <label className="flex items-start gap-2 text-sm">

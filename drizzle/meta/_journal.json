@@ -29,6 +29,13 @@
       "when": 1779576173071,
       "tag": "0003_backend_caps_advisories_squash",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779908427610,
+      "tag": "0004_nice_clea",
+      "breakpoints": true
     }
   ]
 }

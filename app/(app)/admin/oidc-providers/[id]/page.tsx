@@ -130,7 +130,6 @@ export default async function OidcProviderEditPage({
           claimEmail: provider.claimEmail,
           claimName: provider.claimName,
           enabled: provider.enabled,
-          forceDefault: provider.forceDefault,
           requireEmailVerified: provider.requireEmailVerified,
           allowedEmailDomains: provider.allowedEmailDomains,
           iconUrl: provider.iconUrl,

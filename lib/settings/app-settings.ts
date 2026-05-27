@@ -44,6 +44,14 @@ export interface AppSettings {
    * when off). Never null — defaults to true.
    */
   allowPasswordReset: boolean;
+  /**
+   * Default sign-in method. Format: `local` | `oidc:<slug>` | `saml:<slug>` |
+   * `ldap:<slug>`. `local` shows the form; the typed-prefix variants auto-
+   * redirect `/login` to the matching provider's initiate URL (subject to the
+   * `force-local=1`, `signed-out=1`, and `pda_just_logged_out` escape hatches).
+   * Never null — defaults to "local". Edited from /admin/authentication.
+   */
+  authDefaultProvider: string;
 }
 
 const KEY_TO_FIELD: Record<KnownSettingKey, keyof AppSettings> = {
@@ -54,6 +62,7 @@ const KEY_TO_FIELD: Record<KnownSettingKey, keyof AppSettings> = {
   login_lockout_threshold: "loginLockoutThreshold",
   login_lockout_seconds: "loginLockoutSeconds",
   allow_password_reset: "allowPasswordReset",
+  auth_default_provider: "authDefaultProvider",
 };
 
 export async function getAppSettings(): Promise<AppSettings> {
@@ -65,6 +74,7 @@ export async function getAppSettings(): Promise<AppSettings> {
     loginLockoutThreshold: SETTING_DEFAULTS.login_lockout_threshold,
     loginLockoutSeconds: SETTING_DEFAULTS.login_lockout_seconds,
     allowPasswordReset: SETTING_DEFAULTS.allow_password_reset,
+    authDefaultProvider: SETTING_DEFAULTS.auth_default_provider,
   };
 
   let rows;
@@ -94,6 +104,8 @@ export async function getAppSettings(): Promise<AppSettings> {
       out.loginLockoutSeconds = row.value;
     } else if (field === "allowPasswordReset" && typeof row.value === "boolean") {
       out.allowPasswordReset = row.value;
+    } else if (field === "authDefaultProvider" && typeof row.value === "string") {
+      out.authDefaultProvider = row.value || SETTING_DEFAULTS.auth_default_provider;
     }
   }
 
