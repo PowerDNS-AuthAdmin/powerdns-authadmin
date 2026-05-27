@@ -116,8 +116,8 @@ export type NewSamlProvider = typeof samlProviders.$inferInsert;
 
 /**
  * One group → role-assignment rule for a SAML provider. Identical shape to
- * `OidcGroupMapping`; the apply path in `lib/auth/providers/oidc-group-sync.ts`
- * is protocol-agnostic and works with either.
+ * the neutral `GroupMapping` in `lib/auth/providers/group-sync-pure.ts`;
+ * the compute path (`computeGroupSync`) is protocol-agnostic.
  */
 export interface SamlGroupMapping {
   /** Exact group value to match in the user's group attribute. Case-sensitive. */

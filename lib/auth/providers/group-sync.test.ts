@@ -1,14 +1,14 @@
 /**
- * lib/auth/providers/oidc-group-sync.test.ts
+ * lib/auth/providers/group-sync.test.ts
  *
  * Pure-function coverage for the diff + claim-reader. The DB-touching
- * `applyGroupSync` is exercised by an integration test under
- * `tests/integration/` once it lands; the diff logic captured here is
- * what determines correctness — the SQL side is straight insert/delete.
+ * `computeGroupSync` is exercised by an integration test under
+ * `tests/integration/`; the diff logic captured here is what determines
+ * correctness.
  */
 
 import { describe, expect, it } from "vitest";
-import { diffGroupSync, readGroupClaim, type ResolvedAssignment } from "./oidc-group-sync-pure";
+import { diffGroupSync, readGroupClaim, type ResolvedAssignment } from "./group-sync-pure";
 
 const mapping = (group: string, roleSlug: string) =>
   ({ group, roleSlug, scopeType: "global", scopeId: null }) as const;

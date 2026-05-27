@@ -50,7 +50,28 @@ export async function startSession(input: {
     endSessionUrl: string | null;
     idToken: string | null;
     clientId: string | null;
+    /**
+     * Encrypted refresh token (caller encrypts via
+     * `lib/crypto/encryption.ts`; the column stores ciphertext). Used
+     * by the token-auth path to re-fetch groups at API token use time
+     * — the basis for the "tokens follow real permissions" model in
+     * #85. Null when the IdP didn't issue a refresh token.
+     */
+    refreshTokenEncrypted?: string | null;
   };
+  /**
+   * Permissions derived from the user's IdP groups at sign-in. The
+   * compute path lives in `lib/auth/providers/group-sync.ts`
+   * (`computeGroupSync`) — pure, returns this array. Empty for local
+   * sessions and IdP sessions with no configured group mappings.
+   * Persisted into `sessions.derived_permissions`; the ability builder
+   * folds them into the user's effective permission set per request.
+   */
+  derivedPermissions?: Array<{
+    permissions: readonly string[];
+    scopeType: "global" | "team" | "zone" | "server";
+    scopeId: string | null;
+  }>;
 }): Promise<Session> {
   // Session-fixation defense (S-10): if the caller already had a valid
   // session cookie (e.g. an anonymous-but-tracked state, or a user
@@ -82,6 +103,8 @@ export async function startSession(input: {
     oidcEndSessionUrl: input.oidc?.endSessionUrl ?? null,
     oidcIdToken: input.oidc?.idToken ?? null,
     oidcClientId: input.oidc?.clientId ?? null,
+    oidcRefreshTokenEncrypted: input.oidc?.refreshTokenEncrypted ?? null,
+    derivedPermissions: input.derivedPermissions ?? [],
   });
 
   // Encrypted opaque cookie holding the session id.

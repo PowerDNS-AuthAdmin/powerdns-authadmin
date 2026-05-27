@@ -64,6 +64,13 @@
       "when": 1779918300000,
       "tag": "0008_ldap_providers",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779921407398,
+      "tag": "0009_overrated_sway",
+      "breakpoints": true
     }
   ]
 }

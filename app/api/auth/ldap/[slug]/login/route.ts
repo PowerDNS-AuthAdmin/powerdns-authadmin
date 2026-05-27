@@ -26,7 +26,7 @@ import { getClientIp, getRequestId } from "@/lib/client-ip";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { authenticateLdap, resolveLdapProvider } from "@/lib/auth/providers/ldap";
-import { applyGroupSync } from "@/lib/auth/providers/oidc-group-sync";
+import { computeGroupSync } from "@/lib/auth/providers/group-sync";
 import { loginLimiter } from "@/lib/auth/rate-limit";
 import { verifyTurnstile } from "@/lib/auth/captcha";
 import { startSession } from "@/lib/auth/session";
@@ -155,7 +155,7 @@ export async function POST(
     if (!check.ok) {
       await appendAudit({
         actor: { type: "system", id: null },
-        action: "auth.ldap.rejected_provisioning",
+        action: "auth.idp.rejected_provisioning",
         resource: { type: "user", id: null },
         after: {
           source: identity.source,
@@ -192,18 +192,26 @@ export async function POST(
 
   await recordSuccessfulLogin(user.id, ip ?? null);
 
-  // Group sync — reuses the OIDC differ. `claims.groups` is the array of
-  // group memberships we extracted from the LDAP user entry (or the
-  // optional second search).
+  // Compute the IdP-derived permission set for this sign-in (#85).
+  // `claims.groups` is the array of group memberships we extracted from
+  // the LDAP user entry (or the optional second search). The result is
+  // persisted onto the session row in `startSession`.
+  let derivedPermissions: Awaited<ReturnType<typeof computeGroupSync>>["derived"] = [];
   try {
-    await applyGroupSync({
-      userId: user.id,
-      providerId: provider.id,
-      providerSlug: provider.slug,
+    const result = await computeGroupSync({
       groupsClaim: identity.claims?.["groups"],
       mappings: provider.groupMappings,
-      requestContext,
     });
+    derivedPermissions = result.derived;
+    for (const u of result.unresolved) {
+      await appendAudit({
+        actor: { type: "system", id: null },
+        action: "auth.group_sync.mapping_unresolved",
+        resource: { type: "user", id: user.id },
+        after: { provider: provider.slug, ...u },
+        request: requestContext,
+      });
+    }
   } catch (err) {
     logger.warn(
       {
@@ -219,6 +227,7 @@ export async function POST(
     userId: user.id,
     ip: ip ?? null,
     userAgent,
+    derivedPermissions,
   });
 
   await appendAudit({

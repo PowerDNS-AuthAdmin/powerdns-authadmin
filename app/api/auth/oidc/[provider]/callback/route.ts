@@ -29,7 +29,8 @@ import {
   resolveAllowedDomains,
   resolveOidcProvider,
 } from "@/lib/auth/providers/oidc";
-import { applyGroupSync } from "@/lib/auth/providers/oidc-group-sync";
+import { computeGroupSync } from "@/lib/auth/providers/group-sync";
+import { encrypt } from "@/lib/crypto/encryption";
 import { safeNextPath } from "@/lib/auth/safe-redirect";
 import { startSession } from "@/lib/auth/session";
 import { findUserByEmail, insertUser, recordSuccessfulLogin } from "@/lib/db/repositories/users";
@@ -195,7 +196,7 @@ export async function GET(
       const hdrsForAudit = await headers();
       await appendAudit({
         actor: { type: "system", id: null },
-        action: "auth.oidc.rejected_provisioning",
+        action: "auth.idp.rejected_provisioning",
         resource: { type: "user", id: null },
         after: {
           source: identity.source,
@@ -235,23 +236,28 @@ export async function GET(
 
   await recordSuccessfulLogin(user.id, ip ?? null);
 
-  // Materialise OIDC group → role assignments before issuing the session,
-  // so the ability builder sees the up-to-date set on the very next
-  // request. No-op for env-source providers (no id, no mappings).
+  // Compute the IdP-derived permission set for this sign-in. The result
+  // gets persisted onto the session row in `startSession` below — not into
+  // `role_assignments`, per #85. Env-source providers (no id, no mappings)
+  // produce an empty array.
+  let derivedPermissions: Awaited<ReturnType<typeof computeGroupSync>>["derived"] = [];
   if (provider.id) {
     try {
-      await applyGroupSync({
-        userId: user.id,
-        providerId: provider.id,
-        providerSlug: provider.slug,
+      const result = await computeGroupSync({
         groupsClaim: identity.claims?.[provider.claimGroups],
         mappings: provider.groupMappings,
-        requestContext: { ip: ip ?? null, userAgent, requestId: getRequestId(hdrs) },
       });
+      derivedPermissions = result.derived;
+      for (const u of result.unresolved) {
+        await appendAudit({
+          actor: { type: "system", id: null },
+          action: "auth.group_sync.mapping_unresolved",
+          resource: { type: "user", id: user.id },
+          after: { provider: provider.slug, ...u },
+          request: { ip, userAgent, requestId: getRequestId(hdrs) },
+        });
+      }
     } catch (err) {
-      // A group-sync failure must not block the sign-in itself — the
-      // user's identity is already verified. Audit + log; admin can
-      // reconcile manually if needed.
       logger.warn(
         { err: safeErrorMessage(err), userId: user.id, provider: provider.slug },
         "oidc.callback.group-sync-failed",
@@ -263,12 +269,19 @@ export async function GET(
     userId: user.id,
     ip: ip ?? null,
     userAgent,
+    derivedPermissions,
     ...(identity.oidcLogout
       ? {
           oidc: {
             endSessionUrl: identity.oidcLogout.endSessionUrl,
             idToken: identity.oidcLogout.idToken,
             clientId: identity.oidcLogout.clientId,
+            // Refresh token is encrypted at write time; `getCurrentUser`'s
+            // token-auth path decrypts to call the IdP's userinfo for a
+            // live groups recheck (#85 phase 2).
+            refreshTokenEncrypted: identity.oidcLogout.refreshToken
+              ? encrypt(identity.oidcLogout.refreshToken, "oidc-refresh-token")
+              : null,
           },
         }
       : {}),

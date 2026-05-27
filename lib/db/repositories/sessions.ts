@@ -9,7 +9,7 @@
  */
 
 import "server-only";
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { db, type DbExecutor } from "@/lib/db";
 import { countStar } from "@/lib/db/sql-dialect";
 import { sessions, type NewSession, type Session } from "@/lib/db/schema";
@@ -82,6 +82,28 @@ export async function listSessionsForUser(userId: string): Promise<Session[]> {
     .select()
     .from(sessions)
     .where(and(eq(sessions.userId, userId), gt(sessions.expiresAt, new Date())));
+}
+
+/**
+ * The user's most recent session (active OR expired), ordered by
+ * `lastSeenAt DESC`. Used by the token-auth path to read the latest
+ * known `derived_permissions` snapshot for IdP-derived perms (#85):
+ * tokens follow current real permissions, and the latest session is
+ * the freshest proxy when the IdP isn't reachable for a live recompute.
+ *
+ * Returns null when the user has never signed in (no session row
+ * exists). Caller is responsible for the `lastSeenAt` staleness check
+ * — `TOKEN_IDP_FALLBACK_TTL` (env) bounds how old a snapshot is
+ * allowed to be before IdP-derived perms drop off the token.
+ */
+export async function latestSessionForUser(userId: string): Promise<Session | null> {
+  const rows = await db
+    .select()
+    .from(sessions)
+    .where(eq(sessions.userId, userId))
+    .orderBy(desc(sessions.lastSeenAt))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 /**

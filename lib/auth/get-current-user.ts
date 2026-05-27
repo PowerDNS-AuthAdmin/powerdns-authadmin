@@ -20,6 +20,7 @@ import {
 } from "@/lib/db/repositories/api-tokens";
 import { findUserById } from "@/lib/db/repositories/users";
 import { loadUserAssignmentsForAbility } from "@/lib/db/repositories/roles";
+import { latestSessionForUser } from "@/lib/db/repositories/sessions";
 import { listGrantsForUser, mapServersToClusterPeers } from "@/lib/db/repositories/zone-grants";
 import { expandGrantsAcrossClusters } from "@/lib/rbac/zone-permissions";
 import type { User } from "@/lib/db/schema";
@@ -30,6 +31,8 @@ import {
   type AbilitySource,
   type AppAbility,
 } from "@/lib/rbac/ability";
+import type { Permission } from "@/lib/rbac/permissions";
+import { env } from "@/lib/env";
 import { getClientIp } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 import { readSession } from "./session";
@@ -98,11 +101,16 @@ export async function getCurrentUser(): Promise<AuthenticatedRequest | null> {
       loadUserAssignmentsForAbility(user.id),
       listGrantsForUser(user.id),
     ]);
-    // Cast: the DB column is structurally `string[]` to avoid the
-    // `lib/db → lib/rbac` import dependency, but values are written
-    // by validated admin routes so they're guaranteed to be valid
-    // `Permission` strings at this read.
-    const sources = assignments as readonly AbilitySource[];
+    // Admin-issued assignments (cast rationale: DB column is `string[]`
+    // to keep the `lib/db → lib/rbac` boundary one-way; values are
+    // validated at write time on admin routes).
+    const adminSources = assignments as readonly AbilitySource[];
+    // IdP-derived permissions snapshotted onto the session at sign-in
+    // (#85). Folded in as additional ability sources — the ability
+    // builder doesn't distinguish between admin- and IdP-issued rows
+    // once they're in the source list.
+    const derivedSources = session.derivedPermissions as readonly AbilitySource[];
+    const sources: readonly AbilitySource[] = [...adminSources, ...derivedSources];
     const ability = buildAbility(sources);
 
     return {
@@ -163,17 +171,57 @@ async function resolvePresentedToken(
   if (!user) return null;
   if (user.disabledAt) return null;
 
-  const [rawAssignments, rawGrants] = await Promise.all([
+  const [rawAssignments, rawGrants, latestSession] = await Promise.all([
     loadUserAssignmentsForAbility(user.id),
     listGrantsForUser(user.id),
+    latestSessionForUser(user.id),
   ]);
   const narrowed = narrowAssignmentsByTokenScopes(
     rawAssignments as readonly NarrowableAssignment[],
     row.scopes,
   );
-  // Same cast rationale as the session path — DB column is structurally
-  // string[] but values are validated at write time.
-  const sources = narrowed as readonly AbilitySource[];
+  // Admin-issued assignments (cast rationale: DB column is structurally
+  // `string[]` but values are validated at write time).
+  const adminSources = narrowed as readonly AbilitySource[];
+
+  // IdP-derived permissions from the user's latest session (#85). The
+  // ability builder reads these alongside admin-issued assignments so a
+  // token reflects the user's *current real* permissions, including the
+  // group memberships they had at last sign-in.
+  //
+  // Bounded by `TOKEN_IDP_FALLBACK_TTL_SECONDS`: an inactive user whose
+  // latest session is older than the TTL loses the IdP-derived slice on
+  // their tokens. They keep admin-issued permissions. Re-signing-in
+  // re-mints the snapshot and the token gets the fresh perms on its
+  // next use.
+  //
+  // Live recompute (LDAP service-account bind, OIDC refresh-token →
+  // userinfo) is wired in #85 phase 2; for now we use the session
+  // snapshot — the same source-of-truth as the session-cookie path.
+  let derivedSources: readonly AbilitySource[] = [];
+  if (latestSession && latestSession.derivedPermissions.length > 0) {
+    const ttlMs = env.TOKEN_IDP_FALLBACK_TTL_SECONDS * 1000;
+    const ageMs = Date.now() - latestSession.lastSeenAt.getTime();
+    if (ageMs <= ttlMs) {
+      // Token-scope-narrow the derived perms the same way we narrow
+      // admin-issued assignments — a leaked token can't exercise a
+      // permission the user holds via groups if the token's scopes
+      // don't include it.
+      if (row.scopes.length === 0) {
+        derivedSources = latestSession.derivedPermissions as readonly AbilitySource[];
+      } else {
+        const scopeSet = new Set<Permission>(row.scopes as readonly Permission[]);
+        derivedSources = (latestSession.derivedPermissions as readonly AbilitySource[])
+          .map((s) => ({
+            ...s,
+            permissions: s.permissions.filter((p) => scopeSet.has(p as Permission)),
+          }))
+          .filter((s) => s.permissions.length > 0);
+      }
+    }
+  }
+
+  const sources: readonly AbilitySource[] = [...adminSources, ...derivedSources];
   const ability = buildAbility(sources);
 
   // Narrow grants by the token's scope set too — a leaked token can't

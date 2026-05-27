@@ -125,9 +125,10 @@ export type LdapProvider = typeof ldapProviders.$inferSelect;
 export type NewLdapProvider = typeof ldapProviders.$inferInsert;
 
 /**
- * One group → role-assignment rule. Mirrors `OidcGroupMapping` so the
- * shared `applyGroupSync` differ in `lib/auth/providers/oidc-group-sync.ts`
- * accepts both. Stored as a JSON array on `ldap_providers.group_mappings`.
+ * One group → role-assignment rule. Identical shape to the neutral
+ * `GroupMapping` in `lib/auth/providers/group-sync-pure.ts`; the compute
+ * path (`computeGroupSync`) is protocol-agnostic. Stored as a JSON array
+ * on `ldap_providers.group_mappings`.
  */
 export interface LdapGroupMapping {
   /** Exact group value to match in the LDAP group set. Case-sensitive. */

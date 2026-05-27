@@ -64,6 +64,13 @@
       "when": 1779918310000,
       "tag": "0008_ldap_providers",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1779921543313,
+      "tag": "0009_steep_electro",
+      "breakpoints": true
     }
   ]
 }

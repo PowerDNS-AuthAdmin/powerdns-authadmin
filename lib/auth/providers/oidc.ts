@@ -559,6 +559,15 @@ export async function completeAuthorization(input: {
     typeof (tokens as unknown as { id_token?: unknown }).id_token === "string"
       ? (tokens as unknown as { id_token: string }).id_token
       : null;
+  // Refresh token (#85): captured when the IdP issued one (i.e. the
+  // configured scopes included `offline_access` and the IdP honoured
+  // it). Stored encrypted on the session so the token-auth path can
+  // refresh the groups claim at API-token use time. Null when absent
+  // — token use falls back to the latest session snapshot instead.
+  const refreshToken =
+    typeof (tokens as unknown as { refresh_token?: unknown }).refresh_token === "string"
+      ? (tokens as unknown as { refresh_token: string }).refresh_token
+      : null;
   logger.info(
     {
       provider: input.provider.slug,
@@ -579,6 +588,7 @@ export async function completeAuthorization(input: {
       endSessionUrl,
       idToken,
       clientId: input.provider.clientId,
+      refreshToken,
     },
   };
 }

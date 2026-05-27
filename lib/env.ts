@@ -122,6 +122,14 @@ const envSchema = z.object({
   // multi-subdomain SSO scenarios.
   COOKIE_DOMAIN: z.string().optional(),
 
+  // --- IdP-derived permissions (#85) ---
+  // How old the latest session's `derived_permissions` snapshot is allowed
+  // to be before the token-auth path stops using it. After this window, an
+  // API token used by an OIDC/SAML/LDAP user falls back to admin-issued
+  // permissions only — the IdP-derived perms drop off until the user
+  // signs in again (which re-mints the snapshot). Default: 24h.
+  TOKEN_IDP_FALLBACK_TTL_SECONDS: z.coerce.number().int().positive().default(86400),
+
   // --- Local auth ---
   // Whether email + password sign-in is enabled at all. Default true.
   LOCAL_AUTH_ENABLED: z
@@ -423,6 +431,7 @@ const ENV_KEYS = [
   "DATABASE_POOL_SIZE",
   "REDIS_URL",
   "SESSION_TTL_SECONDS",
+  "TOKEN_IDP_FALLBACK_TTL_SECONDS",
   "COOKIE_DOMAIN",
   "LOCAL_AUTH_ENABLED",
   "SIGNUP_ENABLED",

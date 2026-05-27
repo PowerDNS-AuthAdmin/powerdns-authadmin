@@ -28,7 +28,7 @@ import {
   resolveSamlProvider,
   verifyResponse,
 } from "@/lib/auth/providers/saml";
-import { applyGroupSync } from "@/lib/auth/providers/oidc-group-sync";
+import { computeGroupSync } from "@/lib/auth/providers/group-sync";
 import { safeNextPath } from "@/lib/auth/safe-redirect";
 import { startSession } from "@/lib/auth/session";
 import { findUserByEmail, insertUser, recordSuccessfulLogin } from "@/lib/db/repositories/users";
@@ -120,7 +120,7 @@ export async function POST(
       const hdrsForAudit = await headers();
       await appendAudit({
         actor: { type: "system", id: null },
-        action: "auth.saml.rejected_provisioning",
+        action: "auth.idp.rejected_provisioning",
         resource: { type: "user", id: null },
         after: {
           source: identity.source,
@@ -163,19 +163,25 @@ export async function POST(
 
   await recordSuccessfulLogin(user.id, ip ?? null);
 
-  // Materialise group → role mappings before issuing the session — same
-  // best-effort posture as OIDC. The group claim is exposed via the
-  // configured attribute name; `applyGroupSync` handles arrays + strings.
+  // Compute the IdP-derived permission set for this sign-in (#85). The
+  // result is persisted onto the session row in `startSession`.
+  let derivedPermissions: Awaited<ReturnType<typeof computeGroupSync>>["derived"] = [];
   if (provider.groupMappings && provider.groupMappings.length > 0) {
     try {
-      await applyGroupSync({
-        userId: user.id,
-        providerId: provider.id,
-        providerSlug: provider.slug,
+      const result = await computeGroupSync({
         groupsClaim: identity.claims?.[provider.claimGroups],
         mappings: provider.groupMappings,
-        requestContext: { ip: ip ?? null, userAgent, requestId: getRequestId(hdrs) },
       });
+      derivedPermissions = result.derived;
+      for (const u of result.unresolved) {
+        await appendAudit({
+          actor: { type: "system", id: null },
+          action: "auth.group_sync.mapping_unresolved",
+          resource: { type: "user", id: user.id },
+          after: { provider: provider.slug, ...u },
+          request: { ip, userAgent, requestId: getRequestId(hdrs) },
+        });
+      }
     } catch (err) {
       logger.warn(
         { err: safeErrorMessage(err), userId: user.id, provider: provider.slug },
@@ -188,6 +194,7 @@ export async function POST(
     userId: user.id,
     ip: ip ?? null,
     userAgent,
+    derivedPermissions,
     // We repurpose the OIDC logout slots: endSessionUrl = IdP SLO URL,
     // idToken = NameID, clientId = sessionIndex. The logout handler reads
     // these to build a SAML LogoutRequest. Documented in lib/auth/providers/saml.ts.
