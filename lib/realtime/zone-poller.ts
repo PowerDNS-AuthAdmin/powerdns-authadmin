@@ -57,6 +57,7 @@ import { db } from "@/lib/db";
 import { metricSamples, type PdnsDaemonCapabilities } from "@/lib/db/schema";
 import { pdnsServerStats } from "@/lib/db/schema";
 import { drainPdnsLatency } from "@/lib/pdns/observations";
+import { pruneOldSamples } from "@/lib/metrics/retention";
 import {
   readCachedZones,
   writeCachedZones,
@@ -707,6 +708,12 @@ async function persistSamples(
       break;
     }
   }
+
+  // Retention sweep. Throttled internally to 5-min cadence, so it's a no-op
+  // on most ticks. Awaited so a slow DELETE doesn't get sniped by a fast
+  // re-entry, but a thrown error never propagates — the helper logs and
+  // returns. See `lib/metrics/retention.ts` for the windows + reasoning.
+  await pruneOldSamples();
 }
 
 /**
