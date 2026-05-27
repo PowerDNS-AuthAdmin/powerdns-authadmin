@@ -82,10 +82,22 @@ settings:
   allow_password_reset: true
 
   # Default sign-in method. Decides which provider /login auto-redirects to
-  # on a fresh visit. Format: `local` | `oidc:<slug>` | `saml:<slug>` |
-  # `ldap:<slug>`. `local` (the default) shows the form. Recovery escape
-  # hatch: `/login?force-local=1`. Edited at runtime from /admin/authentication.
+  # on a fresh visit. Three accepted forms:
+  #
+  #   - "local" — show the form (the default; recovery via /login?force-local=1).
+  #   - bare slug, e.g. "company-sso" — resolved against the slugs reserved
+  #     in this file or already in the DB. Slugs are globally unique across
+  #     OIDC / SAML / LDAP, so a bare slug is unambiguous.
+  #   - typed-prefix, e.g. "oidc:company-sso" — equivalent; useful when
+  #     scripting against the DB directly.
+  #
+  # The applier resolves whatever form you write into the canonical
+  # typed-prefix form before persisting. Edited at runtime from
+  # /admin/authentication.
   auth_default_provider: "local"
+  # Example bare-slug form (uncomment to make `company-sso` defined below
+  # the default — operators hitting /login auto-redirect through its initiate):
+  # auth_default_provider: "company-sso"
 
 # -----------------------------------------------------------------------------
 # roles  —  custom (org-specific) roles

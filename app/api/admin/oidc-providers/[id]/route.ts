@@ -25,6 +25,7 @@ import {
   updateOidcProvider,
 } from "@/lib/db/repositories/oidc-providers";
 import { updateOidcProviderSchema } from "@/lib/validators/oidc-providers";
+import { releaseProviderSlug } from "@/lib/db/repositories/auth-provider-slugs";
 import { invalidateOidcConfigCache } from "@/lib/auth/providers/oidc";
 import { probeOidcDiscovery } from "@/lib/auth/providers/oidc-probe";
 import { assertSafeOidcIssuerUrl } from "@/lib/auth/providers/oidc-url-safety";
@@ -163,6 +164,10 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     const hdrs = await headers();
     await db.transaction(async (tx) => {
       await deleteOidcProvider(id, tx);
+      // Release the slug for reuse by any provider type. The reservation
+      // table doesn't have FKs back to the per-type tables, so this is the
+      // explicit second half of the cross-type uniqueness handshake.
+      await releaseProviderSlug(existing.slug, tx);
 
       await appendAudit(
         {

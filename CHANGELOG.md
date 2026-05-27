@@ -23,6 +23,22 @@ All notable changes to this project are documented here. The format is based on
     links keep working.
 - "System" now contains only Settings + Audit log.
 
+### Added — globally-unique provider slugs
+
+- New `auth_provider_slugs` table acts as a cross-type reservation: every
+  provider create transaction reserves its slug here first, and the table's
+  PK enforces uniqueness across **every** authentication provider type
+  (OIDC today; SAML + LDAP when PRs 2 + 3 of `feat/auth-providers-...`
+  land). A SAML provider can't claim the same slug as an existing OIDC
+  provider. Existing OIDC rows are backfilled by the migration in both
+  dialects.
+- **Provisioning shorthand**: `auth_default_provider` in the YAML now
+  accepts a bare provider slug (e.g. `auth_default_provider: "company-sso"`)
+  alongside the existing `local` / `<type>:<slug>` forms. The applier
+  resolves a bare slug against `auth_provider_slugs` (including providers
+  declared in the SAME file) and persists the canonical typed-prefix form.
+  Unknown slugs log a warning and leave the previous value intact.
+
 ### Changed — unified authentication admin
 
 - **New `Admin → Authentication` page** consolidates the view of every

@@ -41,6 +41,7 @@ import * as pgMetricSamples from "./metric-samples";
 import * as pgBackendAdvisories from "./backend-advisories";
 import * as pgSettings from "./settings";
 import * as pgOidcProviders from "./oidc-providers";
+import * as pgAuthProviderSlugs from "./auth-provider-slugs";
 import * as pgZoneTemplates from "./zone-templates";
 import * as pgZoneGrants from "./zone-grants";
 import * as pgPdnsRequests from "./pdns-requests";
@@ -60,6 +61,7 @@ import * as sqliteMetricSamples from "@/lib/db/schema-sqlite/metric-samples";
 import * as sqliteBackendAdvisories from "@/lib/db/schema-sqlite/backend-advisories";
 import * as sqliteSettings from "@/lib/db/schema-sqlite/settings";
 import * as sqliteOidcProviders from "@/lib/db/schema-sqlite/oidc-providers";
+import * as sqliteAuthProviderSlugs from "@/lib/db/schema-sqlite/auth-provider-slugs";
 import * as sqliteZoneTemplates from "@/lib/db/schema-sqlite/zone-templates";
 import * as sqliteZoneGrants from "@/lib/db/schema-sqlite/zone-grants";
 import * as sqlitePdnsRequests from "@/lib/db/schema-sqlite/pdns-requests";
@@ -155,6 +157,14 @@ export const oidcProviders = pick(pgOidcProviders.oidcProviders, sqliteOidcProvi
 export type OidcProvider = pgOidcProviders.OidcProvider;
 export type NewOidcProvider = pgOidcProviders.NewOidcProvider;
 export type OidcGroupMapping = pgOidcProviders.OidcGroupMapping;
+
+// --- auth_provider_slugs (cross-type slug uniqueness) ---
+export const authProviderSlugs = pick(
+  pgAuthProviderSlugs.authProviderSlugs,
+  sqliteAuthProviderSlugs.authProviderSlugs,
+);
+export type AuthProviderSlug = pgAuthProviderSlugs.AuthProviderSlug;
+export type NewAuthProviderSlug = pgAuthProviderSlugs.NewAuthProviderSlug;
 
 // --- zone_templates ---
 export const zoneTemplates = pick(pgZoneTemplates.zoneTemplates, sqliteZoneTemplates.zoneTemplates);

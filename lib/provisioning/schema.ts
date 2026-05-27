@@ -14,13 +14,39 @@ import "server-only";
 import { z } from "zod";
 import { KNOWN_SETTING_KEYS, SETTING_VALUE_SCHEMAS } from "@/lib/validators/settings";
 
+/**
+ * Provisioning-relaxed schema for `auth_default_provider`. The strict
+ * runtime validator (`SETTING_VALUE_SCHEMAS.auth_default_provider`) only
+ * accepts `local` | `<type>:<slug>`; here we also accept a bare provider
+ * slug so operators can write `auth_default_provider: "company-sso"` in
+ * the YAML without knowing which protocol the provider speaks. The
+ * applier resolves the bare form against `auth_provider_slugs` and
+ * persists the canonical `<type>:<slug>` form.
+ */
+const provisioningAuthDefaultProvider = z
+  .string()
+  .min(1)
+  .max(200)
+  .regex(
+    /^(local|(?:oidc|saml|ldap):[a-z][a-z0-9-]*|[a-z][a-z0-9-]*)$/,
+    "Must be 'local', a typed-prefix form ('<type>:<slug>'), or a bare provider slug.",
+  );
+
 /** Section: top-level KV writes to the `settings` table. */
 const settingsSection = z
-  .object(
-    Object.fromEntries(KNOWN_SETTING_KEYS.map((k) => [k, SETTING_VALUE_SCHEMAS[k].optional()])) as {
-      [K in (typeof KNOWN_SETTING_KEYS)[number]]: z.ZodOptional<(typeof SETTING_VALUE_SCHEMAS)[K]>;
-    },
-  )
+  .object({
+    ...(Object.fromEntries(
+      KNOWN_SETTING_KEYS.filter((k) => k !== "auth_default_provider").map((k) => [
+        k,
+        SETTING_VALUE_SCHEMAS[k].optional(),
+      ]),
+    ) as {
+      [K in Exclude<(typeof KNOWN_SETTING_KEYS)[number], "auth_default_provider">]: z.ZodOptional<
+        (typeof SETTING_VALUE_SCHEMAS)[K]
+      >;
+    }),
+    auth_default_provider: provisioningAuthDefaultProvider.optional(),
+  })
   .strict();
 
 const roleEntry = z

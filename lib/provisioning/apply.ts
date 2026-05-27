@@ -27,6 +27,7 @@ import "server-only";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
+  authProviderSlugs,
   oidcProviders,
   pdnsClusters,
   pdnsServers,
@@ -37,6 +38,7 @@ import {
   type OidcGroupMapping,
   type TemplateRecord,
 } from "@/lib/db/schema";
+import { lookupProviderTypeBySlug } from "@/lib/db/repositories/auth-provider-slugs";
 import { encrypt } from "@/lib/crypto/encryption";
 import { logger } from "@/lib/logger";
 import { appendAudit } from "@/lib/audit/log";
@@ -92,9 +94,15 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
   };
 
   // 1. settings
+  //
+  // `auth_default_provider` is special-cased: deferred to step 7 (after the
+  // OIDC section) so a bare-slug value can be resolved against providers
+  // declared in the SAME provisioning file. Writing it now would fail the
+  // lookup if the slug only appears later in the YAML.
   if (config.settings) {
     for (const [key, value] of Object.entries(config.settings)) {
       if (value === undefined) continue;
+      if (key === "auth_default_provider") continue; // deferred — see step 7
       await db
         .insert(settings)
         .values({ key, value, updatedAt: new Date() })
@@ -427,6 +435,14 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
       }
 
       const clientSecretEncrypted = encrypt(p.client_secret, "oidc-client-secret");
+      // Reserve the slug in the cross-type table first. ON CONFLICT DO
+      // NOTHING means a re-apply of the same provisioning file is a no-op
+      // here; the same operator-supplied slug already maps to "oidc" from
+      // a prior run.
+      await db
+        .insert(authProviderSlugs)
+        .values({ slug: p.slug, providerType: "oidc" })
+        .onConflictDoNothing({ target: authProviderSlugs.slug });
       await db
         .insert(oidcProviders)
         .values({
@@ -463,6 +479,46 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
           },
         });
       result.oidcProvidersUpserted += 1;
+    }
+  }
+
+  // 7. deferred: auth_default_provider. Now that every provider in this
+  // file has been upserted (and reserved its slug in auth_provider_slugs),
+  // we can resolve a bare-slug shorthand like `auth_default_provider: "company-sso"`
+  // to its canonical typed-prefix form (`oidc:company-sso`). Skipping the
+  // setting silently when the slug is unknown — provisioning shouldn't
+  // crash the apply over an operator typo; the admin UI surfaces "(provider
+  // no longer exists)" in the picker if the value ends up dangling.
+  if (config.settings?.auth_default_provider !== undefined) {
+    const raw = config.settings.auth_default_provider;
+    let canonical: string | null = null;
+    if (raw === "local") {
+      canonical = "local";
+    } else if (/^(oidc|saml|ldap):/.test(raw)) {
+      // Caller already gave us the typed form — trust it.
+      canonical = raw;
+    } else {
+      // Bare slug. Resolve via the reservation table — this picks up rows
+      // freshly inserted in step 6 above.
+      const type = await lookupProviderTypeBySlug(raw);
+      if (type) {
+        canonical = `${type}:${raw}`;
+      } else {
+        logger.warn(
+          { slug: raw },
+          "provisioning.auth_default_provider.unknown-slug: skipping; setting left at previous value",
+        );
+      }
+    }
+    if (canonical !== null) {
+      await db
+        .insert(settings)
+        .values({ key: "auth_default_provider", value: canonical, updatedAt: new Date() })
+        .onConflictDoUpdate({
+          target: settings.key,
+          set: { value: canonical, updatedAt: new Date() },
+        });
+      result.settingsWritten += 1;
     }
   }
 
