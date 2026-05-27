@@ -48,6 +48,7 @@
     "@casl/ability": "7.0.0",
     "@casl/react": "7.0.0",
     "@node-rs/argon2": "2.0.2",
+    "@node-saml/node-saml": "5.1.0",
     "@tanstack/react-table": "8.21.3",
     "better-sqlite3": "12.10.0",
     "client-only": "0.0.1",
@@ -74,6 +75,7 @@
     "server-only": "0.0.1",
     "tsx": "4.22.3",
     "undici": "8.3.0",
+    "xml-crypto": "6.1.2",
     "zod": "4.4.3"
   },
   "devDependencies": {

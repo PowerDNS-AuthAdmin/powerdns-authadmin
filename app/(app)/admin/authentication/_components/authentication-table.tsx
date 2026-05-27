@@ -25,9 +25,10 @@ import { DataTable } from "@/components/ui/data-table";
 export interface AuthRow {
   /**
    * Disambiguates rendering for the same protocol — `oidc-env` is read-only,
-   * `oidc-db` is editable, `local` routes to the global Settings page.
+   * `oidc-db` is editable, `local` routes to the global Settings page,
+   * `saml-db` routes to the SAML provider detail page.
    */
-  kind: "local" | "oidc-db" | "oidc-env";
+  kind: "local" | "oidc-db" | "oidc-env" | "saml-db";
   /** Stable react key. For "local" and "oidc-env" not a DB id. */
   id: string;
   slug: string;

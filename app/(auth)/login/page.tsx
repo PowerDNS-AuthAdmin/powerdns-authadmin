@@ -16,6 +16,7 @@ import { redirect } from "next/navigation";
 import { env, isProduction } from "@/lib/env";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { listEnabledOidcProviders } from "@/lib/db/repositories/oidc-providers";
+import { listEnabledSamlProviders } from "@/lib/db/repositories/saml-providers";
 import { envOidcProviderSummary } from "@/lib/auth/providers/oidc";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { safeNextPath } from "@/lib/auth/safe-redirect";
@@ -78,6 +79,7 @@ export default async function LoginPage({
       ? [{ id: envProvider.slug, name: envProvider.name, iconUrl: null }]
       : []),
   ];
+  const samlProviders = await listEnabledSamlProviders();
 
   // Default sign-in method: when `authDefaultProvider` resolves to a typed-
   // prefix value (e.g. `oidc:company-sso`), auto-redirect to that provider's
@@ -93,12 +95,15 @@ export default async function LoginPage({
     const sep = authDefaultProvider.indexOf(":");
     const type = sep > 0 ? authDefaultProvider.slice(0, sep) : "";
     const slug = sep > 0 ? authDefaultProvider.slice(sep + 1) : "";
-    // For now only OIDC is supported — LDAP/SAML providers land in PR 2/3
-    // and will plug into this same dispatch. A setting that resolves to an
+    // Both OIDC and SAML are wired. LDAP lands in PR 2 of
+    // `feat/auth-providers-ldap-saml-webauthn`. A setting that resolves to an
     // unsupported type (or a provider whose row was deleted) silently falls
     // back to showing the form rather than redirecting to a 404.
     if (type === "oidc" && slug && dbProviders.some((p) => p.slug === slug && p.enabled)) {
       redirect(`/api/auth/oidc/${slug}/initiate${nextParam}`);
+    }
+    if (type === "saml" && slug && samlProviders.some((p) => p.slug === slug && p.enabled)) {
+      redirect(`/api/auth/saml/${slug}/login${nextParam}`);
     }
   }
 
@@ -163,11 +168,11 @@ export default async function LoginPage({
         </div>
       ) : null}
 
-      {oidcProviders.length > 0 ? (
+      {oidcProviders.length > 0 || samlProviders.length > 0 ? (
         <div className="mb-6 space-y-2">
           {oidcProviders.map((p) => (
             <a
-              key={p.id}
+              key={`oidc-${p.id}`}
               href={`/api/auth/oidc/${p.id}/initiate${nextParam}`}
               className="flex w-full items-center justify-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-4 py-2 text-sm font-medium hover:bg-[color:var(--color-bg-muted)]"
             >
@@ -183,6 +188,15 @@ export default async function LoginPage({
                   style={{ width: 20, height: 20, objectFit: "contain", display: "block" }}
                 />
               ) : null}
+              <span>Continue with {p.name}</span>
+            </a>
+          ))}
+          {samlProviders.map((p) => (
+            <a
+              key={`saml-${p.slug}`}
+              href={`/api/auth/saml/${p.slug}/login${nextParam}`}
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-4 py-2 text-sm font-medium hover:bg-[color:var(--color-bg-muted)]"
+            >
               <span>Continue with {p.name}</span>
             </a>
           ))}
@@ -290,6 +304,18 @@ function humanizeError(code: string): string {
     case "oidc-email-unverified":
       return "Sign-in refused: the identity provider did not attest that this email address is verified.";
     case "oidc-not-authorized":
+      return "Sign-in refused: your account is not authorized for this system. Contact your administrator if you believe this is a mistake.";
+    case "saml-unknown-provider":
+      return "The SAML provider in the request URL is not configured.";
+    case "saml-state-missing":
+      return "Your sign-in attempt expired. Please try again.";
+    case "saml-response-missing":
+      return "The SAML response was missing or malformed.";
+    case "saml-exchange-failed":
+      return "We couldn't verify the SAML assertion from your identity provider.";
+    case "saml-build-failed":
+      return "We couldn't build the SAML sign-in request.";
+    case "saml-not-authorized":
       return "Sign-in refused: your account is not authorized for this system. Contact your administrator if you believe this is a mistake.";
     case "captcha-required":
       return "Sign-in requires a captcha challenge. Refresh the page and try again.";

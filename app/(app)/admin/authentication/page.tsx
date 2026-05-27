@@ -22,6 +22,7 @@ import { env } from "@/lib/env";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { CreateButton } from "@/components/ui/create-button";
 import { listAllOidcProviders } from "@/lib/db/repositories/oidc-providers";
+import { listAllSamlProviders } from "@/lib/db/repositories/saml-providers";
 import { envOidcProviderSummary } from "@/lib/auth/providers/oidc";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { ensureFreshOidcDiscovery } from "@/lib/auth/providers/oidc-discovery-sampler";
@@ -46,7 +47,11 @@ export default async function AuthenticationPage() {
     );
   }
 
-  const [providers, settings] = await Promise.all([listAllOidcProviders(), getAppSettings()]);
+  const [providers, samlProviders, settings] = await Promise.all([
+    listAllOidcProviders(),
+    listAllSamlProviders(),
+    getAppSettings(),
+  ]);
   const envProvider = envOidcProviderSummary();
   const envShadowed = envProvider !== null && providers.some((p) => p.slug === envProvider.slug);
   const showEnvRow = envProvider !== null && !envShadowed;
@@ -83,6 +88,20 @@ export default async function AuthenticationPage() {
       detailHref: `/admin/oidc-providers/${p.id}`,
       canEdit: canManage,
       iconUrl: p.iconUrl,
+    });
+  }
+  for (const p of samlProviders) {
+    rows.push({
+      kind: "saml-db",
+      id: p.id,
+      slug: p.slug,
+      name: p.name,
+      description: p.idpEntityId,
+      enabled: p.enabled,
+      protocol: "SAML",
+      detailHref: `/admin/saml-providers/${p.id}`,
+      canEdit: canManage,
+      iconUrl: null,
     });
   }
   if (showEnvRow && envProvider) {
@@ -124,6 +143,15 @@ export default async function AuthenticationPage() {
       label: p.name,
       description: p.issuerUrl,
       protocol: "OIDC",
+    });
+  }
+  for (const p of samlProviders) {
+    if (!p.enabled) continue;
+    defaultProviderOptions.push({
+      value: `saml:${p.slug}`,
+      label: p.name,
+      description: p.idpEntityId,
+      protocol: "SAML",
     });
   }
   if (showEnvRow && envProvider) {

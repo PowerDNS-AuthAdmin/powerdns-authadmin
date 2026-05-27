@@ -32,10 +32,12 @@ import {
   pdnsClusters,
   pdnsServers,
   roles,
+  samlProviders,
   settings,
   teams,
   zoneTemplates,
   type OidcGroupMapping,
+  type SamlGroupMapping,
   type TemplateRecord,
 } from "@/lib/db/schema";
 import { lookupProviderTypeBySlug } from "@/lib/db/repositories/auth-provider-slugs";
@@ -67,6 +69,7 @@ export interface ProvisioningResult {
   demoZonesSkipped: number;
   demoZonesFailed: number;
   oidcProvidersUpserted: number;
+  samlProvidersUpserted: number;
   /** Unresolvable scope references in group mappings (logged + audited; the
    *  rest of the mapping list is still persisted, with the bad entries
    *  filtered out). */
@@ -90,6 +93,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
     demoZonesSkipped: 0,
     demoZonesFailed: 0,
     oidcProvidersUpserted: 0,
+    samlProvidersUpserted: 0,
     unresolvedGroupMappings: [],
   };
 
@@ -479,6 +483,132 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
           },
         });
       result.oidcProvidersUpserted += 1;
+    }
+  }
+
+  // 6b. saml providers — same resolution pattern as OIDC.
+  if (config.saml) {
+    const teamsBySlug = new Map(
+      (await db.select({ id: teams.id, slug: teams.slug }).from(teams)).map((r) => [r.slug, r.id]),
+    );
+    const serversBySlug = new Map(
+      (await db.select({ id: pdnsServers.id, slug: pdnsServers.slug }).from(pdnsServers)).map(
+        (r) => [r.slug, r.id],
+      ),
+    );
+
+    for (const p of config.saml) {
+      // Both halves of the encryption pair must be set together; reject up
+      // front so a malformed YAML doesn't insert a half-configured row.
+      if (
+        (p.sp_encryption_key && !p.sp_encryption_cert) ||
+        (!p.sp_encryption_key && p.sp_encryption_cert)
+      ) {
+        throw new Error(
+          `provisioning: SAML provider "${p.slug}" must set both sp_encryption_key and sp_encryption_cert together, or neither.`,
+        );
+      }
+
+      const resolvedMappings: SamlGroupMapping[] = [];
+      for (const m of p.group_mappings) {
+        const parsed = parseScopeString(m.scope);
+        if (!parsed) {
+          result.unresolvedGroupMappings.push({ provider: p.slug, group: m.group, scope: m.scope });
+          continue;
+        }
+        let scopeId: string | null = null;
+        if (parsed.scopeType === "team") {
+          const id = teamsBySlug.get(parsed.scopeRef!);
+          if (!id) {
+            result.unresolvedGroupMappings.push({
+              provider: p.slug,
+              group: m.group,
+              scope: m.scope,
+            });
+            continue;
+          }
+          scopeId = id;
+        } else if (parsed.scopeType === "server") {
+          const id = serversBySlug.get(parsed.scopeRef!);
+          if (!id) {
+            result.unresolvedGroupMappings.push({
+              provider: p.slug,
+              group: m.group,
+              scope: m.scope,
+            });
+            continue;
+          }
+          scopeId = id;
+        } else if (parsed.scopeType === "zone") {
+          scopeId = parsed.scopeRef;
+        }
+        resolvedMappings.push({
+          group: m.group,
+          roleSlug: m.role,
+          scopeType: parsed.scopeType,
+          scopeId,
+        });
+      }
+
+      const spSigningKeyEncrypted = encrypt(p.sp_signing_key, "saml-sp-signing-key");
+      const spEncryptionKeyEncrypted = p.sp_encryption_key
+        ? encrypt(p.sp_encryption_key, "saml-sp-encryption-key")
+        : null;
+
+      await db
+        .insert(authProviderSlugs)
+        .values({ slug: p.slug, providerType: "saml" })
+        .onConflictDoNothing({ target: authProviderSlugs.slug });
+      await db
+        .insert(samlProviders)
+        .values({
+          slug: p.slug,
+          name: p.name,
+          idpEntityId: p.idp_entity_id,
+          idpSsoUrl: p.idp_sso_url,
+          idpSloUrl: p.idp_slo_url ?? null,
+          idpSigningCert: p.idp_signing_cert,
+          spSigningKeyEncrypted,
+          spSigningCert: p.sp_signing_cert,
+          spEncryptionKeyEncrypted,
+          spEncryptionCert: p.sp_encryption_cert ?? null,
+          requireSignedResponse: p.require_signed_response,
+          requireEncryptedAssertion: p.require_encrypted_assertion,
+          signatureAlgorithm: p.signature_algorithm,
+          nameIdFormat: p.name_id_format,
+          claimEmail: p.claim_email,
+          claimName: p.claim_name,
+          claimGroups: p.claim_groups,
+          enabled: p.enabled,
+          allowedEmailDomains: p.allowed_email_domains ?? null,
+          groupMappings: resolvedMappings,
+        })
+        .onConflictDoUpdate({
+          target: samlProviders.slug,
+          set: {
+            name: p.name,
+            idpEntityId: p.idp_entity_id,
+            idpSsoUrl: p.idp_sso_url,
+            idpSloUrl: p.idp_slo_url ?? null,
+            idpSigningCert: p.idp_signing_cert,
+            spSigningKeyEncrypted,
+            spSigningCert: p.sp_signing_cert,
+            spEncryptionKeyEncrypted,
+            spEncryptionCert: p.sp_encryption_cert ?? null,
+            requireSignedResponse: p.require_signed_response,
+            requireEncryptedAssertion: p.require_encrypted_assertion,
+            signatureAlgorithm: p.signature_algorithm,
+            nameIdFormat: p.name_id_format,
+            claimEmail: p.claim_email,
+            claimName: p.claim_name,
+            claimGroups: p.claim_groups,
+            enabled: p.enabled,
+            allowedEmailDomains: p.allowed_email_domains ?? null,
+            groupMappings: resolvedMappings,
+            updatedAt: new Date(),
+          },
+        });
+      result.samlProvidersUpserted += 1;
     }
   }
 

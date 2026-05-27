@@ -531,3 +531,70 @@ oidc:
     # DEPRECATED — see the note on the first provider above.
     force_default: false
     group_mappings: [] # explicit empty list — no group sync
+
+# -----------------------------------------------------------------------------
+# saml: SAML 2.0 identity providers (ADR-0021)
+# -----------------------------------------------------------------------------
+# One entry per IdP. Identifiers + group sync work the same way as OIDC; the
+# transport differences are: SP signing keypair is REQUIRED (we sign every
+# AuthnRequest), assertions MUST be signed by default, and the optional SP
+# encryption keypair adds support for EncryptedAssertion.
+#
+# Public certs (IdP signing cert, SP signing cert, SP encryption cert) sit as
+# PEM blocks in plain text. Private keys are encrypted at rest by the applier;
+# YAML still holds them plaintext, so this file MUST live in a secret store /
+# git-crypt setup (same posture as OIDC client secrets, PDNS API keys, …).
+# -----------------------------------------------------------------------------
+saml:
+  - slug: corp-sso # lowercase kebab-case; reserved across every provider type
+    name: "Corporate SSO"
+    idp_entity_id: "https://idp.example.com/saml"
+    idp_sso_url: "https://idp.example.com/saml/sso"
+    # Optional. When unset, /api/auth/saml/<slug>/slo clears the local session
+    # only — the IdP keeps its own session until it expires.
+    idp_slo_url: "https://idp.example.com/saml/slo"
+    # Public X.509 cert the IdP signs Responses with.
+    idp_signing_cert: |
+      -----BEGIN CERTIFICATE-----
+      MIIDazCCAlOgAwIBAgIUREPLACE_ME_with_your_IdPs_signing_certificate
+      -----END CERTIFICATE-----
+    # SP signing keypair. Generate locally with:
+    #   openssl req -x509 -newkey rsa:2048 -keyout sp.key -out sp.crt \
+    #     -nodes -days 1825 -subj "/CN=corp-sso"
+    sp_signing_key: |
+      -----BEGIN PRIVATE KEY-----
+      REPLACE_ME_with_the_SP_private_key_PEM
+      -----END PRIVATE KEY-----
+    sp_signing_cert: |
+      -----BEGIN CERTIFICATE-----
+      REPLACE_ME_with_the_SP_signing_certificate_PEM
+      -----END CERTIFICATE-----
+    # Optional: enable EncryptedAssertion. Both halves required together.
+    # sp_encryption_key: |
+    #   -----BEGIN PRIVATE KEY-----
+    #   ...
+    #   -----END PRIVATE KEY-----
+    # sp_encryption_cert: |
+    #   -----BEGIN CERTIFICATE-----
+    #   ...
+    #   -----END CERTIFICATE-----
+    # require_encrypted_assertion: false
+    require_signed_response: true
+    signature_algorithm: sha256 # sha1 | sha256 | sha512
+    name_id_format: "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+    claim_email: email
+    claim_name: name
+    claim_groups: groups
+    enabled: true
+    # allowed_email_domains:
+    #   - example.com
+    group_mappings:
+      - group: DomainAdmins
+        role: super-admin
+        scope: global
+      - group: NetOps
+        role: operator
+        scope: global
+      - group: NocZoneEditors
+        role: zone-editor
+        scope: team:noc

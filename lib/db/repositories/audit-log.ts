@@ -357,6 +357,18 @@ export async function recentAdminEditsForOidcProvider(
   return recentAdminEditsByResource("oidc_provider", providerId, limit);
 }
 
+/** SAML-provider wrappers — same shape as the OIDC ones. */
+export async function latestSamlProviderEdit(providerId: string): Promise<ZoneAuditEntry | null> {
+  return latestAdminEditByResource("saml_provider", providerId);
+}
+
+export async function recentAdminEditsForSamlProvider(
+  providerId: string,
+  limit = 10,
+): Promise<ZoneAuditEntry[]> {
+  return recentAdminEditsByResource("saml_provider", providerId, limit);
+}
+
 /** Role / team / zone-template wrappers. Same shape. */
 export async function recentAdminEditsForRole(
   roleId: string,

@@ -6,6 +6,36 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added — SAML 2.0 single sign-on
+
+- **`saml_providers` table** stores SAML SP configurations (ADR-0021). One
+  row per IdP relationship: AD FS, Authentik SAML, Keycloak SAML, etc.
+  Encrypted SP signing key + optional encryption key + the IdP's public
+  signing cert.
+- **Admin UI**: `/admin/authentication/new` now offers SAML as an active
+  card. Provider edit page at `/admin/saml-providers/<id>` mirrors the
+  OIDC equivalent — same pickers, same audit panel, same danger zone.
+- **Sign-in routes**:
+  - `GET /api/auth/saml/<slug>/login` — signed AuthnRequest + redirect to IdP.
+  - `POST /api/auth/saml/<slug>/acs` — Assertion Consumer Service; verifies
+    signature, decrypts EncryptedAssertion if configured, applies group →
+    role mappings, mints session.
+  - `GET /api/auth/saml/<slug>/metadata` — SP metadata XML (paste into IdP).
+  - `GET /api/auth/saml/<slug>/slo` — SP-initiated single logout.
+- **Secure defaults**: `wantAssertionsSigned: true`, `wantAuthnResponseSigned:
+true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
+  Operators can relax per-provider via the form.
+- **Group → role mapping** reuses the OIDC materialiser — same shape, same
+  `provider_id`-tagged `role_assignments` rows.
+- **Provisioning**: new `saml:` block in `provisioning.yaml`. See
+  `provisioning.example.yaml` for a worked example. Slug is reserved in
+  `auth_provider_slugs(provider_type='saml')` atomically with the row insert.
+- **Login dispatcher**: `auth_default_provider = "saml:<slug>"` now auto-
+  redirects to the SAML initiate URL on a fresh visit.
+- Library: `@node-saml/node-saml@^5.1.0` (MIT, CVE-2025-54369 fixed).
+- Docs: new [`docs/13-SAML.md`](./docs/13-SAML.md) with worked AD FS,
+  Authentik, and Keycloak setup. ADR-0021 captures the architecture.
+
 ### Changed — admin sidebar restructure + URL alignment
 
 - **Sidebar "Infrastructure" section renamed to "PowerDNS"**, with shorter

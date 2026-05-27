@@ -55,8 +55,8 @@ const CARDS: readonly CardSpec[] = [
     blurb:
       "Service-provider for AD FS, Authentik SAML, Keycloak SAML. Signed assertions required by default.",
     icon: <Network className="h-5 w-5" aria-hidden />,
-    available: false,
-    comingChip: "Lands in PR 3",
+    available: true,
+    comingChip: null,
   },
 ];
 

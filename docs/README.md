@@ -17,6 +17,7 @@ demo zones in about two minutes — then come back for the production guides.
 | [Connecting PowerDNS backends](./04-BACKENDS.md) | Wire up primaries, secondaries, and clusters.                 |
 | [OIDC single sign-on](./05-OIDC.md)              | Set up SSO with group → role mapping.                         |
 | [First-boot provisioning](./06-PROVISIONING.md)  | Bring up a fully-configured install from one YAML file.       |
+| [SAML 2.0 single sign-on](./13-SAML.md)          | Set up SAML SSO (AD FS, Authentik, Keycloak).                 |
 | [Roles & permissions (RBAC)](./07-RBAC.md)       | Understand who can do what, and scope it.                     |
 | [Hardening & best practices](./08-HARDENING.md)  | Lock down a production deployment.                            |
 | [Upgrading](./09-UPGRADING.md)                   | Move to a new version safely.                                 |

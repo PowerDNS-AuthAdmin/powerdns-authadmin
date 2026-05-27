@@ -241,6 +241,50 @@ const oidcProviderEntry = z
   })
   .strict();
 
+const samlGroupMapping = z
+  .object({
+    group: z.string().min(1),
+    role: z.string().min(1),
+    scope: z.string().min(1),
+  })
+  .strict();
+
+const samlProviderEntry = z
+  .object({
+    slug: z
+      .string()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z][a-z0-9-]*$/),
+    name: z.string().min(1).max(120),
+    idp_entity_id: z.string().min(1),
+    idp_sso_url: z.string().url(),
+    idp_slo_url: z.string().url().optional(),
+    /** PEM cert text; multi-line in YAML via | block style. */
+    idp_signing_cert: z.string().min(1),
+    /** SP private key PEM. Plaintext in YAML; encrypted before write. */
+    sp_signing_key: z.string().min(1),
+    sp_signing_cert: z.string().min(1),
+    /** Optional encryption keypair — both required if either set. Validated
+     *  in the applier so the YAML error reports the field name accurately. */
+    sp_encryption_key: z.string().min(1).optional(),
+    sp_encryption_cert: z.string().min(1).optional(),
+    require_signed_response: z.boolean().default(true),
+    require_encrypted_assertion: z.boolean().default(false),
+    signature_algorithm: z.enum(["sha1", "sha256", "sha512"]).default("sha256"),
+    name_id_format: z
+      .string()
+      .min(1)
+      .default("urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"),
+    claim_email: z.string().default("email"),
+    claim_name: z.string().default("name"),
+    claim_groups: z.string().default("groups"),
+    enabled: z.boolean().default(true),
+    allowed_email_domains: z.array(z.string().min(1)).optional(),
+    group_mappings: z.array(samlGroupMapping).default([]),
+  })
+  .strict();
+
 export const provisioningSchema = z
   .object({
     /**
@@ -259,10 +303,13 @@ export const provisioningSchema = z
      *  backends are registered. See `demoZonesEntry`. */
     demo_zones: z.array(demoZonesEntry).optional(),
     oidc: z.array(oidcProviderEntry).optional(),
+    saml: z.array(samlProviderEntry).optional(),
   })
   .strict();
 
 export type ProvisioningConfig = z.infer<typeof provisioningSchema>;
+export type ProvisioningSamlProviderEntry = z.infer<typeof samlProviderEntry>;
+export type ProvisioningSamlGroupMapping = z.infer<typeof samlGroupMapping>;
 export type ProvisioningRoleEntry = z.infer<typeof roleEntry>;
 export type ProvisioningTeamEntry = z.infer<typeof teamEntry>;
 export type ProvisioningZoneTemplateEntry = z.infer<typeof zoneTemplateEntry>;

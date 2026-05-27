@@ -21,6 +21,7 @@ import {
   OidcProviderForm,
   type PickerData,
 } from "@/app/(app)/admin/oidc-providers/_components/oidc-provider-form";
+import { SamlProviderForm } from "@/app/(app)/admin/saml-providers/_components/saml-provider-form";
 import { ProviderTypePicker, type ProviderType } from "./provider-type-picker";
 
 function parseType(raw: string | null): ProviderType | null {
@@ -59,17 +60,28 @@ export function NewProviderClient({ pickers }: Props) {
           </header>
           <OidcProviderForm mode="create" pickers={pickers} />
         </section>
-      ) : selected === "saml" || selected === "ldap" ? (
+      ) : selected === "saml" ? (
+        <section className="space-y-4 border-t border-[color:var(--color-border)] pt-6">
+          <header>
+            <h2 className="text-lg font-semibold">SAML 2.0 provider</h2>
+            <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
+              Configure the SAML identity provider below. After saving, copy the SP metadata URL
+              from the provider detail page and register it in your IdP.
+            </p>
+          </header>
+          <SamlProviderForm mode="create" pickers={pickers} />
+        </section>
+      ) : selected === "ldap" ? (
         <ComingSoonPanel type={selected} />
       ) : null}
     </div>
   );
 }
 
-function ComingSoonPanel({ type }: { type: "saml" | "ldap" }) {
-  const label = type === "saml" ? "SAML 2.0" : "LDAP";
-  const pr = type === "saml" ? "PR 3" : "PR 2";
-  const adr = type === "saml" ? "ADR-0021" : "ADR-0020";
+function ComingSoonPanel({ type: _type }: { type: "ldap" }) {
+  const label = "LDAP";
+  const pr = "PR 2";
+  const adr = "ADR-0020";
   return (
     <section className="space-y-2 rounded-md border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-6 text-sm">
       <h2 className="text-base font-semibold">{label} — coming soon</h2>

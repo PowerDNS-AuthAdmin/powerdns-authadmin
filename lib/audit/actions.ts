@@ -25,6 +25,10 @@ export const AUDIT_ACTIONS = [
   "auth.token.revoked",
   "auth.oidc.linked",
   "auth.oidc.rejected_provisioning",
+  // SAML — same shape as the OIDC equivalents above. method:"saml" on the
+  // auth.login.success row distinguishes the SSO type in audit search.
+  "auth.saml.linked",
+  "auth.saml.rejected_provisioning",
   // Self-service signup (SIGNUP_ENABLED) refused before any user row is
   // created — currently only the email-domain allow-list rejection. The
   // successful-signup path reuses `user.create` (source: signup).
@@ -74,6 +78,10 @@ export const AUDIT_ACTIONS = [
   "oidc.provider.created",
   "oidc.provider.updated",
   "oidc.provider.deleted",
+  // SAML providers (ADR-0021)
+  "saml.provider.created",
+  "saml.provider.updated",
+  "saml.provider.deleted",
   // Fleet-level refresh of every enabled provider's discovery cache
   // (T-107). One audit row per operator click — per-provider cache
   // writes don't audit individually (would dwarf the signal).
