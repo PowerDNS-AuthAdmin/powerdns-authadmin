@@ -32,18 +32,9 @@ interface BrandMarkProps {
   maxHeight?: number;
   /** Optional className for the wrapper. */
   className?: string;
-  /** Above-the-fold? Forwarded to Wordmark for the LCP boost. */
-  priority?: boolean;
 }
 
-export function BrandMark({
-  siteName,
-  brandLogoUrl,
-  width,
-  maxHeight,
-  className,
-  priority,
-}: BrandMarkProps) {
+export function BrandMark({ siteName, brandLogoUrl, width, maxHeight, className }: BrandMarkProps) {
   if (brandLogoUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -68,12 +59,5 @@ export function BrandMark({
       />
     );
   }
-  return (
-    <Wordmark
-      width={width}
-      height={maxHeight ?? "auto"}
-      priority={priority}
-      className={className}
-    />
-  );
+  return <Wordmark width={width} height={maxHeight ?? "auto"} className={className} />;
 }

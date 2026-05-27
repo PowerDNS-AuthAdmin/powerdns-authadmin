@@ -27,14 +27,18 @@ export interface UserMfaState {
   /** Has at least one TOTP enrollment. */
   totpEnrolled: boolean;
   /**
-   * SSO-only account (no local password). Under "inherit" these are exempt —
-   * the IdP is the second-factor authority. Default false.
+   * SSO-only account (no local password). The IdP is the second-factor
+   * authority — the in-app TOTP flow renders read-only for SSO and the
+   * admin UI hides the per-user MFA override for them, so SSO accounts
+   * are ALWAYS exempt from this gate (only `mfaOverride === false`
+   * short-circuits earlier — same outcome). Default false.
    */
   ssoOnly?: boolean;
   /**
-   * Per-user MFA override that SUPERSEDES roles (and, when set, the SSO
-   * exemption): `true` = always require TOTP, `false` = never require,
-   * `null`/`undefined` = inherit (SSO-exempt, else role-based).
+   * Per-user MFA override: `true` = always require TOTP, `false` = never
+   * require, `null`/`undefined` = inherit (role-based). The `true` value is
+   * inert for SSO-only users (see `ssoOnly`); the admin UI prevents writing
+   * it and `checkMfaCompliance` ignores legacy rows that carry it.
    */
   mfaOverride?: boolean | null;
 }
@@ -67,12 +71,20 @@ export function checkMfaCompliance(
   // The per-user override wins over everything — roles AND the SSO exemption.
   if (user.mfaOverride === false) return { compliant: true };
 
+  // SSO-only users can't enroll TOTP in this app: the IdP is the second-factor
+  // authority. Forcing MFA on an SSO account would just deadlock it (the
+  // /profile TOTP section renders read-only for SSO). The admin UI hides the
+  // per-user override for SSO users and the PATCH endpoint refuses to set it
+  // to `true`, but we still defend against legacy rows that carried that
+  // setting before the policy landed — treat them as compliant rather than
+  // lock the operator out.
+  if (user.ssoOnly) return { compliant: true };
+
   let requiringRoleSlugs: string[];
   if (user.mfaOverride === true) {
     requiringRoleSlugs = ["(per-user override)"];
   } else {
-    // Inherit: SSO accounts are exempt; otherwise any role marked requiresMfa.
-    if (user.ssoOnly) return { compliant: true };
+    // Inherit: any role marked requiresMfa.
     const requiringRoles = roles.filter((r) => r.requiresMfa);
     if (requiringRoles.length === 0) return { compliant: true };
     requiringRoleSlugs = requiringRoles.map((r) => r.slug ?? "(unnamed role)").sort();

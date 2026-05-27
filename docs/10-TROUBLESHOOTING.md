@@ -40,6 +40,18 @@ the runtime env, or the deploy didn't override the secrets. Generate real
 - **Reachable but no zones** — confirm `api=yes` and that the API key has access to
   the `server_id` you configured (almost always `localhost`).
 
+## Sign-in does nothing / browser DevTools shows "Cookie pda_csrf has been rejected for invalid domain"
+
+`APP_URL`'s host doesn't match the URL you have in the address bar. The session
+and CSRF cookies are scoped to `APP_URL`'s host, so the browser silently drops
+them on a mismatch and every login submit looks like it just reloads the page.
+
+The login page renders an inline error when this happens. To fix it: set
+`APP_URL` to the **exact** scheme + host + port operators type in their browser
+(e.g. `http://192.168.1.10:3000` if that's how you reach the LAN host, not the
+`http://localhost:3000` from `.env.example`). Restart the app and reload the
+sign-in page.
+
 ## OIDC sign-in problems
 
 - **`redirect_uri` mismatch at the IdP** — register exactly

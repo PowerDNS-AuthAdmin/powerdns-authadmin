@@ -6,6 +6,46 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Login: inline APP_URL mismatch banner.** Detects when the request host
+  doesn't match `env.APP_URL` (the classic "copy-pasted `http://localhost:3000`
+  but I'm browsing the LAN host" foot-gun) and surfaces it on the sign-in page
+  with the actual + expected origin, so operators don't have to crack open
+  DevTools to find out why their session cookie was silently rejected. Helper
+  is unit-tested (`lib/auth/app-url-check.ts`).
+- **Compliance guard now covers MFA enforcement, not just must-change-password.**
+  The shake-banner-on-blocked-nav behaviour is reused for forced TOTP enrolment;
+  `requireUserForPage` re-checks both gates on every soft navigation
+  (mirrors what was already there for password change).
+- **Roles list: description column** + the description renders on both system
+  and custom-role detail pages. Wraps cleanly, never truncates.
+- **METRICS_TOKEN auto-generation.** When `/metrics` is enabled but no token is
+  pinned in env, the app generates a random 32-char bearer on boot and logs it
+  once — keeps the endpoint from being accidentally open on a shared LAN.
+
+### Changed
+
+- **Force-MFA + OIDC users.** SSO-only accounts (no local password) are now
+  always exempt from MFA enforcement: the IdP is the second-factor authority
+  and the in-app TOTP enroll flow is read-only for them. The admin user-detail
+  page hides the per-user MFA override for SSO accounts, and the PATCH
+  endpoint rejects setting `mfaRequired=true` on them. `checkMfaCompliance`
+  defends against legacy rows that already carried that flag.
+- **Installation docs** split into two paths (Docker / from-source) with a
+  systemd unit + tested nginx and HAProxy reverse-proxy examples that get the
+  `X-Forwarded-*` headers right for the APP_URL mismatch detector.
+- **APP_URL guidance** elevated to its own install step + `.env.example`
+  comment, with the cookie-domain reasoning spelled out (operators copy-pasting
+  `http://localhost:3000` from the example hit a silent cookie rejection).
+
+### Fixed
+
+- **Login page "preload was not used" warnings.** The wordmark rendered both
+  light + dark PNGs with Next.js `priority`, emitting two `<link rel="preload">`
+  tags while CSS hid one — browsers warned every page load. Dropped `priority`;
+  the visible image still loads eagerly above the fold.
+
 ## [1.2.1] — 2026-05-27
 
 A **build-pipeline patch** — significant image-size reduction with

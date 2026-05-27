@@ -10,6 +10,14 @@
  * Both versions ship with the app (no external CDN per CONTRIBUTING.md).
  * The Tailwind `dark:` class on <html> picks which one is visible — there's
  * no JS hop, so the right variant appears before hydration completes.
+ *
+ * Both images render in the DOM (so the swap is paint-time, no JS hop), but
+ * we deliberately do NOT pass `priority` to next/image: priority emits a
+ * `<link rel="preload">` per Image, and with two images where CSS hides one,
+ * the preloaded hidden variant fires a "preload was not used within a few
+ * seconds" browser warning every page load. The visible image loads eagerly
+ * anyway because it's above the fold; the wordmark is small enough that the
+ * extra preload buys no measurable LCP gain.
  */
 
 import Image from "next/image";
@@ -26,8 +34,6 @@ interface WordmarkProps {
   className?: string;
   /** Inline style overrides merged onto the wrapper. */
   style?: React.CSSProperties;
-  /** Whether the asset is above the fold — controls eager loading. */
-  priority?: boolean;
 }
 
 /**
@@ -35,13 +41,7 @@ interface WordmarkProps {
  * variants based on the active theme. Sizing is controlled by the parent
  * span — pass width / height / style as you would on any block element.
  */
-export function Wordmark({
-  width,
-  height = "auto",
-  className = "",
-  style,
-  priority = false,
-}: WordmarkProps) {
+export function Wordmark({ width, height = "auto", className = "", style }: WordmarkProps) {
   const alt = "PowerDNS-AuthAdmin";
 
   return (
@@ -56,7 +56,6 @@ export function Wordmark({
         alt=""
         width={INTRINSIC_WIDTH}
         height={INTRINSIC_HEIGHT}
-        priority={priority}
         className="block h-auto w-full object-contain dark:hidden"
       />
       <Image
@@ -64,7 +63,6 @@ export function Wordmark({
         alt=""
         width={INTRINSIC_WIDTH}
         height={INTRINSIC_HEIGHT}
-        priority={priority}
         className="hidden h-auto w-full object-contain dark:block"
       />
     </span>

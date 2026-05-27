@@ -67,8 +67,8 @@ export default async function RoleDetailPage({ params }: PageProps) {
             </span>
           )}
         </p>
-        {role.description && role.isSystem ? (
-          <p className="mt-3 text-sm">{role.description}</p>
+        {role.description ? (
+          <p className="mt-3 max-w-prose text-sm whitespace-pre-line">{role.description}</p>
         ) : null}
       </header>
 

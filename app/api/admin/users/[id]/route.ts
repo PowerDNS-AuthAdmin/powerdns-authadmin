@@ -55,6 +55,16 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       throw new ValidationError("You cannot disable your own account.");
     }
 
+    // SSO-only users have no way to enroll TOTP from the app — the IdP is the
+    // second-factor authority. Forcing MFA on them would only deadlock the
+    // account. Refuse the policy override here as defense-in-depth; the UI
+    // already hides the control for SSO-only users.
+    if (input.mfaRequired === true && existing.passwordHash === null) {
+      throw new ValidationError(
+        "Cannot force MFA on an SSO-only user — they have no way to enroll TOTP in this app. MFA is the responsibility of the identity provider.",
+      );
+    }
+
     const patch: Parameters<typeof updateUser>[1] = {};
     if (input.name !== undefined) patch.name = input.name;
     if (input.mustChangePassword !== undefined) patch.mustChangePassword = input.mustChangePassword;

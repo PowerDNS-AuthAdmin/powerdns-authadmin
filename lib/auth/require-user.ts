@@ -24,6 +24,7 @@ import { env } from "@/lib/env";
 import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 import type { Subject } from "@/lib/rbac/ability";
 import { listRoleMfaStatesForUser } from "@/lib/db/repositories/roles";
+import { checkMfaCompliance } from "./mfa-compliance";
 import { getCurrentUser, type AuthenticatedRequest } from "./get-current-user";
 
 /** Routes a non-compliant user (forced-MFA-not-enrolled, mustChangePassword) is
@@ -149,11 +150,31 @@ export async function requireUserForPage(
     // could click around freely until the next full reload. We rerun the same
     // gate at the page level (cheap; `requireUser` already loaded the user).
     const result = await requireUser({ ...opts, skipComplianceGate: true });
-    const hdrs = await headers();
-    const pathname = hdrs.get("x-pathname") ?? "/";
-    const allowed = COMPLIANCE_ALLOWLIST.some((p) => pathname.startsWith(p));
-    if (!allowed && result.user.mustChangePassword) {
-      redirect("/profile?must-change-password=1");
+    if (result.source === "session") {
+      const hdrs = await headers();
+      const pathname = hdrs.get("x-pathname") ?? "/";
+      const allowed = COMPLIANCE_ALLOWLIST.some((p) => pathname.startsWith(p));
+      if (!allowed) {
+        // MFA gate is checked first to match `evaluateSessionCompliance` —
+        // an operator who is both non-enrolled AND flagged for a password
+        // change is sent to the more security-critical remediation first.
+        const roleMfaStates = await listRoleMfaStatesForUser(result.user.id);
+        const mfa = checkMfaCompliance(
+          {
+            totpEnrolled: result.user.totpSecretEncrypted !== null,
+            ssoOnly: result.user.passwordHash === null,
+            mfaOverride: result.user.mfaRequired,
+          },
+          roleMfaStates,
+        );
+        if (!mfa.compliant) {
+          const because = encodeURIComponent(mfa.requiringRoleSlugs.join(","));
+          redirect(`/profile?mfa-required=1&because=${because}`);
+        }
+        if (result.user.mustChangePassword) {
+          redirect("/profile?must-change-password=1");
+        }
+      }
     }
     return result;
   } catch (err) {

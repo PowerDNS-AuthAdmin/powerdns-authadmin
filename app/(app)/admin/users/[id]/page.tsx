@@ -104,7 +104,13 @@ export default async function UserDetailPage({ params }: PageProps) {
         isSelf={isSelf}
       />
 
-      {canUpdate ? <MfaRequiredOverride userId={id} initial={target.mfaRequired} /> : null}
+      {/* SSO-only users can't enroll TOTP in this app — the IdP is the
+          second-factor authority. The override is hidden for them: forcing it
+          would only deadlock the account. See lib/auth/mfa-compliance.ts for
+          the matching policy on the enforcement side. */}
+      {canUpdate && target.passwordHash !== null ? (
+        <MfaRequiredOverride userId={id} initial={target.mfaRequired} />
+      ) : null}
 
       <RoleAssignmentsPanel
         userId={id}

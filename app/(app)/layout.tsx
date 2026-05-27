@@ -29,7 +29,7 @@ import { FlashListener } from "@/components/ui/flash-listener";
 import { NavLink } from "@/components/ui/nav-link";
 import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 import { HeaderStatusProvider } from "@/components/realtime/header-status-chip";
-import { MustChangePasswordProvider } from "@/components/auth/must-change-password-guard";
+import { ComplianceGuardProvider } from "@/components/auth/compliance-guard";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { globalAnyLagging, hasReplicationTopology } from "@/lib/pdns/sync";
@@ -146,7 +146,6 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             brandLogoUrl={appSettings.brandLogoUrl}
             width={280}
             maxHeight={56}
-            priority
           />
         </Link>
       </div>
@@ -246,7 +245,10 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   return (
     <DialogProvider>
-      <MustChangePasswordProvider blocked={current.user.mustChangePassword}>
+      <ComplianceGuardProvider
+        mfaRequired={!compliance.compliant}
+        passwordChangeRequired={current.user.mustChangePassword}
+      >
         {realtimeAvailable ? (
           <RealtimeProvider>
             <HeaderStatusProvider initialMode={initialChipMode}>
@@ -260,7 +262,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             {shell}
           </>
         )}
-      </MustChangePasswordProvider>
+      </ComplianceGuardProvider>
     </DialogProvider>
   );
 }

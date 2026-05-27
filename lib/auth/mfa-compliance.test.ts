@@ -77,14 +77,21 @@ describe("checkMfaCompliance — SSO exemption + per-user override", () => {
     ).toEqual({ compliant: true });
   });
 
-  it("override=true requires MFA even with no role requiring it (and even for SSO)", () => {
-    expect(
-      checkMfaCompliance({ totpEnrolled: false, mfaOverride: true, ssoOnly: true }, []),
-    ).toEqual({
+  it("override=true requires MFA for local accounts with no role requiring it", () => {
+    expect(checkMfaCompliance({ totpEnrolled: false, mfaOverride: true }, [])).toEqual({
       compliant: false,
       reason: "no-mfa-enrolled",
       requiringRoleSlugs: ["(per-user override)"],
     });
+  });
+
+  it("SSO-only accounts stay exempt even with a stale override=true (legacy rows aren't lockouts)", () => {
+    // The admin UI hides the override for SSO users and the PATCH endpoint
+    // rejects setting it to true; this guards against legacy DB rows that
+    // were written before that policy landed.
+    expect(
+      checkMfaCompliance({ totpEnrolled: false, mfaOverride: true, ssoOnly: true }, []),
+    ).toEqual({ compliant: true });
   });
 
   it("override=true is satisfied once TOTP is enrolled", () => {

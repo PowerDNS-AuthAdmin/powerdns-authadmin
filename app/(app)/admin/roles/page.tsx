@@ -46,6 +46,7 @@ export default async function RolesListPage() {
             id: r.id,
             name: r.name,
             slug: r.slug,
+            description: r.description,
             kind: r.isSystem ? "System" : "Custom",
             permissionCount: r.permissions.length,
             requiresMfa: r.requiresMfa,

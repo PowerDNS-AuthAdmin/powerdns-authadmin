@@ -11,18 +11,25 @@ permission set is the union of a user's assignments that apply in context.
 
 ## The five system roles
 
-Seeded on first boot and protected from deletion. Each builds on the previous:
+Seeded on first boot and protected from deletion. Each builds on the previous —
+the description shown here is the one seeded into the `roles.description`
+column, surfaced verbatim on the Roles list and detail pages.
 
-| Role            | For                 | Can, in addition to the role above…                                                                                         |
-| --------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| **Read Only**   | Auditors, observers | View zones, records, DNSSEC, metadata, teams, users, roles, servers, settings; use templates; manage own API tokens (read). |
-| **Zone Editor** | Record editors      | Create/update/delete **records**; create/delete own API tokens.                                                             |
-| **Operator**    | Day-to-day admins   | Create/update/delete/import/export **zones**; write metadata; manage templates.                                             |
-| **Team Owner**  | Team leads          | Configure DNSSEC; manage TSIG + autoprimaries; update team + manage members.                                                |
-| **Super Admin** | Platform admins     | Everything: users, roles, teams, servers, settings, audit, OIDC, all API tokens.                                            |
+| Role            | Seeded description                                                                          | Permissions, in addition to the role above…                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **Read Only**   | View access to assigned zones. No changes. Useful for auditors and observers.               | View zones, records, DNSSEC, metadata, teams, users, roles, servers, settings; use templates; manage own API tokens (read). |
+| **Zone Editor** | Edit records on assigned zones. Cannot create or delete zones.                              | Create/update/delete **records**; create/delete own API tokens.                                                             |
+| **Operator**    | Day-to-day zone and record administration within a team. No DNSSEC or member management.    | Create/update/delete/import/export **zones**; write metadata; manage templates.                                             |
+| **Team Owner**  | Full control of a team's zones and members. Cannot manage other teams or app-wide settings. | Configure DNSSEC; manage TSIG + autoprimaries; update team + manage members.                                                |
+| **Super Admin** | Full access to everything: users, roles, servers, settings, audit.                          | Everything: users, roles, teams, servers, settings, audit, OIDC, all API tokens.                                            |
 
 The seed asserts Super Admin contains every permission, so a new permission added
-to the codebase is always held by Super Admin.
+to the codebase is always held by Super Admin. The seeded descriptions are owned
+by `lib/rbac/default-roles.ts`; edits there apply on next boot via `upsertRole`.
+
+Custom roles carry an optional free-text description too — set it on the create
+or edit form. It's shown verbatim on the Roles list and detail pages and surfaces
+naturally as "what does this role do?" context for newer operators.
 
 ## Permission vocabulary
 
