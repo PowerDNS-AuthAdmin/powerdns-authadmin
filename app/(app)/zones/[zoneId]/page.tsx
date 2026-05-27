@@ -51,6 +51,7 @@ import { ZoneStatisticsSection } from "./_components/statistics-section";
 import { SyncSection } from "./_components/sync-section";
 import { checkZoneSync } from "@/lib/pdns/sync";
 import { TabBodySkeleton } from "./_components/tab-body-skeleton";
+import { AccessSection } from "./_components/access-section";
 import { ZoneChangeLog, type ZoneAuditEntryClient } from "./_components/zone-change-log";
 import type { PdnsHttpLogEntry } from "./_components/pdns-http-log";
 import { ZoneHeader } from "./_components/zone-header";
@@ -72,6 +73,7 @@ type ZoneTab =
   | "metadata"
   | "sync"
   | "statistics"
+  | "access"
   | "history";
 
 // Always re-render on navigation — the zone state on the upstream PDNS
@@ -285,6 +287,10 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   const canDeleteZone = zoneCan("zone.delete");
   // audit.read is an admin-wide (global-only) permission.
   const canReadAudit = globalPermissions.has("audit.read");
+  // The Access tab reveals user emails + team membership, so gate it on
+  // `user.read`. Anyone able to manage / list users can also see who
+  // can act on this zone.
+  const canReadAccess = globalPermissions.has("user.read");
   const canReadDnssec = zoneCan("dnssec.read");
   const canReadMetadata = zoneCan("metadata.read");
 
@@ -300,19 +306,21 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   const tab: ZoneTab =
     requestedTab === "history" && canReadAudit
       ? "history"
-      : requestedTab === "soa"
-        ? "soa"
-        : requestedTab === "settings"
-          ? "settings"
-          : requestedTab === "dnssec" && canReadDnssec
-            ? "dnssec"
-            : requestedTab === "metadata" && canReadMetadata
-              ? "metadata"
-              : requestedTab === "statistics"
-                ? "statistics"
-                : requestedTab === "sync"
-                  ? "sync"
-                  : "records";
+      : requestedTab === "access" && canReadAccess
+        ? "access"
+        : requestedTab === "soa"
+          ? "soa"
+          : requestedTab === "settings"
+            ? "settings"
+            : requestedTab === "dnssec" && canReadDnssec
+              ? "dnssec"
+              : requestedTab === "metadata" && canReadMetadata
+                ? "metadata"
+                : requestedTab === "statistics"
+                  ? "statistics"
+                  : requestedTab === "sync"
+                    ? "sync"
+                    : "records";
 
   // All four post-zone fetches run in parallel — audit query, last
   // edit lookup, and the live sync probe to every secondary. Now we
@@ -404,6 +412,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
           canReadDnssec={canReadDnssec}
           canReadMetadata={canReadMetadata}
           canReadAudit={canReadAudit}
+          canReadAccess={canReadAccess}
           showPollingFeatures={pdnsBackgroundPollingEnabled}
         />
       </div>
@@ -525,6 +534,8 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
           ) : (
             <SyncSection mode="primary-secondaries" primary={selected} zone={zone} />
           )
+        ) : tab === "access" ? (
+          <AccessSection serverId={selected.id} zoneName={zone.name} />
         ) : (
           <ZoneChangeLog
             entries={auditEntries}

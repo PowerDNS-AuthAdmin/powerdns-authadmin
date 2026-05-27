@@ -55,6 +55,7 @@ import {
   type PaginationState,
   type RowData,
   type SortingState,
+  type Table as ReactTable,
 } from "@tanstack/react-table";
 import { ChevronDown, ChevronsUpDown, ChevronUp, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -372,6 +373,23 @@ export function DataTable<TData>({
         </div>
       ) : null}
 
+      {/* Pagination at the top of the table too — a long list shouldn't
+          force the operator to scroll all the way down to flip pages or
+          change the page size. The same controls render again at the
+          bottom for the reverse flow. */}
+      {!hidePagination && totalCount > 0 ? (
+        <PaginationControls
+          showingFrom={showingFrom}
+          showingTo={showingTo}
+          filteredCount={filteredCount}
+          totalCount={totalCount}
+          globalFilter={globalFilter}
+          pagination={pagination}
+          pageSizeOptionsResolved={pageSizeOptionsResolved}
+          table={table}
+        />
+      ) : null}
+
       {/* Mobile (< md): a card per row. Avoids horizontal scrolling — each
           column becomes a labelled field, the first cell is the card title. */}
       <div className="space-y-3 md:hidden">
@@ -555,55 +573,95 @@ export function DataTable<TData>({
       </div>
 
       {!hidePagination && totalCount > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[color:var(--color-fg-muted)]">
-          <span>
-            Showing {showingFrom}–{showingTo} of {filteredCount}
-            {globalFilter && filteredCount !== totalCount ? ` (filtered from ${totalCount})` : ""}
-          </span>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2">
-              <span>Rows</span>
-              <SelectMenu
-                value={String(pagination.pageSize)}
-                onChange={(v) => table.setPageSize(Number(v))}
-                options={pageSizeOptionsResolved.map((size) => ({
-                  value: String(size),
-                  label: String(size),
-                }))}
-                ariaLabel="Rows per page"
-                className="w-20"
-              />
-            </label>
-            <div className="inline-flex items-center gap-1">
-              <PaginationButton
-                onClick={() => table.setPageIndex(0)}
-                disabled={!table.getCanPreviousPage()}
-                label="First"
-                className="hidden sm:inline-block"
-              />
-              <PaginationButton
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-                label="Prev"
-              />
-              <span className="px-2 whitespace-nowrap tabular-nums">
-                {table.getState().pagination.pageIndex + 1} / {Math.max(1, table.getPageCount())}
-              </span>
-              <PaginationButton
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-                label="Next"
-              />
-              <PaginationButton
-                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                disabled={!table.getCanNextPage()}
-                label="Last"
-                className="hidden sm:inline-block"
-              />
-            </div>
-          </div>
-        </div>
+        <PaginationControls
+          showingFrom={showingFrom}
+          showingTo={showingTo}
+          filteredCount={filteredCount}
+          totalCount={totalCount}
+          globalFilter={globalFilter}
+          pagination={pagination}
+          pageSizeOptionsResolved={pageSizeOptionsResolved}
+          table={table}
+        />
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Pagination row — extracted so the same controls render at the top
+ * AND the bottom of the table without duplicating markup. A long
+ * list shouldn't force the operator to scroll to the bottom just to
+ * advance a page, and a paged-down operator shouldn't have to scroll
+ * back up to flip again.
+ */
+function PaginationControls<TData>({
+  showingFrom,
+  showingTo,
+  filteredCount,
+  totalCount,
+  globalFilter,
+  pagination,
+  pageSizeOptionsResolved,
+  table,
+}: {
+  showingFrom: number;
+  showingTo: number;
+  filteredCount: number;
+  totalCount: number;
+  globalFilter: string;
+  pagination: { pageSize: number };
+  pageSizeOptionsResolved: readonly number[];
+  table: ReactTable<TData>;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[color:var(--color-fg-muted)]">
+      <span>
+        Showing {showingFrom}–{showingTo} of {filteredCount}
+        {globalFilter && filteredCount !== totalCount ? ` (filtered from ${totalCount})` : ""}
+      </span>
+      <div className="flex items-center gap-3">
+        <label className="flex items-center gap-2">
+          <span>Rows</span>
+          <SelectMenu
+            value={String(pagination.pageSize)}
+            onChange={(v) => table.setPageSize(Number(v))}
+            options={pageSizeOptionsResolved.map((size) => ({
+              value: String(size),
+              label: String(size),
+            }))}
+            ariaLabel="Rows per page"
+            className="w-20"
+          />
+        </label>
+        <div className="inline-flex items-center gap-1">
+          <PaginationButton
+            onClick={() => table.setPageIndex(0)}
+            disabled={!table.getCanPreviousPage()}
+            label="First"
+            className="hidden sm:inline-block"
+          />
+          <PaginationButton
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+            label="Prev"
+          />
+          <span className="px-2 whitespace-nowrap tabular-nums">
+            {table.getState().pagination.pageIndex + 1} / {Math.max(1, table.getPageCount())}
+          </span>
+          <PaginationButton
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+            label="Next"
+          />
+          <PaginationButton
+            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+            disabled={!table.getCanNextPage()}
+            label="Last"
+            className="hidden sm:inline-block"
+          />
+        </div>
+      </div>
     </div>
   );
 }
