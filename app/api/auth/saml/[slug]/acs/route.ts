@@ -195,6 +195,7 @@ export async function POST(
     ip: ip ?? null,
     userAgent,
     derivedPermissions,
+    idp: { type: "saml", slug: provider.slug },
     // We repurpose the OIDC logout slots: endSessionUrl = IdP SLO URL,
     // idToken = NameID, clientId = sessionIndex. The logout handler reads
     // these to build a SAML LogoutRequest. Documented in lib/auth/providers/saml.ts.

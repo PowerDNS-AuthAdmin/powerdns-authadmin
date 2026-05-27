@@ -55,7 +55,7 @@ CREATE TABLE "saml_providers" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
--- #85 — wipe provider-derived rows BEFORE dropping the column, so we don't
+-- #85: wipe provider-derived rows BEFORE dropping the column, so we don't
 -- silently preserve stale grants with their provenance stripped. Affected
 -- users re-materialise their permissions into the new
 -- `sessions.derived_permissions` on next sign-in.
@@ -67,6 +67,8 @@ DROP INDEX "zone_grants_unique_idx";--> statement-breakpoint
 ALTER TABLE "zone_grants" ALTER COLUMN "user_id" DROP NOT NULL;--> statement-breakpoint
 ALTER TABLE "sessions" ADD COLUMN "derived_permissions" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
 ALTER TABLE "sessions" ADD COLUMN "oidc_refresh_token_encrypted" text;--> statement-breakpoint
+ALTER TABLE "sessions" ADD COLUMN "idp_provider_type" text;--> statement-breakpoint
+ALTER TABLE "sessions" ADD COLUMN "idp_provider_slug" text;--> statement-breakpoint
 ALTER TABLE "zone_grants" ADD COLUMN "team_id" uuid;--> statement-breakpoint
 ALTER TABLE "ldap_providers" ADD CONSTRAINT "ldap_providers_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "saml_providers" ADD CONSTRAINT "saml_providers_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -80,11 +82,10 @@ ALTER TABLE "oidc_providers" DROP COLUMN "force_default";--> statement-breakpoin
 ALTER TABLE "role_assignments" DROP COLUMN "provider_id";--> statement-breakpoint
 ALTER TABLE "zone_grants" ADD CONSTRAINT "zone_grants_principal_check" CHECK (("zone_grants"."user_id" IS NULL) <> ("zone_grants"."team_id" IS NULL));--> statement-breakpoint
 
--- #74: rename the OIDC-only `oidc.read` / `oidc.manage` permission strings
--- inside existing `roles.permissions` arrays to the protocol-neutral
--- `auth.read` / `auth.manage` form. Now that SAML + LDAP share the same
--- admin surface, the OIDC-prefixed names are misleading. Operators don't
--- need to hand-edit roles.
+-- #74: rename `oidc.read` / `oidc.manage` permission strings inside existing
+-- `roles.permissions` arrays to the protocol-neutral `auth.read` /
+-- `auth.manage` form. Now that SAML + LDAP share the same admin surface,
+-- the OIDC-prefixed names are misleading.
 UPDATE "roles"
 SET "permissions" = (
   SELECT jsonb_agg(

@@ -228,6 +228,7 @@ export async function POST(
     ip: ip ?? null,
     userAgent,
     derivedPermissions,
+    idp: { type: "ldap", slug: provider.slug },
   });
 
   await appendAudit({

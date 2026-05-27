@@ -129,6 +129,14 @@ const envSchema = z.object({
   // permissions only — the IdP-derived perms drop off until the user
   // signs in again (which re-mints the snapshot). Default: 24h.
   TOKEN_IDP_FALLBACK_TTL_SECONDS: z.coerce.number().int().positive().default(86400),
+  // Cache window for the live IdP-perms recompute (#85 phase 2). When a
+  // token authenticates for an OIDC/LDAP user, we re-fetch their current
+  // groups from the IdP (OIDC: refresh-token → userinfo; LDAP: service-
+  // account bind + search) and cache the result for this many seconds so
+  // a burst of API calls doesn't hammer the IdP. Lower → tighter
+  // freshness, more IdP load. Higher → looser freshness, less load.
+  // Default: 60s.
+  IDP_PERMS_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
 
   // --- Local auth ---
   // Whether email + password sign-in is enabled at all. Default true.
@@ -432,6 +440,7 @@ const ENV_KEYS = [
   "REDIS_URL",
   "SESSION_TTL_SECONDS",
   "TOKEN_IDP_FALLBACK_TTL_SECONDS",
+  "IDP_PERMS_CACHE_TTL_SECONDS",
   "COOKIE_DOMAIN",
   "LOCAL_AUTH_ENABLED",
   "SIGNUP_ENABLED",

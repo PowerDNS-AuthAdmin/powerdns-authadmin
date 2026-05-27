@@ -1,5 +1,5 @@
 {
-  "id": "b565d937-d461-4473-bae5-ce004fd473c6",
+  "id": "8b618285-4be8-4f43-ae36-8d5a48b1557a",
   "prevId": "d4616411-749a-47f8-8215-63409cebb140",
   "version": "7",
   "dialect": "postgresql",
@@ -2059,6 +2059,18 @@
         },
         "oidc_refresh_token_encrypted": {
           "name": "oidc_refresh_token_encrypted",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "idp_provider_type": {
+          "name": "idp_provider_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "idp_provider_slug": {
+          "name": "idp_provider_slug",
           "type": "text",
           "primaryKey": false,
           "notNull": false

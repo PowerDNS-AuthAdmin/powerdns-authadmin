@@ -270,6 +270,7 @@ export async function GET(
     ip: ip ?? null,
     userAgent,
     derivedPermissions,
+    idp: { type: "oidc", slug: provider.slug },
     ...(identity.oidcLogout
       ? {
           oidc: {

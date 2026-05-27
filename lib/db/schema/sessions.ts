@@ -87,6 +87,23 @@ export const sessions = pgTable(
      */
     oidcRefreshTokenEncrypted: text("oidc_refresh_token_encrypted"),
 
+    /**
+     * Which IdP family minted this session — `"oidc" | "saml" | "ldap"`
+     * for SSO sessions, `null` for local-auth sessions. Phase 2 of #85
+     * needs this so the token-auth path knows which recompute strategy
+     * to apply (refresh-token for OIDC, service-account-bind for LDAP,
+     * session-snapshot fallback for SAML).
+     */
+    idpProviderType: text("idp_provider_type"),
+
+    /**
+     * Provider slug — matches the `slug` column on the corresponding
+     * `oidc_providers` / `saml_providers` / `ldap_providers` row. Used
+     * by the token recompute to resolve the provider config (TLS opts,
+     * service account credentials, search base/filter, etc.).
+     */
+    idpProviderSlug: text("idp_provider_slug"),
+
     ...timestamps(),
   },
   (t) => ({

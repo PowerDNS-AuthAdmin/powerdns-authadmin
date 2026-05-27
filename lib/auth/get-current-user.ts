@@ -23,6 +23,7 @@ import { loadUserAssignmentsForAbility } from "@/lib/db/repositories/roles";
 import { latestSessionForUser } from "@/lib/db/repositories/sessions";
 import { listGrantsForUser, mapServersToClusterPeers } from "@/lib/db/repositories/zone-grants";
 import { expandGrantsAcrossClusters } from "@/lib/rbac/zone-permissions";
+import { recomputeIdpPermissions } from "@/lib/auth/providers/idp-perms-recompute";
 import type { User } from "@/lib/db/schema";
 import type { ZoneGrant } from "@/lib/db/schema";
 import {
@@ -184,34 +185,54 @@ async function resolvePresentedToken(
   // `string[]` but values are validated at write time).
   const adminSources = narrowed as readonly AbilitySource[];
 
-  // IdP-derived permissions from the user's latest session (#85). The
-  // ability builder reads these alongside admin-issued assignments so a
-  // token reflects the user's *current real* permissions, including the
-  // group memberships they had at last sign-in.
+  // IdP-derived permissions for the token. Two-tier (#85):
   //
-  // Bounded by `TOKEN_IDP_FALLBACK_TTL_SECONDS`: an inactive user whose
-  // latest session is older than the TTL loses the IdP-derived slice on
-  // their tokens. They keep admin-issued permissions. Re-signing-in
-  // re-mints the snapshot and the token gets the fresh perms on its
-  // next use.
+  //   1. **Live recompute** (phase 2) — when the latest session was
+  //      minted via an IdP we can back-channel (OIDC with a refresh
+  //      token, or LDAP with a service account), re-fetch the user's
+  //      current groups from the IdP and materialise. Cached per
+  //      `IDP_PERMS_CACHE_TTL_SECONDS` so a burst of token calls
+  //      doesn't hammer the IdP.
   //
-  // Live recompute (LDAP service-account bind, OIDC refresh-token →
-  // userinfo) is wired in #85 phase 2; for now we use the session
-  // snapshot — the same source-of-truth as the session-cookie path.
+  //   2. **Session-snapshot fallback** — when the recompute returns
+  //      null (SAML; or any failure: refresh rejected, LDAP search
+  //      fails, IdP unreachable), use the session's stored snapshot
+  //      bounded by `TOKEN_IDP_FALLBACK_TTL_SECONDS`. Token doesn't
+  //      lose IdP-derived perms instantly on a transient blip.
+  //
+  // Either way the result is token-scope-narrowed against the API
+  // token's `scopes` — a leaked token can't exercise a permission
+  // the user holds via groups if the token's scopes don't include it.
   let derivedSources: readonly AbilitySource[] = [];
-  if (latestSession && latestSession.derivedPermissions.length > 0) {
-    const ttlMs = env.TOKEN_IDP_FALLBACK_TTL_SECONDS * 1000;
-    const ageMs = Date.now() - latestSession.lastSeenAt.getTime();
-    if (ageMs <= ttlMs) {
-      // Token-scope-narrow the derived perms the same way we narrow
-      // admin-issued assignments — a leaked token can't exercise a
-      // permission the user holds via groups if the token's scopes
-      // don't include it.
+  if (latestSession?.idpProviderType && latestSession.idpProviderSlug) {
+    const live =
+      latestSession.idpProviderType === "oidc" || latestSession.idpProviderType === "ldap"
+        ? await recomputeIdpPermissions({
+            userId: user.id,
+            userEmail: user.email,
+            providerType: latestSession.idpProviderType,
+            providerSlug: latestSession.idpProviderSlug,
+            oidcRefreshTokenEncrypted: latestSession.oidcRefreshTokenEncrypted,
+          })
+        : null;
+
+    let chosen: readonly AbilitySource[] | null = null;
+    if (live !== null) {
+      chosen = live;
+    } else if (latestSession.derivedPermissions.length > 0) {
+      const ttlMs = env.TOKEN_IDP_FALLBACK_TTL_SECONDS * 1000;
+      const ageMs = Date.now() - latestSession.lastSeenAt.getTime();
+      if (ageMs <= ttlMs) {
+        chosen = latestSession.derivedPermissions as readonly AbilitySource[];
+      }
+    }
+
+    if (chosen !== null) {
       if (row.scopes.length === 0) {
-        derivedSources = latestSession.derivedPermissions as readonly AbilitySource[];
+        derivedSources = chosen;
       } else {
         const scopeSet = new Set<Permission>(row.scopes as readonly Permission[]);
-        derivedSources = (latestSession.derivedPermissions as readonly AbilitySource[])
+        derivedSources = chosen
           .map((s) => ({
             ...s,
             permissions: s.permissions.filter((p) => scopeSet.has(p as Permission)),

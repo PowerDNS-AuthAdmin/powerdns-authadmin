@@ -158,6 +158,12 @@ export const AUDIT_ACTIONS = [
   // live on the session, not on `role_assignments`, so there are no
   // per-row events to audit.
   "auth.group_sync.mapping_unresolved",
+  // Live recompute of IdP-derived permissions on the token-auth path
+  // (#85 phase 2). One row per cache miss — at most one per user per
+  // `IDP_PERMS_CACHE_TTL_SECONDS` window. `after` carries the provider
+  // slug + type and the count of derived ability sources, so audit
+  // search can spot "a user's perms shifted under them" patterns.
+  "auth.token.idp_perms_refreshed",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

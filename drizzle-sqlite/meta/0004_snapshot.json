@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "65e2c743-4898-4e78-8c4e-38b007f644b9",
+  "id": "ee5e5bc3-b993-4895-8d71-7249e41cd25f",
   "prevId": "b43bc6af-728e-4959-b047-95ecc5a5437c",
   "tables": {
     "users": {
@@ -416,6 +416,20 @@
         },
         "oidc_refresh_token_encrypted": {
           "name": "oidc_refresh_token_encrypted",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "idp_provider_type": {
+          "name": "idp_provider_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "idp_provider_slug": {
+          "name": "idp_provider_slug",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

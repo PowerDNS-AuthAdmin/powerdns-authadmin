@@ -740,6 +740,91 @@ export function describeOidcError(err: unknown): OidcErrorDetail {
 // the implementation lives in a separate pure module for testability.
 export { emailDomainAllowed, resolveAllowedDomains } from "../email-domain-allowlist";
 
+/**
+ * #85 phase 2 — fetch the user's current group claim by exchanging the
+ * session's stored refresh token for a new access token, then calling
+ * the IdP's userinfo endpoint. Used by the token-auth path to live-
+ * recompute IdP-derived permissions at API token use time.
+ *
+ * Returns `null` on any failure (provider missing/disabled, refresh
+ * rejected by the IdP, userinfo error). The caller (`get-current-user`'s
+ * token path) then falls back to the session-snapshot path bounded by
+ * `TOKEN_IDP_FALLBACK_TTL_SECONDS`.
+ *
+ * The refresh token is consumed but not rotated back into the session
+ * here — many IdPs rotate refresh tokens on every use, so storing a
+ * stale token is no worse than what we already have. A follow-up could
+ * persist the new refresh token if the IdP returns one; today the
+ * staleness gracefully self-heals at next user sign-in.
+ */
+export async function fetchOidcGroupsForUser(
+  slug: string,
+  refreshToken: string,
+): Promise<unknown | null> {
+  let provider: ResolvedOidcProvider | null;
+  try {
+    provider = await resolveOidcProvider(slug);
+  } catch (err) {
+    logger.warn(
+      { provider: slug, err: err instanceof Error ? err.message : "unknown" },
+      "oidc.recompute.resolve-failed",
+    );
+    return null;
+  }
+  if (!provider) return null;
+
+  let config: oidc.Configuration;
+  try {
+    config = await loadConfig(provider);
+  } catch (err) {
+    logger.warn(
+      { provider: slug, err: err instanceof Error ? err.message : "unknown" },
+      "oidc.recompute.config-load-failed",
+    );
+    return null;
+  }
+
+  // Exchange refresh → access token. If the IdP rotated or revoked the
+  // refresh token, this fails — the caller's fallback path handles it.
+  let tokens;
+  try {
+    tokens = await oidc.refreshTokenGrant(config, refreshToken);
+  } catch (err) {
+    logger.warn(
+      { provider: slug, err: err instanceof Error ? err.message : "unknown" },
+      "oidc.recompute.refresh-failed",
+    );
+    return null;
+  }
+
+  const accessToken =
+    typeof (tokens as unknown as { access_token?: unknown }).access_token === "string"
+      ? (tokens as unknown as { access_token: string }).access_token
+      : null;
+  if (!accessToken) return null;
+
+  // Fetch userinfo for the latest groups claim. `sub` is required by
+  // openid-client v6's `fetchUserInfo`; we read it from the new tokens'
+  // claims (or from the refresh response). Falling back to an empty
+  // string when missing is safe — openid-client will still send the
+  // bearer + parse the response.
+  const claims = (tokens as unknown as { claims?: () => Record<string, unknown> }).claims?.() ?? {};
+  const sub = typeof claims["sub"] === "string" ? claims["sub"] : "";
+
+  let userinfo: Record<string, unknown>;
+  try {
+    userinfo = (await oidc.fetchUserInfo(config, accessToken, sub)) as Record<string, unknown>;
+  } catch (err) {
+    logger.warn(
+      { provider: slug, err: err instanceof Error ? err.message : "unknown" },
+      "oidc.recompute.userinfo-failed",
+    );
+    return null;
+  }
+
+  return userinfo[provider.claimGroups] ?? null;
+}
+
 function readClaimBool(claims: Record<string, unknown>, key: string): boolean | null {
   const v = claims[key];
   if (typeof v === "boolean") return v;

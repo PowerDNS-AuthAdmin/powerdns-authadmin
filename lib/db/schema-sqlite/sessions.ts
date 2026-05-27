@@ -47,6 +47,12 @@ export const sessions = sqliteTable(
     // didn't include offline_access. See PG mirror for the full rationale.
     oidcRefreshTokenEncrypted: text("oidc_refresh_token_encrypted"),
 
+    // IdP family + slug — phase 2 of #85 reads these to pick the
+    // right token-recompute path (LDAP / OIDC / SAML-fallback). See
+    // PG mirror for the full rationale.
+    idpProviderType: text("idp_provider_type"),
+    idpProviderSlug: text("idp_provider_slug"),
+
     ...timestamps(),
   },
   (t) => ({

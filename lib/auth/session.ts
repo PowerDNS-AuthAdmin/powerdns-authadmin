@@ -72,6 +72,17 @@ export async function startSession(input: {
     scopeType: "global" | "team" | "zone" | "server";
     scopeId: string | null;
   }>;
+  /**
+   * IdP family + slug for this sign-in. Persisted on the session so
+   * the token-auth path can pick the right live-recompute strategy
+   * (#85 phase 2): refresh-token for OIDC, service-account-bind for
+   * LDAP, session-snapshot fallback for SAML. Omit (or pass null) for
+   * local-auth sessions.
+   */
+  idp?: {
+    type: "oidc" | "saml" | "ldap";
+    slug: string;
+  };
 }): Promise<Session> {
   // Session-fixation defense (S-10): if the caller already had a valid
   // session cookie (e.g. an anonymous-but-tracked state, or a user
@@ -105,6 +116,8 @@ export async function startSession(input: {
     oidcClientId: input.oidc?.clientId ?? null,
     oidcRefreshTokenEncrypted: input.oidc?.refreshTokenEncrypted ?? null,
     derivedPermissions: input.derivedPermissions ?? [],
+    idpProviderType: input.idp?.type ?? null,
+    idpProviderSlug: input.idp?.slug ?? null,
   });
 
   // Encrypted opaque cookie holding the session id.
