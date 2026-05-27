@@ -134,7 +134,7 @@ export function ClusterForm({
       if (mode === "create") {
         const data = (await res.json()) as { cluster: { id: string } };
         toast({ kind: "success", description: "Group created." });
-        router.push(`/admin/pdns-clusters/${data.cluster.id}`);
+        router.push(`/admin/clusters/${data.cluster.id}`);
         router.refresh();
       } else {
         toast({ kind: "success", description: "Group saved." });

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * app/(app)/admin/pdns-clusters/_components/groups-table.tsx
+ * app/(app)/admin/clusters/_components/groups-table.tsx
  *
  * Client wrapper around the shared `<DataTable>` for the Groups list —
  * sortable columns + search on desktop, cards on mobile. Mirrors the other
@@ -33,7 +33,7 @@ export function GroupsTable({ rows }: { rows: GroupRow[] }) {
         header: "Name",
         cell: (ctx) => (
           <Link
-            href={`/admin/pdns-clusters/${ctx.row.original.id}`}
+            href={`/admin/clusters/${ctx.row.original.id}`}
             className="font-medium hover:text-[color:var(--color-accent)] hover:underline"
           >
             {ctx.getValue<string>()}
@@ -86,7 +86,7 @@ export function GroupsTable({ rows }: { rows: GroupRow[] }) {
       initialSort={[{ id: "name", desc: false }]}
       sortParam="sort"
       pageSizeParam="pageSize"
-      rowHref={(r) => `/admin/pdns-clusters/${r.id}`}
+      rowHref={(r) => `/admin/clusters/${r.id}`}
     />
   );
 }

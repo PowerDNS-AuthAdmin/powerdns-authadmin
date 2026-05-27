@@ -239,11 +239,11 @@ can jump straight into the code that owns each feature.
 
 - **What.** Every HTTP call the app issues to PowerDNS is recorded with timestamp, server,
   operation, method, URL, response status, error (if any), and the correlator `requestId` of
-  the audit row that triggered it. Visible at `/admin/pdns-requests` with filters for server,
+  the audit row that triggered it. Visible at `/admin/requests` with filters for server,
   op, status code, request id, and date range. Each row expands inline to the full request +
   response detail; the `req:` link cross-pivots to / from the matching audit row, so an audit
   failure is one click from the exact PDNS exchange.
-- **Where.** `lib/pdns/request-log.ts`, `app/(app)/admin/pdns-requests/`,
+- **Where.** `lib/pdns/request-log.ts`, `app/(app)/admin/requests/`,
   `lib/db/repositories/pdns-requests.ts`.
 
 <picture>

@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed — admin sidebar restructure + URL alignment
+
+- **Sidebar "Infrastructure" section renamed to "PowerDNS"**, with shorter
+  nav labels now that the section name carries the protocol context:
+  - "PowerDNS servers" → "Servers"
+  - "Groups" → "Clusters" (the underlying concept is a cluster of peers
+    or a primary with its secondaries; "Groups" was a UI carry-over).
+  - "Request log" moves up from the "System" section into "PowerDNS" —
+    it's PDNS HTTP traffic, not platform audit.
+- **URL alignment**: two admin paths renamed to match the rest of the
+  section (no `pdns-` prefix; the section already says PowerDNS):
+  - `/admin/pdns-clusters` → `/admin/clusters`
+  - `/admin/pdns-requests` → `/admin/requests`
+  - The old paths redirect to the new ones so bookmarks and audit-log
+    links keep working.
+- "System" now contains only Settings + Audit log.
+
 ### Changed — unified authentication admin
 
 - **New `Admin → Authentication` page** consolidates the view of every

@@ -28,7 +28,7 @@ export function DeleteClusterButton({
       confirmLabel="Delete group"
       successMessage="Group deleted."
       label="Delete group"
-      redirectTo="/admin/pdns-clusters"
+      redirectTo="/admin/clusters"
     />
   );
 }

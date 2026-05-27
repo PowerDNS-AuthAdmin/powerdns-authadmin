@@ -29,7 +29,7 @@ export default async function ClusterDetailPage({ params }: PageProps) {
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <Link
-          href="/admin/pdns-clusters"
+          href="/admin/clusters"
           className="text-sm text-[color:var(--color-accent)] hover:underline"
         >
           ← Back to groups

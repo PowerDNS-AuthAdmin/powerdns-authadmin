@@ -111,7 +111,7 @@ export function PdnsRequestsTable(props: Props) {
     if (fromIso) params.set("from", fromIso);
     if (toIso) params.set("to", toIso);
     const q = params.toString();
-    router.replace(`/admin/pdns-requests${q ? `?${q}` : ""}`, { scroll: false });
+    router.replace(`/admin/requests${q ? `?${q}` : ""}`, { scroll: false });
   }
 
   function clearFilters() {
@@ -121,7 +121,7 @@ export function PdnsRequestsTable(props: Props) {
     setRequestId("");
     setFromIso("");
     setToIso("");
-    router.replace("/admin/pdns-requests", { scroll: false });
+    router.replace("/admin/requests", { scroll: false });
   }
 
   // Live updates — refresh server data when new PDNS-request rows
@@ -244,7 +244,7 @@ export function PdnsRequestsTable(props: Props) {
                 <div className="text-[color:var(--color-fg-muted)]">
                   req:{" "}
                   <Link
-                    href={`/admin/pdns-requests?${new URLSearchParams({ requestId: row.requestId }).toString()}`}
+                    href={`/admin/requests?${new URLSearchParams({ requestId: row.requestId }).toString()}`}
                     className="font-mono text-[color:var(--color-accent)] hover:underline"
                     title="Filter to all rows from this request"
                   >

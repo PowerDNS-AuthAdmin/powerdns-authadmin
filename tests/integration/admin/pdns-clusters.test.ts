@@ -1,5 +1,5 @@
 /**
- * tests/integration/admin/pdns-clusters.test.ts
+ * tests/integration/admin/clusters.test.ts
  *
  * /api/admin/pdns/clusters — CRUD over multi-primary peer groups.
  * Cluster membership is set on the server side (server.clusterId), so
