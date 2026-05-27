@@ -19,6 +19,7 @@
  */
 
 import "server-only";
+import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { z } from "zod";
 
@@ -349,11 +350,11 @@ const envSchema = z.object({
     .pipe(z.boolean())
     .default(true),
   /**
-   * Optional bearer token required to scrape `/metrics`. When unset,
-   * the endpoint is open (network-level access control is the
-   * operator's responsibility — typical Prometheus deployments scrape
-   * over a private network). When set, requests must include
-   * `Authorization: Bearer <token>` matching this value.
+   * Bearer token required to scrape `/metrics`. Pin one in env for stable
+   * scrape configs; if unset (and METRICS_ENABLED is true), the app
+   * generates a random 32-char token on every boot and logs it once so the
+   * endpoint is never accidentally open on a shared LAN. To opt out of
+   * /metrics entirely, set METRICS_ENABLED=false.
    */
   METRICS_TOKEN: z.string().min(16).optional(),
 
@@ -588,6 +589,27 @@ function parseEnv(): Env {
   // design (they're long enough and don't match the obvious-junk regex),
   // so this check is the only thing standing between the deploy and a
   // fixed shared secret in production.
+  // Auto-generate METRICS_TOKEN when the operator didn't pin one. /metrics is
+  // a typical scrape target on a private network, but leaving it open in a
+  // shared LAN is the kind of accidental exposure that's easy to never notice.
+  // We default to "always require bearer auth"; if you actively want the
+  // endpoint open, set METRICS_ENABLED=false or pick your own static token.
+  // Skipped during build (placeholders only) and tests (deterministic vars).
+  if (
+    !isBuildPhase &&
+    parsed.METRICS_ENABLED &&
+    !parsed.METRICS_TOKEN &&
+    parsed.NODE_ENV !== "test"
+  ) {
+    const generated = randomBytes(24).toString("base64url"); // 32 url-safe chars
+    parsed.METRICS_TOKEN = generated;
+    console.log(
+      `[env] METRICS_TOKEN not provided, randomly generated instead: ${generated}\n` +
+        "       Scrape with: Authorization: Bearer <token>. Pin it via .env (or set\n" +
+        "       METRICS_ENABLED=false to opt out of the /metrics endpoint).",
+    );
+  }
+
   const placeholderViolations = detectBuildTimePlaceholders({
     APP_SECRET_KEY: parsed.APP_SECRET_KEY,
     APP_ENCRYPTION_KEY: parsed.APP_ENCRYPTION_KEY,

@@ -28,12 +28,7 @@ export default async function AuthLayout({ children }: Readonly<{ children: Reac
             capping at 350 px on desktop. Height stays auto via the wordmark's
             intrinsic ratio. */}
         <div className="mb-6 flex w-full max-w-md justify-center">
-          <BrandMark
-            siteName={siteName}
-            brandLogoUrl={brandLogoUrl}
-            width="min(100%, 350px)"
-            priority
-          />
+          <BrandMark siteName={siteName} brandLogoUrl={brandLogoUrl} width="min(100%, 350px)" />
         </div>
         <div className="w-full max-w-md rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-8 shadow-sm">
           {children}

@@ -17,7 +17,7 @@ import { NameEdit } from "./_components/name-edit";
 import { SessionsList } from "./_components/sessions-list";
 import { TotpSection } from "./_components/totp-section";
 import { ProfileTabsContainer, ProfileTabPanel } from "./_components/profile-tabs";
-import { MustChangePasswordBanner } from "@/components/auth/must-change-password-guard";
+import { ComplianceBanner } from "@/components/auth/compliance-guard";
 import { env } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Profile" };
@@ -74,7 +74,7 @@ export default async function ProfilePage({
       </header>
 
       <ProfileTabsContainer tabs={tabs} defaultTab="account">
-        <MustChangePasswordBanner />
+        <ComplianceBanner />
 
         <ProfileTabPanel id="account">
           <div className="space-y-3 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-5">

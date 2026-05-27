@@ -7,9 +7,12 @@
  *
  * Gating:
  *   - `env.METRICS_ENABLED` (default true) — when false, returns 404.
- *   - `env.METRICS_TOKEN` (optional) — when set, requires
- *     `Authorization: Bearer <token>`. Constant-time compare via
- *     timingSafeEqual to avoid leaking the token shape.
+ *   - `env.METRICS_TOKEN` — required `Authorization: Bearer <token>`.
+ *     Always present at runtime: the operator pins one in env, or
+ *     `lib/env.ts` auto-generates a random 32-char token on every boot
+ *     (logged once at startup) so /metrics is never accidentally open
+ *     on a shared LAN. To opt out of the endpoint entirely, set
+ *     `METRICS_ENABLED=false`. Constant-time compare via timingSafeEqual.
  *
  * Cache control: `no-store`. Prometheus scrapers won't honor it
  * either way, but reverse proxies caching `/metrics` is a known

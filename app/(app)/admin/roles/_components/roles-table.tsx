@@ -17,6 +17,7 @@ export interface RoleRow {
   id: string;
   name: string;
   slug: string;
+  description: string | null;
   kind: "System" | "Custom";
   permissionCount: number;
   requiresMfa: boolean;
@@ -43,6 +44,22 @@ export function RolesTable({
         accessorKey: "slug",
         header: "Slug",
         cell: (ctx) => <span className="font-mono text-xs">{ctx.getValue<string>()}</span>,
+      },
+      {
+        accessorKey: "description",
+        header: "Description",
+        // Wrap, never truncate — short blurbs are the whole point of the column.
+        // `whitespace-normal` overrides the table's default `nowrap`; the cap on
+        // length lives in the schema (`text` column) and the form's UX.
+        cell: (ctx) => {
+          const v = ctx.getValue<string | null>();
+          if (!v) return <span className="text-xs text-[color:var(--color-fg-muted)]">—</span>;
+          return (
+            <span className="block max-w-prose text-xs whitespace-normal text-[color:var(--color-fg-muted)]">
+              {v}
+            </span>
+          );
+        },
       },
       {
         accessorKey: "kind",

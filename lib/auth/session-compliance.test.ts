@@ -67,13 +67,15 @@ describe("evaluateSessionCompliance", () => {
       ).toEqual({ ok: true });
     });
 
-    it("override=true overrides the SSO exemption (blocks SSO user with no TOTP)", () => {
+    it("SSO-only accounts stay exempt even with a stale override=true (legacy rows aren't lockouts)", () => {
+      // Per lib/auth/mfa-compliance.ts: the admin UI hides + the API rejects
+      // setting mfaOverride=true for SSO users; this guards legacy rows.
       expect(
         evaluateSessionCompliance(
           base({ totpEnrolled: false, ssoOnly: true, mfaOverride: true }),
           NO_ROLES,
         ),
-      ).toEqual({ ok: false, reason: "mfa" });
+      ).toEqual({ ok: true });
     });
 
     it("treats mfaOverride === undefined the same as null (inherit)", () => {

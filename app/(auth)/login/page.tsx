@@ -10,14 +10,16 @@
  */
 
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { env } from "@/lib/env";
+import { env, isProduction } from "@/lib/env";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { listEnabledOidcProviders } from "@/lib/db/repositories/oidc-providers";
 import { envOidcProviderSummary } from "@/lib/auth/providers/oidc";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { safeNextPath } from "@/lib/auth/safe-redirect";
+import { detectAppUrlMismatch } from "@/lib/auth/app-url-check";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -45,6 +47,16 @@ export default async function LoginPage({
     "force-local": forceLocal,
   } = await searchParams;
   const { loginIntro, allowPasswordReset } = await getAppSettings();
+
+  // APP_URL misconfig — the browser silently rejects pda_session / pda_csrf
+  // when the cookie host doesn't match the address bar, and sign-in just
+  // looks "stuck" with no console message unless DevTools is open. Surface
+  // it inline so operators see it before the first failed submit.
+  const appUrlCheck = detectAppUrlMismatch(
+    await headers(),
+    env.APP_URL,
+    isProduction ? "https" : "http",
+  );
 
   // Validate the attempted-destination param once (open-redirect guard, L-2).
   // Carried through the local + OIDC flows; empty when it's just the default.
@@ -94,6 +106,38 @@ export default async function LoginPage({
           Use your team credentials to continue.
         </p>
       </header>
+
+      {appUrlCheck?.mismatch ? (
+        <div
+          role="alert"
+          className="mb-4 rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-3 text-sm"
+        >
+          <strong className="text-[color:var(--color-error)]">
+            APP_URL mismatch — sign-in will fail.
+          </strong>
+          <p className="mt-1 text-[color:var(--color-fg)]">
+            You opened this page at <code className="font-mono">{appUrlCheck.actualOrigin}</code>{" "}
+            but the app is configured with{" "}
+            <code className="font-mono">APP_URL={appUrlCheck.expectedOrigin}</code>. Session and
+            CSRF cookies are scoped to{" "}
+            <code className="font-mono">{appUrlCheck.expectedOrigin}</code>, so your browser will
+            silently reject them.
+          </p>
+          <p className="mt-2 text-[color:var(--color-fg-muted)]">
+            Fix: set <code className="font-mono">APP_URL</code> to the exact scheme + host + port
+            you typed in the address bar and restart the app. See{" "}
+            <a
+              href="https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/blob/main/docs/02-INSTALLATION.md#2-set-app_url"
+              className="underline"
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Installation → Set APP_URL
+            </a>
+            .
+          </p>
+        </div>
+      ) : null}
 
       {loginIntro ? (
         <div className="mb-4 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-3 text-sm whitespace-pre-line">
