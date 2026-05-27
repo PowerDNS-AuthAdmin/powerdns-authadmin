@@ -1,5 +1,5 @@
 {
-  "id": "a4057589-ba55-4e5c-837f-689f806ffd20",
+  "id": "b565d937-d461-4473-bae5-ce004fd473c6",
   "prevId": "d4616411-749a-47f8-8215-63409cebb140",
   "version": "7",
   "dialect": "postgresql",
@@ -332,6 +332,38 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.auth_provider_slugs": {
+      "name": "auth_provider_slugs",
+      "schema": "",
+      "columns": {
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "provider_type": {
+          "name": "provider_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.backend_advisories": {
       "name": "backend_advisories",
       "schema": "",
@@ -444,6 +476,184 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ldap_providers": {
+      "name": "ldap_providers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "server_url": {
+          "name": "server_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_tls": {
+          "name": "start_tls",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "bind_dn": {
+          "name": "bind_dn",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bind_password_encrypted": {
+          "name": "bind_password_encrypted",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_search_base": {
+          "name": "user_search_base",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_search_filter": {
+          "name": "user_search_filter",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'(|(uid={{username}})(sAMAccountName={{username}})(mail={{username}}))'"
+        },
+        "group_search_base": {
+          "name": "group_search_base",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "group_search_filter": {
+          "name": "group_search_filter",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "group_attr": {
+          "name": "group_attr",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'memberOf'"
+        },
+        "claim_email": {
+          "name": "claim_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'mail'"
+        },
+        "claim_name": {
+          "name": "claim_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'displayName'"
+        },
+        "tls_ca_cert": {
+          "name": "tls_ca_cert",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "allowed_email_domains": {
+          "name": "allowed_email_domains",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "group_mappings": {
+          "name": "group_mappings",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "ldap_providers_slug_idx": {
+          "name": "ldap_providers_slug_idx",
+          "columns": [
+            {
+              "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ldap_providers_created_by_users_id_fk": {
+          "name": "ldap_providers_created_by_users_id_fk",
+          "tableFrom": "ldap_providers",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -1324,12 +1534,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "provider_id": {
-          "name": "provider_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1387,27 +1591,6 @@
             },
             {
               "expression": "scope_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "role_assignments_provider_idx": {
-          "name": "role_assignments_provider_idx",
-          "columns": [
-            {
-              "expression": "provider_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1485,19 +1668,6 @@
           "tableTo": "users",
           "columnsFrom": [
             "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "role_assignments_provider_id_oidc_providers_id_fk": {
-          "name": "role_assignments_provider_id_oidc_providers_id_fk",
-          "tableFrom": "role_assignments",
-          "tableTo": "oidc_providers",
-          "columnsFrom": [
-            "provider_id"
           ],
           "columnsTo": [
             "id"
@@ -1616,6 +1786,204 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.saml_providers": {
+      "name": "saml_providers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idp_entity_id": {
+          "name": "idp_entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idp_sso_url": {
+          "name": "idp_sso_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idp_slo_url": {
+          "name": "idp_slo_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "idp_signing_cert": {
+          "name": "idp_signing_cert",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sp_signing_key_encrypted": {
+          "name": "sp_signing_key_encrypted",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sp_signing_cert": {
+          "name": "sp_signing_cert",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sp_encryption_key_encrypted": {
+          "name": "sp_encryption_key_encrypted",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sp_encryption_cert": {
+          "name": "sp_encryption_cert",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "require_signed_response": {
+          "name": "require_signed_response",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "require_encrypted_assertion": {
+          "name": "require_encrypted_assertion",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "signature_algorithm": {
+          "name": "signature_algorithm",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'sha256'"
+        },
+        "name_id_format": {
+          "name": "name_id_format",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'"
+        },
+        "claim_email": {
+          "name": "claim_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'email'"
+        },
+        "claim_name": {
+          "name": "claim_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'name'"
+        },
+        "claim_groups": {
+          "name": "claim_groups",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'groups'"
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "allowed_email_domains": {
+          "name": "allowed_email_domains",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "group_mappings": {
+          "name": "group_mappings",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "saml_providers_slug_idx": {
+          "name": "saml_providers_slug_idx",
+          "columns": [
+            {
+              "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "saml_providers_created_by_users_id_fk": {
+          "name": "saml_providers_created_by_users_id_fk",
+          "tableFrom": "saml_providers",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.sessions": {
       "name": "sessions",
       "schema": "",
@@ -1678,6 +2046,19 @@
         },
         "oidc_client_id": {
           "name": "oidc_client_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "derived_permissions": {
+          "name": "derived_permissions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "oidc_refresh_token_encrypted": {
+          "name": "oidc_refresh_token_encrypted",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -2169,7 +2550,13 @@
           "name": "user_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "team_id": {
+          "name": "team_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "server_id": {
           "name": "server_id",
@@ -2227,6 +2614,21 @@
           "method": "btree",
           "with": {}
         },
+        "zone_grants_team_idx": {
+          "name": "zone_grants_team_idx",
+          "columns": [
+            {
+              "expression": "team_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "zone_grants_zone_idx": {
           "name": "zone_grants_zone_idx",
           "columns": [
@@ -2248,8 +2650,8 @@
           "method": "btree",
           "with": {}
         },
-        "zone_grants_unique_idx": {
-          "name": "zone_grants_unique_idx",
+        "zone_grants_user_unique_idx": {
+          "name": "zone_grants_user_unique_idx",
           "columns": [
             {
               "expression": "user_id",
@@ -2271,6 +2673,35 @@
             }
           ],
           "isUnique": true,
+          "where": "\"zone_grants\".\"user_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "zone_grants_team_unique_idx": {
+          "name": "zone_grants_team_unique_idx",
+          "columns": [
+            {
+              "expression": "team_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "server_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "zone_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"zone_grants\".\"team_id\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2283,6 +2714,19 @@
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "zone_grants_team_id_teams_id_fk": {
+          "name": "zone_grants_team_id_teams_id_fk",
+          "tableFrom": "zone_grants",
+          "tableTo": "teams",
+          "columnsFrom": [
+            "team_id"
           ],
           "columnsTo": [
             "id"
@@ -2320,7 +2764,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "zone_grants_principal_check": {
+          "name": "zone_grants_principal_check",
+          "value": "(\"zone_grants\".\"user_id\" IS NULL) <> (\"zone_grants\".\"team_id\" IS NULL)"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.zone_templates": {
