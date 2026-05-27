@@ -27,6 +27,8 @@ import { checkMfaCompliance, type RoleSlice } from "./mfa-compliance";
 export interface SessionComplianceInput {
   /** Has at least one TOTP enrollment (user.totpSecretEncrypted !== null). */
   totpEnrolled: boolean;
+  /** Has at least one WebAuthn credential (user.webauthnCredentials.length > 0). */
+  webauthnEnrolled: boolean;
   /** SSO-only account — no local password hash (passwordHash === null). */
   ssoOnly: boolean;
   /**
@@ -55,6 +57,7 @@ export function evaluateSessionCompliance(
   const mfa = checkMfaCompliance(
     {
       totpEnrolled: input.totpEnrolled,
+      webauthnEnrolled: input.webauthnEnrolled,
       ssoOnly: input.ssoOnly,
       mfaOverride: input.mfaOverride,
     },

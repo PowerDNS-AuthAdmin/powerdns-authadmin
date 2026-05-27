@@ -164,10 +164,45 @@ proceeds. See [Roles & permissions](./07-RBAC.md) for the role catalog.
 
 ## RP-initiated logout
 
-When an OIDC user signs out, the app uses the IdP's `end_session_endpoint` with an
-`id_token_hint` so the session ends at the IdP too — not just locally. No
+When an OIDC user signs out, the app uses the IdP's `end_session_endpoint` with
+an `id_token_hint` so the session ends at the IdP too — not just locally. No
 configuration needed beyond a provider whose discovery doc advertises the
 endpoint.
+
+### When the IdP doesn't advertise `end_session_endpoint`
+
+Without it, the logout route falls back to the local `/login?signed-out=1`
+redirect. On its own that's fine — but if you've set `force_default: true` on
+the same (or any) OIDC provider, the next `/login` render would normally
+auto-redirect to the IdP. With the IdP's session cookie still valid, the user
+gets silently re-auth'd and never sees a logout confirmation.
+
+Two defences are now in place:
+
+1. **A 60-second `pda_just_logged_out` cookie** is set on every logout. The
+   `/login` server component skips the `force_default` auto-redirect while
+   that cookie is present, so the operator always lands on the local form
+   first.
+2. **The admin OIDC providers list shows a "no end-session" warning chip**
+   on any provider whose last discovery probe didn't return
+   `end_session_endpoint`. Hit **Test** on a provider to refresh the probe.
+
+### Enabling `end_session_endpoint` on common IdPs
+
+- **Keycloak (≥ 18)** advertises it by default. If yours doesn't, enable
+  _Front Channel Logout_ or set a _Backchannel Logout URL_ on the client.
+- **Authentik** advertises it on every OIDC provider. If missing, check
+  that the application's "Sign out" flow is set (defaults to a system flow
+  named `default-invalidation-flow`).
+- **Microsoft Entra ID** advertises a `end_session_endpoint` per tenant —
+  the discovery doc includes it automatically.
+- **Google Workspace** does not surface `end_session_endpoint`. Local
+  fallback is the only option there; the just-logged-out cookie covers the
+  immediate case.
+- **AD FS (Windows Server 2019/2022)** exposes `passive_logout_endpoint` in
+  its WS-Federation metadata but `end_session_endpoint` is only present
+  when the OIDC endpoint is explicitly configured. Refer to the AD FS
+  PowerShell `Set-AdfsRelyingPartyTrust ... -SignOutEndpoint`.
 
 ## MFA and SSO users
 

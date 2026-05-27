@@ -6,6 +6,45 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added — auth providers (Phase 1 of `feat/auth-providers-ldap-saml-webauthn`)
+
+- **WebAuthn / passkeys** — sign in with Touch ID, Windows Hello, Android
+  screen-lock, hardware security keys (YubiKey etc.) or cross-device
+  passkeys (1Password, Bitwarden, iCloud Keychain). Two flows:
+  - **Primary credential** — "Sign in with passkey" button on `/login`
+    skips the password entirely (discoverable-credential flow).
+  - **Second factor** — alongside TOTP. The MFA-required gate (per-role
+    `requires_mfa`, per-user override) is now satisfied by EITHER a
+    TOTP enrollment OR any WebAuthn credential.
+  - Per-credential enrolment + remove + rename under
+    `Profile → Two-factor → Passkeys & security keys`.
+  - Selective admin reset by credential id (target-privilege ceiling
+    enforced like the TOTP reset).
+  - RP ID derived from `APP_URL` hostname; override via `WEBAUTHN_RP_ID`
+    for apex/sub-domain credential sharing.
+  - Strict-by-default origins; LAN-dev opt-out via
+    `WEBAUTHN_ALLOW_INSECURE_ORIGINS=true`.
+  - New docs page: [`docs/11-PASSKEYS.md`](./docs/11-PASSKEYS.md).
+- **OIDC logout hardening** — fixes the "sign out lands me back signed in"
+  bug operators hit with IdPs that don't advertise `end_session_endpoint`:
+  - `/api/auth/logout` sets a 60-second `pda_just_logged_out` cookie that
+    suppresses `force_default` OIDC auto-redirect on the next `/login`
+    render, so the IdP's still-valid session can't silently re-auth.
+  - The OIDC discovery probe now reports whether the IdP advertised an
+    end-session endpoint; the admin OIDC providers list shows a yellow
+    "no end-session" warning chip when it's missing, with IdP-specific
+    fix guidance in `docs/05-OIDC.md`.
+- **Architecture decision records** for the road map:
+  - ADR-0018: provider abstraction — keep OIDC where it is, layer SAML +
+    LDAP as siblings.
+  - ADR-0019: WebAuthn — both primary credential and second factor.
+  - ADR-0020 (proposed): LDAP architecture — TLS-strict default,
+    `ldapts@^8`, bind-then-search, AD + OpenLDAP doc examples
+    (lands in PR 2 of the feature branch).
+  - ADR-0021 (proposed): SAML 2.0 SP — signed assertions required by
+    default, `@node-saml/node-saml@^5.1.0` (CVE-2025-54369 fixed),
+    AD FS / Authentik / Keycloak doc examples (lands in PR 3).
+
 ### Added
 
 - **Login: inline APP_URL mismatch banner.** Detects when the request host

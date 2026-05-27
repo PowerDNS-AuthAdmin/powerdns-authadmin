@@ -27,7 +27,12 @@ export interface OidcProviderRow {
   enabled: boolean;
   iconUrl: string | null;
   allowedEmailDomains: string[] | null;
-  discoveryCache: { fetchedAt: string; ok: boolean; reason?: string } | null;
+  discoveryCache: {
+    fetchedAt: string;
+    ok: boolean;
+    reason?: string;
+    endSessionEndpoint?: string | null;
+  } | null;
   /** Pre-resolved by lib/freshness — server can compute it once. */
   lastAdminEditLabel: string | null;
   lastAdminEditTitle: string | null;
@@ -239,7 +244,12 @@ function DiscoveryBadge({
   cache,
   failHint,
 }: {
-  cache: { fetchedAt: string; ok: boolean; reason?: string } | null;
+  cache: {
+    fetchedAt: string;
+    ok: boolean;
+    reason?: string;
+    endSessionEndpoint?: string | null;
+  } | null;
   failHint: string | null;
 }) {
   if (!cache) {
@@ -254,11 +264,29 @@ function DiscoveryBadge({
   }
   const label = freshnessOf(cache.fetchedAt).label;
   if (cache.ok) {
+    // Surface a soft warning when the IdP doesn't advertise an
+    // end_session_endpoint. Operationally this means our /api/auth/logout
+    // can't tell the IdP to terminate the session — operators get
+    // re-authed silently by the still-valid IdP cookie and "logout
+    // appears to do nothing." We have a 60s suppression cookie that
+    // covers the immediate case, but the underlying config is the real
+    // fix. `endSessionEndpoint === undefined` means the cache was
+    // written by an older probe before we recorded this field; only
+    // an explicit `null` is "definitely missing".
+    const endSessionMissing = cache.endSessionEndpoint === null;
     return (
       <span className="inline-flex items-center gap-1 text-xs">
         <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
         Reachable
         <span className="text-[color:var(--color-fg-muted)]">· {label}</span>
+        {endSessionMissing ? (
+          <span
+            className="ml-1 inline-flex items-center gap-1 rounded-full bg-[color:var(--color-warn)]/15 px-1.5 py-0.5 text-[0.625rem] font-medium text-[color:var(--color-warn)]"
+            title="IdP doesn't advertise end_session_endpoint. RP-initiated sign-out can't reach the IdP — users will see the local sign-out screen instead of the IdP's. Fix: enable Front Channel / Back Channel Logout on the IdP."
+          >
+            no end-session
+          </span>
+        ) : null}
       </span>
     );
   }

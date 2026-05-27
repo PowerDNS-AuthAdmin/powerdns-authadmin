@@ -4,12 +4,9 @@
  * Pure check: is a user MFA-compliant given the policy on their
  * assigned roles? Returns `{ compliant: true }` when EITHER no
  * assigned role requires MFA OR the user has at least one MFA
- * method enrolled. Returns `{ compliant: false, reason }` so the
- * caller can render a useful message.
- *
- * Today we treat TOTP as the only MFA method. When WebAuthn /
- * passkeys land, the user-side input type can grow a second field
- * and the check becomes `totp || passkey`.
+ * method enrolled (TOTP OR a WebAuthn credential). Returns
+ * `{ compliant: false, reason }` so the caller can render a useful
+ * message.
  *
  * The role input shape matches what `loadUserAssignmentsForAbility`
  * + a roles join would return; it's redeclared inline here so the
@@ -26,6 +23,8 @@ export interface RoleSlice {
 export interface UserMfaState {
   /** Has at least one TOTP enrollment. */
   totpEnrolled: boolean;
+  /** Has at least one WebAuthn credential (passkey or hardware key). */
+  webauthnEnrolled: boolean;
   /**
    * SSO-only account (no local password). The IdP is the second-factor
    * authority — the in-app TOTP flow renders read-only for SSO and the
@@ -35,7 +34,7 @@ export interface UserMfaState {
    */
   ssoOnly?: boolean;
   /**
-   * Per-user MFA override: `true` = always require TOTP, `false` = never
+   * Per-user MFA override: `true` = always require MFA, `false` = never
    * require, `null`/`undefined` = inherit (role-based). The `true` value is
    * inert for SSO-only users (see `ssoOnly`); the admin UI prevents writing
    * it and `checkMfaCompliance` ignores legacy rows that carry it.
@@ -90,6 +89,6 @@ export function checkMfaCompliance(
     requiringRoleSlugs = requiringRoles.map((r) => r.slug ?? "(unnamed role)").sort();
   }
 
-  if (user.totpEnrolled) return { compliant: true };
+  if (user.totpEnrolled || user.webauthnEnrolled) return { compliant: true };
   return { compliant: false, reason: "no-mfa-enrolled", requiringRoleSlugs };
 }

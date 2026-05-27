@@ -10,7 +10,7 @@
  */
 
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { env, isProduction } from "@/lib/env";
@@ -87,7 +87,14 @@ export default async function LoginPage({
   // are set — the admin form warns about that.
   //
   const forceLocalRequested = forceLocal !== undefined;
-  const isFreshArrival = !error && !signedOut && !flash && !forceLocalRequested;
+  // The just-logged-out cookie is set by /api/auth/logout (60s TTL). It
+  // suppresses the forceDefault OIDC auto-redirect for that window so the
+  // operator isn't bounced through a still-valid IdP session and silently
+  // re-auth'd before they can see a logout confirmation. Belt-and-braces
+  // with the existing `?signed-out=1` query-param check, which only fires
+  // when the local-fallback location is used.
+  const justLoggedOut = (await cookies()).get("pda_just_logged_out")?.value === "1";
+  const isFreshArrival = !error && !signedOut && !flash && !forceLocalRequested && !justLoggedOut;
   if (isFreshArrival && dbProviders.length > 0) {
     const forceProvider = [...dbProviders]
       .filter((p) => p.forceDefault)
@@ -194,7 +201,11 @@ export default async function LoginPage({
 
       {env.LOCAL_AUTH_ENABLED ? (
         <>
-          <LoginForm turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined} next={safeNext} />
+          <LoginForm
+            turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined}
+            webauthnEnabled={env.WEBAUTHN_ENABLED}
+            next={safeNext}
+          />
           {allowPasswordReset ? (
             <p className="mt-3 text-xs text-[color:var(--color-fg-muted)]">
               <Link href="/reset-password" className="underline">
