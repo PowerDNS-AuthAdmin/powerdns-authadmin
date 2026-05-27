@@ -6,20 +6,26 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-### Changed — bounded retention on dashboard time-series tables
+### Changed — bounded retention on dashboard time-series tables (1:1 with display windows)
 
-- `metric_samples` rows older than **8 days** and `pdns_server_stats` rows
-  older than **24 hours** are now pruned during the zone-poller cycle that
-  follows. Aligned with the dashboard's actual read windows
-  (`HOURS_7D` graphs / 120-sample widget) plus a buffer. Throttled to one
-  pair of DELETEs per 5 minutes so the sampler's 60-second cadence doesn't
-  churn the WAL. Best-effort: a failed prune logs and the write path
-  continues. See `lib/metrics/retention.ts`.
-- Before this, both tables grew without bound. The dashboard's
-  `gte(sampledAt, since)` queries scanned ever-larger result sets even
-  though every row past the 7-day window was discarded. On stacks with
-  long uptime + many backends, this was the largest contributor to the
-  SQLite/Postgres data volume.
+- **The two time-series tables the zone-poller writes now prune to exactly
+  the windows the dashboard reads.** `lib/metrics/dashboard-windows.ts` is
+  the single source of truth — the dashboard graphs and the retention sweep
+  both read from there, so changing a window in one place updates both.
+  We keep nothing we don't display.
+  - `metric_samples` — 7 days (`backendSeries()` + `sessionsSeries()`).
+  - `pdns_server_stats` — 2 hours (per-backend metric widget).
+- `readRecentMetrics()` is now time-bounded (takes a `since: Date`) instead
+  of the previous count-bounded shape — the count was an implicit 2h window
+  at the 60s sampling cadence, and turning it explicit lets retention link
+  to the same window cleanly.
+- Throttled to one pair of DELETEs per 5 minutes so the sampler's 60-second
+  cadence doesn't churn the WAL. Best-effort: a failed prune logs and the
+  write path continues. See `lib/metrics/retention.ts`.
+- Before this, both tables grew without bound. The dashboard's queries
+  scanned ever-larger result sets even though every row past the window
+  was discarded. On stacks with long uptime + many backends, this was the
+  largest contributor to the SQLite/Postgres data volume.
 
 ### Added
 
