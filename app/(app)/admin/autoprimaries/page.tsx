@@ -115,9 +115,7 @@ export default async function AutoprimariesPage({ searchParams }: PageProps) {
           `noDataMessage` (matches the TSIG keys page). Skip the actions
           component entirely on a fetch error so we don't show "No
           autoprimaries configured" when the real answer is "we couldn't ask". */}
-      {fetchError ? null : (
-        <AutoprimaryActions serverSlug={selected.slug} rows={sorted ?? []} />
-      )}
+      {fetchError ? null : <AutoprimaryActions serverSlug={selected.slug} rows={sorted ?? []} />}
     </div>
   );
 }

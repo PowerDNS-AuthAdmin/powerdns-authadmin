@@ -238,7 +238,9 @@ export function OidcProviderForm(props: Props) {
         if (data?.details?.fieldErrors) setFieldErrors(data.details.fieldErrors);
         return;
       }
-      router.push("/admin/oidc-providers");
+      // Land on the unified Authentication index — `/admin/oidc-providers`
+      // also redirects there now, but pushing directly avoids the extra hop.
+      router.push("/admin/authentication");
       router.refresh();
     } catch {
       setError("Network error. Please try again.");
@@ -639,7 +641,7 @@ export function OidcProviderForm(props: Props) {
           </button>
           <button
             type="button"
-            onClick={() => router.push("/admin/oidc-providers")}
+            onClick={() => router.push("/admin/authentication")}
             className="rounded-md border border-[color:var(--color-border)] px-4 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)]"
           >
             Cancel

@@ -145,9 +145,7 @@ export default async function AuthenticationPage() {
             default below decides which one <code>/login</code> auto-redirects to on a fresh visit.
           </p>
         </div>
-        {canManage ? (
-          <CreateButton href="/admin/oidc-providers/new" label="Add OIDC provider" />
-        ) : null}
+        {canManage ? <CreateButton href="/admin/authentication/new" label="Add provider" /> : null}
       </header>
 
       <section className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-4">
