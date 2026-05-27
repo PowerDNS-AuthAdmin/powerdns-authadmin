@@ -4,7 +4,139 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] — targeting v1.3.0
+
+A major feature pile: WebAuthn primary + 2FA, SAML 2.0 SP, LDAP direct-bind,
+teams zone grants, session-scoped IdP-derived permissions with live token
+recompute, the unified `/admin/auth-providers` admin surface, and a new
+super-admin-gated app-DB backup export. See [`UPGRADING.md`](./UPGRADING.md)
+for operator actions.
+
+**Migration**: one new SQL file per dialect (`drizzle/0004_*.sql` and
+`drizzle-sqlite/0004_*.sql`). Runs at boot. The unreleased intermediate
+migrations from the auth-providers feature branches were squashed away
+into this single baseline — dev DBs that ran the intermediates must
+re-init (see UPGRADING).
+
+### Added — teams: per-zone grants (#75)
+
+`zone_grants` now supports a team principal alongside the existing user
+principal. A grant attached to a team flows through to every member via
+`team_members`; revoking the grant or removing a member from the team
+revokes access without surgery on per-user rows. Same admin surface as
+user grants (`/admin/teams/[id]` gets a Zone-grants section). Cross-type
+duplicate prevention via partial unique indexes; exactly-one principal
+enforced by a CHECK constraint.
+
+### Added — session-scoped IdP-derived permissions + live token recompute (#85)
+
+IdP groups stop materialising into persistent `role_assignments` rows.
+At sign-in, the user's group claim is resolved to an
+`AbilitySource[]` snapshot via the new `computeGroupSync` and stored on
+`sessions.derived_permissions` (new JSONB column). Sessions naturally
+expire; stale grants for inactive users disappear with the session.
+
+Tokens follow current real permissions. At token use time, an OIDC or
+LDAP user's groups are re-fetched live (LDAP service-account search,
+OIDC refresh-token → userinfo) and materialised through the same
+`computeGroupSync`, cached per `IDP_PERMS_CACHE_TTL_SECONDS` (default
+60s). Fallback path: when the live recompute fails (IdP unreachable,
+refresh rejected, SAML — which has no back-channel), the token uses
+the latest session's snapshot bounded by `TOKEN_IDP_FALLBACK_TTL_SECONDS`
+(default 24h). New audit action `auth.token.idp_perms_refreshed` —
+one row per cache window.
+
+### Added — zone detail "Access" tab (#76)
+
+New "Access" tab on `/zones/[id]` (gated on `user.read`) listing every
+principal with access to the zone: roles that grant any zone-scope
+permission (dynamically derived from each role's permission list —
+system roles surface naturally, custom roles too if the operator gave
+them zone perms), teams with explicit `zone_grants` on this zone, and
+users with direct grants.
+
+### Added — tabbed admin user-edit (#79)
+
+`/admin/users/[id]` matches `/profile`'s tab vocabulary (Account / Roles /
+Zone grants / Sessions / Two-factor / API tokens / Audit) instead of a
+long scroll. Tabs gated on the actor's capabilities. Self-edit
+server-redirects to `/profile` (the admin user-detail URL never enters
+history — Back returns to the users list cleanly).
+
+### Added — app-DB backup export (#84)
+
+Super-admin-gated `/admin/backup` page + `GET /api/admin/backup/export`
+streaming a JSON dump of the app DB. Excludes PDNS zone data and
+symmetric secrets (`APP_SECRET_KEY` / `APP_ENCRYPTION_KEY`).
+Encrypted columns exported as ciphertext — useless without the
+encryption key on the restore target. New `system.backup` permission,
+default-granted only to the seeded Super Admin role. Audit:
+`system.backup.exported` with per-table row counts. Interactive
+restore lands in a follow-up.
+
+### Added — BIND zonefile serializer (#9 phase 1)
+
+The existing zonefile export route now produces idiomatic BIND
+output: `$TTL` + `$ORIGIN` directives, owner names relativised
+against the zone origin (apex → `@`), SOA expanded as a parenthesised
+multi-line tuple. The output round-trips through BIND / NSD / PowerDNS
+`pdnsutil load-zone` without modification. Import (parser +
+preview-before-commit + bulk archive flow) lands as a follow-up.
+
+### Changed — admin URL restructure + `oidc.*` → `auth.*` rename (#74)
+
+`/admin/oidc-providers` → `/admin/auth-providers/oidc`. Same shape for
+SAML and LDAP. Old URLs keep redirect stubs so external links survive.
+The CASL "Oidc" subject type became "Auth" and the `oidc.read` /
+`oidc.manage` permission strings became `auth.read` / `auth.manage`
+since the gates now cover three protocols at the unified surface.
+Existing role permission lists are auto-rewritten by the migration.
+
+### Changed — profile tabs actually switch panels (#78)
+
+`/profile` tabs were rendering every panel and just scrolling. Tab
+identification swapped from a fragile component-function equality
+check to a `data-section-tab` marker attribute; visibility uses inline
+`style.display` instead of the `hidden` attribute (highest cascade
+specificity, no CSS-conflict surface). The component moved to
+`components/ui/section-tabs.tsx` and is reused by the new tabbed admin
+user-edit page.
+
+### Changed — audit-vocabulary consolidation
+
+Three IdP-prefixed actions unified into protocol-neutral ones:
+
+| Old                                       | New                                |
+| ----------------------------------------- | ---------------------------------- |
+| `auth.oidc.group_sync.assignment_added`   | _removed_                          |
+| `auth.oidc.group_sync.assignment_removed` | _removed_                          |
+| `auth.oidc.group_sync.mapping_unresolved` | `auth.group_sync.mapping_unresolved` |
+| `auth.{oidc,saml}.linked`                 | `auth.idp.linked`                  |
+| `auth.{oidc,saml,ldap}.rejected_provisioning` | `auth.idp.rejected_provisioning` |
+
+Protocol context is preserved via `method` + `provider` fields in the
+audit row's `after` snapshot.
+
+### Fixed — SSE badge no longer stuck on OFFLINE for permissionless users (#80)
+
+`/api/realtime` previously hard-403'd a user who couldn't read any
+zone. Their EventSource never opened; the chip reported "OFFLINE"
+forever. The stream is now opened unconditionally for any
+authenticated user — the per-event filters already gate what reaches
+them, so the connection is honest about its state.
+
+### Fixed — zones-list scroll-in-scroll at high page sizes (#80)
+
+`<main>` was `flex-1 overflow-y-auto` without `min-h-0`. Under flexbox,
+a flex-1 child without `min-h-0` can grow past its parent's height
+when its content is taller, defeating `overflow-y-auto` and leaking a
+second outer scroll region. One-class fix.
+
+### Added — DataTable pagination at top AND bottom (#80)
+
+Long lists no longer force operators to scroll all the way down just
+to flip a page or change the page size. Same controls render at the
+top and the bottom of every paginated table.
 
 ### Added — SAML 2.0 single sign-on
 
