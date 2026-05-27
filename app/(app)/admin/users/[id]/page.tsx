@@ -12,12 +12,12 @@ import { findUserById } from "@/lib/db/repositories/users";
 import { listAssignmentsForUserWithRole, listRoles } from "@/lib/db/repositories/roles";
 import { listAllTeams } from "@/lib/db/repositories/teams";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
-import { listGrantsForUser } from "@/lib/db/repositories/zone-grants";
+import { listDirectGrantsForUser } from "@/lib/db/repositories/zone-grants";
 import { listSessionsForUser } from "@/lib/db/repositories/sessions";
 import { listApiTokensForUser } from "@/lib/db/repositories/api-tokens";
 import { recentAdminEditsForUser } from "@/lib/db/repositories/audit-log";
 import { AdminAuditPanel } from "@/components/domain/admin-audit-panel";
-import { PERMISSIONS } from "@/lib/rbac/permissions";
+import { ZONE_GRANT_PERMISSIONS } from "@/lib/rbac/zone-grant-permissions";
 import { UserActions } from "../_components/user-actions";
 import { RoleAssignmentsPanel } from "../_components/role-assignments-panel";
 import { ZoneGrantsPanel } from "../_components/zone-grants-panel";
@@ -52,7 +52,7 @@ export default async function UserDetailPage({ params }: PageProps) {
       listRoles(),
       listAllTeams(),
       listAllPdnsServers(),
-      listGrantsForUser(id),
+      listDirectGrantsForUser(id),
       listSessionsForUser(id),
       listApiTokensForUser(id),
       canReadAudit
@@ -136,7 +136,8 @@ export default async function UserDetailPage({ params }: PageProps) {
       />
 
       <ZoneGrantsPanel
-        userId={id}
+        endpointBase={`/api/admin/users/${id}/zone-grants`}
+        principalKind="user"
         canManage={canUpdate}
         grants={grants.map((g) => {
           const server = allServers.find((s) => s.id === g.serverId);
@@ -191,14 +192,6 @@ export default async function UserDetailPage({ params }: PageProps) {
     </div>
   );
 }
-
-// Subset of the master vocabulary that makes sense as a per-zone grant.
-// We deliberately omit user/team/role/server administration: a per-zone
-// grant scope can't meaningfully gate those resources, and showing
-// them in the picker would confuse operators.
-const ZONE_GRANT_PERMISSIONS: readonly string[] = PERMISSIONS.filter((p) =>
-  /^(zone|record|dnssec|metadata|tsig)\./.test(p),
-);
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
