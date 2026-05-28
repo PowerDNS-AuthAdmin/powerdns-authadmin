@@ -21,7 +21,7 @@
  */
 
 import { headers } from "next/headers";
-import { sql } from "drizzle-orm";
+import { getTableColumns, sql } from "drizzle-orm";
 import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
@@ -118,7 +118,13 @@ export async function POST(request: Request): Promise<Response> {
         // Postgres-side timestamp columns accept ISO strings verbatim.
         // SQLite stores timestamps as integers — Drizzle parses the ISO
         // string back to a Date via its `mode: "timestamp_ms"` mapping.
-        const prepared = rows.map((r) => normalizeRow(r as Record<string, unknown>));
+        //
+        // The allowlist is the table's real column names — keys in the
+        // uploaded JSON that aren't columns (including prototype-polluting
+        // `__proto__` / `constructor`) are dropped before we ever write to
+        // a property named after user input.
+        const validColumns = new Set(Object.keys(getTableColumns(table)));
+        const prepared = rows.map((r) => normalizeRow(r as Record<string, unknown>, validColumns));
 
         let inserted = 0;
         for (const row of prepared) {
@@ -173,19 +179,30 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 /**
- * Convert any ISO-string fields that should be Date back to Date
- * instances. Drizzle handles primitive types via the schema mapping;
- * the conversion below covers the date-typed columns we know to ship
- * as ISO strings (every `created_at` / `updated_at` / similar across
- * the app-managed tables).
+ * Project a user-supplied row onto the table's real columns and convert
+ * any ISO-string `*_at` field back to a Date instance.
+ *
+ * Keys are checked against `validColumns` (the table's actual column
+ * names) before any write — so a key derived from the uploaded JSON can
+ * never name a property outside that fixed allowlist. This closes the
+ * remote-property-injection / prototype-pollution vector (a malicious
+ * bundle with a `__proto__` or `constructor` key is simply ignored,
+ * since those aren't columns) and incidentally drops junk fields that
+ * Drizzle would reject on insert anyway.
  */
-function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...row };
-  for (const key of Object.keys(out)) {
-    const value = out[key];
+function normalizeRow(
+  row: Record<string, unknown>,
+  validColumns: ReadonlySet<string>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(row)) {
+    if (!validColumns.has(key)) continue;
+    const value = row[key];
     if (key.endsWith("_at") && typeof value === "string") {
       const d = new Date(value);
-      if (!Number.isNaN(d.getTime())) out[key] = d;
+      out[key] = Number.isNaN(d.getTime()) ? value : d;
+    } else {
+      out[key] = value;
     }
   }
   return out;
