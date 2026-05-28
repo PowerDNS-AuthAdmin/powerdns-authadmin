@@ -4,13 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — targeting v1.3.0
+## [1.3.0] — 2026-05-28
 
 A major feature pile: WebAuthn primary + 2FA, SAML 2.0 SP, LDAP direct-bind,
 teams zone grants, session-scoped IdP-derived permissions with live token
-recompute, the unified `/admin/authentication` admin surface, and a new
-super-admin-gated app-DB backup export. See [`UPGRADING.md`](./UPGRADING.md)
-for operator actions.
+recompute, the unified `/admin/authentication` admin surface, zone
+Import / Export, and a super-admin-gated app-DB Backup & Restore wizard. See
+[Upgrading → 1.3.0](./docs/09-UPGRADING.md#upgrading-to-130-from-12x) for
+operator actions.
 
 **Migration**: one new SQL file per dialect (`drizzle/0004_*.sql` and
 `drizzle-sqlite/0004_*.sql`). Runs at boot.
@@ -125,13 +126,13 @@ user-edit page.
 
 Three IdP-prefixed actions unified into protocol-neutral ones:
 
-| Old                                       | New                                |
-| ----------------------------------------- | ---------------------------------- |
-| `auth.oidc.group_sync.assignment_added`   | _removed_                          |
-| `auth.oidc.group_sync.assignment_removed` | _removed_                          |
-| `auth.oidc.group_sync.mapping_unresolved` | `auth.group_sync.mapping_unresolved` |
-| `auth.{oidc,saml}.linked`                 | `auth.idp.linked`                  |
-| `auth.{oidc,saml,ldap}.rejected_provisioning` | `auth.idp.rejected_provisioning` |
+| Old                                           | New                                  |
+| --------------------------------------------- | ------------------------------------ |
+| `auth.oidc.group_sync.assignment_added`       | _removed_                            |
+| `auth.oidc.group_sync.assignment_removed`     | _removed_                            |
+| `auth.oidc.group_sync.mapping_unresolved`     | `auth.group_sync.mapping_unresolved` |
+| `auth.{oidc,saml}.linked`                     | `auth.idp.linked`                    |
+| `auth.{oidc,saml,ldap}.rejected_provisioning` | `auth.idp.rejected_provisioning`     |
 
 Protocol context is preserved via `method` + `provider` fields in the
 audit row's `after` snapshot.
