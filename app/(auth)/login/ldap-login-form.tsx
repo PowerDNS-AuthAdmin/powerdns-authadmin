@@ -142,7 +142,7 @@ export function LdapLoginForm({
         disabled={submitDisabled}
         className="block w-full rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
       >
-        {loading ? "Signing in…" : `Sign in with ${providerName}`}
+        {loading ? "Signing in…" : "Sign in"}
       </button>
     </form>
   );

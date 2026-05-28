@@ -1,12 +1,21 @@
 /**
  * app/(auth)/login/page.tsx
  *
- * Login page. Lists the configured auth methods and renders a form for
- * local sign-in plus a link for each enabled OIDC provider.
+ * Login page. Renders the local form when LOCAL_AUTH_ENABLED, then a
+ * unified "or sign in with" list of non-local sign-in methods: passkey,
+ * every enabled OIDC provider, every enabled SAML provider, every enabled
+ * LDAP provider. Each option is a single button labelled with the
+ * provider name — no "Continue with" / "Sign in with" prefixes.
  *
- * The page is a server component — it reads `env` and decides which methods
- * are visible. The actual form submission is handled by a client component
- * (`LoginForm`) so we can give immediate feedback on errors.
+ * Clicking an LDAP button focuses that provider's username/password
+ * form via `?ldap=<slug>`, since LDAP needs an on-page credential prompt
+ * (the bind happens server-side; the user types directly into our form).
+ * OIDC + SAML redirect straight to the IdP. Passkey runs an in-page
+ * WebAuthn discoverable-credential flow.
+ *
+ * The page is a server component — it reads `env` and the enabled-provider
+ * tables and decides which methods to render. The form submission, LDAP
+ * form, and passkey flow are client components.
  */
 
 import type { Metadata } from "next";
@@ -24,8 +33,16 @@ import { safeNextPath } from "@/lib/auth/safe-redirect";
 import { detectAppUrlMismatch } from "@/lib/auth/app-url-check";
 import { LoginForm } from "./login-form";
 import { LdapLoginForm } from "./ldap-login-form";
+import { PasskeyButton } from "./passkey-button";
 
 export const metadata: Metadata = { title: "Sign in" };
+
+interface ProviderButton {
+  key: string;
+  label: string;
+  href: string;
+  iconUrl?: string | null;
+}
 
 export default async function LoginPage({
   searchParams,
@@ -36,13 +53,10 @@ export default async function LoginPage({
     "signed-out"?: string;
     flash?: string;
     "force-local"?: string;
-    /** When set to an LDAP provider slug, the login page hides every other
-     *  LDAP form and only shows that one. Used by the default-provider
-     *  redirect when the operator pins an LDAP provider as default. */
+    /** Focus a single LDAP provider's form (skips the unified provider list). */
     ldap?: string;
   }>;
 }) {
-  // Already signed in? Send them to the dashboard.
   const current = await getCurrentUser();
   if (current) redirect("/dashboard");
 
@@ -56,53 +70,34 @@ export default async function LoginPage({
   } = await searchParams;
   const { loginIntro, allowPasswordReset } = await getAppSettings();
 
-  // APP_URL misconfig — the browser silently rejects pda_session / pda_csrf
-  // when the cookie host doesn't match the address bar, and sign-in just
-  // looks "stuck" with no console message unless DevTools is open. Surface
-  // it inline so operators see it before the first failed submit.
   const appUrlCheck = detectAppUrlMismatch(
     await headers(),
     env.APP_URL,
     isProduction ? "https" : "http",
   );
 
-  // Validate the attempted-destination param once (open-redirect guard, L-2).
-  // Carried through the local + OIDC flows; empty when it's just the default.
   const safeNext = safeNextPath(next);
   const nextParam = safeNext !== "/dashboard" ? `?next=${encodeURIComponent(safeNext)}` : "";
 
-  // The env-configured provider (read-only, "Configured by ENV") is offered
-  // alongside DB providers, not as a hidden fallback. A DB provider with the
-  // same slug shadows it. See lib/auth/providers/oidc.ts for the matching
-  // precedence on the dispatcher side.
-  const [dbProviders, dbLdapProviders] = await Promise.all([
+  const [dbProviders, dbLdapProviders, dbSamlProviders] = await Promise.all([
     listEnabledOidcProviders(),
     listEnabledLdapProviders(),
+    listEnabledSamlProviders(),
   ]);
-  const dbSlugs = new Set(dbProviders.map((p) => p.slug));
   const envProvider = envOidcProviderSummary();
+  const dbSlugs = new Set(dbProviders.map((p) => p.slug));
   const oidcProviders: Array<{ id: string; name: string; iconUrl: string | null }> = [
     ...dbProviders.map((p) => ({ id: p.slug, name: p.name, iconUrl: p.iconUrl })),
-    // Env provider has no icon (env carries none) and is skipped when a DB
-    // provider already claims its slug.
     ...(envProvider && !dbSlugs.has(envProvider.slug)
       ? [{ id: envProvider.slug, name: envProvider.name, iconUrl: null }]
       : []),
   ];
-  const samlProviders = await listEnabledSamlProviders();
 
-  // Default sign-in method: when `authDefaultProvider` resolves to a typed-
-  // prefix value (e.g. `oidc:company-sso`), auto-redirect to that provider's
-  // initiate URL instead of showing the form. Skipped on post-signout, post-
-  // error, flash redirects, and when the operator opts out explicitly via
-  // `?force-local=1` (the escape hatch for fixing a broken IdP or local-admin
-  // recovery). The setting is global (one value across the app); per-provider
-  // `force_default` is retired (migrated to this setting at upgrade time).
+  // Default sign-in method — auto-redirect a fresh visit to the pinned
+  // provider's initiate URL. Skipped on post-signout, post-error, flash,
+  // explicit `?force-local=1`, and within 60s of an explicit logout
+  // (`pda_just_logged_out` cookie).
   const forceLocalRequested = forceLocal !== undefined;
-  // The just-logged-out cookie is set by /api/auth/logout (60s TTL). It
-  // suppresses the default-provider auto-redirect for that window so the
-  // operator isn't bounced through a still-valid IdP session and silently
-  // re-auth'd before they can see a logout confirmation.
   const justLoggedOut = (await cookies()).get("pda_just_logged_out")?.value === "1";
   const isFreshArrival =
     !error && !signedOut && !flash && !forceLocalRequested && !justLoggedOut;
@@ -111,16 +106,10 @@ export default async function LoginPage({
     const sep = authDefaultProvider.indexOf(":");
     const type = sep > 0 ? authDefaultProvider.slice(0, sep) : "";
     const slug = sep > 0 ? authDefaultProvider.slice(sep + 1) : "";
-    // OIDC + SAML redirect straight to the IdP. LDAP is on-page (no
-    // separate redirect target — the form is rendered below); we re-enter
-    // this page with `?ldap=<slug>` so the form switch knows which
-    // provider's form to focus. A setting that resolves to an unsupported
-    // type (or a provider whose row was deleted) silently falls back to
-    // showing the form rather than redirecting to a 404.
     if (type === "oidc" && slug && dbProviders.some((p) => p.slug === slug && p.enabled)) {
       redirect(`/api/auth/oidc/${slug}/initiate${nextParam}`);
     }
-    if (type === "saml" && slug && samlProviders.some((p) => p.slug === slug && p.enabled)) {
+    if (type === "saml" && slug && dbSamlProviders.some((p) => p.slug === slug && p.enabled)) {
       redirect(`/api/auth/saml/${slug}/login${nextParam}`);
     }
     if (type === "ldap" && slug && dbLdapProviders.some((p) => p.slug === slug && p.enabled)) {
@@ -129,13 +118,43 @@ export default async function LoginPage({
     }
   }
 
+  // Build the unified non-local provider list. Each button is one option,
+  // labelled with the provider's name only — no "Continue with" prefixes.
+  const providerButtons: ProviderButton[] = [
+    ...oidcProviders.map((p) => ({
+      key: `oidc-${p.id}`,
+      label: p.name,
+      href: `/api/auth/oidc/${p.id}/initiate${nextParam}`,
+      iconUrl: p.iconUrl,
+    })),
+    ...dbSamlProviders.map((p) => ({
+      key: `saml-${p.slug}`,
+      label: p.name,
+      href: `/api/auth/saml/${p.slug}/login${nextParam}`,
+    })),
+    ...dbLdapProviders.map((p) => ({
+      key: `ldap-${p.slug}`,
+      label: p.name,
+      // LDAP needs an in-page credential prompt — clicking the button
+      // focuses that provider's form below.
+      href: `/login${nextParam}${nextParam ? "&" : "?"}ldap=${encodeURIComponent(p.slug)}`,
+    })),
+  ];
+
+  // Focus mode: when ?ldap=<slug> is set, render only that LDAP form.
+  const focusedLdap =
+    ldapFocusSlug !== undefined
+      ? dbLdapProviders.find((l) => l.slug === ldapFocusSlug)
+      : undefined;
+
+  const showLocalForm = env.LOCAL_AUTH_ENABLED && focusedLdap === undefined;
+  const showProviderList =
+    focusedLdap === undefined && (providerButtons.length > 0 || env.WEBAUTHN_ENABLED);
+
   return (
     <>
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-        <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
-          Use your team credentials to continue.
-        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">Sign in</h1>
       </header>
 
       {appUrlCheck?.mismatch ? (
@@ -190,105 +209,72 @@ export default async function LoginPage({
         </div>
       ) : null}
 
-      {(oidcProviders.length > 0 || samlProviders.length > 0) && ldapFocusSlug === undefined ? (
-        <div className="mb-6 space-y-2">
-          {oidcProviders.map((p) => (
-            <a
-              key={`oidc-${p.id}`}
-              href={`/api/auth/oidc/${p.id}/initiate${nextParam}`}
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-4 py-2 text-sm font-medium hover:bg-[color:var(--color-bg-muted)]"
-            >
-              {p.iconUrl ? (
-                // Icon is operator-supplied; CSP `img-src` already
-                // allows https + data: so the
-                // browser will load it. Sized to match the button
-                // text height so it doesn't dominate.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={p.iconUrl}
-                  alt=""
-                  style={{ width: 20, height: 20, objectFit: "contain", display: "block" }}
-                />
-              ) : null}
-              <span>Continue with {p.name}</span>
-            </a>
-          ))}
-          {samlProviders.map((p) => (
-            <a
-              key={`saml-${p.slug}`}
-              href={`/api/auth/saml/${p.slug}/login${nextParam}`}
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-4 py-2 text-sm font-medium hover:bg-[color:var(--color-bg-muted)]"
-            >
-              <span>Continue with {p.name}</span>
-            </a>
-          ))}
-          {env.LOCAL_AUTH_ENABLED || dbLdapProviders.length > 0 ? (
-            <div className="my-4 flex items-center gap-3 text-xs text-[color:var(--color-fg-subtle)]">
-              <span className="h-px flex-1 bg-[color:var(--color-border)]" />
-              <span>or</span>
-              <span className="h-px flex-1 bg-[color:var(--color-border)]" />
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {/* LDAP forms. When `?ldap=<slug>` focuses one provider (the default-
-          provider dispatcher above), other LDAP forms are hidden. Otherwise
-          every enabled LDAP provider gets its own form — most deployments
-          will only have one. */}
-      {dbLdapProviders.length > 0 ? (
-        <div className="mb-6 space-y-6">
-          {dbLdapProviders
-            .filter((l) => ldapFocusSlug === undefined || l.slug === ldapFocusSlug)
-            .map((l) => (
-              <section
-                key={l.id}
-                className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-4"
-              >
-                <h2 className="mb-3 text-sm font-medium">Sign in with {l.name}</h2>
-                <LdapLoginForm
-                  slug={l.slug}
-                  providerName={l.name}
-                  turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined}
-                  next={safeNext}
-                />
-              </section>
-            ))}
-          {env.LOCAL_AUTH_ENABLED && ldapFocusSlug === undefined ? (
-            <div className="my-4 flex items-center gap-3 text-xs text-[color:var(--color-fg-subtle)]">
-              <span className="h-px flex-1 bg-[color:var(--color-border)]" />
-              <span>or</span>
-              <span className="h-px flex-1 bg-[color:var(--color-border)]" />
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {env.LOCAL_AUTH_ENABLED && ldapFocusSlug === undefined ? (
-        <>
+      {showLocalForm ? (
+        <div className="space-y-2">
           <LoginForm
             turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined}
-            webauthnEnabled={env.WEBAUTHN_ENABLED}
             next={safeNext}
           />
           {allowPasswordReset ? (
-            <p className="mt-3 text-xs text-[color:var(--color-fg-muted)]">
+            <p className="text-xs text-[color:var(--color-fg-muted)]">
               <Link href="/reset-password" className="underline">
                 Forgot password?
               </Link>
             </p>
           ) : null}
-          {/* Self-service signup link — only when SIGNUP_ENABLED. The page
-              itself 404s when disabled, so this is the matching UI gate. */}
-          {env.SIGNUP_ENABLED ? (
-            <p className="mt-2 text-xs text-[color:var(--color-fg-muted)]">
-              Don&apos;t have an account?{" "}
-              <Link href="/signup" className="underline">
-                Create an account
-              </Link>
-            </p>
-          ) : null}
-        </>
+        </div>
+      ) : null}
+
+      {focusedLdap ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium">{focusedLdap.name}</h2>
+          <LdapLoginForm
+            slug={focusedLdap.slug}
+            providerName={focusedLdap.name}
+            turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined}
+            next={safeNext}
+          />
+        </section>
+      ) : null}
+
+      {showProviderList ? (
+        <div className="mt-6 space-y-3">
+          <div className="flex items-center gap-3 text-xs text-[color:var(--color-fg-subtle)]">
+            <span className="h-px flex-1 bg-[color:var(--color-border)]" />
+            <span>or sign in with</span>
+            <span className="h-px flex-1 bg-[color:var(--color-border)]" />
+          </div>
+
+          <div className="space-y-2">
+            {env.WEBAUTHN_ENABLED ? <PasskeyButton next={safeNext} /> : null}
+            {providerButtons.map((p) => (
+              <a
+                key={p.key}
+                href={p.href}
+                className="flex w-full items-center justify-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-4 py-2 text-sm font-medium hover:bg-[color:var(--color-bg-muted)]"
+              >
+                {p.iconUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={p.iconUrl}
+                    alt=""
+                    style={{ width: 20, height: 20, objectFit: "contain", display: "block" }}
+                  />
+                ) : null}
+                <span>{p.label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {showLocalForm && env.SIGNUP_ENABLED ? (
+        <p className="mt-4 text-xs text-[color:var(--color-fg-muted)]">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="underline">
+            Create an account
+          </Link>
+        </p>
       ) : null}
 
       {forceLocalRequested ? (
@@ -298,7 +284,7 @@ export default async function LoginPage({
         </p>
       ) : null}
 
-      {ldapFocusSlug !== undefined ? (
+      {focusedLdap ? (
         <p className="mt-4 text-xs text-[color:var(--color-fg-muted)]">
           <Link
             href={env.LOCAL_AUTH_ENABLED ? "/login?force-local=1" : "/login"}
@@ -312,14 +298,6 @@ export default async function LoginPage({
   );
 }
 
-/**
- * Render a one-off flash banner above the form. Vocabulary is
- * intentionally small — flash values emitted from elsewhere in the
- * app each get an entry here so a typoed redirect doesn't render
- * cryptic strings. Unknown codes render as a generic info banner
- * (so the user still gets feedback) but the dev gets a console
- * warning to add the case.
- */
 function FlashBanner({ kind }: { kind: string }) {
   const message = flashMessage(kind);
   if (message === null) return null;
@@ -346,16 +324,11 @@ interface FlashContent {
 function flashMessage(kind: string): FlashContent | null {
   switch (kind) {
     case "email-changed":
-      // Emitted by `/api/profile/email/change/confirm` after the
-      // swap. Sessions were revoked server-side; the user
-      // is here to sign back in with the NEW email.
       return {
         text: "Email address updated. Sign in with your new email to continue.",
         tone: "success",
       };
     case "session-required":
-      // Emitted by `requireUserForPage` when an unauthenticated
-      // request hits an authed page.
       return { text: "Please sign in to continue.", tone: "info" };
     default:
       return null;

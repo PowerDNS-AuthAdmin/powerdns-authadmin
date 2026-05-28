@@ -17,11 +17,8 @@
  * a session. The form swaps to a second-factor step that lets the user
  * pick TOTP code entry OR a WebAuthn assertion (when both are available).
  *
- * Primary passkey login: when `webauthnEnabled` is true the form shows
- * a "Sign in with passkey" button next to the password field. It calls
- * `@simplewebauthn/browser#startAuthentication` with a discoverable-
- * credential request — the platform shows its user picker and the
- * `/assertion-verify` route mints the session without a password.
+ * The primary-credential passkey button is rendered separately by the
+ * login page as a peer of the local form (`./passkey-button.tsx`).
  */
 
 import { useState, type FormEvent } from "react";
@@ -32,19 +29,15 @@ type MfaMethod = "totp" | "webauthn";
 
 export function LoginForm({
   turnstileSiteKey,
-  webauthnEnabled,
   next = "/dashboard",
 }: {
   turnstileSiteKey?: string;
-  /** Whether to show the "Sign in with passkey" button + WebAuthn second-factor option. */
-  webauthnEnabled: boolean;
   /** Validated (same-origin) post-login destination — see lib/auth/safe-redirect. */
   next?: string;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
@@ -135,54 +128,6 @@ export function LoginForm({
       }
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function handlePasskeyPrimary() {
-    setPasskeyBusy(true);
-    setError(null);
-    try {
-      // Discoverable-credential flow: no email; the platform picks one
-      // of the user's resident credentials and the verify route maps
-      // it back to the owning account.
-      const optsRes = await fetch("/api/auth/webauthn/assertion-options", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (!optsRes.ok) {
-        setError("Could not start passkey sign-in.");
-        return;
-      }
-      const { options, challengeToken } = (await optsRes.json()) as {
-        options: Parameters<typeof startAuthentication>[0]["optionsJSON"];
-        challengeToken: string;
-      };
-
-      const assertion = await startAuthentication({ optionsJSON: options });
-
-      const verifyRes = await fetch("/api/auth/webauthn/assertion-verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          challengeToken,
-          mode: "primary",
-          response: assertion,
-        }),
-      });
-      if (!verifyRes.ok) {
-        const data = (await verifyRes.json().catch(() => null)) as { error?: string } | null;
-        setError(data?.error ?? "Sign-in failed.");
-        return;
-      }
-      window.location.assign(next);
-    } catch (err) {
-      const name = err instanceof Error ? err.name : "";
-      if (name !== "NotAllowedError") {
-        setError(err instanceof Error ? err.message : "Sign-in failed.");
-      }
-    } finally {
-      setPasskeyBusy(false);
     }
   }
 
@@ -398,24 +343,6 @@ export function LoginForm({
       >
         {loading ? "Signing in…" : "Sign in"}
       </button>
-
-      {webauthnEnabled ? (
-        <>
-          <div className="my-2 flex items-center gap-3 text-xs text-[color:var(--color-fg-subtle)]">
-            <span className="h-px flex-1 bg-[color:var(--color-border)]" />
-            <span>or</span>
-            <span className="h-px flex-1 bg-[color:var(--color-border)]" />
-          </div>
-          <button
-            type="button"
-            onClick={handlePasskeyPrimary}
-            disabled={passkeyBusy || loading}
-            className="block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-4 py-2 text-sm font-medium hover:bg-[color:var(--color-bg-muted)] disabled:opacity-50"
-          >
-            {passkeyBusy ? "Waiting for device…" : "Sign in with passkey"}
-          </button>
-        </>
-      ) : null}
     </form>
   );
 }
