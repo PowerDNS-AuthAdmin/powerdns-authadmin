@@ -2,7 +2,7 @@
  * app/api/auth/ldap/[slug]/login/route.ts
  *
  * POST /api/auth/ldap/<slug>/login — direct-bind sign-in against an LDAP
- * provider configured under /admin/auth-providers/ldap.
+ * provider configured under /admin/authentication/ldap.
  *
  * Body: `{ username, password, captchaToken? }`.
  *

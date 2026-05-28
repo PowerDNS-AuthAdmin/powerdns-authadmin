@@ -71,7 +71,7 @@ export const oidcProviders = pgTable(
      *   { fetchedAt: ISO string, ok: boolean, reason?: string,
      *     endSessionEndpoint?: string | null }
      * Auto-refresh isn't wired — operators hit Test on
-     * /admin/auth-providers/oidc when they want a fresh check. The cache
+     * /admin/authentication/oidc when they want a fresh check. The cache
      * lets the list show the last known state without probing on
      * every page render (which would round-trip the IdP each time).
      * `endSessionEndpoint` is captured by the probe so the admin UI

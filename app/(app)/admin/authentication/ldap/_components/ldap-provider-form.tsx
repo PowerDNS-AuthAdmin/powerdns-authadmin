@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * app/(app)/admin/auth-providers/ldap/_components/ldap-provider-form.tsx
+ * app/(app)/admin/authentication/ldap/_components/ldap-provider-form.tsx
  *
  * Shared create / edit form for an LDAP provider. The structure mirrors
  * `oidc-provider-form.tsx` — same field component, same group-mapping

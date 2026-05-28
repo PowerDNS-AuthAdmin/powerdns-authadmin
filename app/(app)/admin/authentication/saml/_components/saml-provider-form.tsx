@@ -1,11 +1,12 @@
 "use client";
 
 /**
- * app/(app)/admin/auth-providers/oidc/_components/oidc-provider-form.tsx
+ * app/(app)/admin/authentication/saml/_components/saml-provider-form.tsx
  *
- * Shared create / edit form for an OIDC provider. Client-secret is required
- * in create mode and optional in edit mode (blank keeps the existing
- * encrypted value).
+ * Shared create / edit form for a SAML provider. Structurally parallel to
+ * the OIDC form (`../../oidc-providers/_components/oidc-provider-form.tsx`).
+ * SP private-key material is required on create and optional on edit (blank
+ * keeps the existing encrypted value).
  */
 
 import { useRouter } from "next/navigation";
@@ -17,24 +18,22 @@ interface FormInitial {
   id: string;
   slug: string;
   name: string;
-  issuerUrl: string;
-  clientId: string;
-  scopes: string;
+  idpEntityId: string;
+  idpSsoUrl: string;
+  idpSloUrl: string;
+  idpSigningCert: string;
+  spSigningCert: string;
+  hasEncryptionPair: boolean;
+  spEncryptionCert: string;
+  requireSignedResponse: boolean;
+  requireEncryptedAssertion: boolean;
+  signatureAlgorithm: "sha1" | "sha256" | "sha512";
+  nameIdFormat: string;
   claimEmail: string;
   claimName: string;
+  claimGroups: string;
   enabled: boolean;
-  /** Per-provider opt-out of the email_verified claim check. Default
-   *  true — secure-by-default. */
-  requireEmailVerified: boolean;
-  /**
-   * Null = inherit env. Array (possibly empty) = override env.
-   * See S-7 follow-up in lib/auth/email-domain-allowlist.ts for the
-   * three-state semantics.
-   */
   allowedEmailDomains: string[] | null;
-  /** Optional login-button icon. URL or data: URI. */
-  iconUrl: string | null;
-  /** Per-provider group → role rules. Empty array or null = no mappings. */
   groupMappings: GroupMappingForm[];
 }
 
@@ -61,12 +60,6 @@ interface EditProps {
 
 type Props = CreateProps | EditProps;
 
-/**
- * Pre-fetched lists the group-mapping editor needs for its
- * dropdowns. Loaded once by the server component that renders the
- * form so operators get autocomplete-quality pickers without a
- * runtime fetch round-trip.
- */
 export interface PickerData {
   roles: Array<{ slug: string; name: string }>;
   teams: Array<{ slug: string; name: string }>;
@@ -82,40 +75,57 @@ const DEFAULTS: FormInitial = {
   id: "",
   slug: "",
   name: "",
-  issuerUrl: "",
-  clientId: "",
-  scopes: "openid profile email",
+  idpEntityId: "",
+  idpSsoUrl: "",
+  idpSloUrl: "",
+  idpSigningCert: "",
+  spSigningCert: "",
+  hasEncryptionPair: false,
+  spEncryptionCert: "",
+  requireSignedResponse: true,
+  requireEncryptedAssertion: false,
+  signatureAlgorithm: "sha256",
+  nameIdFormat: "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
   claimEmail: "email",
   claimName: "name",
+  claimGroups: "groups",
   enabled: true,
-  // Trust the IdP by default — see the schema comment. Operators
-  // can flip on per-provider via the form checkbox.
-  requireEmailVerified: false,
   allowedEmailDomains: null,
-  iconUrl: null,
   groupMappings: [],
 };
 
-export function OidcProviderForm(props: Props) {
+export function SamlProviderForm(props: Props) {
   const router = useRouter();
   const initial = props.mode === "edit" ? props.initial : DEFAULTS;
   const canEdit = props.mode === "create" ? true : props.canEdit;
 
   const [slug, setSlug] = useState(initial.slug);
   const [name, setName] = useState(initial.name);
-  const [issuerUrl, setIssuerUrl] = useState(initial.issuerUrl);
-  const [clientId, setClientId] = useState(initial.clientId);
-  const [clientSecret, setClientSecret] = useState("");
-  const [scopes, setScopes] = useState(initial.scopes);
+  const [idpEntityId, setIdpEntityId] = useState(initial.idpEntityId);
+  const [idpSsoUrl, setIdpSsoUrl] = useState(initial.idpSsoUrl);
+  const [idpSloUrl, setIdpSloUrl] = useState(initial.idpSloUrl);
+  const [idpSigningCert, setIdpSigningCert] = useState(initial.idpSigningCert);
+  // SP key + cert: required at create, optional on edit. The textarea value
+  // is the plaintext PEM; the server encrypts before storing.
+  const [spSigningKey, setSpSigningKey] = useState("");
+  const [spSigningCert, setSpSigningCert] = useState(initial.spSigningCert);
+  const [useEncryption, setUseEncryption] = useState(initial.hasEncryptionPair);
+  const [spEncryptionKey, setSpEncryptionKey] = useState("");
+  const [spEncryptionCert, setSpEncryptionCert] = useState(initial.spEncryptionCert);
+  const [requireSignedResponse, setRequireSignedResponse] = useState(initial.requireSignedResponse);
+  const [requireEncryptedAssertion, setRequireEncryptedAssertion] = useState(
+    initial.requireEncryptedAssertion,
+  );
+  const [signatureAlgorithm, setSignatureAlgorithm] = useState(initial.signatureAlgorithm);
+  const [nameIdFormat, setNameIdFormat] = useState(initial.nameIdFormat);
   const [claimEmail, setClaimEmail] = useState(initial.claimEmail);
   const [claimName, setClaimName] = useState(initial.claimName);
+  const [claimGroups, setClaimGroups] = useState(initial.claimGroups);
   const [enabled, setEnabled] = useState(initial.enabled);
-  const [requireEmailVerified, setRequireEmailVerified] = useState(initial.requireEmailVerified);
   const [overrideDomains, setOverrideDomains] = useState(initial.allowedEmailDomains !== null);
   const [domainsText, setDomainsText] = useState(
     initial.allowedEmailDomains ? initial.allowedEmailDomains.join("\n") : "",
   );
-  const [iconUrl, setIconUrl] = useState(initial.iconUrl ?? "");
   const [groupMappings, setGroupMappings] = useState<GroupMappingForm[]>(initial.groupMappings);
 
   function addGroupMapping() {
@@ -134,8 +144,6 @@ export function OidcProviderForm(props: Props) {
       prev.map((m, idx) => {
         if (idx !== i) return m;
         const next = { ...m, ...patch };
-        // Switching to "global" clears scopeId; switching away
-        // initializes scopeId so the second select has a valid value.
         if (patch.scopeType === "global") next.scopeId = null;
         else if (patch.scopeType && m.scopeType === "global") {
           next.scopeId =
@@ -164,48 +172,49 @@ export function OidcProviderForm(props: Props) {
     setError(null);
     setFieldErrors({});
 
-    interface Body {
-      slug?: string;
-      name: string;
-      issuerUrl: string;
-      clientId: string;
-      clientSecret?: string;
-      scopes: string;
-      claimEmail: string;
-      claimName: string;
-      enabled: boolean;
-      requireEmailVerified: boolean;
-      // `null` = clear override (inherit env). Array (possibly empty) =
-      // set override. Field omitted (undefined) = leave unchanged.
-      // Always sent here because the override toggle is always shown.
-      allowedEmailDomains: string[] | null;
-      iconUrl?: string | null;
-      groupMappings: GroupMappingForm[];
-    }
-    // Parse the textarea: one domain per line, trim, drop empties,
-    // lower-case (the server re-validates with regex).
     const parsedDomains: string[] = domainsText
       .split(/\r?\n/)
       .map((s) => s.trim().toLowerCase())
       .filter((s) => s.length > 0);
 
+    interface Body {
+      slug?: string;
+      name: string;
+      idpEntityId: string;
+      idpSsoUrl: string;
+      idpSloUrl: string | null;
+      idpSigningCert: string;
+      spSigningKey?: string;
+      spSigningCert?: string;
+      spEncryptionKey?: string | null;
+      spEncryptionCert?: string | null;
+      requireSignedResponse: boolean;
+      requireEncryptedAssertion: boolean;
+      signatureAlgorithm: string;
+      nameIdFormat: string;
+      claimEmail: string;
+      claimName: string;
+      claimGroups: string;
+      enabled: boolean;
+      allowedEmailDomains: string[] | null;
+      groupMappings: GroupMappingForm[];
+    }
+
     const body: Body = {
       name,
-      issuerUrl,
-      clientId,
-      scopes,
+      idpEntityId,
+      idpSsoUrl,
+      idpSloUrl: idpSloUrl.trim() === "" ? null : idpSloUrl.trim(),
+      idpSigningCert,
+      requireSignedResponse,
+      requireEncryptedAssertion,
+      signatureAlgorithm,
+      nameIdFormat,
       claimEmail,
       claimName,
+      claimGroups,
       enabled,
-      requireEmailVerified,
       allowedEmailDomains: overrideDomains ? parsedDomains : null,
-      // Empty string → null clears the icon back to text-only
-      // button. Trimmed value otherwise. Server re-validates.
-      iconUrl: iconUrl.trim() === "" ? null : iconUrl.trim(),
-      // Strip rows where required fields are blank — the user added
-      // a row then walked away. The server's Zod refine would reject
-      // these anyway, but the better UX is to silently drop them
-      // (they're empty placeholders, not malformed data).
       groupMappings: groupMappings
         .map((m) => ({
           ...m,
@@ -217,12 +226,28 @@ export function OidcProviderForm(props: Props) {
         .filter((m) => m.scopeType === "global" || (m.scopeId !== null && m.scopeId.length > 0)),
     };
     if (props.mode === "create") body.slug = slug;
-    if (clientSecret !== "") body.clientSecret = clientSecret;
+    // Signing keypair: create always sends, edit only when both halves were
+    // supplied (rotation).
+    if (props.mode === "create") {
+      body.spSigningKey = spSigningKey;
+      body.spSigningCert = spSigningCert;
+    } else if (spSigningKey.trim() !== "" && spSigningCert.trim() !== "") {
+      body.spSigningKey = spSigningKey;
+      body.spSigningCert = spSigningCert;
+    }
+    if (useEncryption) {
+      if (spEncryptionKey.trim() !== "") body.spEncryptionKey = spEncryptionKey;
+      if (spEncryptionCert.trim() !== "") body.spEncryptionCert = spEncryptionCert;
+    } else if (props.mode === "edit" && initial.hasEncryptionPair) {
+      // Edit mode and the operator turned encryption off — clear both halves.
+      body.spEncryptionKey = null;
+      body.spEncryptionCert = null;
+    }
 
     const url =
       props.mode === "edit"
-        ? `/api/admin/oidc-providers/${props.initial.id}`
-        : "/api/admin/oidc-providers";
+        ? `/api/admin/saml-providers/${props.initial.id}`
+        : "/api/admin/saml-providers";
     const method = props.mode === "edit" ? "PATCH" : "POST";
 
     try {
@@ -238,8 +263,6 @@ export function OidcProviderForm(props: Props) {
         if (data?.details?.fieldErrors) setFieldErrors(data.details.fieldErrors);
         return;
       }
-      // Land on the unified Authentication index — `/admin/auth-providers/oidc`
-      // also redirects there now, but pushing directly avoids the extra hop.
       router.push("/admin/authentication");
       router.refresh();
     } catch {
@@ -254,7 +277,7 @@ export function OidcProviderForm(props: Props) {
       <Field
         id="name"
         label="Display name"
-        hint="Shown on the login button — e.g. 'Continue with Google'."
+        hint="Shown on the login button — e.g. 'Continue with Company SSO'."
         errors={fieldErrors["name"]}
       >
         <input
@@ -263,7 +286,7 @@ export function OidcProviderForm(props: Props) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={!canEdit}
-          placeholder="Google"
+          placeholder="Company SSO"
           className={inputClass}
         />
       </Field>
@@ -272,7 +295,7 @@ export function OidcProviderForm(props: Props) {
         <Field
           id="slug"
           label="Slug"
-          hint="URL-safe identifier used in the callback path. Lowercase letters, digits, and dashes. Cannot be changed later."
+          hint="URL-safe identifier used in the ACS / metadata path. Lowercase letters, digits, and dashes. Cannot be changed later."
           errors={fieldErrors["slug"]}
         >
           <input
@@ -280,144 +303,284 @@ export function OidcProviderForm(props: Props) {
             required
             value={slug}
             onChange={(e) => setSlug(e.target.value.toLowerCase())}
-            placeholder="google"
+            placeholder="company-sso"
             className={inputClass}
           />
         </Field>
       ) : null}
 
-      <Field
-        id="issuerUrl"
-        label="Issuer URL"
-        hint="OIDC discovery base — the app fetches /.well-known/openid-configuration below this."
-        errors={fieldErrors["issuerUrl"]}
-      >
-        <input
-          id="issuerUrl"
-          type="url"
-          required
-          value={issuerUrl}
-          onChange={(e) => setIssuerUrl(e.target.value)}
-          disabled={!canEdit}
-          placeholder="https://accounts.google.com"
-          className={inputClass}
-        />
-      </Field>
-
-      <Field id="clientId" label="Client ID" errors={fieldErrors["clientId"]}>
-        <input
-          id="clientId"
-          required
-          value={clientId}
-          onChange={(e) => setClientId(e.target.value)}
-          disabled={!canEdit}
-          className={inputClass}
-        />
-      </Field>
-
-      <Field
-        id="clientSecret"
-        label={props.mode === "edit" ? "Rotate client secret" : "Client secret"}
-        hint={
-          props.mode === "edit"
-            ? "Leave blank to keep the existing secret. Submitting a new value rotates it."
-            : "Stored AES-256-GCM-encrypted at rest. Shown only at creation time."
-        }
-        errors={fieldErrors["clientSecret"]}
-      >
-        <input
-          id="clientSecret"
-          type="password"
-          autoComplete="off"
-          required={props.mode === "create"}
-          value={clientSecret}
-          onChange={(e) => setClientSecret(e.target.value)}
-          disabled={!canEdit}
-          placeholder={props.mode === "edit" ? "•••••••• (unchanged)" : ""}
-          className={inputClass}
-        />
-      </Field>
-
-      <Field
-        id="scopes"
-        label="Scopes"
-        hint='Space-separated. "openid" is required.'
-        errors={fieldErrors["scopes"]}
-      >
-        <input
-          id="scopes"
-          required
-          value={scopes}
-          onChange={(e) => setScopes(e.target.value)}
-          disabled={!canEdit}
-          className={inputClass}
-        />
-      </Field>
-
-      <div className="grid grid-cols-2 gap-4">
+      <fieldset className="space-y-3 rounded-md border border-[color:var(--color-border)] p-3">
+        <legend className="px-1 text-sm font-medium">Identity provider</legend>
         <Field
-          id="claimEmail"
-          label="Email claim"
-          hint='Default: "email".'
-          errors={fieldErrors["claimEmail"]}
+          id="idpEntityId"
+          label="IdP entityID"
+          hint="The IdP's Issuer URI (Authentik: 'authentik'; Keycloak: realm issuer URL; AD FS: 'http://adfs.example.com/adfs/services/trust')."
+          errors={fieldErrors["idpEntityId"]}
         >
           <input
-            id="claimEmail"
+            id="idpEntityId"
             required
-            value={claimEmail}
-            onChange={(e) => setClaimEmail(e.target.value)}
+            value={idpEntityId}
+            onChange={(e) => setIdpEntityId(e.target.value)}
             disabled={!canEdit}
             className={inputClass}
           />
         </Field>
+
         <Field
-          id="claimName"
-          label="Display name claim"
-          hint='Default: "name".'
-          errors={fieldErrors["claimName"]}
+          id="idpSsoUrl"
+          label="IdP SSO URL"
+          hint="The IdP's SAML 2.0 sign-in endpoint (HTTP-Redirect binding)."
+          errors={fieldErrors["idpSsoUrl"]}
         >
           <input
-            id="claimName"
+            id="idpSsoUrl"
+            type="url"
             required
-            value={claimName}
-            onChange={(e) => setClaimName(e.target.value)}
+            value={idpSsoUrl}
+            onChange={(e) => setIdpSsoUrl(e.target.value)}
             disabled={!canEdit}
             className={inputClass}
           />
         </Field>
-      </div>
 
-      <Field
-        id="iconUrl"
-        label="Login-button icon (optional)"
-        hint="Absolute URL (https://example.com/google.svg) or a small inline data: URI. Renders next to the 'Continue with…' label on the login page. Leave blank for text-only."
-        errors={fieldErrors["iconUrl"]}
-      >
-        <input
-          id="iconUrl"
-          value={iconUrl}
-          onChange={(e) => setIconUrl(e.target.value)}
-          disabled={!canEdit}
-          placeholder="https://cdn.example.com/google-logo.svg"
-          className={inputClass}
-        />
-        {iconUrl.trim() !== "" ? (
-          <div className="mt-2 flex items-center gap-2 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-2 text-xs text-[color:var(--color-fg-muted)]">
-            <span>Preview:</span>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={iconUrl}
-              alt="Provider icon preview"
-              style={{
-                width: 20,
-                height: 20,
-                objectFit: "contain",
-                display: "block",
-              }}
-            />
+        <Field
+          id="idpSloUrl"
+          label="IdP SLO URL (optional)"
+          hint="Single Logout endpoint. Leave blank to disable IdP-side logout — local sessions still end."
+          errors={fieldErrors["idpSloUrl"]}
+        >
+          <input
+            id="idpSloUrl"
+            type="url"
+            value={idpSloUrl}
+            onChange={(e) => setIdpSloUrl(e.target.value)}
+            disabled={!canEdit}
+            className={inputClass}
+          />
+        </Field>
+
+        <Field
+          id="idpSigningCert"
+          label="IdP signing certificate (PEM)"
+          hint="Public X.509 cert the IdP uses to sign Responses."
+          errors={fieldErrors["idpSigningCert"]}
+        >
+          <textarea
+            id="idpSigningCert"
+            required
+            rows={6}
+            value={idpSigningCert}
+            onChange={(e) => setIdpSigningCert(e.target.value)}
+            disabled={!canEdit}
+            placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
+            className={`${inputClass} font-mono text-xs`}
+          />
+        </Field>
+      </fieldset>
+
+      <fieldset className="space-y-3 rounded-md border border-[color:var(--color-border)] p-3">
+        <legend className="px-1 text-sm font-medium">Service provider (this app)</legend>
+        <p className="text-xs text-[color:var(--color-fg-muted)]">
+          Generate with{" "}
+          <code className="font-mono">
+            openssl req -x509 -newkey rsa:2048 -keyout sp.key -out sp.crt -nodes -days 1825 -subj
+            &quot;/CN={slug || "sso"}&quot;
+          </code>
+          .
+        </p>
+
+        <Field
+          id="spSigningKey"
+          label={props.mode === "edit" ? "Rotate SP private key (PEM)" : "SP private key (PEM)"}
+          hint={
+            props.mode === "edit"
+              ? "Leave blank to keep the existing key. Supply both key + cert to rotate."
+              : "Encrypted at rest; never shown again after save."
+          }
+          errors={fieldErrors["spSigningKey"]}
+        >
+          <textarea
+            id="spSigningKey"
+            required={props.mode === "create"}
+            rows={6}
+            value={spSigningKey}
+            onChange={(e) => setSpSigningKey(e.target.value)}
+            disabled={!canEdit}
+            placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+            className={`${inputClass} font-mono text-xs`}
+          />
+        </Field>
+
+        <Field
+          id="spSigningCert"
+          label="SP signing certificate (PEM)"
+          errors={fieldErrors["spSigningCert"]}
+        >
+          <textarea
+            id="spSigningCert"
+            required={props.mode === "create"}
+            rows={6}
+            value={spSigningCert}
+            onChange={(e) => setSpSigningCert(e.target.value)}
+            disabled={!canEdit}
+            placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
+            className={`${inputClass} font-mono text-xs`}
+          />
+        </Field>
+
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={useEncryption}
+            onChange={(e) => setUseEncryption(e.target.checked)}
+            disabled={!canEdit}
+            className="mt-0.5"
+          />
+          <span>
+            Configure assertion encryption keypair
+            <span className="block text-xs text-[color:var(--color-fg-muted)]">
+              Optional — operators that want the IdP to encrypt assertions to this SP supply an
+              encryption keypair below.
+            </span>
+          </span>
+        </label>
+
+        {useEncryption ? (
+          <div className="space-y-3 pl-6">
+            <Field
+              id="spEncryptionKey"
+              label={
+                props.mode === "edit"
+                  ? "Rotate SP encryption private key (PEM)"
+                  : "SP encryption private key (PEM)"
+              }
+              errors={fieldErrors["spEncryptionKey"]}
+            >
+              <textarea
+                id="spEncryptionKey"
+                rows={6}
+                value={spEncryptionKey}
+                onChange={(e) => setSpEncryptionKey(e.target.value)}
+                disabled={!canEdit}
+                className={`${inputClass} font-mono text-xs`}
+              />
+            </Field>
+            <Field
+              id="spEncryptionCert"
+              label="SP encryption certificate (PEM)"
+              errors={fieldErrors["spEncryptionCert"]}
+            >
+              <textarea
+                id="spEncryptionCert"
+                rows={6}
+                value={spEncryptionCert}
+                onChange={(e) => setSpEncryptionCert(e.target.value)}
+                disabled={!canEdit}
+                className={`${inputClass} font-mono text-xs`}
+              />
+            </Field>
           </div>
         ) : null}
-      </Field>
+      </fieldset>
+
+      <fieldset className="space-y-3 rounded-md border border-[color:var(--color-border)] p-3">
+        <legend className="px-1 text-sm font-medium">Protocol options</legend>
+        <Field id="signatureAlgorithm" label="Signature algorithm">
+          <SelectMenu
+            value={signatureAlgorithm}
+            onChange={(v) => setSignatureAlgorithm(v)}
+            disabled={!canEdit}
+            ariaLabel="Signature algorithm"
+            options={[
+              { value: "sha1", label: "SHA-1 (legacy)" },
+              { value: "sha256", label: "SHA-256 (recommended)" },
+              { value: "sha512", label: "SHA-512" },
+            ]}
+            className="mt-1 w-full text-sm"
+          />
+        </Field>
+
+        <Field
+          id="nameIdFormat"
+          label="NameID format"
+          hint="The format the SP requests in the AuthnRequest. Most IdPs accept the default emailAddress form."
+          errors={fieldErrors["nameIdFormat"]}
+        >
+          <input
+            id="nameIdFormat"
+            value={nameIdFormat}
+            onChange={(e) => setNameIdFormat(e.target.value)}
+            disabled={!canEdit}
+            className={`${inputClass} font-mono text-xs`}
+          />
+        </Field>
+
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={requireSignedResponse}
+            onChange={(e) => setRequireSignedResponse(e.target.checked)}
+            disabled={!canEdit}
+            className="mt-0.5"
+          />
+          <span>
+            Require signed Response (in addition to signed Assertion)
+            <span className="block text-xs text-[color:var(--color-fg-muted)]">
+              On by default. Disable only for IdPs that sign just the inner Assertion.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={requireEncryptedAssertion}
+            onChange={(e) => setRequireEncryptedAssertion(e.target.checked)}
+            disabled={!canEdit || !useEncryption}
+            className="mt-0.5"
+          />
+          <span>
+            Require encrypted Assertion
+            <span className="block text-xs text-[color:var(--color-fg-muted)]">
+              Off by default. Requires the SP encryption keypair above to be configured.
+            </span>
+          </span>
+        </label>
+      </fieldset>
+
+      <fieldset className="space-y-3 rounded-md border border-[color:var(--color-border)] p-3">
+        <legend className="px-1 text-sm font-medium">Attribute mapping</legend>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Field id="claimEmail" label="Email attribute" errors={fieldErrors["claimEmail"]}>
+            <input
+              id="claimEmail"
+              value={claimEmail}
+              onChange={(e) => setClaimEmail(e.target.value)}
+              disabled={!canEdit}
+              className={inputClass}
+            />
+          </Field>
+          <Field id="claimName" label="Name attribute" errors={fieldErrors["claimName"]}>
+            <input
+              id="claimName"
+              value={claimName}
+              onChange={(e) => setClaimName(e.target.value)}
+              disabled={!canEdit}
+              className={inputClass}
+            />
+          </Field>
+          <Field id="claimGroups" label="Groups attribute" errors={fieldErrors["claimGroups"]}>
+            <input
+              id="claimGroups"
+              value={claimGroups}
+              onChange={(e) => setClaimGroups(e.target.value)}
+              disabled={!canEdit}
+              className={inputClass}
+            />
+          </Field>
+        </div>
+      </fieldset>
 
       <div className="space-y-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-4">
         <label className="flex items-start gap-2 text-sm">
@@ -431,8 +594,8 @@ export function OidcProviderForm(props: Props) {
           <span>
             Override <code>OIDC_ALLOWED_EMAIL_DOMAINS</code> for this provider
             <span className="block text-xs text-[color:var(--color-fg-muted)]">
-              Off: inherit the env allow-list. On: use the list below instead (REPLACES env — leave
-              empty to allow any email).
+              Off: inherit the env allow-list. On: use the list below (REPLACES env — empty allows
+              any email).
             </span>
           </span>
         </label>
@@ -440,7 +603,7 @@ export function OidcProviderForm(props: Props) {
           <Field
             id="allowedEmailDomains"
             label="Allowed email domains"
-            hint="One bare domain per line (e.g. example.com). Lowercase. Empty = no restriction at this provider."
+            hint="One bare domain per line. Lowercase."
             errors={fieldErrors["allowedEmailDomains"]}
           >
             <textarea
@@ -459,16 +622,12 @@ export function OidcProviderForm(props: Props) {
       <fieldset className="space-y-3 rounded-md border border-[color:var(--color-border)] p-3">
         <legend className="px-1 text-sm font-medium">Group → role mappings</legend>
         <p className="text-xs text-[color:var(--color-fg-muted)]">
-          On every successful sign-in, the user&apos;s{" "}
-          <code>{initial.scopes && claimEmail ? "claim_groups" : "groups"}</code> claim is matched
-          against the rules below. Each matching row materialises a role assignment tagged with this
-          provider — the NEXT sign-in revokes it if the user is no longer in the group. Admin-issued
-          assignments are never touched.
+          On each successful SAML sign-in, the user&apos;s <code>{claimGroups}</code> attribute is
+          matched against these rules. Each match materialises a role assignment tagged with this
+          provider; the next sign-in revokes it if the user is no longer in the group.
         </p>
         {groupMappings.length === 0 ? (
-          <p className="text-xs text-[color:var(--color-fg-muted)] italic">
-            No mappings yet. Add one to grant roles based on the IdP&apos;s group claim.
-          </p>
+          <p className="text-xs text-[color:var(--color-fg-muted)] italic">No mappings yet.</p>
         ) : (
           <ul className="space-y-2">
             {groupMappings.map((m, i) => (
@@ -482,7 +641,7 @@ export function OidcProviderForm(props: Props) {
                     value={m.group}
                     onChange={(e) => updateGroupMapping(i, { group: e.target.value })}
                     disabled={!canEdit}
-                    placeholder="authentik Admins"
+                    placeholder="DomainAdmins"
                     className={`${inputClass} font-mono text-xs`}
                   />
                 </label>
@@ -603,25 +762,6 @@ export function OidcProviderForm(props: Props) {
           disabled={!canEdit}
         />
         Enabled (shown on the login page)
-      </label>
-
-      <label className="flex items-start gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={requireEmailVerified}
-          onChange={(e) => setRequireEmailVerified(e.target.checked)}
-          disabled={!canEdit}
-          className="mt-0.5"
-        />
-        <span>
-          Require <code>email_verified</code> claim from the IdP
-          <span className="block text-xs text-[color:var(--color-fg-muted)]">
-            On by default. Blocks sign-in for an existing local account unless the IdP attests the
-            email is verified — the account-takeover guard for IdPs that let users set arbitrary
-            unverified emails. Turn off only for IdPs that don&apos;t emit the claim at all (some
-            custom OIDC bridges, SAML→OIDC translators).
-          </span>
-        </span>
       </label>
 
       {error ? (

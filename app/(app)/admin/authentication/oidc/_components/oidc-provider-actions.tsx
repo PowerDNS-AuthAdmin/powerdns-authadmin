@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * app/(app)/admin/auth-providers/oidc/_components/oidc-provider-actions.tsx
+ * app/(app)/admin/authentication/oidc/_components/oidc-provider-actions.tsx
  *
  * Delete button for the provider edit page. Uses the in-app dialog system
  * (no native confirm — banned by project convention).
@@ -46,7 +46,7 @@ export function OidcProviderActions({ id, name }: ActionsProps) {
         return;
       }
       toast({ kind: "success", description: "Provider deleted." });
-      router.push("/admin/auth-providers/oidc");
+      router.push("/admin/authentication/oidc");
       router.refresh();
     } catch {
       toast({ kind: "error", description: "Network error. Please try again." });

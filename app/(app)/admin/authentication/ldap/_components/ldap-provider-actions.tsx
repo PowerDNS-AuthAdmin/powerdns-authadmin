@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * app/(app)/admin/auth-providers/saml/_components/saml-provider-actions.tsx
+ * app/(app)/admin/authentication/ldap/_components/ldap-provider-actions.tsx
  *
- * Delete button for the SAML provider edit page. Mirrors the OIDC
- * equivalent — uses the in-app dialog system (no native confirm).
+ * Delete button for the LDAP provider edit page. Same shape as the OIDC
+ * actions component — in-app dialog (no native confirm).
  */
 
 import { useRouter } from "next/navigation";
@@ -17,14 +17,14 @@ interface ActionsProps {
   name: string;
 }
 
-export function SamlProviderActions({ id, name }: ActionsProps) {
+export function LdapProviderActions({ id, name }: ActionsProps) {
   const router = useRouter();
   const { confirm, toast } = useDialog();
   const [deleting, setDeleting] = useState(false);
 
   async function handleDelete() {
     const ok = await confirm({
-      title: `Delete provider "${name}"?`,
+      title: `Delete LDAP provider "${name}"?`,
       description:
         "The provider is removed from the login page immediately. Audit history is preserved. This cannot be undone.",
       confirmLabel: "Delete provider",
@@ -34,7 +34,7 @@ export function SamlProviderActions({ id, name }: ActionsProps) {
     if (!ok) return;
     setDeleting(true);
     try {
-      const res = await apiFetch(`/api/admin/saml-providers/${id}`, {
+      const res = await apiFetch(`/api/admin/ldap-providers/${id}`, {
         method: "DELETE",
       });
       if (!res.ok) {

@@ -19,9 +19,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   OidcProviderForm,
   type PickerData,
-} from "@/app/(app)/admin/auth-providers/oidc/_components/oidc-provider-form";
-import { SamlProviderForm } from "@/app/(app)/admin/auth-providers/saml/_components/saml-provider-form";
-import { LdapProviderForm } from "@/app/(app)/admin/auth-providers/ldap/_components/ldap-provider-form";
+} from "@/app/(app)/admin/authentication/oidc/_components/oidc-provider-form";
+import { SamlProviderForm } from "@/app/(app)/admin/authentication/saml/_components/saml-provider-form";
+import { LdapProviderForm } from "@/app/(app)/admin/authentication/ldap/_components/ldap-provider-form";
 import { ProviderTypePicker, type ProviderType } from "./provider-type-picker";
 
 function parseType(raw: string | null): ProviderType | null {

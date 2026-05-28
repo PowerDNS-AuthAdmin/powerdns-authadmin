@@ -3,7 +3,7 @@
  *
  * Reusable compact audit feed for admin resource detail pages.
  * Renders the most-recent N audit rows scoped to one resource id
- * — used by /admin/servers/[id] and /admin/auth-providers/oidc/[id]
+ * — used by /admin/servers/[id] and /admin/authentication/oidc/[id]
  *. The full audit page at /admin/audit remains the
  * source of truth for searchable/filterable history; this is the
  * at-a-glance window so operators don't have to leave the detail

@@ -8,7 +8,7 @@ All notable changes to this project are documented here. The format is based on
 
 A major feature pile: WebAuthn primary + 2FA, SAML 2.0 SP, LDAP direct-bind,
 teams zone grants, session-scoped IdP-derived permissions with live token
-recompute, the unified `/admin/auth-providers` admin surface, and a new
+recompute, the unified `/admin/authentication` admin surface, and a new
 super-admin-gated app-DB backup export. See [`UPGRADING.md`](./UPGRADING.md)
 for operator actions.
 
@@ -82,7 +82,7 @@ preview-before-commit + bulk archive flow) lands as a follow-up.
 
 ### Changed — admin URL restructure + `oidc.*` → `auth.*` rename (#74)
 
-`/admin/oidc-providers` → `/admin/auth-providers/oidc`. Same shape for
+`/admin/oidc-providers` → `/admin/authentication/oidc`. Same shape for
 SAML and LDAP. Old URLs keep redirect stubs so external links survive.
 The CASL "Oidc" subject type became "Auth" and the `oidc.read` /
 `oidc.manage` permission strings became `auth.read` / `auth.manage`

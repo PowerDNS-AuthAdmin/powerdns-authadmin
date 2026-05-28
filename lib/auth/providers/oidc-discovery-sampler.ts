@@ -6,7 +6,7 @@
  * Test button; before this sampler the `discoveryCache` on a provider
  * row only refreshed when an admin clicked Test or edited the
  * provider. This module adds passive refresh: every load of
- * `/admin/auth-providers/oidc` re-probes any provider whose cache is
+ * `/admin/authentication/oidc` re-probes any provider whose cache is
  * older than `staleMs` (default 15 minutes), in parallel, best-
  * effort. The dashboard's "PDNS attention" widget pattern (T-82)
  * mirrored: stale rows surface as red, fresh rows green.

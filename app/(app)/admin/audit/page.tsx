@@ -462,7 +462,7 @@ function resourceLinkHref(
     case "pdns_server":
       return nav.server ? `/admin/servers/${enc}` : null;
     case "oidc_provider":
-      return nav.oidc ? `/admin/auth-providers/oidc/${enc}` : null;
+      return nav.oidc ? `/admin/authentication/oidc/${enc}` : null;
     case "zone_template":
       return nav.template ? `/admin/zone-templates/${enc}` : null;
     case "zone":

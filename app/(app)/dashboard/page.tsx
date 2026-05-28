@@ -753,13 +753,13 @@ function OidcAttentionWidget({ counts }: { counts: { neverProbed: number; failin
           label="Never probed"
           count={counts.neverProbed}
           tone="warn"
-          href="/admin/auth-providers/oidc"
+          href="/admin/authentication/oidc"
         />
         <AttentionTile
           label="Failing probe"
           count={counts.failing}
           tone="error"
-          href="/admin/auth-providers/oidc"
+          href="/admin/authentication/oidc"
         />
       </div>
     </section>

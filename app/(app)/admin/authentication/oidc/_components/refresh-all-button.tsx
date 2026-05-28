@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * app/(app)/admin/auth-providers/oidc/_components/refresh-all-button.tsx
+ * app/(app)/admin/authentication/oidc/_components/refresh-all-button.tsx
  *
  * Fleet-level "Refresh all" for the OIDC providers list. Forces a discovery
  * re-probe of every enabled provider, bypassing the sampler's 15-minute

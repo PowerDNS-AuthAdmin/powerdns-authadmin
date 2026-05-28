@@ -103,7 +103,7 @@ export const PERMISSIONS = [
 
   // === Authentication providers (OIDC, SAML, LDAP) ===
   // One permission pair for all three protocols. Gated by the unified
-  // `/admin/auth-providers` admin surface.
+  // `/admin/authentication` admin surface.
   "auth.read",
   "auth.manage",
 

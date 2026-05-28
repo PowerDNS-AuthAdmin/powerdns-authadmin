@@ -9,7 +9,7 @@ The CHANGELOG carries the per-version summary; this file documents the
 ## Upgrading to v1.3.0
 
 v1.3.0 is a feature-pile release: WebAuthn, SAML, LDAP, teams zone grants,
-session-scoped IdP-derived permissions, plus a unified `/admin/auth-providers`
+session-scoped IdP-derived permissions, plus a unified `/admin/authentication`
 admin surface. The migration is a single SQL file per dialect
 (`drizzle/0004_*.sql` + `drizzle-sqlite/0004_*.sql`) and runs automatically
 at app boot — no manual steps for the schema.
@@ -20,7 +20,7 @@ The list below covers items that need operator attention.
 
 The `oidc.read` / `oidc.manage` permission strings are renamed to `auth.read` /
 `auth.manage` since the same gates now cover OIDC, SAML, and LDAP at the
-unified `/admin/auth-providers` surface.
+unified `/admin/authentication` surface.
 
 **What the migration does for you**: existing `roles.permissions` arrays are
 rewritten in place — every `"oidc.read"` becomes `"auth.read"`, every
@@ -32,18 +32,18 @@ declaratively via `provisioning.yaml`, update your YAML to use the new
 permission names — the applier won't fail on the old names, but they'll be
 silently dropped (they're no longer in the master vocabulary).
 
-### Admin URL renames — `/admin/oidc-providers` → `/admin/auth-providers/oidc`
+### Admin URL renames — `/admin/oidc-providers` → `/admin/authentication/oidc`
 
 URLs:
 
 | Old                          | New                                  |
 | ---------------------------- | ------------------------------------ |
-| `/admin/oidc-providers`      | `/admin/auth-providers/oidc`         |
-| `/admin/oidc-providers/<id>` | `/admin/auth-providers/oidc/<id>`    |
-| `/admin/saml-providers`      | `/admin/auth-providers/saml`         |
-| `/admin/saml-providers/<id>` | `/admin/auth-providers/saml/<id>`    |
-| `/admin/ldap-providers`      | `/admin/auth-providers/ldap`         |
-| `/admin/ldap-providers/<id>` | `/admin/auth-providers/ldap/<id>`    |
+| `/admin/oidc-providers`      | `/admin/authentication/oidc`         |
+| `/admin/oidc-providers/<id>` | `/admin/authentication/oidc/<id>`    |
+| `/admin/saml-providers`      | `/admin/authentication/saml`         |
+| `/admin/saml-providers/<id>` | `/admin/authentication/saml/<id>`    |
+| `/admin/ldap-providers`      | `/admin/authentication/ldap`         |
+| `/admin/ldap-providers/<id>` | `/admin/authentication/ldap/<id>`    |
 
 Every old URL keeps a server-side redirect to the new one, so external links,
 bookmarks, and audit-log references continue to resolve. Update your own docs
@@ -96,7 +96,7 @@ IDP_PERMS_CACHE_TTL_SECONDS=60
 To get the OIDC live-recompute path (refresh-token → userinfo at API-token
 use time), the IdP must include `offline_access` in the scope on the
 authorization request — which is already the default for new OIDC providers
-configured under `/admin/auth-providers/oidc`. **Existing OIDC sessions
+configured under `/admin/authentication/oidc`. **Existing OIDC sessions
 created before the upgrade have no refresh token stored**; their tokens use
 the session-snapshot fallback until the user signs in fresh.
 

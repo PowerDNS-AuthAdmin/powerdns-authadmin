@@ -63,7 +63,7 @@ export default async function SettingsPage() {
           {canReadAuth ? (
             <>
               Identity-provider configuration lives on{" "}
-              <Link href="/admin/auth-providers/oidc" className="underline">
+              <Link href="/admin/authentication/oidc" className="underline">
                 OIDC providers
               </Link>
               .{" "}
