@@ -26,9 +26,7 @@ import { mutate } from "@/lib/client/api-fetch";
 
 type Step = "choose" | "backup" | "restore-upload" | "restore-confirm" | "restore-result";
 
-interface RestoreCounts {
-  [table: string]: { attempted: number; inserted: number; skipped: number };
-}
+type RestoreCounts = Record<string, { attempted: number; inserted: number; skipped: number }>;
 
 const CONFIRM_PHRASE = "RESTORE";
 

@@ -235,7 +235,7 @@ async function resolvePresentedToken(
         derivedSources = chosen
           .map((s) => ({
             ...s,
-            permissions: s.permissions.filter((p) => scopeSet.has(p as Permission)),
+            permissions: s.permissions.filter((p) => scopeSet.has(p)),
           }))
           .filter((s) => s.permissions.length > 0);
       }

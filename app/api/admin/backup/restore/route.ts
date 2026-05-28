@@ -182,8 +182,9 @@ export async function POST(request: Request): Promise<Response> {
 function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = { ...row };
   for (const key of Object.keys(out)) {
-    if (key.endsWith("_at") && typeof out[key] === "string") {
-      const d = new Date(out[key] as string);
+    const value = out[key];
+    if (key.endsWith("_at") && typeof value === "string") {
+      const d = new Date(value);
       if (!Number.isNaN(d.getTime())) out[key] = d;
     }
   }

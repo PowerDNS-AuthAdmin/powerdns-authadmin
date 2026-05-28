@@ -203,7 +203,7 @@ export default async function LoginPage({
   }
   for (const p of dbLdapProviders) {
     // Skip the one that's the primary inline form already.
-    if (inlineLdap && p.slug === inlineLdap.slug) continue;
+    if (inlineLdap?.slug === p.slug) continue;
     providerButtons.push({
       kind: "ldap",
       key: `ldap-${p.slug}`,

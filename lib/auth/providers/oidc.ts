@@ -758,7 +758,7 @@ export { emailDomainAllowed, resolveAllowedDomains } from "../email-domain-allow
 export async function fetchOidcGroupsForUser(
   slug: string,
   refreshToken: string,
-): Promise<unknown | null> {
+): Promise<unknown> {
   let provider: ResolvedOidcProvider | null;
   try {
     provider = await resolveOidcProvider(slug);
@@ -811,7 +811,7 @@ export async function fetchOidcGroupsForUser(
 
   let userinfo: Record<string, unknown>;
   try {
-    userinfo = (await oidc.fetchUserInfo(config, accessToken, sub)) as Record<string, unknown>;
+    userinfo = await oidc.fetchUserInfo(config, accessToken, sub);
   } catch (err) {
     logger.warn(
       { provider: slug, err: err instanceof Error ? err.message : "unknown" },
