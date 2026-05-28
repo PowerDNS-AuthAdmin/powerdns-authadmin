@@ -37,12 +37,32 @@ import { PasskeyButton } from "./passkey-button";
 
 export const metadata: Metadata = { title: "Sign in" };
 
+/**
+ * One entry in the "or sign in with" list. `kind` drives the sort order:
+ * passkey first (the unified WebAuthn entry), then Local Auth (when it's
+ * not the inline form), then OIDC, then SAML, then LDAP. Providers within
+ * a type sort alphabetically by name. `tag` renders as a small uppercase
+ * pill after the name (e.g. "Authentik [OIDC]"); passkey + local skip
+ * the tag because the label already names the kind.
+ */
+type ProviderKind = "passkey" | "local" | "oidc" | "saml" | "ldap";
+
 interface ProviderButton {
+  kind: ProviderKind;
   key: string;
   label: string;
   href: string;
   iconUrl?: string | null;
+  tag?: string;
 }
+
+const KIND_ORDER: Record<ProviderKind, number> = {
+  passkey: 0,
+  local: 1,
+  oidc: 2,
+  saml: 3,
+  ldap: 4,
+};
 
 export default async function LoginPage({
   searchParams,
@@ -142,13 +162,21 @@ export default async function LoginPage({
     inlineLdap = dbLdapProviders.find((l) => l.slug === defaultSlug);
   }
 
-  // Provider list: every non-local sign-in option EXCEPT the one being
-  // rendered inline. When the inline form is LDAP, Local Auth itself
-  // appears in the list (link to `/login?force-local=1` so the page
-  // re-renders with the local form inline).
+  // Provider list: every non-inline sign-in option, grouped by type.
+  // Passkey first, then Local (when not the inline form), then OIDC,
+  // SAML, LDAP. Alphabetical by name within each group.
   const providerButtons: ProviderButton[] = [];
+  if (env.WEBAUTHN_ENABLED) {
+    providerButtons.push({
+      kind: "passkey",
+      key: "passkey",
+      label: "Passkey",
+      href: "", // handled by <PasskeyButton/>, not a link
+    });
+  }
   if (inlineLdap && env.LOCAL_AUTH_ENABLED) {
     providerButtons.push({
+      kind: "local",
       key: "local",
       label: "Local Auth",
       href: `/login${nextParam}${nextParam ? "&" : "?"}force-local=1`,
@@ -156,16 +184,20 @@ export default async function LoginPage({
   }
   for (const p of oidcProviders) {
     providerButtons.push({
+      kind: "oidc",
       key: `oidc-${p.id}`,
       label: p.name,
+      tag: "OIDC",
       href: `/api/auth/oidc/${p.id}/initiate${nextParam}`,
       iconUrl: p.iconUrl,
     });
   }
   for (const p of dbSamlProviders) {
     providerButtons.push({
+      kind: "saml",
       key: `saml-${p.slug}`,
       label: p.name,
+      tag: "SAML",
       href: `/api/auth/saml/${p.slug}/login${nextParam}`,
     });
   }
@@ -173,16 +205,24 @@ export default async function LoginPage({
     // Skip the one that's the primary inline form already.
     if (inlineLdap && p.slug === inlineLdap.slug) continue;
     providerButtons.push({
+      kind: "ldap",
       key: `ldap-${p.slug}`,
       label: p.name,
+      tag: "LDAP",
       // LDAP needs an in-page credential prompt — clicking the button
       // re-renders the page with that provider's form inline.
       href: `/login${nextParam}${nextParam ? "&" : "?"}ldap=${encodeURIComponent(p.slug)}`,
     });
   }
 
+  providerButtons.sort((a, b) => {
+    const k = KIND_ORDER[a.kind] - KIND_ORDER[b.kind];
+    if (k !== 0) return k;
+    return a.label.localeCompare(b.label);
+  });
+
   const showLocalForm = env.LOCAL_AUTH_ENABLED && !inlineLdap;
-  const showProviderList = providerButtons.length > 0 || env.WEBAUTHN_ENABLED;
+  const showProviderList = providerButtons.length > 0;
 
   return (
     <>
@@ -272,24 +312,32 @@ export default async function LoginPage({
           </div>
 
           <div className="space-y-2">
-            {env.WEBAUTHN_ENABLED ? <PasskeyButton next={safeNext} /> : null}
-            {providerButtons.map((p) => (
-              <a
-                key={p.key}
-                href={p.href}
-                className="flex w-full items-center justify-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-4 py-2 text-sm font-medium hover:bg-[color:var(--color-bg-muted)]"
-              >
-                {p.iconUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={p.iconUrl}
-                    alt=""
-                    style={{ width: 20, height: 20, objectFit: "contain", display: "block" }}
-                  />
-                ) : null}
-                <span>{p.label}</span>
-              </a>
-            ))}
+            {providerButtons.map((p) =>
+              p.kind === "passkey" ? (
+                <PasskeyButton key={p.key} next={safeNext} />
+              ) : (
+                <a
+                  key={p.key}
+                  href={p.href}
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-4 py-2 text-sm font-medium hover:bg-[color:var(--color-bg-muted)]"
+                >
+                  {p.iconUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={p.iconUrl}
+                      alt=""
+                      style={{ width: 20, height: 20, objectFit: "contain", display: "block" }}
+                    />
+                  ) : null}
+                  <span>{p.label}</span>
+                  {p.tag ? (
+                    <span className="rounded bg-[color:var(--color-bg-muted)] px-1.5 py-0.5 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+                      {p.tag}
+                    </span>
+                  ) : null}
+                </a>
+              ),
+            )}
           </div>
         </div>
       ) : null}

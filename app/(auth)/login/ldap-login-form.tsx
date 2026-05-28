@@ -90,6 +90,12 @@ export function LdapLoginForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" aria-label={`Sign in with ${providerName}`}>
+      <div className="flex items-baseline gap-2">
+        <span className="text-sm font-medium">{providerName}</span>
+        <span className="rounded bg-[color:var(--color-bg-muted)] px-1.5 py-0.5 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+          LDAP
+        </span>
+      </div>
       <div>
         <label htmlFor={`ldap-username-${slug}`} className="block text-sm font-medium">
           Username
@@ -104,10 +110,6 @@ export function LdapLoginForm({
           className="mt-1 block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm focus:ring-2 focus:ring-[color:var(--color-accent)] focus:outline-none"
           placeholder="alice"
         />
-        <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
-          The username your directory recognises (sAMAccountName, uid, or email — your administrator
-          picks the lookup attributes).
-        </p>
       </div>
 
       <div>
