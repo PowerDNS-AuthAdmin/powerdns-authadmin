@@ -153,10 +153,6 @@ export default async function LoginPage({
 
   return (
     <>
-      <header className="mb-6">
-        <h1 className="text-3xl font-semibold tracking-tight">Sign in</h1>
-      </header>
-
       {appUrlCheck?.mismatch ? (
         <div
           role="alert"
@@ -274,13 +270,6 @@ export default async function LoginPage({
           <Link href="/signup" className="underline">
             Create an account
           </Link>
-        </p>
-      ) : null}
-
-      {forceLocalRequested ? (
-        <p className="mt-4 text-xs text-[color:var(--color-fg-muted)]">
-          Force-default OIDC bypassed for this visit. Remove <code>?force-local=1</code> from the
-          URL to return to the normal login flow.
         </p>
       ) : null}
 

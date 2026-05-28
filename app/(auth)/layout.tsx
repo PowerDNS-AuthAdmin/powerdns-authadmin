@@ -21,12 +21,13 @@ export default async function AuthLayout({ children }: Readonly<{ children: Reac
         <div className="absolute top-4 right-4">
           <ThemeToggle />
         </div>
-        {/* Wordmark wrapper matches the form max-width so the mark stays
-            visually anchored on every viewport. `min(100%, 350px)` keeps it
-            inside the wrapper on narrow phones (where 500 px overflowed) while
-            capping at 350 px on desktop. */}
-        <div className="mb-8 flex w-full max-w-lg justify-center">
-          <BrandMark siteName={siteName} brandLogoUrl={brandLogoUrl} width="min(100%, 350px)" />
+        {/* Wordmark wrapper caps width responsively — 350 px on phones (where
+            the 500 px desktop size overflowed and clipped the trailing "Admin"),
+            500 px from sm+. The brandmark itself fills the wrapper. */}
+        <div className="mb-8 flex w-full justify-center px-4">
+          <div className="w-full max-w-[350px] sm:max-w-[500px]">
+            <BrandMark siteName={siteName} brandLogoUrl={brandLogoUrl} width="100%" />
+          </div>
         </div>
         <div className="w-full max-w-lg">{children}</div>
         {supportContact ? (
