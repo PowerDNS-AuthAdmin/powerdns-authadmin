@@ -116,8 +116,11 @@ const envSchema = z.object({
   REDIS_URL: z.string().url().optional(),
 
   // --- Sessions ---
-  // Session TTL in seconds. Default: 12h. Configurable per-deployment.
-  SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(43200),
+  // Session TTL in seconds. Default: 12h. Bounded to a sane window
+  // (5 minutes ≤ TTL ≤ 30 days) so a typo like `SESSION_TTL_SECONDS=5`
+  // can't silently log every operator out after a microsleep, and
+  // values past 30 days can't accumulate unbounded session rows in DB.
+  SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(2_592_000).default(43200),
   // Cookie domain. Default: derive from APP_URL host. Set explicitly for
   // multi-subdomain SSO scenarios.
   COOKIE_DOMAIN: z.string().optional(),
