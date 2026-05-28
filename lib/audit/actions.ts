@@ -150,25 +150,21 @@ export const AUDIT_ACTIONS = [
   "provisioning.skipped",
   "provisioning.failed",
 
-  // IdP group → permission resolution (#85). One row per sign-in
-  // when a mapping references a role slug that no longer exists.
-  // Protocol-neutral: OIDC, SAML, and LDAP emit it with `provider`
-  // in the `after` snapshot. The pre-#85 `assignment_added` /
-  // `assignment_removed` actions are gone — derived permissions
-  // live on the session, not on `role_assignments`, so there are no
-  // per-row events to audit.
+  // IdP group → permission resolution. One row per sign-in when a
+  // mapping references a role slug that no longer exists. Protocol-
+  // neutral: OIDC, SAML, and LDAP all emit it with `provider` in the
+  // `after` snapshot.
   "auth.group_sync.mapping_unresolved",
-  // Live recompute of IdP-derived permissions on the token-auth path
-  // (#85 phase 2). One row per cache miss — at most one per user per
+  // Live recompute of IdP-derived permissions on the token-auth path.
+  // One row per cache miss — at most one per user per
   // `IDP_PERMS_CACHE_TTL_SECONDS` window. `after` carries the provider
   // slug + type and the count of derived ability sources, so audit
   // search can spot "a user's perms shifted under them" patterns.
   "auth.token.idp_perms_refreshed",
 
-  // App-DB backup (#84). Super-admin-gated export + restore of the
-  // entire app database (excluding PDNS zone data). The `after`
-  // snapshot carries row counts per table — useful for audit search
-  // to spot empty / partial exports.
+  // Super-admin-gated app-DB backup. Excludes PDNS zone data and
+  // symmetric secrets. The `after` snapshot carries row counts per
+  // table — useful for audit search to spot empty / partial exports.
   "system.backup.exported",
   "system.backup.restored",
 ] as const;

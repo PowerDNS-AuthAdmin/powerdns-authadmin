@@ -237,8 +237,8 @@ export async function GET(
   await recordSuccessfulLogin(user.id, ip ?? null);
 
   // Compute the IdP-derived permission set for this sign-in. The result
-  // gets persisted onto the session row in `startSession` below — not into
-  // `role_assignments`, per #85. Env-source providers (no id, no mappings)
+  // gets persisted onto the session row in `startSession` below — not
+  // into `role_assignments`. Env-source providers (no id, no mappings)
   // produce an empty array.
   let derivedPermissions: Awaited<ReturnType<typeof computeGroupSync>>["derived"] = [];
   if (provider.id) {
@@ -279,7 +279,7 @@ export async function GET(
             clientId: identity.oidcLogout.clientId,
             // Refresh token is encrypted at write time; `getCurrentUser`'s
             // token-auth path decrypts to call the IdP's userinfo for a
-            // live groups recheck (#85 phase 2).
+            // live groups recheck.
             refreshTokenEncrypted: identity.oidcLogout.refreshToken
               ? encrypt(identity.oidcLogout.refreshToken, "oidc-refresh-token")
               : null,

@@ -123,31 +123,6 @@ rows that were written under them. The vocabulary change only affects new
 rows. Audit search dashboards that filter on the old action names should be
 updated.
 
-### Local dev databases that already ran the unreleased intermediate migrations
-
-If you'd been running off `refactor/authentication-admin-unification` (or
-the SAML / LDAP feature branches) before this release, your dev DB may
-have applied intermediate migrations (`0006_…`, `0007_saml_providers`,
-`0008_ldap_providers`, `0009_…`) that have been **squashed away** into a
-single `0004` baseline.
-
-Production deployments off `origin/main` are unaffected — they run only the
-one new `0004` migration. Dev DBs that have the squashed migrations
-"applied" in their journal will reject the new `0004` because the schema
-already has the target shape.
-
-**Action for dev**: drop your local DB and re-init:
-
-```sh
-# SQLite
-rm dev.db
-npm run db:migrate
-
-# Postgres
-docker compose exec postgres psql -U pda -c 'DROP DATABASE pda; CREATE DATABASE pda;'
-npm run db:migrate
-```
-
 ### Backup admin (super-admin only)
 
 A new `/admin/backup` page exposes a JSON export of the app DB. Permission:

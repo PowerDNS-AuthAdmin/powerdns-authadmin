@@ -559,11 +559,11 @@ export async function completeAuthorization(input: {
     typeof (tokens as unknown as { id_token?: unknown }).id_token === "string"
       ? (tokens as unknown as { id_token: string }).id_token
       : null;
-  // Refresh token (#85): captured when the IdP issued one (i.e. the
-  // configured scopes included `offline_access` and the IdP honoured
-  // it). Stored encrypted on the session so the token-auth path can
-  // refresh the groups claim at API-token use time. Null when absent
-  // — token use falls back to the latest session snapshot instead.
+  // Refresh token — captured when the IdP issued one (i.e. the configured
+  // scopes included `offline_access` and the IdP honoured it). Stored
+  // encrypted on the session so the token-auth path can refresh the groups
+  // claim at API-token use time. Null when absent — token use falls back
+  // to the latest session snapshot instead.
   const refreshToken =
     typeof (tokens as unknown as { refresh_token?: unknown }).refresh_token === "string"
       ? (tokens as unknown as { refresh_token: string }).refresh_token
@@ -741,21 +741,19 @@ export function describeOidcError(err: unknown): OidcErrorDetail {
 export { emailDomainAllowed, resolveAllowedDomains } from "../email-domain-allowlist";
 
 /**
- * #85 phase 2 — fetch the user's current group claim by exchanging the
- * session's stored refresh token for a new access token, then calling
- * the IdP's userinfo endpoint. Used by the token-auth path to live-
- * recompute IdP-derived permissions at API token use time.
+ * Fetch the user's current group claim by exchanging the session's stored
+ * refresh token for a new access token, then calling the IdP's userinfo
+ * endpoint. Used by the token-auth path to live-recompute IdP-derived
+ * permissions at API token use time.
  *
  * Returns `null` on any failure (provider missing/disabled, refresh
- * rejected by the IdP, userinfo error). The caller (`get-current-user`'s
- * token path) then falls back to the session-snapshot path bounded by
- * `TOKEN_IDP_FALLBACK_TTL_SECONDS`.
+ * rejected by the IdP, userinfo error). The caller falls back to the
+ * session-snapshot path bounded by `TOKEN_IDP_FALLBACK_TTL_SECONDS`.
  *
  * The refresh token is consumed but not rotated back into the session
- * here — many IdPs rotate refresh tokens on every use, so storing a
- * stale token is no worse than what we already have. A follow-up could
- * persist the new refresh token if the IdP returns one; today the
- * staleness gracefully self-heals at next user sign-in.
+ * here. Many IdPs rotate refresh tokens on every use, so holding a stale
+ * token is no worse than what we already have; the staleness self-heals
+ * on the user's next sign-in.
  */
 export async function fetchOidcGroupsForUser(
   slug: string,

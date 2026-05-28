@@ -36,8 +36,8 @@ export interface VerifiedIdentity {
      * Captured plaintext from the provider's token-exchange response;
      * the callback handler MUST encrypt before persisting on the
      * session (`lib/crypto/encryption.ts`). Used by the token-auth
-     * path to live-refresh the groups claim at API token use time
-     * (#85 phase 2). Null when the IdP didn't issue one.
+     * path to live-refresh the groups claim at API token use time.
+     * Null when the IdP didn't issue one.
      */
     refreshToken?: string | null;
   };

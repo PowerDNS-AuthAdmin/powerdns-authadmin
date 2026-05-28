@@ -52,9 +52,9 @@ export const sessions = pgTable(
     oidcClientId: text("oidc_client_id"),
 
     /**
-     * Per-session snapshot of permissions derived from the user's IdP groups
-     * at sign-in (ADR-incoming for #85). The ability builder folds these
-     * into the user's effective set alongside admin-issued `role_assignments`.
+     * Per-session snapshot of permissions derived from the user's IdP
+     * groups at sign-in. The ability builder folds these into the user's
+     * effective set alongside admin-issued `role_assignments`.
      *
      * Why on the session and not on the user: IdP group membership is
      * ephemeral. Persisting derived rows on the user leaves stale grants
@@ -81,18 +81,18 @@ export const sessions = pgTable(
      * `lib/crypto/encryption.ts`). Populated only when the OIDC sign-in
      * returned a refresh token. Used by the token-auth path to re-fetch
      * the user's groups claim at API-token use time — the basis for
-     * "tokens follow real permissions" semantics (#85). Null for
-     * local / SAML / LDAP sessions, and for OIDC sessions where the
-     * provider didn't include `offline_access` scope.
+     * "tokens follow real permissions" semantics. Null for local / SAML /
+     * LDAP sessions, and for OIDC sessions where the provider didn't
+     * include `offline_access` scope.
      */
     oidcRefreshTokenEncrypted: text("oidc_refresh_token_encrypted"),
 
     /**
      * Which IdP family minted this session — `"oidc" | "saml" | "ldap"`
-     * for SSO sessions, `null` for local-auth sessions. Phase 2 of #85
-     * needs this so the token-auth path knows which recompute strategy
-     * to apply (refresh-token for OIDC, service-account-bind for LDAP,
-     * session-snapshot fallback for SAML).
+     * for SSO sessions, `null` for local-auth sessions. The token-auth
+     * path reads this to pick the recompute strategy (refresh-token
+     * for OIDC, service-account-bind for LDAP, session-snapshot
+     * fallback for SAML).
      */
     idpProviderType: text("idp_provider_type"),
 

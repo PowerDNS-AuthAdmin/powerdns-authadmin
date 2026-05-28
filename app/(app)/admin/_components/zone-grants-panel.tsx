@@ -3,14 +3,11 @@
 /**
  * app/(app)/admin/_components/zone-grants-panel.tsx
  *
- * Per-principal zone-grant management. Renders the same surface for both
- * user principals (admin /admin/users/[id]) and team principals (admin
- * /admin/teams/[id]) — the only differences are which API endpoint to
- * call, the empty-state copy, and the "what does this grant do?" wording.
- *
- * Themed `Checkbox` instead of native — the native control is the wrong
- * size + unaligned + ugly per design, and was specifically flagged for
- * this panel and the TSIG install-into-domains list.
+ * Per-principal zone-grant management. Renders the same surface for
+ * both user principals (admin /admin/users/[id]) and team principals
+ * (admin /admin/teams/[id]) — the only differences are which API
+ * endpoint to call, the empty-state copy, and the "what does this
+ * grant do?" wording.
  *
  * Permission vocab is passed in from the server component so the
  * `lib/rbac/permissions` import boundary isn't crossed by a client file.

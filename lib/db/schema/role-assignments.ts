@@ -38,10 +38,9 @@ export const roleAssignments = pgTable(
     // The user who created this assignment, for audit / revocation. NULL when
     // the assignment was created by the seed script or system boot.
     //
-    // After #85: role_assignments holds admin-issued rows only. IdP-derived
-    // permissions live on `sessions.derived_permissions`. The previous
-    // `provider_id` column was dropped in the same migration that introduced
-    // session-scoped derivation.
+    // `role_assignments` holds admin-issued rows only. IdP-derived
+    // permissions live on `sessions.derived_permissions` — they don't
+    // persist on the user.
     createdBy: uuid("created_by").references(() => users.id, {
       onDelete: "set null",
     }),

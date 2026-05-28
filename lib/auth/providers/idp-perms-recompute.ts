@@ -2,7 +2,7 @@
  * lib/auth/providers/idp-perms-recompute.ts
  *
  * The orchestrator the token-auth path calls to live-recompute
- * IdP-derived permissions at API token use time (#85 phase 2).
+ * IdP-derived permissions at API token use time.
  *
  * Strategy per protocol:
  *   - **LDAP** — service-account bind + search via
@@ -60,7 +60,7 @@ interface RecomputeInput {
 export async function recomputeIdpPermissions(
   input: RecomputeInput,
 ): Promise<readonly AbilitySource[] | null> {
-  // SAML has no back-channel — phase 2 doesn't handle it.
+  // SAML has no back-channel — fall back to the session-snapshot path.
   if (input.providerType === "saml") return null;
 
   const cached = getIdpPerms(input.userId, input.providerType, input.providerSlug);

@@ -6,7 +6,6 @@
  * carries the groups) but the resolution is identical. Protocol-
  * agnostic by design.
  *
- * #85 model:
  *   - At sign-in, `computeGroupSync` reads the raw groups input + the
  *     provider's `group_mappings` and returns an array of `AbilitySource`
  *     entries (one per matched mapping).
@@ -15,10 +14,9 @@
  *   - The ability builder folds the session column into the request's
  *     effective permission set alongside admin-issued `role_assignments`.
  *
- * No DB writes happen here. The previous `applyGroupSync` that mutated
- * `role_assignments` rows is gone — provider-derived permissions don't
- * persist on the user, they live and die with the session (and tokens
- * re-check at use time; see `getCurrentUser`'s token path).
+ * No DB writes happen here. Provider-derived permissions don't persist on
+ * the user — they live and die with the session, and tokens re-check at
+ * use time via `getCurrentUser`'s token path.
  *
  * Unresolvable mappings (missing role slug, missing team / server)
  * surface as `unresolved` entries on the result so the caller can audit
@@ -32,16 +30,7 @@ import type { Permission } from "@/lib/rbac/permissions";
 import { readGroupClaim, type GroupMapping } from "./group-sync-pure";
 
 export { readGroupClaim } from "./group-sync-pure";
-export type {
-  GroupMapping,
-  /** @deprecated Use `GroupMapping`. */
-  OidcGroupMapping,
-  ResolvedAssignment,
-  GroupSyncDiff,
-} from "./group-sync-pure";
-// `diffGroupSync` is no longer used at runtime after #85 but stays in the
-// pure module for the integration tests + as a building block for any
-// future "live session refresh" work.
+export type { GroupMapping, ResolvedAssignment, GroupSyncDiff } from "./group-sync-pure";
 export { diffGroupSync } from "./group-sync-pure";
 
 /**

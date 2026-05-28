@@ -1,11 +1,9 @@
 /**
  * app/(app)/admin/backup/page.tsx
  *
- * Backup admin surface (#84). Super-admin-gated. Exports the entire
- * app DB (no zone data) as a single JSON file. Restore is documented
- * but the wired-up UI lands in a follow-up — operators wanting to
- * restore today should use `pg_restore` / `sqlite3 .restore` against
- * the dump (the JSON format is operator-readable + scriptable).
+ * Super-admin-gated backup admin surface. Exports the entire app DB
+ * (no zone data) as a single JSON file. Restore is a scripted operation
+ * documented on this page; the interactive restore UI is unimplemented.
  */
 
 import type { Metadata } from "next";

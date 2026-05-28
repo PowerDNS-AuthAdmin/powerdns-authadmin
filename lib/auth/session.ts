@@ -54,8 +54,8 @@ export async function startSession(input: {
      * Encrypted refresh token (caller encrypts via
      * `lib/crypto/encryption.ts`; the column stores ciphertext). Used
      * by the token-auth path to re-fetch groups at API token use time
-     * — the basis for the "tokens follow real permissions" model in
-     * #85. Null when the IdP didn't issue a refresh token.
+     * — the basis for the "tokens follow real permissions" model.
+     * Null when the IdP didn't issue a refresh token.
      */
     refreshTokenEncrypted?: string | null;
   };
@@ -74,10 +74,9 @@ export async function startSession(input: {
   }>;
   /**
    * IdP family + slug for this sign-in. Persisted on the session so
-   * the token-auth path can pick the right live-recompute strategy
-   * (#85 phase 2): refresh-token for OIDC, service-account-bind for
-   * LDAP, session-snapshot fallback for SAML. Omit (or pass null) for
-   * local-auth sessions.
+   * the token-auth path can pick the right live-recompute strategy:
+   * refresh-token for OIDC, service-account-bind for LDAP,
+   * session-snapshot fallback for SAML. Omit for local-auth sessions.
    */
   idp?: {
     type: "oidc" | "saml" | "ldap";

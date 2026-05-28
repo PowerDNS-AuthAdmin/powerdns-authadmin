@@ -163,8 +163,8 @@ export async function POST(
 
   await recordSuccessfulLogin(user.id, ip ?? null);
 
-  // Compute the IdP-derived permission set for this sign-in (#85). The
-  // result is persisted onto the session row in `startSession`.
+  // Compute the IdP-derived permission set for this sign-in. The result
+  // is persisted onto the session row in `startSession`.
   let derivedPermissions: Awaited<ReturnType<typeof computeGroupSync>>["derived"] = [];
   if (provider.groupMappings && provider.groupMappings.length > 0) {
     try {

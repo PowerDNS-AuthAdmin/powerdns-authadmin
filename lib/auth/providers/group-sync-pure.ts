@@ -36,14 +36,6 @@ export interface GroupMapping {
   scopeId: string | null;
 }
 
-/**
- * @deprecated Use `GroupMapping`. Kept as an alias because the
- *   `oidc_providers.group_mappings` column's row type historically
- *   used this name; consumers cross-provider should reference
- *   `GroupMapping` directly.
- */
-export type OidcGroupMapping = GroupMapping;
-
 export interface ResolvedAssignment {
   roleId: string;
   scopeType: "global" | "team" | "zone" | "server";
@@ -61,11 +53,10 @@ export interface GroupSyncDiff {
  * Diff the target set (from group mappings) against the current set (from
  * provider-managed role assignments). Pure — exported for tests.
  *
- * Pre-#85 this drove the writer that mutated `role_assignments` rows. After
- * #85, IdP-derived permissions live on `sessions.derived_permissions` and
- * the diff is never written to the user-level table. Kept here for
- * historical tests + because the same diff shape may be reused later for
- * "session refresh on group change" follow-ups.
+ * Not used at runtime today — IdP-derived permissions live on
+ * `sessions.derived_permissions` and don't persist on the user, so there's
+ * no row set to diff against. Kept here as a building block for any future
+ * "live session refresh" path that needs the same shape.
  *
  * Keys are `(roleId, scopeType, scopeId)` triples; equality is exact match.
  * A user picking up the same role at different scopes is two separate rows.

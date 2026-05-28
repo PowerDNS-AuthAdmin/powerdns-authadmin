@@ -2,7 +2,7 @@
  * lib/db/schema/ldap-providers.ts
  *
  * DB-backed LDAP identity providers (ADR-0020). One row per directory; the
- * admin UI manages them under /admin/ldap-providers. There is no env fallback
+ * admin UI manages them under /admin/auth-providers/ldap. There is no env fallback
  * for LDAP — every directory is configured at runtime via the admin UI or
  * a `ldap:` block in `provisioning.yaml`.
  *

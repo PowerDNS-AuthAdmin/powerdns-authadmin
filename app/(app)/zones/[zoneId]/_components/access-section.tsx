@@ -12,7 +12,7 @@
  *      nothing is hardcoded.
  *
  *   2. Teams with an explicit `zone_grants` row on this (server, zone)
- *      pair (#75). Members of the team inherit the listed permissions.
+ *      pair. Members of the team inherit the listed permissions.
  *
  *   3. Users with an explicit, direct `zone_grants` row on this
  *      (server, zone). The role / team paths above show the indirect

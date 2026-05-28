@@ -87,9 +87,9 @@ export async function listSessionsForUser(userId: string): Promise<Session[]> {
 /**
  * The user's most recent session (active OR expired), ordered by
  * `lastSeenAt DESC`. Used by the token-auth path to read the latest
- * known `derived_permissions` snapshot for IdP-derived perms (#85):
- * tokens follow current real permissions, and the latest session is
- * the freshest proxy when the IdP isn't reachable for a live recompute.
+ * known `derived_permissions` snapshot: tokens follow current real
+ * permissions, and the latest session is the freshest proxy when
+ * the IdP isn't reachable for a live recompute.
  *
  * Returns null when the user has never signed in (no session row
  * exists). Caller is responsible for the `lastSeenAt` staleness check

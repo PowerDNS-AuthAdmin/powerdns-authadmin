@@ -106,10 +106,10 @@ export async function getCurrentUser(): Promise<AuthenticatedRequest | null> {
     // to keep the `lib/db → lib/rbac` boundary one-way; values are
     // validated at write time on admin routes).
     const adminSources = assignments as readonly AbilitySource[];
-    // IdP-derived permissions snapshotted onto the session at sign-in
-    // (#85). Folded in as additional ability sources — the ability
-    // builder doesn't distinguish between admin- and IdP-issued rows
-    // once they're in the source list.
+    // IdP-derived permissions snapshotted onto the session at sign-in.
+    // Folded in as additional ability sources — the ability builder
+    // doesn't distinguish between admin- and IdP-issued rows once
+    // they're in the source list.
     const derivedSources = session.derivedPermissions as readonly AbilitySource[];
     const sources: readonly AbilitySource[] = [...adminSources, ...derivedSources];
     const ability = buildAbility(sources);
@@ -185,12 +185,12 @@ async function resolvePresentedToken(
   // `string[]` but values are validated at write time).
   const adminSources = narrowed as readonly AbilitySource[];
 
-  // IdP-derived permissions for the token. Two-tier (#85):
+  // IdP-derived permissions for the token. Two-tier:
   //
-  //   1. **Live recompute** (phase 2) — when the latest session was
-  //      minted via an IdP we can back-channel (OIDC with a refresh
-  //      token, or LDAP with a service account), re-fetch the user's
-  //      current groups from the IdP and materialise. Cached per
+  //   1. **Live recompute** — when the latest session was minted via
+  //      an IdP we can back-channel (OIDC with a refresh token, LDAP
+  //      with a service account), re-fetch the user's current groups
+  //      from the IdP and materialise. Cached per
   //      `IDP_PERMS_CACHE_TTL_SECONDS` so a burst of token calls
   //      doesn't hammer the IdP.
   //

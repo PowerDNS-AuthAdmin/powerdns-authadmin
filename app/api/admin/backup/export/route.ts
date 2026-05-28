@@ -1,10 +1,9 @@
 /**
  * app/api/admin/backup/export/route.ts
  *
- * Issue #84: super-admin-only JSON export of the app DB. Excludes
- * zone data (PDNS owns it) and the symmetric secrets
- * (`APP_SECRET_KEY` / `APP_ENCRYPTION_KEY`, which stay env-side and
- * are documented separately in the generated RESTORE.md).
+ * Super-admin-only JSON export of the app DB. Excludes zone data
+ * (PDNS owns it) and the symmetric secrets (`APP_SECRET_KEY` /
+ * `APP_ENCRYPTION_KEY`, which stay env-side).
  *
  * Encrypted columns (OIDC client secret, SAML SP private key, LDAP
  * bind password, refresh tokens) are exported as their ciphertext.

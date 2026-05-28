@@ -122,20 +122,20 @@ const envSchema = z.object({
   // multi-subdomain SSO scenarios.
   COOKIE_DOMAIN: z.string().optional(),
 
-  // --- IdP-derived permissions (#85) ---
+  // --- IdP-derived permissions ---
   // How old the latest session's `derived_permissions` snapshot is allowed
   // to be before the token-auth path stops using it. After this window, an
   // API token used by an OIDC/SAML/LDAP user falls back to admin-issued
   // permissions only — the IdP-derived perms drop off until the user
   // signs in again (which re-mints the snapshot). Default: 24h.
   TOKEN_IDP_FALLBACK_TTL_SECONDS: z.coerce.number().int().positive().default(86400),
-  // Cache window for the live IdP-perms recompute (#85 phase 2). When a
-  // token authenticates for an OIDC/LDAP user, we re-fetch their current
-  // groups from the IdP (OIDC: refresh-token → userinfo; LDAP: service-
-  // account bind + search) and cache the result for this many seconds so
-  // a burst of API calls doesn't hammer the IdP. Lower → tighter
-  // freshness, more IdP load. Higher → looser freshness, less load.
-  // Default: 60s.
+  // Cache window for the live IdP-perms recompute. When a token
+  // authenticates for an OIDC/LDAP user, we re-fetch their current
+  // groups from the IdP (OIDC: refresh-token → userinfo; LDAP:
+  // service-account bind + search) and cache the result for this many
+  // seconds so a burst of API calls doesn't hammer the IdP. Lower →
+  // tighter freshness, more IdP load. Higher → looser freshness, less
+  // load. Default: 60s.
   IDP_PERMS_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
 
   // --- Local auth ---

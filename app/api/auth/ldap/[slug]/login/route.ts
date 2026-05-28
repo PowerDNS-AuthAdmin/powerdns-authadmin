@@ -2,7 +2,7 @@
  * app/api/auth/ldap/[slug]/login/route.ts
  *
  * POST /api/auth/ldap/<slug>/login — direct-bind sign-in against an LDAP
- * provider configured under /admin/ldap-providers.
+ * provider configured under /admin/auth-providers/ldap.
  *
  * Body: `{ username, password, captchaToken? }`.
  *
@@ -192,7 +192,7 @@ export async function POST(
 
   await recordSuccessfulLogin(user.id, ip ?? null);
 
-  // Compute the IdP-derived permission set for this sign-in (#85).
+  // Compute the IdP-derived permission set for this sign-in.
   // `claims.groups` is the array of group memberships we extracted from
   // the LDAP user entry (or the optional second search). The result is
   // persisted onto the session row in `startSession`.

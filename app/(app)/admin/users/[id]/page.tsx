@@ -29,7 +29,7 @@ import { SectionTabs, SectionTabPanel } from "@/components/ui/section-tabs";
 import { ZONE_GRANT_PERMISSIONS } from "@/lib/rbac/zone-grant-permissions";
 import { UserActions } from "../_components/user-actions";
 import { RoleAssignmentsPanel } from "../_components/role-assignments-panel";
-import { ZoneGrantsPanel } from "../_components/zone-grants-panel";
+import { ZoneGrantsPanel } from "../../_components/zone-grants-panel";
 import { SessionsPanel } from "../_components/sessions-panel";
 import { MfaPanel } from "../_components/mfa-panel";
 import { MfaRequiredOverride } from "../_components/mfa-required-override";

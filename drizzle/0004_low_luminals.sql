@@ -55,10 +55,10 @@ CREATE TABLE "saml_providers" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
--- #85: wipe provider-derived rows BEFORE dropping the column, so we don't
--- silently preserve stale grants with their provenance stripped. Affected
--- users re-materialise their permissions into the new
--- `sessions.derived_permissions` on next sign-in.
+-- Wipe provider-derived rows before dropping the column. Without this they
+-- would survive the column drop with their provenance stripped, leaving
+-- stale grants that look admin-issued. Affected users re-materialise their
+-- permissions onto `sessions.derived_permissions` on next sign-in.
 DELETE FROM "role_assignments" WHERE "provider_id" IS NOT NULL;--> statement-breakpoint
 ALTER TABLE "role_assignments" DROP CONSTRAINT "role_assignments_provider_id_oidc_providers_id_fk";
 --> statement-breakpoint
@@ -82,10 +82,9 @@ ALTER TABLE "oidc_providers" DROP COLUMN "force_default";--> statement-breakpoin
 ALTER TABLE "role_assignments" DROP COLUMN "provider_id";--> statement-breakpoint
 ALTER TABLE "zone_grants" ADD CONSTRAINT "zone_grants_principal_check" CHECK (("zone_grants"."user_id" IS NULL) <> ("zone_grants"."team_id" IS NULL));--> statement-breakpoint
 
--- #74: rename `oidc.read` / `oidc.manage` permission strings inside existing
--- `roles.permissions` arrays to the protocol-neutral `auth.read` /
--- `auth.manage` form. Now that SAML + LDAP share the same admin surface,
--- the OIDC-prefixed names are misleading.
+-- Rewrite `oidc.read` / `oidc.manage` permission strings inside existing
+-- `roles.permissions` arrays to `auth.read` / `auth.manage`. The same gates
+-- now cover OIDC, SAML, and LDAP at the unified admin surface.
 UPDATE "roles"
 SET "permissions" = (
   SELECT jsonb_agg(

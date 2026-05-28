@@ -4,8 +4,7 @@
  * components/ui/section-tabs.tsx
  *
  * URL-hash-driven section tabs. Used by /profile and the admin
- * user-edit page (and any future tabbed surface) — extracted out of
- * the profile-specific module once a second consumer landed.
+ * user-edit page.
  *
  *   <SectionTabs tabs={[…]} defaultTab="account">
  *     <SectionTabPanel id="account">…</SectionTabPanel>

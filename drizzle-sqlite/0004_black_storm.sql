@@ -59,10 +59,9 @@ CREATE TABLE `auth_provider_slugs` (
 	`created_at` integer NOT NULL
 );
 --> statement-breakpoint
--- #85: wipe provider-derived rows BEFORE the role_assignments table
--- recreate. Otherwise the INSERT...SELECT below would silently preserve
--- them with the provider_id column stripped, leaving stale grants that
--- look admin-issued.
+-- Wipe provider-derived rows before the role_assignments table-recreate
+-- below. Otherwise the INSERT...SELECT would preserve them with the
+-- provider_id column stripped, leaving stale grants that look admin-issued.
 DELETE FROM `role_assignments` WHERE `provider_id` IS NOT NULL;--> statement-breakpoint
 PRAGMA foreign_keys=OFF;--> statement-breakpoint
 CREATE TABLE `__new_role_assignments` (
@@ -105,8 +104,8 @@ CREATE TABLE `__new_zone_grants` (
 	CONSTRAINT "zone_grants_principal_check" CHECK(("__new_zone_grants"."user_id" IS NULL) <> ("__new_zone_grants"."team_id" IS NULL))
 );
 --> statement-breakpoint
--- team_id didn't exist on the source `zone_grants` table; hand-edited
--- from drizzle-kit's emit, which assumed it did.
+-- team_id didn't exist on the source `zone_grants` table — null it in the
+-- copy. (drizzle-kit's auto-emit assumed the source column already existed.)
 INSERT INTO `__new_zone_grants`("id", "user_id", "team_id", "server_id", "zone_name", "permissions", "created_by", "created_at", "updated_at") SELECT "id", "user_id", NULL, "server_id", "zone_name", "permissions", "created_by", "created_at", "updated_at" FROM `zone_grants`;--> statement-breakpoint
 DROP TABLE `zone_grants`;--> statement-breakpoint
 ALTER TABLE `__new_zone_grants` RENAME TO `zone_grants`;--> statement-breakpoint
@@ -121,10 +120,11 @@ ALTER TABLE `sessions` ADD `idp_provider_type` text;--> statement-breakpoint
 ALTER TABLE `sessions` ADD `idp_provider_slug` text;--> statement-breakpoint
 ALTER TABLE `oidc_providers` DROP COLUMN `force_default`;--> statement-breakpoint
 
--- #74: rename `oidc.read` / `oidc.manage` permission strings inside existing
--- `roles.permissions` JSON arrays. SQLite stores JSON as text — do the
--- substitution at the string level (no jsonb_agg available). The replace is
--- scoped to the exact quoted tokens so adjacent permissions can't be mangled.
+-- Rewrite `oidc.read` / `oidc.manage` permission strings inside existing
+-- `roles.permissions` JSON arrays to `auth.read` / `auth.manage`. SQLite
+-- stores the JSON as text — do the substitution at the string level (no
+-- jsonb_agg available). The replace is scoped to the exact quoted tokens
+-- so adjacent permissions can't be mangled.
 UPDATE `roles`
 SET `permissions` = REPLACE(REPLACE(`permissions`, '"oidc.manage"', '"auth.manage"'), '"oidc.read"', '"auth.read"')
 WHERE `permissions` LIKE '%"oidc.read"%' OR `permissions` LIKE '%"oidc.manage"%';

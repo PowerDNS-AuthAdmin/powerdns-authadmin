@@ -13,10 +13,7 @@ super-admin-gated app-DB backup export. See [`UPGRADING.md`](./UPGRADING.md)
 for operator actions.
 
 **Migration**: one new SQL file per dialect (`drizzle/0004_*.sql` and
-`drizzle-sqlite/0004_*.sql`). Runs at boot. The unreleased intermediate
-migrations from the auth-providers feature branches were squashed away
-into this single baseline — dev DBs that ran the intermediates must
-re-init (see UPGRADING).
+`drizzle-sqlite/0004_*.sql`). Runs at boot.
 
 ### Added — teams: per-zone grants (#75)
 

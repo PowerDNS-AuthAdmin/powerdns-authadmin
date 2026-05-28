@@ -2,8 +2,8 @@
  * lib/auth/providers/idp-perms-cache.ts
  *
  * In-memory TTL cache for IdP-derived permissions on the token-auth
- * path (#85 phase 2). Keyed by `(userId | providerType:providerSlug)`,
- * stores a frozen `AbilitySource[]` snapshot plus an `expiresAt`.
+ * path. Keyed by `(userId | providerType:providerSlug)`, stores a
+ * frozen `AbilitySource[]` snapshot plus an `expiresAt`.
  *
  * Why in-memory: a burst of API token calls from the same user
  * shouldn't hammer the IdP (LDAP service-account search every request

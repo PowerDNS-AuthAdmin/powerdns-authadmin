@@ -70,7 +70,7 @@ export const oidcProviders = pgTable(
      *. `null` until the first Test. Stored as jsonb:
      *   { fetchedAt: ISO string, ok: boolean, reason?: string }
      * Auto-refresh isn't wired — operators hit Test on
-     * /admin/oidc-providers when they want a fresh check. The cache
+     * /admin/auth-providers/oidc when they want a fresh check. The cache
      * lets the list show the last known state without probing on
      * every page render (which would round-trip the IdP each time).
      */
