@@ -46,15 +46,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json ./
 
+# `npm ci` only — it installs strictly from the committed lockfile, so the
+# build is reproducible and every dependency version is hash-pinned via
+# package-lock.json. No `npm install` fallback: the lockfile is committed,
+# and an image that silently un-pinned-installs on a missing lock would be
+# a supply-chain regression (OpenSSF Scorecard "Pinned-Dependencies").
 RUN --mount=type=cache,target=/root/.npm \
-    if [ -f package-lock.json ]; then \
-      npm ci --include=optional; \
-    else \
-      echo "[builder] package-lock.json missing — falling back to npm install. Commit the generated lockfile to lock future builds."; \
-      npm install --include=optional --no-audit --no-fund; \
-    fi
+    npm ci --include=optional
 
 COPY . .
 
@@ -98,7 +98,11 @@ RUN chown -R 65532:65532 /stage && \
 
 
 # --- Stage 3: runner (distroless) -------------------------------------------
-FROM gcr.io/distroless/nodejs24-debian12:nonroot AS runner
+# Digest-pinned like the builder/fs-prep stages above (supply-chain
+# reproducibility; OpenSSF Scorecard "Pinned-Dependencies"). This is the
+# multi-arch index digest for :nonroot — bump it alongside the base-image
+# refresh that updates the node:24-bookworm-slim digests.
+FROM gcr.io/distroless/nodejs24-debian12:nonroot@sha256:14d42e2511532589a7c7e01a753667a74fcc96266e137e8125006b87b0c32d0a AS runner
 
 ENV NODE_ENV=production
 ENV PORT=3000

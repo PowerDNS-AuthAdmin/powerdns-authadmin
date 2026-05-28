@@ -27,7 +27,9 @@ const PROBE_TIMEOUT_MS = 5_000;
  */
 const guardedProbeFetch = makeGuardedFetch(checkOidcIssuerUrlSafe) as unknown as typeof fetch;
 
-export type ProbeResult = { ok: true } | { ok: false; reason: ProbeFailureReason };
+export type ProbeResult =
+  | { ok: true; endSessionEndpoint: string | null }
+  | { ok: false; reason: ProbeFailureReason };
 
 export type ProbeFailureReason =
   | "transport"
@@ -89,7 +91,16 @@ export async function probeOidcDiscovery(
     return { ok: false, reason: "issuer-mismatch" };
   }
 
-  return { ok: true };
+  // RP-initiated-logout diagnostic. When the IdP doesn't advertise an
+  // `end_session_endpoint`, /api/auth/logout falls back to the local
+  // `/login?signed-out=1` redirect — which combined with forceDefault
+  // OIDC re-bouncing makes sign-out appear to do nothing. Surface the
+  // missing endpoint to the admin UI so operators can fix it (Keycloak:
+  // enable Front Channel Logout; Authentik: SAML/OIDC logout flow).
+  const endSessionRaw = (body as Record<string, unknown>)["end_session_endpoint"];
+  const endSessionEndpoint = typeof endSessionRaw === "string" ? endSessionRaw : null;
+
+  return { ok: true, endSessionEndpoint };
 }
 
 /**

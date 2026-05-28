@@ -27,16 +27,22 @@ import "server-only";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
+  authProviderSlugs,
+  ldapProviders,
   oidcProviders,
   pdnsClusters,
   pdnsServers,
   roles,
+  samlProviders,
   settings,
   teams,
   zoneTemplates,
+  type LdapGroupMapping,
   type OidcGroupMapping,
+  type SamlGroupMapping,
   type TemplateRecord,
 } from "@/lib/db/schema";
+import { lookupProviderTypeBySlug } from "@/lib/db/repositories/auth-provider-slugs";
 import { encrypt } from "@/lib/crypto/encryption";
 import { logger } from "@/lib/logger";
 import { appendAudit } from "@/lib/audit/log";
@@ -65,9 +71,12 @@ export interface ProvisioningResult {
   demoZonesSkipped: number;
   demoZonesFailed: number;
   oidcProvidersUpserted: number;
+  samlProvidersUpserted: number;
+  ldapProvidersUpserted: number;
   /** Unresolvable scope references in group mappings (logged + audited; the
    *  rest of the mapping list is still persisted, with the bad entries
-   *  filtered out). */
+   *  filtered out). Covers both OIDC and LDAP mappings — the shape is
+   *  identical. */
   unresolvedGroupMappings: Array<{ provider: string; group: string; scope: string }>;
 }
 
@@ -88,13 +97,21 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
     demoZonesSkipped: 0,
     demoZonesFailed: 0,
     oidcProvidersUpserted: 0,
+    samlProvidersUpserted: 0,
+    ldapProvidersUpserted: 0,
     unresolvedGroupMappings: [],
   };
 
   // 1. settings
+  //
+  // `auth_default_provider` is special-cased: deferred to step 7 (after the
+  // OIDC section) so a bare-slug value can be resolved against providers
+  // declared in the SAME provisioning file. Writing it now would fail the
+  // lookup if the slug only appears later in the YAML.
   if (config.settings) {
     for (const [key, value] of Object.entries(config.settings)) {
       if (value === undefined) continue;
+      if (key === "auth_default_provider") continue; // deferred — see step 7
       await db
         .insert(settings)
         .values({ key, value, updatedAt: new Date() })
@@ -347,6 +364,42 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
       ),
     );
 
+    // Legacy per-provider `force_default: true` is retired in favour of the
+    // single `auth_default_provider` setting. If any OIDC entry still carries
+    // the flag, pick the LAST one mentioned in the YAML — same tie-break
+    // semantics as the schema migration (last-wins on the storage layer is
+    // most recent created; here last-listed approximates that). Log a
+    // deprecation so operators clean up their files.
+    let legacyForceDefaultSlug: string | null = null;
+    for (const p of config.oidc) {
+      if (p.force_default && p.enabled !== false) {
+        if (legacyForceDefaultSlug !== null) {
+          logger.warn(
+            {
+              previous: legacyForceDefaultSlug,
+              superseded: p.slug,
+            },
+            "provisioning.oidc.force_default-multiple-set",
+          );
+        }
+        legacyForceDefaultSlug = p.slug;
+      }
+    }
+    if (legacyForceDefaultSlug !== null) {
+      logger.warn(
+        { slug: legacyForceDefaultSlug },
+        "provisioning.oidc.force_default-deprecated: translating to settings.auth_default_provider",
+      );
+      await db
+        .insert(settings)
+        .values({
+          key: "auth_default_provider",
+          value: `oidc:${legacyForceDefaultSlug}`,
+          updatedAt: new Date(),
+        })
+        .onConflictDoNothing({ target: settings.key });
+    }
+
     for (const p of config.oidc) {
       const resolvedMappings: OidcGroupMapping[] = [];
       for (const m of p.group_mappings) {
@@ -391,6 +444,14 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
       }
 
       const clientSecretEncrypted = encrypt(p.client_secret, "oidc-client-secret");
+      // Reserve the slug in the cross-type table first. ON CONFLICT DO
+      // NOTHING means a re-apply of the same provisioning file is a no-op
+      // here; the same operator-supplied slug already maps to "oidc" from
+      // a prior run.
+      await db
+        .insert(authProviderSlugs)
+        .values({ slug: p.slug, providerType: "oidc" })
+        .onConflictDoNothing({ target: authProviderSlugs.slug });
       await db
         .insert(oidcProviders)
         .values({
@@ -404,7 +465,6 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
           claimName: p.claim_name,
           claimGroups: p.claim_groups,
           enabled: p.enabled,
-          forceDefault: p.force_default,
           iconUrl: p.icon_url ?? null,
           allowedEmailDomains: p.allowed_email_domains ?? null,
           groupMappings: resolvedMappings,
@@ -421,7 +481,6 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
             claimName: p.claim_name,
             claimGroups: p.claim_groups,
             enabled: p.enabled,
-            forceDefault: p.force_default,
             iconUrl: p.icon_url ?? null,
             allowedEmailDomains: p.allowed_email_domains ?? null,
             groupMappings: resolvedMappings,
@@ -429,6 +488,281 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
           },
         });
       result.oidcProvidersUpserted += 1;
+    }
+  }
+
+  // 6b. saml providers (ADR-0021) — same slug-reservation + upsert pattern
+  // as OIDC. Mappings re-use the shared `parseScopeString` resolver.
+  if (config.saml) {
+    const teamsBySlug = new Map(
+      (await db.select({ id: teams.id, slug: teams.slug }).from(teams)).map((r) => [r.slug, r.id]),
+    );
+    const serversBySlug = new Map(
+      (await db.select({ id: pdnsServers.id, slug: pdnsServers.slug }).from(pdnsServers)).map(
+        (r) => [r.slug, r.id],
+      ),
+    );
+
+    for (const p of config.saml) {
+      // Both halves of the encryption pair must be set together; reject up
+      // front so a malformed YAML doesn't insert a half-configured row.
+      if (
+        (p.sp_encryption_key && !p.sp_encryption_cert) ||
+        (!p.sp_encryption_key && p.sp_encryption_cert)
+      ) {
+        throw new Error(
+          `provisioning: SAML provider "${p.slug}" must set both sp_encryption_key and sp_encryption_cert together, or neither.`,
+        );
+      }
+
+      const resolvedMappings: SamlGroupMapping[] = [];
+      for (const m of p.group_mappings) {
+        const parsed = parseScopeString(m.scope);
+        if (!parsed) {
+          result.unresolvedGroupMappings.push({ provider: p.slug, group: m.group, scope: m.scope });
+          continue;
+        }
+        let scopeId: string | null = null;
+        if (parsed.scopeType === "team") {
+          const id = teamsBySlug.get(parsed.scopeRef!);
+          if (!id) {
+            result.unresolvedGroupMappings.push({
+              provider: p.slug,
+              group: m.group,
+              scope: m.scope,
+            });
+            continue;
+          }
+          scopeId = id;
+        } else if (parsed.scopeType === "server") {
+          const id = serversBySlug.get(parsed.scopeRef!);
+          if (!id) {
+            result.unresolvedGroupMappings.push({
+              provider: p.slug,
+              group: m.group,
+              scope: m.scope,
+            });
+            continue;
+          }
+          scopeId = id;
+        } else if (parsed.scopeType === "zone") {
+          scopeId = parsed.scopeRef;
+        }
+        resolvedMappings.push({
+          group: m.group,
+          roleSlug: m.role,
+          scopeType: parsed.scopeType,
+          scopeId,
+        });
+      }
+
+      const spSigningKeyEncrypted = encrypt(p.sp_signing_key, "saml-sp-signing-key");
+      const spEncryptionKeyEncrypted = p.sp_encryption_key
+        ? encrypt(p.sp_encryption_key, "saml-sp-encryption-key")
+        : null;
+
+      await db
+        .insert(authProviderSlugs)
+        .values({ slug: p.slug, providerType: "saml" })
+        .onConflictDoNothing({ target: authProviderSlugs.slug });
+      await db
+        .insert(samlProviders)
+        .values({
+          slug: p.slug,
+          name: p.name,
+          idpEntityId: p.idp_entity_id,
+          idpSsoUrl: p.idp_sso_url,
+          idpSloUrl: p.idp_slo_url ?? null,
+          idpSigningCert: p.idp_signing_cert,
+          spSigningKeyEncrypted,
+          spSigningCert: p.sp_signing_cert,
+          spEncryptionKeyEncrypted,
+          spEncryptionCert: p.sp_encryption_cert ?? null,
+          requireSignedResponse: p.require_signed_response,
+          requireEncryptedAssertion: p.require_encrypted_assertion,
+          signatureAlgorithm: p.signature_algorithm,
+          nameIdFormat: p.name_id_format,
+          claimEmail: p.claim_email,
+          claimName: p.claim_name,
+          claimGroups: p.claim_groups,
+          enabled: p.enabled,
+          allowedEmailDomains: p.allowed_email_domains ?? null,
+          groupMappings: resolvedMappings,
+        })
+        .onConflictDoUpdate({
+          target: samlProviders.slug,
+          set: {
+            name: p.name,
+            idpEntityId: p.idp_entity_id,
+            idpSsoUrl: p.idp_sso_url,
+            idpSloUrl: p.idp_slo_url ?? null,
+            idpSigningCert: p.idp_signing_cert,
+            spSigningKeyEncrypted,
+            spSigningCert: p.sp_signing_cert,
+            spEncryptionKeyEncrypted,
+            spEncryptionCert: p.sp_encryption_cert ?? null,
+            requireSignedResponse: p.require_signed_response,
+            requireEncryptedAssertion: p.require_encrypted_assertion,
+            signatureAlgorithm: p.signature_algorithm,
+            nameIdFormat: p.name_id_format,
+            claimEmail: p.claim_email,
+            claimName: p.claim_name,
+            claimGroups: p.claim_groups,
+            enabled: p.enabled,
+            allowedEmailDomains: p.allowed_email_domains ?? null,
+            groupMappings: resolvedMappings,
+            updatedAt: new Date(),
+          },
+        });
+      result.samlProvidersUpserted += 1;
+    }
+  }
+
+  // 6c. ldap providers (ADR-0020). Same shape as the OIDC block — slug
+  // reservation in `auth_provider_slugs` then a per-provider upsert.
+  // Mappings re-use the shared `parseScopeString` resolver because the
+  // group-mapping shape is identical to OIDC's.
+  if (config.ldap) {
+    const teamsBySlug = new Map(
+      (await db.select({ id: teams.id, slug: teams.slug }).from(teams)).map((r) => [r.slug, r.id]),
+    );
+    const serversBySlug = new Map(
+      (await db.select({ id: pdnsServers.id, slug: pdnsServers.slug }).from(pdnsServers)).map(
+        (r) => [r.slug, r.id],
+      ),
+    );
+
+    for (const p of config.ldap) {
+      const resolvedMappings: LdapGroupMapping[] = [];
+      for (const m of p.group_mappings) {
+        const parsed = parseScopeString(m.scope);
+        if (!parsed) {
+          result.unresolvedGroupMappings.push({ provider: p.slug, group: m.group, scope: m.scope });
+          continue;
+        }
+        let scopeId: string | null = null;
+        if (parsed.scopeType === "team") {
+          const id = teamsBySlug.get(parsed.scopeRef!);
+          if (!id) {
+            result.unresolvedGroupMappings.push({
+              provider: p.slug,
+              group: m.group,
+              scope: m.scope,
+            });
+            continue;
+          }
+          scopeId = id;
+        } else if (parsed.scopeType === "server") {
+          const id = serversBySlug.get(parsed.scopeRef!);
+          if (!id) {
+            result.unresolvedGroupMappings.push({
+              provider: p.slug,
+              group: m.group,
+              scope: m.scope,
+            });
+            continue;
+          }
+          scopeId = id;
+        } else if (parsed.scopeType === "zone") {
+          scopeId = parsed.scopeRef;
+        }
+        resolvedMappings.push({
+          group: m.group,
+          roleSlug: m.role,
+          scopeType: parsed.scopeType,
+          scopeId,
+        });
+      }
+
+      const bindPasswordEncrypted = encrypt(p.bind_password, "ldap-bind-password");
+      await db
+        .insert(authProviderSlugs)
+        .values({ slug: p.slug, providerType: "ldap" })
+        .onConflictDoNothing({ target: authProviderSlugs.slug });
+      await db
+        .insert(ldapProviders)
+        .values({
+          slug: p.slug,
+          name: p.name,
+          serverUrl: p.server_url,
+          startTls: p.start_tls,
+          bindDn: p.bind_dn,
+          bindPasswordEncrypted,
+          userSearchBase: p.user_search_base,
+          userSearchFilter: p.user_search_filter,
+          groupSearchBase: p.group_search_base ?? null,
+          groupSearchFilter: p.group_search_filter ?? null,
+          groupAttr: p.group_attr,
+          claimEmail: p.claim_email,
+          claimName: p.claim_name,
+          tlsCaCert: p.tls_ca_cert ?? null,
+          enabled: p.enabled,
+          allowedEmailDomains: p.allowed_email_domains ?? null,
+          groupMappings: resolvedMappings,
+        })
+        .onConflictDoUpdate({
+          target: ldapProviders.slug,
+          set: {
+            name: p.name,
+            serverUrl: p.server_url,
+            startTls: p.start_tls,
+            bindDn: p.bind_dn,
+            bindPasswordEncrypted,
+            userSearchBase: p.user_search_base,
+            userSearchFilter: p.user_search_filter,
+            groupSearchBase: p.group_search_base ?? null,
+            groupSearchFilter: p.group_search_filter ?? null,
+            groupAttr: p.group_attr,
+            claimEmail: p.claim_email,
+            claimName: p.claim_name,
+            tlsCaCert: p.tls_ca_cert ?? null,
+            enabled: p.enabled,
+            allowedEmailDomains: p.allowed_email_domains ?? null,
+            groupMappings: resolvedMappings,
+            updatedAt: new Date(),
+          },
+        });
+      result.ldapProvidersUpserted += 1;
+    }
+  }
+
+  // 7. deferred: auth_default_provider. Now that every provider in this
+  // file has been upserted (and reserved its slug in auth_provider_slugs),
+  // we can resolve a bare-slug shorthand like `auth_default_provider: "company-sso"`
+  // to its canonical typed-prefix form (`oidc:company-sso`). Skipping the
+  // setting silently when the slug is unknown — provisioning shouldn't
+  // crash the apply over an operator typo; the admin UI surfaces "(provider
+  // no longer exists)" in the picker if the value ends up dangling.
+  if (config.settings?.auth_default_provider !== undefined) {
+    const raw = config.settings.auth_default_provider;
+    let canonical: string | null = null;
+    if (raw === "local") {
+      canonical = "local";
+    } else if (/^(oidc|saml|ldap):/.test(raw)) {
+      // Caller already gave us the typed form — trust it.
+      canonical = raw;
+    } else {
+      // Bare slug. Resolve via the reservation table — this picks up rows
+      // freshly inserted in step 6 above.
+      const type = await lookupProviderTypeBySlug(raw);
+      if (type) {
+        canonical = `${type}:${raw}`;
+      } else {
+        logger.warn(
+          { slug: raw },
+          "provisioning.auth_default_provider.unknown-slug: skipping; setting left at previous value",
+        );
+      }
+    }
+    if (canonical !== null) {
+      await db
+        .insert(settings)
+        .values({ key: "auth_default_provider", value: canonical, updatedAt: new Date() })
+        .onConflictDoUpdate({
+          target: settings.key,
+          set: { value: canonical, updatedAt: new Date() },
+        });
+      result.settingsWritten += 1;
     }
   }
 

@@ -10,6 +10,7 @@ const NON_MFA_ROLE: readonly RoleSlice[] = [{ slug: "viewer", requiresMfa: false
 function base(overrides: Partial<Parameters<typeof evaluateSessionCompliance>[0]> = {}) {
   return {
     totpEnrolled: true,
+    webauthnEnrolled: false,
     ssoOnly: false,
     mfaOverride: null,
     mustChangePassword: false,

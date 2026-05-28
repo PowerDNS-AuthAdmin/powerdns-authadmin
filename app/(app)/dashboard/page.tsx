@@ -58,11 +58,22 @@ import {
   topActorsOption,
 } from "./_components/chart-options";
 
+import {
+  DASHBOARD_AUDIT_HOURLY_WINDOW_HOURS,
+  DASHBOARD_METRIC_SAMPLES_WINDOW_HOURS,
+  DASHBOARD_METRIC_SAMPLES_WINDOW_MS,
+  DASHBOARD_PDNS_STATS_WINDOW_MS,
+} from "@/lib/metrics/dashboard-windows";
+
 export const metadata: Metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
-const HOURS_24 = 24;
-const HOURS_7D = 24 * 7;
+// Graph windows. Live in `lib/metrics/dashboard-windows.ts` so the retention
+// sweep can link to them 1:1 — we don't keep metrics we don't display.
+const HOURS_24 = DASHBOARD_AUDIT_HOURLY_WINDOW_HOURS;
+const HOURS_7D = DASHBOARD_METRIC_SAMPLES_WINDOW_HOURS;
+const PDNS_STATS_WINDOW_MS = DASHBOARD_PDNS_STATS_WINDOW_MS;
+void DASHBOARD_METRIC_SAMPLES_WINDOW_MS; // re-exported via _HOURS — silence linter
 
 interface DashboardProps {
   searchParams: Promise<{ tab?: string }>;
@@ -97,7 +108,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
   const canReadZones = ability.can("read", "Zone");
   const canCreateServer = ability.can("create", "Server");
   const canReadUsers = ability.can("read", "User");
-  const canReadOidc = ability.can("read", "Oidc");
+  const canReadAuth = ability.can("read", "Auth");
 
   // Ask the broker to ensure a recent observation so the PDNS-attention tiles
   // read live reachability (same source as the servers list + bell). For an
@@ -141,7 +152,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
     canReadUsers
       ? userAttentionCounts()
       : Promise.resolve({ lockedOut: 0, unverifiedEmail: 0, noMfa: 0, mustChangePassword: 0 }),
-    canReadOidc ? oidcAttentionCounts() : Promise.resolve({ neverProbed: 0, failing: 0 }),
+    canReadAuth ? oidcAttentionCounts() : Promise.resolve({ neverProbed: 0, failing: 0 }),
   ]);
 
   // PDNS attention from the live reachability store (the single source of truth):
@@ -258,7 +269,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
         <PdnsAttentionWidget counts={pdnsAttention} />
       ) : null}
 
-      {canReadOidc && hasOidcAttention(oidcAttention) ? (
+      {canReadAuth && hasOidcAttention(oidcAttention) ? (
         <OidcAttentionWidget counts={oidcAttention} />
       ) : null}
 
@@ -742,13 +753,13 @@ function OidcAttentionWidget({ counts }: { counts: { neverProbed: number; failin
           label="Never probed"
           count={counts.neverProbed}
           tone="warn"
-          href="/admin/oidc-providers"
+          href="/admin/authentication/oidc"
         />
         <AttentionTile
           label="Failing probe"
           count={counts.failing}
           tone="error"
-          href="/admin/oidc-providers"
+          href="/admin/authentication/oidc"
         />
       </div>
     </section>
@@ -882,7 +893,7 @@ async function PdnsStatsCard({
       "response-by-rcode",
       "response-sizes",
     ],
-    120,
+    new Date(Date.now() - PDNS_STATS_WINDOW_MS),
   );
 
   // Sum the four query-source counters point-wise.

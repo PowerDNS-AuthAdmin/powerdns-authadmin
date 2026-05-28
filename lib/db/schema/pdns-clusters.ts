@@ -46,7 +46,7 @@ export const pdnsClusterWriteStrategyEnum = pgEnum("pdns_cluster_write_strategy"
 export const pdnsClusters = pgTable("pdns_clusters", {
   id: pk(),
 
-  /** URL-safe slug — appears in /admin/pdns-clusters/<slug> and in
+  /** URL-safe slug — appears in /admin/clusters/<slug> and in
    *  provisioning YAML `cluster_slug` references. */
   slug: text("slug").notNull().unique(),
 

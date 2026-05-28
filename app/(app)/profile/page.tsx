@@ -16,7 +16,8 @@ import { ChangePasswordForm } from "./_components/change-password-form";
 import { NameEdit } from "./_components/name-edit";
 import { SessionsList } from "./_components/sessions-list";
 import { TotpSection } from "./_components/totp-section";
-import { ProfileTabsContainer, ProfileTabPanel } from "./_components/profile-tabs";
+import { PasskeysSection } from "./_components/passkeys-section";
+import { SectionTabs, SectionTabPanel } from "@/components/ui/section-tabs";
 import { ComplianceBanner } from "@/components/auth/compliance-guard";
 import { env } from "@/lib/env";
 
@@ -73,10 +74,10 @@ export default async function ProfilePage({
         </p>
       </header>
 
-      <ProfileTabsContainer tabs={tabs} defaultTab="account">
+      <SectionTabs tabs={tabs} defaultTab="account">
         <ComplianceBanner />
 
-        <ProfileTabPanel id="account">
+        <SectionTabPanel id="account">
           <div className="space-y-3 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-5">
             <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
               Account
@@ -107,10 +108,10 @@ export default async function ProfilePage({
               />
             </dl>
           </div>
-        </ProfileTabPanel>
+        </SectionTabPanel>
 
         {user.passwordHash ? (
-          <ProfileTabPanel id="change-password">
+          <SectionTabPanel id="change-password">
             <div className="space-y-4 rounded-md border border-[color:var(--color-border)] p-5">
               <header>
                 <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
@@ -123,11 +124,11 @@ export default async function ProfilePage({
               </header>
               <ChangePasswordForm turnstileSiteKey={env.TURNSTILE_SITE_KEY} />
             </div>
-          </ProfileTabPanel>
+          </SectionTabPanel>
         ) : null}
 
         {user.passwordHash ? (
-          <ProfileTabPanel id="change-email">
+          <SectionTabPanel id="change-email">
             <div className="space-y-4 rounded-md border border-[color:var(--color-border)] p-5">
               <header>
                 <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
@@ -141,10 +142,10 @@ export default async function ProfilePage({
               </header>
               <ChangeEmailForm />
             </div>
-          </ProfileTabPanel>
+          </SectionTabPanel>
         ) : null}
 
-        <ProfileTabPanel id="sessions">
+        <SectionTabPanel id="sessions">
           <div className="space-y-4 rounded-md border border-[color:var(--color-border)] p-5">
             <header>
               <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
@@ -166,18 +167,32 @@ export default async function ProfilePage({
               }))}
             />
           </div>
-        </ProfileTabPanel>
+        </SectionTabPanel>
 
-        <ProfileTabPanel id="mfa">
-          <TotpSection
-            initialEnabled={user.totpSecretEncrypted !== null}
-            mfaRequired={mfaRequired}
-            requiringRoleSlugs={requiringRoleSlugs}
-            ssoOnly={user.passwordHash === null}
-          />
-        </ProfileTabPanel>
+        <SectionTabPanel id="mfa">
+          <div className="space-y-4">
+            <TotpSection
+              initialEnabled={user.totpSecretEncrypted !== null}
+              mfaRequired={mfaRequired}
+              requiringRoleSlugs={requiringRoleSlugs}
+              ssoOnly={user.passwordHash === null}
+            />
+            {env.WEBAUTHN_ENABLED ? (
+              <PasskeysSection
+                ssoOnly={user.passwordHash === null}
+                initial={user.webauthnCredentials.map((c) => ({
+                  id: c.id,
+                  nickname: c.nickname,
+                  transports: c.transports ?? [],
+                  createdAt: c.createdAt,
+                  lastUsedAt: c.lastUsedAt,
+                }))}
+              />
+            ) : null}
+          </div>
+        </SectionTabPanel>
 
-        <ProfileTabPanel id="api-tokens">
+        <SectionTabPanel id="api-tokens">
           <ApiTokensSection
             initialTokens={tokens.map((t) => ({
               id: t.id,
@@ -191,8 +206,8 @@ export default async function ProfilePage({
             }))}
             availablePermissions={availablePermissions}
           />
-        </ProfileTabPanel>
-      </ProfileTabsContainer>
+        </SectionTabPanel>
+      </SectionTabs>
     </div>
   );
 }

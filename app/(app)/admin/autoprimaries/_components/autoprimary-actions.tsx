@@ -166,24 +166,25 @@ export function AutoprimaryActions({ serverSlug, rows }: Props) {
         </div>
       </div>
 
-      {rows.length > 0 ? (
-        <AutoprimariesTable
-          rows={rows}
-          onDelete={handleDelete}
-          busyKey={deletingKey}
-          rowKey={rowKey}
-        />
-      ) : null}
+      <AutoprimariesTable
+        serverSlug={serverSlug}
+        rows={rows}
+        onDelete={handleDelete}
+        busyKey={deletingKey}
+        rowKey={rowKey}
+      />
     </section>
   );
 }
 
 function AutoprimariesTable({
+  serverSlug,
   rows,
   onDelete,
   busyKey,
   rowKey,
 }: {
+  serverSlug: string;
   rows: Row[];
   onDelete: (row: Row) => void;
   busyKey: string | null;
@@ -240,7 +241,7 @@ function AutoprimariesTable({
       pageSize={Math.max(rows.length, 10)}
       hidePagination
       hideSearch
-      noDataMessage="No autoprimaries configured."
+      noDataMessage={`No autoprimaries configured on ${serverSlug}. Incoming NOTIFYs that don't match an existing zone are ignored.`}
       emptyMessage="No autoprimaries match."
       stateKey="autoprimaries"
     />

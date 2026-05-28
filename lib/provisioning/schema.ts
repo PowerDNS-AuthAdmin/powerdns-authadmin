@@ -14,13 +14,39 @@ import "server-only";
 import { z } from "zod";
 import { KNOWN_SETTING_KEYS, SETTING_VALUE_SCHEMAS } from "@/lib/validators/settings";
 
+/**
+ * Provisioning-relaxed schema for `auth_default_provider`. The strict
+ * runtime validator (`SETTING_VALUE_SCHEMAS.auth_default_provider`) only
+ * accepts `local` | `<type>:<slug>`; here we also accept a bare provider
+ * slug so operators can write `auth_default_provider: "company-sso"` in
+ * the YAML without knowing which protocol the provider speaks. The
+ * applier resolves the bare form against `auth_provider_slugs` and
+ * persists the canonical `<type>:<slug>` form.
+ */
+const provisioningAuthDefaultProvider = z
+  .string()
+  .min(1)
+  .max(200)
+  .regex(
+    /^(local|(?:oidc|saml|ldap):[a-z][a-z0-9-]*|[a-z][a-z0-9-]*)$/,
+    "Must be 'local', a typed-prefix form ('<type>:<slug>'), or a bare provider slug.",
+  );
+
 /** Section: top-level KV writes to the `settings` table. */
 const settingsSection = z
-  .object(
-    Object.fromEntries(KNOWN_SETTING_KEYS.map((k) => [k, SETTING_VALUE_SCHEMAS[k].optional()])) as {
-      [K in (typeof KNOWN_SETTING_KEYS)[number]]: z.ZodOptional<(typeof SETTING_VALUE_SCHEMAS)[K]>;
-    },
-  )
+  .object({
+    ...(Object.fromEntries(
+      KNOWN_SETTING_KEYS.filter((k) => k !== "auth_default_provider").map((k) => [
+        k,
+        SETTING_VALUE_SCHEMAS[k].optional(),
+      ]),
+    ) as {
+      [K in Exclude<(typeof KNOWN_SETTING_KEYS)[number], "auth_default_provider">]: z.ZodOptional<
+        (typeof SETTING_VALUE_SCHEMAS)[K]
+      >;
+    }),
+    auth_default_provider: provisioningAuthDefaultProvider.optional(),
+  })
   .strict();
 
 const roleEntry = z
@@ -215,6 +241,91 @@ const oidcProviderEntry = z
   })
   .strict();
 
+const samlGroupMapping = z
+  .object({
+    group: z.string().min(1),
+    role: z.string().min(1),
+    scope: z.string().min(1),
+  })
+  .strict();
+
+const samlProviderEntry = z
+  .object({
+    slug: z
+      .string()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z][a-z0-9-]*$/),
+    name: z.string().min(1).max(120),
+    idp_entity_id: z.string().min(1),
+    idp_sso_url: z.string().url(),
+    idp_slo_url: z.string().url().optional(),
+    /** PEM cert text; multi-line in YAML via | block style. */
+    idp_signing_cert: z.string().min(1),
+    /** SP private key PEM. Plaintext in YAML; encrypted before write. */
+    sp_signing_key: z.string().min(1),
+    sp_signing_cert: z.string().min(1),
+    /** Optional encryption keypair — both required if either set. Validated
+     *  in the applier so the YAML error reports the field name accurately. */
+    sp_encryption_key: z.string().min(1).optional(),
+    sp_encryption_cert: z.string().min(1).optional(),
+    require_signed_response: z.boolean().default(true),
+    require_encrypted_assertion: z.boolean().default(false),
+    signature_algorithm: z.enum(["sha1", "sha256", "sha512"]).default("sha256"),
+    name_id_format: z
+      .string()
+      .min(1)
+      .default("urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"),
+    claim_email: z.string().default("email"),
+    claim_name: z.string().default("name"),
+    claim_groups: z.string().default("groups"),
+    enabled: z.boolean().default(true),
+    allowed_email_domains: z.array(z.string().min(1)).optional(),
+    group_mappings: z.array(samlGroupMapping).default([]),
+  })
+  .strict();
+
+const ldapGroupMapping = z
+  .object({
+    group: z.string().min(1),
+    role: z.string().min(1),
+    scope: z.string().min(1),
+  })
+  .strict();
+
+const ldapProviderEntry = z
+  .object({
+    slug: z
+      .string()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z][a-z0-9-]*$/),
+    name: z.string().min(1).max(120),
+    server_url: z
+      .string()
+      .min(1)
+      .regex(/^(ldaps:\/\/|ldap:\/\/)[^\s]+$/i, "server_url must use ldap:// or ldaps://"),
+    start_tls: z.boolean().default(false),
+    bind_dn: z.string().min(1),
+    /** Plaintext in YAML; encrypted before write. */
+    bind_password: z.string().min(1),
+    user_search_base: z.string().min(1),
+    user_search_filter: z
+      .string()
+      .min(3)
+      .default("(|(uid={{username}})(sAMAccountName={{username}})(mail={{username}}))"),
+    group_search_base: z.string().min(1).optional(),
+    group_search_filter: z.string().min(3).optional(),
+    group_attr: z.string().min(1).default("memberOf"),
+    claim_email: z.string().min(1).default("mail"),
+    claim_name: z.string().min(1).default("displayName"),
+    tls_ca_cert: z.string().min(1).optional(),
+    enabled: z.boolean().default(true),
+    allowed_email_domains: z.array(z.string().min(1)).optional(),
+    group_mappings: z.array(ldapGroupMapping).default([]),
+  })
+  .strict();
+
 export const provisioningSchema = z
   .object({
     /**
@@ -233,10 +344,14 @@ export const provisioningSchema = z
      *  backends are registered. See `demoZonesEntry`. */
     demo_zones: z.array(demoZonesEntry).optional(),
     oidc: z.array(oidcProviderEntry).optional(),
+    saml: z.array(samlProviderEntry).optional(),
+    ldap: z.array(ldapProviderEntry).optional(),
   })
   .strict();
 
 export type ProvisioningConfig = z.infer<typeof provisioningSchema>;
+export type ProvisioningSamlProviderEntry = z.infer<typeof samlProviderEntry>;
+export type ProvisioningSamlGroupMapping = z.infer<typeof samlGroupMapping>;
 export type ProvisioningRoleEntry = z.infer<typeof roleEntry>;
 export type ProvisioningTeamEntry = z.infer<typeof teamEntry>;
 export type ProvisioningZoneTemplateEntry = z.infer<typeof zoneTemplateEntry>;
@@ -245,6 +360,8 @@ export type ProvisioningPdnsServerEntry = z.infer<typeof pdnsServerEntry>;
 export type ProvisioningDemoZonesEntry = z.infer<typeof demoZonesEntry>;
 export type ProvisioningOidcProviderEntry = z.infer<typeof oidcProviderEntry>;
 export type ProvisioningOidcGroupMapping = z.infer<typeof oidcGroupMapping>;
+export type ProvisioningLdapProviderEntry = z.infer<typeof ldapProviderEntry>;
+export type ProvisioningLdapGroupMapping = z.infer<typeof ldapGroupMapping>;
 
 /**
  * Parse a `scope` string from a group mapping into the (type, id) pair the

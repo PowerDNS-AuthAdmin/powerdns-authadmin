@@ -3,8 +3,16 @@
  *
  * Explicit per-zone permission grants. The bridge between PDNS (which
  * owns zone identity) and our RBAC layer (which owns who-can-do-what):
- * a `zone_grants` row says "this user, on this backend, has this
+ * a `zone_grants` row says "this principal, on this backend, has this
  * permission set for this specific zone."
+ *
+ * "Principal" is either a user OR a team — exactly one, never both,
+ * never neither. The principal split lets operators express the two
+ * shapes operators actually want: "Alice has DNSSEC on example.com.",
+ * and "the noc team has record-write on internal.example.com.". A
+ * team grant flows through to every current member of the team via
+ * `team_members`; revoking the grant or removing a member from the
+ * team revokes access without surgery on per-user rows.
  *
  * Why a separate table from `role_assignments`:
  *   - `role_assignments` carries a `scope_id` that's a UUID into one
@@ -22,15 +30,18 @@
  *
  * Effective permissions for a (user, server, zone) are the UNION of:
  *   - role_assignments at global / team / server scopes (existing path)
- *   - zone_grants rows matching (user, server, zone)
- *wiring (next tick) extends `buildAbility` to fold these in.
+ *   - zone_grants rows matching (user, server, zone) — direct user grants
+ *   - zone_grants rows matching (team, server, zone) for every team the
+ *     user is a member of via `team_members`
  *
  * `zone_name` is canonical: lowercase, trailing dot. The grant route
  * canonicalizes before write — readers should not re-canonicalize.
  */
 
-import { index, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { check, index, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { pdnsServers } from "./pdns-servers";
+import { teams } from "./teams";
 import { users } from "./users";
 import { pk, timestamps } from "./_helpers";
 
@@ -47,10 +58,19 @@ export const zoneGrants = pgTable(
   {
     id: pk(),
 
-    /** Operator the grant applies to. Cascade-deleted with the user. */
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    /**
+     * User the grant applies to. NULLable: a team grant has
+     * `team_id` set and `user_id` null. The CHECK constraint at the
+     * bottom enforces exactly one of (user_id, team_id) is non-null.
+     * Cascade-deleted with the user.
+     */
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+
+    /**
+     * Team the grant applies to. Flows through to every current member
+     * of the team via `team_members`. Cascade-deleted with the team.
+     */
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
 
     /**
      * PDNS backend the zone lives on. Cascade-deleted with the backend
@@ -90,12 +110,28 @@ export const zoneGrants = pgTable(
   },
   (t) => ({
     userIdx: index("zone_grants_user_idx").on(t.userId),
+    teamIdx: index("zone_grants_team_idx").on(t.teamId),
     // Reverse-lookup: "who has access to (server, zone)?" — used by
-    // the per-zone audit / settings UI.
+    // the per-zone Access tab.
     zoneIdx: index("zone_grants_zone_idx").on(t.serverId, t.zoneName),
-    // A user has at most one grant per (server, zone). Re-granting
-    // is an explicit update, not a duplicate.
-    uniq: uniqueIndex("zone_grants_unique_idx").on(t.userId, t.serverId, t.zoneName),
+    // Partial unique: a user has at most one grant per (server, zone).
+    // The previous `zone_grants_unique_idx` is replaced by these two
+    // partial indexes so we can keep "one grant per principal+zone"
+    // semantics across the two principal types without the
+    // composite-nullable-uniqueness footgun.
+    userUniq: uniqueIndex("zone_grants_user_unique_idx")
+      .on(t.userId, t.serverId, t.zoneName)
+      .where(sql`${t.userId} IS NOT NULL`),
+    teamUniq: uniqueIndex("zone_grants_team_unique_idx")
+      .on(t.teamId, t.serverId, t.zoneName)
+      .where(sql`${t.teamId} IS NOT NULL`),
+    // Exactly one principal: a row is either a user grant or a team
+    // grant, never both, never neither. Writers must respect this; the
+    // CHECK is a backstop, not the primary validation path.
+    principalCheck: check(
+      "zone_grants_principal_check",
+      sql`(${t.userId} IS NULL) <> (${t.teamId} IS NULL)`,
+    ),
   }),
 );
 

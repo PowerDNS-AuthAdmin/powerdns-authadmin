@@ -57,6 +57,7 @@ import { db } from "@/lib/db";
 import { metricSamples, type PdnsDaemonCapabilities } from "@/lib/db/schema";
 import { pdnsServerStats } from "@/lib/db/schema";
 import { drainPdnsLatency } from "@/lib/pdns/observations";
+import { pruneOldSamples } from "@/lib/metrics/retention";
 import {
   readCachedZones,
   writeCachedZones,
@@ -707,6 +708,12 @@ async function persistSamples(
       break;
     }
   }
+
+  // Retention sweep. Throttled internally to 5-min cadence, so it's a no-op
+  // on most ticks. Awaited so a slow DELETE doesn't get sniped by a fast
+  // re-entry, but a thrown error never propagates — the helper logs and
+  // returns. See `lib/metrics/retention.ts` for the windows + reasoning.
+  await pruneOldSamples();
 }
 
 /**
@@ -745,11 +752,33 @@ async function sampleTimeSeries(
         }
       }
       if (dueForMetric) {
+        // Idle path used to read `zoneCount` from `readCachedZones(b.id)` —
+        // but the cache is only populated by FULL cycles, which only run
+        // when there's a subscriber or a page request. Without one (an
+        // unattended deployment) the cache stays empty and the time-series
+        // chart flatlines at 0. Hit /zones directly here so the per-backend
+        // zone-count line keeps tracking reality.
+        let zoneCount = 0;
+        try {
+          const list = await client.listZones();
+          zoneCount = list.length;
+          recordBackendStatus(b.id, true, false);
+          if (!seenIds.includes(b.id)) seenIds.push(b.id);
+        } catch (err) {
+          recordBackendStatus(b.id, false, err instanceof PdnsAuthError);
+          logger.warn(
+            { server: b.slug, err: err instanceof Error ? redact(err.message) : "unknown" },
+            "pdns.zone-poller.idle-zone-count.failed",
+          );
+          // Fall through with zoneCount=0 — better to record a gap than to
+          // skip the row entirely; the dashboard's "gaps mean the backend
+          // wasn't sampled" caption already covers that.
+        }
         const latency = drainPdnsLatency(b.slug);
         metricRows.push({
           serverId: b.id,
           sampledAt,
-          zoneCount: readCachedZones(b.id)?.zones.size ?? 0,
+          zoneCount,
           latencyP50Ms: latency?.p50 ?? null,
           latencyP95Ms: latency?.p95 ?? null,
           activeSessions: null,

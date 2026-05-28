@@ -110,7 +110,7 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
     team: ability.can("read", "Team"),
     role: ability.can("read", "Role"),
     server: ability.can("read", "Server"),
-    oidc: ability.can("read", "Oidc"),
+    oidc: ability.can("read", "Auth"),
     template: ability.can("use", "Template"),
   };
   const raw = await searchParams;
@@ -462,7 +462,7 @@ function resourceLinkHref(
     case "pdns_server":
       return nav.server ? `/admin/servers/${enc}` : null;
     case "oidc_provider":
-      return nav.oidc ? `/admin/oidc-providers/${enc}` : null;
+      return nav.oidc ? `/admin/authentication/oidc/${enc}` : null;
     case "zone_template":
       return nav.template ? `/admin/zone-templates/${enc}` : null;
     case "zone":

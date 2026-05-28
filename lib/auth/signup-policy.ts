@@ -42,7 +42,7 @@ export const ADMIN_EQUIVALENT_PERMISSIONS: readonly Permission[] = [
   "role.assign",
   // App-wide settings + the OIDC trust config.
   "settings.write",
-  "oidc.manage",
+  "auth.manage",
   // Audit trail visibility.
   "audit.read",
   // Backend (PDNS server) management.

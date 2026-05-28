@@ -15,11 +15,14 @@
 #   2. generates an SPDX SBOM of the image,
 #   3. writes a checksums file over the attached artifacts and cosign sign-blobs
 #      it into a Sigstore bundle,
-#   4. uploads the SBOM + checksums + signature bundle as release assets.
+#   4. attests SLSA build provenance over the artifacts (multiple.intoto.jsonl),
+#   5. uploads the SBOM + checksums + signature bundle + provenance as release
+#      assets.
 #
-# The release assets (the *.sigstore.json bundle) are what OpenSSF Scorecard's
-# Signed-Releases check looks for; the image signature is the real supply-chain
-# win (verify with: cosign verify ghcr.io/...@<digest>).
+# The release assets (the *.sigstore.json bundle + multiple.intoto.jsonl) are
+# what OpenSSF Scorecard's Signed-Releases check looks for (signature AND
+# provenance); the image signature is the real supply-chain win (verify with:
+# cosign verify ghcr.io/...@<digest>).
 #
 # All actions are pinned to a commit SHA. Verify a signature:
 #   cosign verify ghcr.io/powerdns-authadmin/powerdns-authadmin:<version> \
@@ -52,7 +55,8 @@ jobs:
     permissions:
       contents: write # upload release assets
       packages: write # cosign writes the image signature to GHCR
-      id-token: write # cosign keyless (Fulcio OIDC)
+      id-token: write # cosign keyless (Fulcio OIDC) + provenance attestation
+      attestations: write # actions/attest-build-provenance writes the attestation
     env:
       IMAGE: ghcr.io/powerdns-authadmin/powerdns-authadmin
       TAG: ${{ github.event.workflow_run.head_branch }}
@@ -106,6 +110,25 @@ jobs:
           sha256sum powerdns-authadmin.sbom.spdx.json image-digest.txt > checksums.txt
           cosign sign-blob --yes --bundle checksums.txt.sigstore.json checksums.txt
 
+      # SLSA build provenance over the release artifacts. The cosign sign-blob
+      # above proves "these bytes were signed by this workflow"; provenance
+      # additionally records HOW they were built (the source repo, commit,
+      # workflow). OpenSSF Scorecard "Signed-Releases" wants a provenance file
+      # among the release assets — we attest the SBOM + checksums and upload
+      # the attestation bundle as `multiple.intoto.jsonl` (a name Scorecard
+      # recognizes). The action also pushes the attestation to GitHub's
+      # attestations store (gh attestation verify).
+      - name: Attest build provenance for the release artifacts
+        id: attest
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: |
+            powerdns-authadmin.sbom.spdx.json
+            checksums.txt
+
+      - name: Stage provenance as a release asset
+        run: cp "${{ steps.attest.outputs.bundle-path }}" multiple.intoto.jsonl
+
       - name: Wait for the GitHub release to be published
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -136,4 +159,5 @@ jobs:
             image-digest.txt \
             checksums.txt \
             checksums.txt.sigstore.json \
+            multiple.intoto.jsonl \
             --clobber

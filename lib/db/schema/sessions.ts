@@ -12,7 +12,7 @@
  * state-changing requests must match a HMAC of the secret.
  */
 
-import { index, inet, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, inet, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import { pk, timestamps } from "./_helpers";
 
@@ -50,6 +50,59 @@ export const sessions = pgTable(
     oidcEndSessionUrl: text("oidc_end_session_url"),
     oidcIdToken: text("oidc_id_token"),
     oidcClientId: text("oidc_client_id"),
+
+    /**
+     * Per-session snapshot of permissions derived from the user's IdP
+     * groups at sign-in. The ability builder folds these into the user's
+     * effective set alongside admin-issued `role_assignments`.
+     *
+     * Why on the session and not on the user: IdP group membership is
+     * ephemeral. Persisting derived rows on the user leaves stale grants
+     * for users who never sign in again. Sessions naturally expire; this
+     * column does too.
+     *
+     * Empty array for local-auth sessions (and for IdP sessions with no
+     * configured `group_mappings`). Shape matches `AbilitySource` from
+     * `lib/rbac/ability.ts`: `{ permissions, scopeType, scopeId }`.
+     */
+    derivedPermissions: jsonb("derived_permissions")
+      .$type<
+        Array<{
+          permissions: readonly string[];
+          scopeType: "global" | "team" | "zone" | "server";
+          scopeId: string | null;
+        }>
+      >()
+      .notNull()
+      .default([]),
+
+    /**
+     * Encrypted OIDC refresh token (AES-256-GCM via
+     * `lib/crypto/encryption.ts`). Populated only when the OIDC sign-in
+     * returned a refresh token. Used by the token-auth path to re-fetch
+     * the user's groups claim at API-token use time — the basis for
+     * "tokens follow real permissions" semantics. Null for local / SAML /
+     * LDAP sessions, and for OIDC sessions where the provider didn't
+     * include `offline_access` scope.
+     */
+    oidcRefreshTokenEncrypted: text("oidc_refresh_token_encrypted"),
+
+    /**
+     * Which IdP family minted this session — `"oidc" | "saml" | "ldap"`
+     * for SSO sessions, `null` for local-auth sessions. The token-auth
+     * path reads this to pick the recompute strategy (refresh-token
+     * for OIDC, service-account-bind for LDAP, session-snapshot
+     * fallback for SAML).
+     */
+    idpProviderType: text("idp_provider_type"),
+
+    /**
+     * Provider slug — matches the `slug` column on the corresponding
+     * `oidc_providers` / `saml_providers` / `ldap_providers` row. Used
+     * by the token recompute to resolve the provider config (TLS opts,
+     * service account credentials, search base/filter, etc.).
+     */
+    idpProviderSlug: text("idp_provider_slug"),
 
     ...timestamps(),
   },

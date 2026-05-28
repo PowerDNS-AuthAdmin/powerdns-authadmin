@@ -80,6 +80,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const compliance = checkMfaCompliance(
     {
       totpEnrolled: current.user.totpSecretEncrypted !== null,
+      webauthnEnrolled: current.user.webauthnCredentials.length > 0,
       ssoOnly: current.user.passwordHash === null,
       // Per-user override (admin user-detail page) supersedes roles + SSO.
       mfaOverride: current.user.mfaRequired,
@@ -109,7 +110,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const canReadTeams = current.ability.can("read", "Team");
   const canReadAudit = current.ability.can("read", "Audit");
   const canReadSettings = current.ability.can("read", "Settings");
-  const canReadOidc = current.ability.can("read", "Oidc");
+  const canReadAuth = current.ability.can("read", "Auth");
   const canUseTemplates = current.ability.can("use", "Template");
 
   // Health-bell advisories (ADR-0015) — only for users who can read backends.
@@ -127,10 +128,16 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   // Sidebar is grouped by function (Infrastructure / Access / System) rather
   // than one flat "Admin" pile. Each group renders only when the user can see
-  // at least one of its children.
+  // at least one of its children. The PowerDNS section now also houses the
+  // Request log (moved from System), which is `audit.read`-gated.
   const hasInfrastructure =
-    canReadServers || canReadTsig || canManageAutoprimary || canUseTemplates;
-  const hasAccess = canReadUsers || canReadRoles || canReadTeams || canReadOidc;
+    canReadServers ||
+    canReadTsig ||
+    canManageAutoprimary ||
+    canUseTemplates ||
+    canReadZones ||
+    canReadAudit;
+  const hasAccess = canReadUsers || canReadRoles || canReadTeams || canReadAuth;
   const hasSystem = canReadSettings || canReadAudit;
 
   const sidebar = (
@@ -154,17 +161,39 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         {canReadZones ? <NavLink href="/zones" label="Zones" /> : null}
 
         {hasInfrastructure ? (
-          <NavSection label="Infrastructure">
-            {canReadServers ? (
-              <NavLink nested href="/admin/servers" label="PowerDNS servers" />
+          <NavSection label="PowerDNS">
+            {canReadServers || canManageAutoprimary ? (
+              <>
+                <NavGroupLabel label="Backends" />
+                {canReadServers ? <NavLink nested href="/admin/servers" label="Servers" /> : null}
+                {canReadServers ? <NavLink nested href="/admin/clusters" label="Clusters" /> : null}
+                {canManageAutoprimary ? (
+                  <NavLink nested href="/admin/autoprimaries" label="Autoprimaries" />
+                ) : null}
+              </>
             ) : null}
-            {canReadServers ? <NavLink nested href="/admin/pdns-clusters" label="Groups" /> : null}
-            {canReadTsig ? <NavLink nested href="/admin/tsig-keys" label="TSIG keys" /> : null}
-            {canManageAutoprimary ? (
-              <NavLink nested href="/admin/autoprimaries" label="Autoprimaries" />
+            {canUseTemplates || canReadZones ? (
+              <>
+                <NavGroupLabel label="Zones" />
+                {canUseTemplates ? (
+                  <NavLink nested href="/admin/zone-templates" label="Zone templates" />
+                ) : null}
+                {canReadZones ? (
+                  <NavLink nested href="/admin/import-export" label="Import / Export" />
+                ) : null}
+              </>
             ) : null}
-            {canUseTemplates ? (
-              <NavLink nested href="/admin/zone-templates" label="Zone templates" />
+            {canReadTsig ? (
+              <>
+                <NavGroupLabel label="Security" />
+                <NavLink nested href="/admin/tsig-keys" label="TSIG keys" />
+              </>
+            ) : null}
+            {canReadAudit ? (
+              <>
+                <NavGroupLabel label="Activity" />
+                <NavLink nested href="/admin/requests" label="Request log" />
+              </>
             ) : null}
           </NavSection>
         ) : null}
@@ -174,8 +203,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             {canReadUsers ? <NavLink nested href="/admin/users" label="Users" /> : null}
             {canReadTeams ? <NavLink nested href="/admin/teams" label="Teams" /> : null}
             {canReadRoles ? <NavLink nested href="/admin/roles" label="Roles" /> : null}
-            {canReadOidc ? (
-              <NavLink nested href="/admin/oidc-providers" label="OIDC providers" />
+            {canReadAuth ? (
+              <NavLink nested href="/admin/authentication" label="Authentication" />
             ) : null}
           </NavSection>
         ) : null}
@@ -184,9 +213,6 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <NavSection label="System">
             {canReadSettings ? <NavLink nested href="/admin/settings" label="Settings" /> : null}
             {canReadAudit ? <NavLink nested href="/admin/audit" label="Audit log" /> : null}
-            {canReadAudit ? (
-              <NavLink nested href="/admin/pdns-requests" label="Request log" />
-            ) : null}
           </NavSection>
         ) : null}
       </nav>
@@ -274,6 +300,20 @@ function NavSection({ label, children }: { label: string; children: React.ReactN
         {label}
       </div>
       <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Sub-grouping label rendered inside a NavSection — quieter than the
+ * section heading itself, used to chunk the PowerDNS section into
+ * Backends / Zones / Security / Activity without spawning four
+ * top-level NavSections (which would lose the "PowerDNS" umbrella).
+ */
+function NavGroupLabel({ label }: { label: string }) {
+  return (
+    <div className="mt-3 px-3 pb-0.5 text-[0.65rem] font-medium tracking-wider text-[color:var(--color-fg-muted)] uppercase first:mt-0">
+      {label}
     </div>
   );
 }

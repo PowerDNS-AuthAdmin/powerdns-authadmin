@@ -178,27 +178,38 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  // 4. MFA challenge — when the user has TOTP enrolled, do NOT
-  // start a session yet. Mint a single-use challenge token bound to
-  // the constant actor "_mfa-pending" (the operator isn't logged in
-  // yet so we can't bind to user.id at redeem time; the token itself
-  // is the bearer credential). The browser's MFA step posts the
-  // token + the 6-digit code to /api/auth/mfa/totp to finish.
-  if (outcome.user.totpSecretEncrypted) {
+  // 4. MFA challenge — when the user has ANY MFA factor enrolled (TOTP
+  // OR a WebAuthn credential), do NOT start a session yet. Mint a
+  // single-use challenge token bound to the constant actor
+  // "_mfa-pending"; its plaintext is the userId. The token is the
+  // bearer credential for the next step (the operator isn't logged
+  // in yet so we can't bind to user.id at redeem time).
+  //
+  // The response tells the client which factor(s) are enrolled so it
+  // can render the matching UI step. The client posts the token + a
+  // TOTP code to /api/auth/mfa/totp, OR runs the WebAuthn assertion
+  // ceremony and posts to /api/auth/webauthn/assertion-verify with
+  // `mode: "second-factor"` + `mfaToken: <this challenge>`.
+  const hasTotp = outcome.user.totpSecretEncrypted !== null;
+  const hasWebauthn = outcome.user.webauthnCredentials.length > 0;
+  if (hasTotp || hasWebauthn) {
     const { token: challengeToken, expiresInSec } = await mintRevealToken({
       plaintext: outcome.user.id,
       allowedActorId: "_mfa-pending",
       ttlSec: 5 * 60,
     });
+    const methods: Array<"totp" | "webauthn"> = [];
+    if (hasTotp) methods.push("totp");
+    if (hasWebauthn) methods.push("webauthn");
     await appendAudit({
       actor: { type: "user", id: outcome.user.id },
       action: "auth.login.success",
       resource: { type: "user", id: outcome.user.id },
-      after: { mfaRequired: true },
+      after: { mfaRequired: true, methods },
       request: { ip, userAgent, requestId: getRequestId(hdrs) },
     });
     return Response.json(
-      { mfaRequired: true, challengeToken, expiresInSec },
+      { mfaRequired: true, challengeToken, expiresInSec, methods },
       { status: 200, headers: { "Cache-Control": "no-store" } },
     );
   }

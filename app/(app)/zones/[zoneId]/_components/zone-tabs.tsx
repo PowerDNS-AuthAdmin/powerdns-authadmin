@@ -8,6 +8,7 @@ export type ZoneTabKey =
   | "metadata"
   | "sync"
   | "statistics"
+  | "access"
   | "history";
 
 interface ZoneTabsProps {
@@ -17,6 +18,13 @@ interface ZoneTabsProps {
   canReadDnssec: boolean;
   canReadMetadata: boolean;
   canReadAudit: boolean;
+  /**
+   * Gates the Access tab. The tab lists roles + teams + users that
+   * can act on this zone — useful "who can touch this?" forensic
+   * surface. Gated on `user.read` because the tab reveals user emails
+   * and team membership.
+   */
+  canReadAccess: boolean;
   /**
    * Whether to render the Sync + Statistics tabs. Both depend on the
    * background poller (zone-state cache for Sync, metric_samples for
@@ -32,6 +40,7 @@ export function ZoneTabs({
   canReadDnssec,
   canReadMetadata,
   canReadAudit,
+  canReadAccess,
   showPollingFeatures,
 }: ZoneTabsProps) {
   const qs = `server=${encodeURIComponent(serverSlug)}`;
@@ -46,6 +55,7 @@ export function ZoneTabs({
   const metadataHref = `/zones/${zoneIdEncoded}?${qs}&tab=metadata`;
   const statisticsHref = `/zones/${zoneIdEncoded}?${qs}&tab=statistics`;
   const syncHref = `/zones/${zoneIdEncoded}?${qs}&tab=sync`;
+  const accessHref = `/zones/${zoneIdEncoded}?${qs}&tab=access`;
 
   return (
     // Mobile (< sm): tabs wrap to multiple rows so the last one ("Change
@@ -82,6 +92,11 @@ export function ZoneTabs({
               Statistics
             </TabLink>
           </>
+        ) : null}
+        {canReadAccess ? (
+          <TabLink href={accessHref} active={active === "access"}>
+            Access
+          </TabLink>
         ) : null}
         {canReadAudit ? (
           <TabLink href={historyHref} active={active === "history"}>

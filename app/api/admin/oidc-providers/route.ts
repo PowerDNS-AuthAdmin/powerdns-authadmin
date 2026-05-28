@@ -21,6 +21,10 @@ import {
   setOidcDiscoveryCache,
 } from "@/lib/db/repositories/oidc-providers";
 import { createOidcProviderSchema } from "@/lib/validators/oidc-providers";
+import {
+  lookupProviderTypeBySlug,
+  reserveProviderSlug,
+} from "@/lib/db/repositories/auth-provider-slugs";
 import { probeOidcDiscovery } from "@/lib/auth/providers/oidc-probe";
 import {
   assertSafeOidcIssuerUrl,
@@ -33,7 +37,7 @@ import { logger } from "@/lib/logger";
 
 export async function GET(): Promise<Response> {
   try {
-    await requireUser({ can: "oidc.read" });
+    await requireUser({ can: "auth.read" });
     const rows = await listAllOidcProviders();
     // Never return the encrypted secret over the wire.
     const safe = rows.map(({ clientSecretEncrypted: _unused, ...rest }) => rest);
@@ -45,7 +49,7 @@ export async function GET(): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const { user } = await requireUser({ can: "oidc.manage" });
+    const { user } = await requireUser({ can: "auth.manage" });
     await requireCsrf(request);
 
     let input;
@@ -64,6 +68,16 @@ export async function POST(request: Request): Promise<Response> {
     if (existing) {
       throw new ConflictError(`An OIDC provider with slug "${input.slug}" already exists.`);
     }
+    // Cross-type slug uniqueness: refuse to create an OIDC provider whose
+    // slug is already taken by SAML or LDAP. The reservation table's PK
+    // would catch this inside the transaction below too, but checking up
+    // front gives the operator a clean error instead of a generic 23505.
+    const existingType = await lookupProviderTypeBySlug(input.slug);
+    if (existingType !== null) {
+      throw new ConflictError(
+        `Slug "${input.slug}" is already used by a ${existingType.toUpperCase()} provider. Slugs are unique across every authentication provider.`,
+      );
+    }
 
     // SSRF guard: the issuer is fetched server-side (probe + sign-in discovery),
     // so it must resolve to a public address (link-local/metadata always blocked).
@@ -78,6 +92,11 @@ export async function POST(request: Request): Promise<Response> {
 
     const hdrs = await headers();
     const row = await db.transaction(async (tx) => {
+      // Reserve the slug in the cross-type table FIRST. The PK constraint
+      // is the real guard against a concurrent insert with the same slug;
+      // doing it inside the transaction means a race with another OIDC /
+      // SAML / LDAP create rolls everything back atomically.
+      await reserveProviderSlug({ slug: input.slug, providerType: "oidc" }, tx);
       const created = await insertOidcProvider(
         {
           slug: input.slug,
@@ -89,7 +108,6 @@ export async function POST(request: Request): Promise<Response> {
           claimEmail: input.claimEmail,
           claimName: input.claimName,
           enabled: input.enabled,
-          forceDefault: input.forceDefault,
           requireEmailVerified: input.requireEmailVerified,
           allowedEmailDomains: input.allowedEmailDomains ?? null,
           groupMappings: input.groupMappings ?? null,
@@ -113,7 +131,6 @@ export async function POST(request: Request): Promise<Response> {
             claimEmail: created.claimEmail,
             claimName: created.claimName,
             enabled: created.enabled,
-            forceDefault: created.forceDefault,
             requireEmailVerified: created.requireEmailVerified,
             allowedEmailDomains: created.allowedEmailDomains,
             groupMappingsCount: created.groupMappings?.length ?? 0,

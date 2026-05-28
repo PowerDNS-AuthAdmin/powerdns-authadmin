@@ -36,7 +36,7 @@ describe("OIDC group-mapping privilege ceiling (GHSA-wf29-rmhc-rqc9)", () => {
     await admin.sendJson("POST", "/api/admin/roles", {
       slug: limitedSlug,
       name: "Limited OIDC Manager",
-      permissions: ["oidc.manage", "oidc.read", "zone.read"],
+      permissions: ["auth.manage", "auth.read", "zone.read"],
     });
     const limitedRoleId = await resolveRoleId(admin, limitedSlug);
     await admin.sendJson("POST", `/api/admin/users/${actor.id}/role-assignments`, {
@@ -99,7 +99,7 @@ describe("OIDC group-mapping privilege ceiling (GHSA-wf29-rmhc-rqc9)", () => {
     await admin.sendJson("POST", "/api/admin/roles", {
       slug: limitedSlug,
       name: "Limited OIDC Patcher",
-      permissions: ["oidc.manage", "oidc.read", "zone.read"],
+      permissions: ["auth.manage", "auth.read", "zone.read"],
     });
     const limitedRoleId = await resolveRoleId(admin, limitedSlug);
     await admin.sendJson("POST", `/api/admin/users/${actor.id}/role-assignments`, {

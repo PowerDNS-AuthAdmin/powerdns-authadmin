@@ -24,6 +24,7 @@ import { db } from "@/lib/db";
 import { zoneGrants } from "@/lib/db/schema";
 import {
   findGrant,
+  listDirectGrantsForUser,
   listGrantsForUser,
   mapServersToClusterPeers,
 } from "@/lib/db/repositories/zone-grants";
@@ -66,7 +67,9 @@ export async function GET(_request: Request, context: RouteContext): Promise<Res
     const { id } = await context.params;
     const target = await findUserById(id);
     if (!target) throw new NotFoundError("User not found.");
-    const grants = await listGrantsForUser(id);
+    // Admin UI edits direct user grants only — inherited team grants are
+    // managed on the team detail page, not here.
+    const grants = await listDirectGrantsForUser(id);
     return Response.json({ grants });
   } catch (err) {
     return errorResponse(err, "admin.zone-grants.route.error");

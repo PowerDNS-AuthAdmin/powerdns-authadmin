@@ -2,9 +2,9 @@
  * app/(auth)/layout.tsx
  *
  * Layout for the unauthenticated routes: /login, /reset-password, etc.
- * Centered card on a neutral background; the wordmark sits above the card
- * so the brand is the first thing a signing-in user sees. Theme toggle is
- * top-right so users can flip light/dark before signing in.
+ * Centered form on the page background — no card chrome, just the brand
+ * mark above and the content below. Theme toggle is top-right so users
+ * can flip light/dark before signing in.
  */
 
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -17,24 +17,21 @@ export default async function AuthLayout({ children }: Readonly<{ children: Reac
 
   return (
     <DialogProvider>
-      <main className="relative flex min-h-dvh flex-col items-center justify-center bg-[color:var(--color-bg-subtle)] px-4 py-8">
+      <main className="relative flex min-h-dvh flex-col items-center justify-center bg-[color:var(--color-bg)] px-4 py-8">
         <div className="absolute top-4 right-4">
           <ThemeToggle />
         </div>
-        {/* Wordmark wrapper matches the form-card max-width so the mark
-            stays visually anchored to the card on every viewport. `min(100%,
-            350px)` keeps it inside the wrapper on narrow phones (where 500 px
-            previously overflowed and clipped the trailing "-Admin") while
-            capping at 350 px on desktop. Height stays auto via the wordmark's
-            intrinsic ratio. */}
-        <div className="mb-6 flex w-full max-w-md justify-center">
-          <BrandMark siteName={siteName} brandLogoUrl={brandLogoUrl} width="min(100%, 350px)" />
+        {/* Wordmark wrapper caps width responsively — 350 px on phones (where
+            the 500 px desktop size overflowed and clipped the trailing "Admin"),
+            500 px from sm+. The brandmark itself fills the wrapper. */}
+        <div className="mb-8 flex w-full justify-center px-4">
+          <div className="w-full max-w-[350px] sm:max-w-[500px]">
+            <BrandMark siteName={siteName} brandLogoUrl={brandLogoUrl} width="100%" />
+          </div>
         </div>
-        <div className="w-full max-w-md rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-8 shadow-sm">
-          {children}
-        </div>
+        <div className="w-full max-w-lg">{children}</div>
         {supportContact ? (
-          <footer className="mt-6 text-xs text-[color:var(--color-fg-muted)]">
+          <footer className="mt-8 text-xs text-[color:var(--color-fg-muted)]">
             Need help? {renderSupportContact(supportContact)}
           </footer>
         ) : null}

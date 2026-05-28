@@ -116,11 +116,30 @@ const envSchema = z.object({
   REDIS_URL: z.string().url().optional(),
 
   // --- Sessions ---
-  // Session TTL in seconds. Default: 12h. Configurable per-deployment.
-  SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(43200),
+  // Session TTL in seconds. Default: 12h. Bounded to a sane window
+  // (5 minutes ≤ TTL ≤ 30 days) so a typo like `SESSION_TTL_SECONDS=5`
+  // can't silently log every operator out after a microsleep, and
+  // values past 30 days can't accumulate unbounded session rows in DB.
+  SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(2_592_000).default(43200),
   // Cookie domain. Default: derive from APP_URL host. Set explicitly for
   // multi-subdomain SSO scenarios.
   COOKIE_DOMAIN: z.string().optional(),
+
+  // --- IdP-derived permissions ---
+  // How old the latest session's `derived_permissions` snapshot is allowed
+  // to be before the token-auth path stops using it. After this window, an
+  // API token used by an OIDC/SAML/LDAP user falls back to admin-issued
+  // permissions only — the IdP-derived perms drop off until the user
+  // signs in again (which re-mints the snapshot). Default: 24h.
+  TOKEN_IDP_FALLBACK_TTL_SECONDS: z.coerce.number().int().positive().default(86400),
+  // Cache window for the live IdP-perms recompute. When a token
+  // authenticates for an OIDC/LDAP user, we re-fetch their current
+  // groups from the IdP (OIDC: refresh-token → userinfo; LDAP:
+  // service-account bind + search) and cache the result for this many
+  // seconds so a burst of API calls doesn't hammer the IdP. Lower →
+  // tighter freshness, more IdP load. Higher → looser freshness, less
+  // load. Default: 60s.
+  IDP_PERMS_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
 
   // --- Local auth ---
   // Whether email + password sign-in is enabled at all. Default true.
@@ -276,6 +295,31 @@ const envSchema = z.object({
     .pipe(z.boolean())
     .optional(),
 
+  // --- LDAP transport relaxations (mirrors the PDNS / OIDC pair) ---
+  // LDAP traffic is admin-configured but it carries the user's password on
+  // re-bind, so we default to strict TLS. The two opt-outs below are loud:
+  // the env-level one for trusted-LAN homelabs that have no TLS at all,
+  // the provider-row `start_tls` flag for the upgrade-after-connect case
+  // (RFC 4511 § 4.14). See ADR-0020 for the security posture.
+  //
+  // When false (default), the LDAP provider validator refuses an
+  // `ldap://...:389` URL unless the provider row sets `start_tls: true`.
+  // Set true to allow plain ldap:// for a directory you fully trust the
+  // path to.
+  LDAP_ALLOW_INSECURE_PORT_389: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .default(false),
+  // When true, the LDAP TLS handshake accepts self-signed / mismatched
+  // certificates. Loud opt-in for lab use only — re-issue the certs and
+  // pin the CA on the provider row for production.
+  LDAP_TLS_INSECURE_SKIP_VERIFY: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .default(false),
+
   // --- OIDC issuer connectivity (SSRF guard, mirrors the PDNS pair) ---
   // The OIDC issuer/discovery URL is operator-supplied and fetched server-side
   // (probe + live discovery), so it runs through the same outbound-URL guard.
@@ -358,6 +402,56 @@ const envSchema = z.object({
    */
   METRICS_TOKEN: z.string().min(16).optional(),
 
+  // --- WebAuthn / passkeys ---
+  /** Master kill-switch for the WebAuthn surface (login + profile enrolment). */
+  WEBAUTHN_ENABLED: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .default(true),
+  /**
+   * Relying-Party identifier. Must equal the `origin` hostname the browser
+   * uses to reach the app (NOT a URL, NOT a path — just the host). Derives
+   * from `APP_URL` host when unset, which is correct for ~all single-host
+   * deployments. Override only for apex/sub-domain sharing (e.g. set
+   * `example.com` so credentials registered at `auth.example.com` work at
+   * `dns.example.com`).
+   */
+  WEBAUTHN_RP_ID: z
+    .string()
+    .min(1)
+    .refine(
+      (s) => !s.includes("://") && !s.startsWith("/"),
+      "WEBAUTHN_RP_ID must be a bare host, not a URL",
+    )
+    .optional(),
+  /**
+   * Display name browsers/OS show during registration ("Add a passkey
+   * for X"). Defaults to the configured site name (`settings.site_name`)
+   * at request time, with `"PowerDNS-AuthAdmin"` as the literal fallback
+   * when the settings table is unreachable.
+   */
+  WEBAUTHN_RP_NAME: z.string().min(1).optional(),
+  /** User-verification policy passed to the authenticator. */
+  WEBAUTHN_USER_VERIFICATION: z.enum(["required", "preferred", "discouraged"]).default("preferred"),
+  /**
+   * Attestation conveyance preference. Default `none` keeps the privacy-
+   * preserving posture; `direct` is for audit-grade deployments that want
+   * attestation statements for compliance. (SimpleWebAuthn v13 dropped
+   * `"indirect"`; use `"direct"` or `"none"`.)
+   */
+  WEBAUTHN_ATTESTATION: z.enum(["none", "direct"]).default("none"),
+  /**
+   * Opt-in to allow non-localhost http:// origins (LAN development without
+   * TLS). Default false — production deployments serve over HTTPS and have
+   * no business loosening this.
+   */
+  WEBAUTHN_ALLOW_INSECURE_ORIGINS: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .default(false),
+
   // --- Provisioning (first-boot IaC) ---
   /**
    * Path to a YAML file applied on first boot. The applier writes a
@@ -398,6 +492,8 @@ const ENV_KEYS = [
   "DATABASE_POOL_SIZE",
   "REDIS_URL",
   "SESSION_TTL_SECONDS",
+  "TOKEN_IDP_FALLBACK_TTL_SECONDS",
+  "IDP_PERMS_CACHE_TTL_SECONDS",
   "COOKIE_DOMAIN",
   "LOCAL_AUTH_ENABLED",
   "SIGNUP_ENABLED",
@@ -423,6 +519,8 @@ const ENV_KEYS = [
   "PDNS_BACKGROUND_POLLING",
   "APP_OIDC_ALLOW_PRIVATE_NETWORKS",
   "APP_OIDC_ALLOW_INSECURE_HTTP",
+  "LDAP_ALLOW_INSECURE_PORT_389",
+  "LDAP_TLS_INSECURE_SKIP_VERIFY",
   "SMTP_HOST",
   "SMTP_PORT",
   "SMTP_SECURE",
@@ -436,6 +534,12 @@ const ENV_KEYS = [
   "OTEL_EXPORTER_OTLP_ENDPOINT",
   "METRICS_ENABLED",
   "METRICS_TOKEN",
+  "WEBAUTHN_ENABLED",
+  "WEBAUTHN_RP_ID",
+  "WEBAUTHN_RP_NAME",
+  "WEBAUTHN_USER_VERIFICATION",
+  "WEBAUTHN_ATTESTATION",
+  "WEBAUTHN_ALLOW_INSECURE_ORIGINS",
   "PROVISIONING_FILE",
   "PROVISION_ON_BOOT",
 ] as const;

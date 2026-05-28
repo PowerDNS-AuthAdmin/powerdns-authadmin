@@ -224,7 +224,7 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
               captures the actual wire traffic. Two complementary views. */}
           <p className="text-xs">
             <Link
-              href={`/admin/pdns-requests?serverSlug=${encodeURIComponent(row.slug)}`}
+              href={`/admin/requests?serverSlug=${encodeURIComponent(row.slug)}`}
               className="text-[color:var(--color-accent)] hover:underline"
             >
               View PowerDNS HTTP requests for this server →

@@ -30,6 +30,29 @@ export const sessions = sqliteTable(
     oidcIdToken: text("oidc_id_token"),
     oidcClientId: text("oidc_client_id"),
 
+    // See lib/db/schema/sessions.ts for the session-scoped IdP-derived
+    // permissions rationale. JSON-stringified array of AbilitySource.
+    derivedPermissions: text("derived_permissions", { mode: "json" })
+      .$type<
+        Array<{
+          permissions: readonly string[];
+          scopeType: "global" | "team" | "zone" | "server";
+          scopeId: string | null;
+        }>
+      >()
+      .notNull()
+      .default([]),
+
+    // Encrypted OIDC refresh token; null for non-OIDC or when the IdP
+    // didn't include offline_access. See PG mirror for the full rationale.
+    oidcRefreshTokenEncrypted: text("oidc_refresh_token_encrypted"),
+
+    // IdP family + slug — the token-auth path reads these to pick
+    // the right recompute strategy (LDAP / OIDC / SAML-fallback).
+    // See PG mirror for the full rationale.
+    idpProviderType: text("idp_provider_type"),
+    idpProviderSlug: text("idp_provider_slug"),
+
     ...timestamps(),
   },
   (t) => ({

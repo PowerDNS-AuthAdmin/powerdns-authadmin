@@ -1,6 +1,6 @@
 {
   "name": "powerdns-authadmin",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "private": true,
   "description": "Modern, self-hosted DNS administration UI for PowerDNS — multi-team RBAC, real audit, real SSO. From-scratch rebuild of PowerDNS-Admin in Node.js + TypeScript.",
   "license": "MIT",
@@ -48,6 +48,9 @@
     "@casl/ability": "7.0.0",
     "@casl/react": "7.0.0",
     "@node-rs/argon2": "2.0.2",
+    "@node-saml/node-saml": "5.1.0",
+    "@simplewebauthn/browser": "13.3.0",
+    "@simplewebauthn/server": "13.3.1",
     "@tanstack/react-table": "8.21.3",
     "better-sqlite3": "12.10.0",
     "client-only": "0.0.1",
@@ -59,6 +62,7 @@
     "isomorphic-dompurify": "3.13.0",
     "jose": "6.2.3",
     "js-yaml": "4.1.1",
+    "ldapts": "8.1.8",
     "lucide-react": "1.16.0",
     "next": "16.2.6",
     "nodemailer": "8.0.7",
@@ -74,6 +78,7 @@
     "server-only": "0.0.1",
     "tsx": "4.22.3",
     "undici": "8.3.0",
+    "xml-crypto": "6.1.2",
     "zod": "4.4.3"
   },
   "devDependencies": {

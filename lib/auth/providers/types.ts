@@ -31,5 +31,14 @@ export interface VerifiedIdentity {
     idToken: string | null;
     /** Client id used at sign-in — included in the logout redirect. */
     clientId: string | null;
+    /**
+     * Refresh token, if the IdP issued one (scope `offline_access`).
+     * Captured plaintext from the provider's token-exchange response;
+     * the callback handler MUST encrypt before persisting on the
+     * session (`lib/crypto/encryption.ts`). Used by the token-auth
+     * path to live-refresh the groups claim at API token use time.
+     * Null when the IdP didn't issue one.
+     */
+    refreshToken?: string | null;
   };
 }

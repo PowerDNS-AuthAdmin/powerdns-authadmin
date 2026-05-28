@@ -72,7 +72,11 @@ describe("GET /api/admin/pdns/zones/[zoneId]/export", () => {
     expect(res.status).toBe(200);
     const body = await res.text();
     expect(body).toContain("192.0.2.42");
-    expect(body).toContain(rrName);
+    // Owner is relativised against $ORIGIN — `www.<zone>` becomes `www`,
+    // with `$ORIGIN <zone>` above. Assert both halves so a future
+    // regression that omits $ORIGIN would still be caught.
+    expect(body).toContain(`$ORIGIN ${zone}`);
+    expect(body).toMatch(/^www\s/m);
   }, 15_000);
 
   it("sets a Content-Disposition attachment header with the zone filename", async () => {

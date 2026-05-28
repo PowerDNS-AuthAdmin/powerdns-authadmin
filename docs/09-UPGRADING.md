@@ -37,6 +37,141 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.3.0 (from 1.2.x)
+
+A **feature-pile release**: WebAuthn (passkeys, primary + 2FA), SAML 2.0 SP,
+LDAP direct-bind, teams per-zone grants, session-scoped IdP-derived
+permissions with live token recompute, the unified `/admin/authentication`
+admin surface, and a super-admin Backup & Restore wizard. The migration is a
+single SQL file per dialect (`drizzle/0004_low_luminals.sql` +
+`drizzle-sqlite/0004_black_storm.sql`) and runs automatically at app boot —
+no manual schema steps.
+
+The items below need operator attention.
+
+#### Permission rename — `oidc.*` → `auth.*`
+
+The `oidc.read` / `oidc.manage` permission strings are renamed to `auth.read` /
+`auth.manage` since the same gates now cover OIDC, SAML, and LDAP at the
+unified `/admin/authentication` surface.
+
+**What the migration does for you**: existing `roles.permissions` arrays are
+rewritten in place — every `"oidc.read"` becomes `"auth.read"`, every
+`"oidc.manage"` becomes `"auth.manage"`. Seeded system roles + custom
+operator-defined roles both get the update.
+
+**What you need to do**: nothing in the typical case. If you provision roles
+declaratively via `provisioning.yaml`, update your YAML to use the new
+permission names — the applier won't fail on the old names, but they'll be
+silently dropped (they're no longer in the master vocabulary).
+
+#### Admin URL renames — `/admin/oidc-providers` → `/admin/authentication/oidc`
+
+| Old                          | New                               |
+| ---------------------------- | --------------------------------- |
+| `/admin/oidc-providers`      | `/admin/authentication/oidc`      |
+| `/admin/oidc-providers/<id>` | `/admin/authentication/oidc/<id>` |
+| `/admin/saml-providers`      | `/admin/authentication/saml`      |
+| `/admin/saml-providers/<id>` | `/admin/authentication/saml/<id>` |
+| `/admin/ldap-providers`      | `/admin/authentication/ldap`      |
+| `/admin/ldap-providers/<id>` | `/admin/authentication/ldap/<id>` |
+
+Every old URL keeps a server-side redirect to the new one, so external links,
+bookmarks, and audit-log references continue to resolve. Update your own docs
+and runbooks at your leisure. The internal API routes
+(`/api/admin/oidc-providers/...` etc.) are **not** moved — they're a stable
+contract for external automation.
+
+#### IdP-derived permissions move from `role_assignments` to `sessions`
+
+**The breaking-ish bit**: rows in `role_assignments` tagged with `provider_id`
+(i.e. they came from an OIDC group-sync) are deleted by the migration. They
+re-materialise into the user's new `sessions.derived_permissions` JSONB column
+on their **next sign-in**.
+
+**Why**: persisting IdP-derived rows left stale state for users removed from
+groups who never signed in again. The new model keeps a derived-perms snapshot
+on the session row; tokens live-recompute against the IdP at use time (LDAP
+service-account search, OIDC refresh-token → userinfo) bounded by
+`IDP_PERMS_CACHE_TTL_SECONDS` (default 60s) or fall back to the latest session
+snapshot up to `TOKEN_IDP_FALLBACK_TTL_SECONDS` (default 24h) when the IdP
+can't be reached. See issue #85 for the full design.
+
+**What operators experience**:
+
+- Local-auth users: nothing changes.
+- SSO users with an active session at upgrade time: the session keeps its
+  admin-issued permissions. They temporarily lose IdP-derived perms until they
+  sign in again, which re-materialises the snapshot. Sign-out / sign-in once
+  after the upgrade.
+- SSO users with API tokens: same — token use falls back to admin-issued perms
+  until the user re-signs-in (then within 60s the live recompute kicks in for
+  LDAP / OIDC sessions).
+
+**New env vars** (both optional, sensible defaults):
+
+```env
+# How old the latest session's IdP-derived snapshot may be before tokens drop
+# the IdP-derived slice (default 24h).
+TOKEN_IDP_FALLBACK_TTL_SECONDS=86400
+
+# Cache window for the live IdP-perms recompute (LDAP/OIDC). Lower → tighter
+# freshness, more IdP load. Default 60s.
+IDP_PERMS_CACHE_TTL_SECONDS=60
+```
+
+#### OIDC sessions: enable `offline_access` for live token recompute
+
+To get the OIDC live-recompute path (refresh-token → userinfo at API-token use
+time), the IdP must include `offline_access` in the scope on the authorization
+request — already the default for new OIDC providers configured under
+`/admin/authentication/oidc`. **Existing OIDC sessions created before the
+upgrade have no refresh token stored**; their tokens use the session-snapshot
+fallback until the user signs in fresh. Existing OIDC operators should sign
+out + sign in once after the upgrade to enjoy the live-recompute path.
+
+#### Session TTL is now bounds-checked
+
+`SESSION_TTL_SECONDS` is clamped to `[300, 2592000]` (5 minutes – 30 days) at
+boot. If you'd set a value outside that window (almost certainly a typo), the
+app now refuses to start with a clear error rather than silently logging
+everyone out or accumulating session rows without a ceiling. Default is
+unchanged (43200 = 12h).
+
+#### Audit-action vocabulary changes
+
+| Old                                       | New                                  |
+| ----------------------------------------- | ------------------------------------ |
+| `auth.oidc.group_sync.assignment_added`   | _removed_ (no per-row events now)    |
+| `auth.oidc.group_sync.assignment_removed` | _removed_                            |
+| `auth.oidc.group_sync.mapping_unresolved` | `auth.group_sync.mapping_unresolved` |
+| `auth.oidc.linked`                        | `auth.idp.linked`                    |
+| `auth.oidc.rejected_provisioning`         | `auth.idp.rejected_provisioning`     |
+| `auth.saml.linked`                        | `auth.idp.linked`                    |
+| `auth.saml.rejected_provisioning`         | `auth.idp.rejected_provisioning`     |
+| `auth.ldap.rejected_provisioning`         | `auth.idp.rejected_provisioning`     |
+
+Existing audit rows are **untouched** — old action names stay on the rows
+written under them. The change only affects new rows. Audit dashboards that
+filter on the old names should be updated.
+
+#### Backup & Restore (super-admin only)
+
+A new **Backup & Restore** wizard at `/admin/settings/backup` exposes a JSON
+export of the app DB **and** a merge-mode restore (insert-missing-rows only,
+guarded by a typed confirmation phrase). Permission: the new `system.backup`,
+default-granted only to the seeded `super-admin` role. The export excludes
+PDNS zone data and the symmetric secrets (`APP_SECRET_KEY` /
+`APP_ENCRYPTION_KEY`); encrypted columns export as ciphertext, useless without
+the encryption key on the restore target.
+
+#### Zone Import / Export
+
+A new **Import / Export** hub at `/admin/import-export` (under PowerDNS →
+Zones) lets operators paste/upload BIND zonefiles to create zones in bulk, and
+download selected zones as a single BIND-format bundle. `zone.read` to view,
+`zone.create` to import. No operator action required — it's additive.
+
 ### Upgrading to 1.2.1 (from 1.2.x)
 
 A **build-pipeline patch** — drop-in upgrade. No schema, no API, no
@@ -262,7 +397,7 @@ Two behavioural points specific to this release (ADR-0014 / ADR-0017):
   briefly show as "unknown" until that completes. A primary + secondaries that
   was wired only by the old `primary_id` pin re-derives automatically when the
   secondary's zones list the primary's advertised address — otherwise group them
-  under **Admin → Groups** (or set the primary's advertised addresses).
+  under **Admin → Clusters** (or set the primary's advertised addresses).
 - **Keep your `APP_ENCRYPTION_KEY`.** Stored PDNS API keys and OIDC client
   secrets are decrypted with it; an upgrade that loses the key can't decrypt them
   (you'd see `Unsupported state or unable to authenticate data` in the logs).

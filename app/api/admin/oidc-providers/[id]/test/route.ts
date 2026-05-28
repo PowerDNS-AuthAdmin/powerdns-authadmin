@@ -39,7 +39,7 @@ interface RouteContext {
 
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { user } = await requireUser({ can: "oidc.read" });
+    const { user } = await requireUser({ can: "auth.read" });
     await requireCsrf(request);
     const { id } = await context.params;
     const hdrs = await headers();
@@ -63,7 +63,9 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     await setOidcDiscoveryCache(id, {
       fetchedAt,
       ok: result.ok,
-      ...(result.ok ? {} : { reason: result.reason }),
+      ...(result.ok
+        ? { endSessionEndpoint: result.endSessionEndpoint }
+        : { reason: result.reason }),
     });
 
     // Audit BOTH outcomes — operator-visible diagnostics for "we

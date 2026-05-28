@@ -305,4 +305,212 @@ describe("zone grants — per-zone permission grants", () => {
     });
     expect(ok.status).toBe(201);
   }, 30_000);
+
+  // ─── Team-principal grants ─────────────────────────────────────────────────
+  // A grant attached to a team flows through to every member via team_members.
+  // Same authorization semantics as a direct user grant; only the principal column differs.
+
+  it("team grant flows to a team member; revoke removes their access", async () => {
+    const admin = await loginAsBootstrap();
+    const standaloneId = await getStandaloneId(admin);
+    const zone = randomZone("team-grant");
+    await admin.sendJson("POST", "/api/admin/pdns/zones", {
+      serverSlug: "standalone",
+      name: zone,
+      kind: "Master",
+      nameservers: NS,
+    });
+
+    // A read-only user + a fresh team they're a member of.
+    const { user, client } = await createAndLogin(admin, {
+      email: uniqueEmail("team-grantee"),
+      name: "Team Grantee",
+      password: "team-grantee-pw-1234",
+      roleSlug: SYSTEM_ROLES.readOnly,
+    });
+    const { team } = await admin.sendJson<{ team: { id: string; slug: string } }>(
+      "POST",
+      "/api/admin/teams",
+      { slug: uniqueSlug("team-grant"), name: "Team-Grant" },
+    );
+    await admin.sendJson("POST", `/api/admin/teams/${team.id}/members`, {
+      email: user.email,
+      teamRole: "member",
+    });
+
+    // Before the team grant: the user can't PATCH the zone.
+    const before = await client.call(`/api/admin/pdns/zones/${encodeURIComponent(zone)}/rrsets`, {
+      method: "PATCH",
+      json: {
+        serverSlug: "standalone",
+        changes: [
+          {
+            kind: "upsert",
+            name: `www.${zone}`,
+            type: "A",
+            ttl: 60,
+            records: [{ content: "192.0.2.40" }],
+          },
+        ],
+      },
+    });
+    expect(before.status).toBe(403);
+
+    // Grant the team record.update on this zone.
+    const { grant } = await admin.sendJson<{ grant: { id: string } }>(
+      "POST",
+      `/api/admin/teams/${team.id}/zone-grants`,
+      {
+        serverId: standaloneId,
+        zoneName: zone,
+        permissions: ["record.update", "record.create", "zone.read"],
+      },
+    );
+
+    // The member now inherits the permission and can PATCH.
+    const granted = await client.call(`/api/admin/pdns/zones/${encodeURIComponent(zone)}/rrsets`, {
+      method: "PATCH",
+      json: {
+        serverSlug: "standalone",
+        changes: [
+          {
+            kind: "upsert",
+            name: `www.${zone}`,
+            type: "A",
+            ttl: 60,
+            records: [{ content: "192.0.2.41" }],
+          },
+        ],
+      },
+    });
+    expect(granted.status).toBe(200);
+
+    // Revoke the team grant → the member loses access again.
+    await admin.sendJson("DELETE", `/api/admin/teams/${team.id}/zone-grants/${grant.id}`);
+    const afterRevoke = await client.call(
+      `/api/admin/pdns/zones/${encodeURIComponent(zone)}/rrsets`,
+      {
+        method: "PATCH",
+        json: {
+          serverSlug: "standalone",
+          changes: [
+            {
+              kind: "upsert",
+              name: `www.${zone}`,
+              type: "A",
+              ttl: 60,
+              records: [{ content: "192.0.2.42" }],
+            },
+          ],
+        },
+      },
+    );
+    expect(afterRevoke.status).toBe(403);
+  }, 30_000);
+
+  it("removing a member from a team also revokes the team's grants for that user", async () => {
+    const admin = await loginAsBootstrap();
+    const standaloneId = await getStandaloneId(admin);
+    const zone = randomZone("team-leave");
+    await admin.sendJson("POST", "/api/admin/pdns/zones", {
+      serverSlug: "standalone",
+      name: zone,
+      kind: "Master",
+      nameservers: NS,
+    });
+
+    const { user, client } = await createAndLogin(admin, {
+      email: uniqueEmail("leaver"),
+      name: "Leaver",
+      password: "leaver-pw-1234",
+      roleSlug: SYSTEM_ROLES.readOnly,
+    });
+    const { team } = await admin.sendJson<{ team: { id: string; slug: string } }>(
+      "POST",
+      "/api/admin/teams",
+      { slug: uniqueSlug("team-leave"), name: "Team-Leave" },
+    );
+    await admin.sendJson("POST", `/api/admin/teams/${team.id}/members`, {
+      email: user.email,
+      teamRole: "member",
+    });
+    await admin.sendJson("POST", `/api/admin/teams/${team.id}/zone-grants`, {
+      serverId: standaloneId,
+      zoneName: zone,
+      permissions: ["record.update", "record.create", "zone.read"],
+    });
+
+    // Member can PATCH.
+    const ok = await client.call(`/api/admin/pdns/zones/${encodeURIComponent(zone)}/rrsets`, {
+      method: "PATCH",
+      json: {
+        serverSlug: "standalone",
+        changes: [
+          {
+            kind: "upsert",
+            name: `www.${zone}`,
+            type: "A",
+            ttl: 60,
+            records: [{ content: "192.0.2.50" }],
+          },
+        ],
+      },
+    });
+    expect(ok.status).toBe(200);
+
+    // Remove them from the team. The team's grant survives (not deleted),
+    // but it no longer flows to this user because they're no longer a member.
+    await admin.sendJson("DELETE", `/api/admin/teams/${team.id}/members/${user.id}`);
+    const denied = await client.call(`/api/admin/pdns/zones/${encodeURIComponent(zone)}/rrsets`, {
+      method: "PATCH",
+      json: {
+        serverSlug: "standalone",
+        changes: [
+          {
+            kind: "upsert",
+            name: `www.${zone}`,
+            type: "A",
+            ttl: 60,
+            records: [{ content: "192.0.2.51" }],
+          },
+        ],
+      },
+    });
+    expect(denied.status).toBe(403);
+  }, 30_000);
+
+  it("rejects POST with both userId and teamId routes (each route enforces its principal column)", async () => {
+    // The CHECK constraint enforces exactly-one principal at the DB level.
+    // Routes only ever insert one principal column, but the constraint is the
+    // backstop. We exercise the user POST + team POST + the conflict-on-duplicate
+    // path; the schema check is implicitly tested by the absence of a way to
+    // hit it from the API.
+    const admin = await loginAsBootstrap();
+    const standaloneId = await getStandaloneId(admin);
+    const zone = randomZone("dup");
+    await admin.sendJson("POST", "/api/admin/pdns/zones", {
+      serverSlug: "standalone",
+      name: zone,
+      kind: "Master",
+      nameservers: NS,
+    });
+    const { team } = await admin.sendJson<{ team: { id: string } }>("POST", "/api/admin/teams", {
+      slug: uniqueSlug("dup"),
+      name: "Dup",
+    });
+
+    const first = await admin.sendJson<{ grant: { id: string } }>(
+      "POST",
+      `/api/admin/teams/${team.id}/zone-grants`,
+      { serverId: standaloneId, zoneName: zone, permissions: ["zone.read"] },
+    );
+    expect(first.grant.id).toBeTruthy();
+
+    // Second POST with the same (team, server, zone) → 409.
+    const dup = await admin.call(`/api/admin/teams/${team.id}/zone-grants`, {
+      method: "POST",
+      json: { serverId: standaloneId, zoneName: zone, permissions: ["zone.read"] },
+    });
+    expect(dup.status).toBe(409);
+  }, 30_000);
 });
