@@ -58,7 +58,7 @@ export interface WebauthnCredential {
   id: string;
   publicKey: string;
   counter: number;
-  transports?: Array<"usb" | "nfc" | "ble" | "internal" | "hybrid">;
+  transports?: Array<"usb" | "nfc" | "ble" | "internal" | "hybrid" | "cable" | "smart-card">;
   createdAt: string;
   lastUsedAt: string | null;
   nickname: string;

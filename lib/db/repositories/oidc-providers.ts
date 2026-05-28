@@ -67,7 +67,12 @@ export async function deleteOidcProvider(id: string, executor: DbExecutor = db):
  */
 export async function setOidcDiscoveryCache(
   id: string,
-  cache: { fetchedAt: string; ok: boolean; reason?: string },
+  cache: {
+    fetchedAt: string;
+    ok: boolean;
+    reason?: string;
+    endSessionEndpoint?: string | null;
+  },
 ): Promise<void> {
   await db
     .update(oidcProviders)

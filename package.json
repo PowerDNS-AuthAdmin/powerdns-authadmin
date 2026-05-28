@@ -49,6 +49,8 @@
     "@casl/react": "7.0.0",
     "@node-rs/argon2": "2.0.2",
     "@node-saml/node-saml": "5.1.0",
+    "@simplewebauthn/browser": "13.3.0",
+    "@simplewebauthn/server": "13.3.1",
     "@tanstack/react-table": "8.21.3",
     "better-sqlite3": "12.10.0",
     "client-only": "0.0.1",

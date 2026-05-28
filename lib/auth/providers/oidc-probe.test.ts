@@ -16,16 +16,22 @@ const ISSUER = "https://idp.example.com";
 describe("probeOidcDiscovery", () => {
   it("returns ok when the discovery doc matches the issuer URL", async () => {
     const fetch = mockFetch([new Response(JSON.stringify({ issuer: ISSUER }), { status: 200 })]);
-    expect(await probeOidcDiscovery(ISSUER, fetch)).toEqual({ ok: true });
+    expect(await probeOidcDiscovery(ISSUER, fetch)).toEqual({ ok: true, endSessionEndpoint: null });
   });
 
   it("treats trailing-slash issuer URLs as equivalent", async () => {
     const fetch = mockFetch([
       new Response(JSON.stringify({ issuer: `${ISSUER}/` }), { status: 200 }),
     ]);
-    expect(await probeOidcDiscovery(`${ISSUER}/`, fetch)).toEqual({ ok: true });
+    expect(await probeOidcDiscovery(`${ISSUER}/`, fetch)).toEqual({
+      ok: true,
+      endSessionEndpoint: null,
+    });
     const fetch2 = mockFetch([new Response(JSON.stringify({ issuer: ISSUER }), { status: 200 })]);
-    expect(await probeOidcDiscovery(`${ISSUER}/`, fetch2)).toEqual({ ok: true });
+    expect(await probeOidcDiscovery(`${ISSUER}/`, fetch2)).toEqual({
+      ok: true,
+      endSessionEndpoint: null,
+    });
   });
 
   it("returns transport on a network error", async () => {
@@ -68,6 +74,25 @@ describe("probeOidcDiscovery", () => {
       ok: false,
       reason: "missing-issuer",
     });
+  });
+
+  it("surfaces end_session_endpoint when the discovery doc advertises it", async () => {
+    const endSession = "https://idp.example.com/logout";
+    const fetch = mockFetch([
+      new Response(JSON.stringify({ issuer: ISSUER, end_session_endpoint: endSession }), {
+        status: 200,
+      }),
+    ]);
+    expect(await probeOidcDiscovery(ISSUER, fetch)).toEqual({
+      ok: true,
+      endSessionEndpoint: endSession,
+    });
+  });
+
+  it("returns null endSessionEndpoint when missing (typed-null, never undefined)", async () => {
+    const fetch = mockFetch([new Response(JSON.stringify({ issuer: ISSUER }), { status: 200 })]);
+    const result = await probeOidcDiscovery(ISSUER, fetch);
+    expect(result).toEqual({ ok: true, endSessionEndpoint: null });
   });
 
   it("returns issuer-mismatch when the doc's issuer differs", async () => {

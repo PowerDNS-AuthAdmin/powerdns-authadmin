@@ -103,8 +103,12 @@ export interface WebauthnCredential {
   publicKey: string;
   /** Replay counter — rejected if a verification reports a lower value. */
   counter: number;
-  /** Transports the authenticator supports (e.g. ["usb","nfc"]). */
-  transports?: Array<"usb" | "nfc" | "ble" | "internal" | "hybrid">;
+  /**
+   * Transports the authenticator supports (e.g. ["usb","nfc"]). Mirrors
+   * `AuthenticatorTransportFuture` from @simplewebauthn/server so the
+   * union doesn't drift when the spec adds new transports.
+   */
+  transports?: Array<"usb" | "nfc" | "ble" | "internal" | "hybrid" | "cable" | "smart-card">;
   /** When the credential was registered. ISO string. */
   createdAt: string;
   /** Last time this credential authenticated. ISO string or null. */

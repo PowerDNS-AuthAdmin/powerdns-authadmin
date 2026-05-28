@@ -38,6 +38,8 @@ durability, not exhaustiveness.
 | 0015 | [Backend health advisories (the notification bell)](./0015-backend-health-advisories.md)                         | Accepted                   |
 | 0016 | [Optional Redis for horizontal scale (replicas > 1)](./0016-redis-horizontal-scale.md)                           | Accepted                   |
 | 0017 | [Squash the 1.1.0 schema deltas into one migration per dialect](./0017-migration-squash-1.1.0.md)                | Accepted                   |
+| 0018 | [Multi-provider auth: keep OIDC, layer SAML + LDAP as siblings](./0018-provider-abstraction.md)                  | Accepted                   |
+| 0019 | [WebAuthn: both primary credential and second factor](./0019-webauthn-passkeys.md)                               | Accepted                   |
 | 0020 | [LDAP authentication architecture](./0020-ldap-architecture.md)                                                  | Accepted                   |
 | 0021 | [SAML 2.0 service-provider architecture](./0021-saml-architecture.md)                                            | Accepted                   |
 

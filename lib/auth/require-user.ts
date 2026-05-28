@@ -106,6 +106,7 @@ export async function requireUser(opts: RequireUserOptions = {}): Promise<Authen
     const compliance = evaluateSessionCompliance(
       {
         totpEnrolled: result.user.totpSecretEncrypted !== null,
+        webauthnEnrolled: result.user.webauthnCredentials.length > 0,
         ssoOnly: result.user.passwordHash === null,
         mfaOverride: result.user.mfaRequired,
         mustChangePassword: result.user.mustChangePassword,
@@ -162,6 +163,7 @@ export async function requireUserForPage(
         const mfa = checkMfaCompliance(
           {
             totpEnrolled: result.user.totpSecretEncrypted !== null,
+            webauthnEnrolled: result.user.webauthnCredentials.length > 0,
             ssoOnly: result.user.passwordHash === null,
             mfaOverride: result.user.mfaRequired,
           },

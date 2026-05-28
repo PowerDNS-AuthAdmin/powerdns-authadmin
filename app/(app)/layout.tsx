@@ -80,6 +80,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const compliance = checkMfaCompliance(
     {
       totpEnrolled: current.user.totpSecretEncrypted !== null,
+      webauthnEnrolled: current.user.webauthnCredentials.length > 0,
       ssoOnly: current.user.passwordHash === null,
       // Per-user override (admin user-detail page) supersedes roles + SSO.
       mfaOverride: current.user.mfaRequired,

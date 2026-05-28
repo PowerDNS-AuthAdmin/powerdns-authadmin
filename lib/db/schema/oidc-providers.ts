@@ -68,16 +68,20 @@ export const oidcProviders = pgTable(
     /**
      * Cached result of the last operator-triggered discovery probe
      *. `null` until the first Test. Stored as jsonb:
-     *   { fetchedAt: ISO string, ok: boolean, reason?: string }
+     *   { fetchedAt: ISO string, ok: boolean, reason?: string,
+     *     endSessionEndpoint?: string | null }
      * Auto-refresh isn't wired — operators hit Test on
      * /admin/auth-providers/oidc when they want a fresh check. The cache
      * lets the list show the last known state without probing on
      * every page render (which would round-trip the IdP each time).
+     * `endSessionEndpoint` is captured by the probe so the admin UI
+     * can warn when RP-initiated logout won't work for this IdP.
      */
     discoveryCache: jsonb("discovery_cache").$type<{
       fetchedAt: string;
       ok: boolean;
       reason?: string;
+      endSessionEndpoint?: string | null;
     } | null>(),
 
     /**

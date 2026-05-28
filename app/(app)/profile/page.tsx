@@ -16,6 +16,7 @@ import { ChangePasswordForm } from "./_components/change-password-form";
 import { NameEdit } from "./_components/name-edit";
 import { SessionsList } from "./_components/sessions-list";
 import { TotpSection } from "./_components/totp-section";
+import { PasskeysSection } from "./_components/passkeys-section";
 import { SectionTabs, SectionTabPanel } from "@/components/ui/section-tabs";
 import { ComplianceBanner } from "@/components/auth/compliance-guard";
 import { env } from "@/lib/env";
@@ -169,12 +170,26 @@ export default async function ProfilePage({
         </SectionTabPanel>
 
         <SectionTabPanel id="mfa">
-          <TotpSection
-            initialEnabled={user.totpSecretEncrypted !== null}
-            mfaRequired={mfaRequired}
-            requiringRoleSlugs={requiringRoleSlugs}
-            ssoOnly={user.passwordHash === null}
-          />
+          <div className="space-y-4">
+            <TotpSection
+              initialEnabled={user.totpSecretEncrypted !== null}
+              mfaRequired={mfaRequired}
+              requiringRoleSlugs={requiringRoleSlugs}
+              ssoOnly={user.passwordHash === null}
+            />
+            {env.WEBAUTHN_ENABLED ? (
+              <PasskeysSection
+                ssoOnly={user.passwordHash === null}
+                initial={user.webauthnCredentials.map((c) => ({
+                  id: c.id,
+                  nickname: c.nickname,
+                  transports: c.transports ?? [],
+                  createdAt: c.createdAt,
+                  lastUsedAt: c.lastUsedAt,
+                }))}
+              />
+            ) : null}
+          </div>
         </SectionTabPanel>
 
         <SectionTabPanel id="api-tokens">

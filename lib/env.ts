@@ -399,6 +399,56 @@ const envSchema = z.object({
    */
   METRICS_TOKEN: z.string().min(16).optional(),
 
+  // --- WebAuthn / passkeys ---
+  /** Master kill-switch for the WebAuthn surface (login + profile enrolment). */
+  WEBAUTHN_ENABLED: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .default(true),
+  /**
+   * Relying-Party identifier. Must equal the `origin` hostname the browser
+   * uses to reach the app (NOT a URL, NOT a path — just the host). Derives
+   * from `APP_URL` host when unset, which is correct for ~all single-host
+   * deployments. Override only for apex/sub-domain sharing (e.g. set
+   * `example.com` so credentials registered at `auth.example.com` work at
+   * `dns.example.com`).
+   */
+  WEBAUTHN_RP_ID: z
+    .string()
+    .min(1)
+    .refine(
+      (s) => !s.includes("://") && !s.startsWith("/"),
+      "WEBAUTHN_RP_ID must be a bare host, not a URL",
+    )
+    .optional(),
+  /**
+   * Display name browsers/OS show during registration ("Add a passkey
+   * for X"). Defaults to the configured site name (`settings.site_name`)
+   * at request time, with `"PowerDNS-AuthAdmin"` as the literal fallback
+   * when the settings table is unreachable.
+   */
+  WEBAUTHN_RP_NAME: z.string().min(1).optional(),
+  /** User-verification policy passed to the authenticator. */
+  WEBAUTHN_USER_VERIFICATION: z.enum(["required", "preferred", "discouraged"]).default("preferred"),
+  /**
+   * Attestation conveyance preference. Default `none` keeps the privacy-
+   * preserving posture; `direct` is for audit-grade deployments that want
+   * attestation statements for compliance. (SimpleWebAuthn v13 dropped
+   * `"indirect"`; use `"direct"` or `"none"`.)
+   */
+  WEBAUTHN_ATTESTATION: z.enum(["none", "direct"]).default("none"),
+  /**
+   * Opt-in to allow non-localhost http:// origins (LAN development without
+   * TLS). Default false — production deployments serve over HTTPS and have
+   * no business loosening this.
+   */
+  WEBAUTHN_ALLOW_INSECURE_ORIGINS: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .default(false),
+
   // --- Provisioning (first-boot IaC) ---
   /**
    * Path to a YAML file applied on first boot. The applier writes a
@@ -481,6 +531,12 @@ const ENV_KEYS = [
   "OTEL_EXPORTER_OTLP_ENDPOINT",
   "METRICS_ENABLED",
   "METRICS_TOKEN",
+  "WEBAUTHN_ENABLED",
+  "WEBAUTHN_RP_ID",
+  "WEBAUTHN_RP_NAME",
+  "WEBAUTHN_USER_VERIFICATION",
+  "WEBAUTHN_ATTESTATION",
+  "WEBAUTHN_ALLOW_INSECURE_ORIGINS",
   "PROVISIONING_FILE",
   "PROVISION_ON_BOOT",
 ] as const;

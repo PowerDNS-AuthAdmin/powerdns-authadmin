@@ -88,7 +88,9 @@ async function sampleOneProvider(
     await setOidcDiscoveryCache(provider.id, {
       fetchedAt,
       ok: result.ok,
-      ...(result.ok ? {} : { reason: result.reason }),
+      ...(result.ok
+        ? { endSessionEndpoint: result.endSessionEndpoint }
+        : { reason: result.reason }),
     });
   } catch (err) {
     // probeOidcDiscovery already classifies its own failures and

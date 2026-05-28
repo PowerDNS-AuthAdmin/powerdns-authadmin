@@ -26,6 +26,7 @@ export const oidcProviders = sqliteTable(
       fetchedAt: string;
       ok: boolean;
       reason?: string;
+      endSessionEndpoint?: string | null;
     } | null>(),
     iconUrl: text("icon_url"),
     allowedEmailDomains: text("allowed_email_domains", { mode: "json" }).$type<string[]>(),

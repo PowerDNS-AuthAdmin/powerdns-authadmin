@@ -20,14 +20,26 @@
  * certifi/web/src/auth.tsx#logout.
  */
 
-import { headers } from "next/headers";
-import { env } from "@/lib/env";
+import { cookies, headers } from "next/headers";
+import { env, isProduction, cookieDomain } from "@/lib/env";
 import { appendAudit } from "@/lib/audit/log";
 import { getClientIp, getRequestId } from "@/lib/client-ip";
 import { readSession, endSession } from "@/lib/auth/session";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { ForbiddenError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+
+/**
+ * Cookie name + TTL for the "just-logged-out" suppression cookie. Read by
+ * /login to skip `forceDefault` OIDC auto-redirect for a short window
+ * after sign-out — without this, the IdP's still-valid session would
+ * silently re-auth the user and they'd never see a logout confirmation.
+ * 60 seconds is enough for the user to land back on /login + hit the
+ * sign-in button manually if they want to. Belt-and-braces with the
+ * existing `?signed-out=1` query-param check.
+ */
+const JUST_LOGGED_OUT_COOKIE = "pda_just_logged_out";
+const JUST_LOGGED_OUT_TTL_SEC = 60;
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -66,6 +78,21 @@ export async function POST(request: Request): Promise<Response> {
   );
 
   await endSession();
+
+  // Mark this browser as "just logged out". /login reads this cookie and
+  // suppresses the forceDefault OIDC auto-redirect — without this, a still-
+  // valid IdP session re-auths the operator silently and they never see a
+  // logout confirmation. HttpOnly so JS can't tamper, scoped to /login by
+  // path so it doesn't leak into other requests.
+  const cookieStore = await cookies();
+  cookieStore.set(JUST_LOGGED_OUT_COOKIE, "1", {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "lax",
+    path: "/login",
+    domain: cookieDomain,
+    maxAge: JUST_LOGGED_OUT_TTL_SEC,
+  });
 
   const hdrs = await headers();
   await appendAudit({

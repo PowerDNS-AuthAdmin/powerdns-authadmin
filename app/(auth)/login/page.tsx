@@ -10,7 +10,7 @@
  */
 
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { env, isProduction } from "@/lib/env";
@@ -99,7 +99,13 @@ export default async function LoginPage({
   // recovery). The setting is global (one value across the app); per-provider
   // `force_default` is retired (migrated to this setting at upgrade time).
   const forceLocalRequested = forceLocal !== undefined;
-  const isFreshArrival = !error && !signedOut && !flash && !forceLocalRequested;
+  // The just-logged-out cookie is set by /api/auth/logout (60s TTL). It
+  // suppresses the default-provider auto-redirect for that window so the
+  // operator isn't bounced through a still-valid IdP session and silently
+  // re-auth'd before they can see a logout confirmation.
+  const justLoggedOut = (await cookies()).get("pda_just_logged_out")?.value === "1";
+  const isFreshArrival =
+    !error && !signedOut && !flash && !forceLocalRequested && !justLoggedOut;
   const { authDefaultProvider } = await getAppSettings();
   if (isFreshArrival && authDefaultProvider !== "local") {
     const sep = authDefaultProvider.indexOf(":");
@@ -260,7 +266,11 @@ export default async function LoginPage({
 
       {env.LOCAL_AUTH_ENABLED && ldapFocusSlug === undefined ? (
         <>
-          <LoginForm turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined} next={safeNext} />
+          <LoginForm
+            turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined}
+            webauthnEnabled={env.WEBAUTHN_ENABLED}
+            next={safeNext}
+          />
           {allowPasswordReset ? (
             <p className="mt-3 text-xs text-[color:var(--color-fg-muted)]">
               <Link href="/reset-password" className="underline">
