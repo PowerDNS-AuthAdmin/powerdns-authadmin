@@ -93,63 +93,96 @@ export default async function LoginPage({
       : []),
   ];
 
-  // Default sign-in method — auto-redirect a fresh visit to the pinned
-  // provider's initiate URL. Skipped on post-signout, post-error, flash,
-  // explicit `?force-local=1`, and within 60s of an explicit logout
-  // (`pda_just_logged_out` cookie).
+  // Default sign-in method controls what's primary on the page. OIDC and
+  // SAML are redirect-only (the IdP hosts the form), so when they're the
+  // default a fresh visit auto-bounces. LDAP is in-page (we collect creds)
+  // so its "default" effect is just to swap the inline form — no redirect.
+  // Local default = local form inline.
+  //
+  // Skips: post-signout, post-error, flash, `?force-local=1` (manual
+  // bypass), and within 60s of an explicit logout (`pda_just_logged_out`).
   const forceLocalRequested = forceLocal !== undefined;
   const justLoggedOut = (await cookies()).get("pda_just_logged_out")?.value === "1";
   const isFreshArrival =
     !error && !signedOut && !flash && !forceLocalRequested && !justLoggedOut;
   const { authDefaultProvider } = await getAppSettings();
-  if (isFreshArrival && authDefaultProvider !== "local") {
-    const sep = authDefaultProvider.indexOf(":");
-    const type = sep > 0 ? authDefaultProvider.slice(0, sep) : "";
-    const slug = sep > 0 ? authDefaultProvider.slice(sep + 1) : "";
-    if (type === "oidc" && slug && dbProviders.some((p) => p.slug === slug && p.enabled)) {
-      redirect(`/api/auth/oidc/${slug}/initiate${nextParam}`);
+  const defaultSep = authDefaultProvider.indexOf(":");
+  const defaultType = defaultSep > 0 ? authDefaultProvider.slice(0, defaultSep) : "";
+  const defaultSlug = defaultSep > 0 ? authDefaultProvider.slice(defaultSep + 1) : "";
+  if (isFreshArrival) {
+    if (
+      defaultType === "oidc" &&
+      defaultSlug &&
+      dbProviders.some((p) => p.slug === defaultSlug && p.enabled)
+    ) {
+      redirect(`/api/auth/oidc/${defaultSlug}/initiate${nextParam}`);
     }
-    if (type === "saml" && slug && dbSamlProviders.some((p) => p.slug === slug && p.enabled)) {
-      redirect(`/api/auth/saml/${slug}/login${nextParam}`);
-    }
-    if (type === "ldap" && slug && dbLdapProviders.some((p) => p.slug === slug && p.enabled)) {
-      const sep2 = nextParam ? "&" : "?";
-      redirect(`/login${nextParam}${sep2}ldap=${encodeURIComponent(slug)}`);
+    if (
+      defaultType === "saml" &&
+      defaultSlug &&
+      dbSamlProviders.some((p) => p.slug === defaultSlug && p.enabled)
+    ) {
+      redirect(`/api/auth/saml/${defaultSlug}/login${nextParam}`);
     }
   }
 
-  // Build the unified non-local provider list. Each button is one option,
-  // labelled with the provider's name only — no "Continue with" prefixes.
-  const providerButtons: ProviderButton[] = [
-    ...oidcProviders.map((p) => ({
+  // Which LDAP form (if any) renders as the primary inline form:
+  //   1. Explicit `?ldap=<slug>` (user picked a non-default LDAP from the list).
+  //   2. Default = `ldap:<slug>` AND not `?force-local=1` AND the provider exists.
+  //   3. None — local form is inline.
+  let inlineLdap: (typeof dbLdapProviders)[number] | undefined;
+  if (ldapFocusSlug !== undefined) {
+    inlineLdap = dbLdapProviders.find((l) => l.slug === ldapFocusSlug);
+  } else if (
+    !forceLocalRequested &&
+    defaultType === "ldap" &&
+    defaultSlug &&
+    dbLdapProviders.some((p) => p.slug === defaultSlug && p.enabled)
+  ) {
+    inlineLdap = dbLdapProviders.find((l) => l.slug === defaultSlug);
+  }
+
+  // Provider list: every non-local sign-in option EXCEPT the one being
+  // rendered inline. When the inline form is LDAP, Local Auth itself
+  // appears in the list (link to `/login?force-local=1` so the page
+  // re-renders with the local form inline).
+  const providerButtons: ProviderButton[] = [];
+  if (inlineLdap && env.LOCAL_AUTH_ENABLED) {
+    providerButtons.push({
+      key: "local",
+      label: "Local Auth",
+      href: `/login${nextParam}${nextParam ? "&" : "?"}force-local=1`,
+    });
+  }
+  for (const p of oidcProviders) {
+    providerButtons.push({
       key: `oidc-${p.id}`,
       label: p.name,
       href: `/api/auth/oidc/${p.id}/initiate${nextParam}`,
       iconUrl: p.iconUrl,
-    })),
-    ...dbSamlProviders.map((p) => ({
+    });
+  }
+  for (const p of dbSamlProviders) {
+    providerButtons.push({
       key: `saml-${p.slug}`,
       label: p.name,
       href: `/api/auth/saml/${p.slug}/login${nextParam}`,
-    })),
-    ...dbLdapProviders.map((p) => ({
+    });
+  }
+  for (const p of dbLdapProviders) {
+    // Skip the one that's the primary inline form already.
+    if (inlineLdap && p.slug === inlineLdap.slug) continue;
+    providerButtons.push({
       key: `ldap-${p.slug}`,
       label: p.name,
       // LDAP needs an in-page credential prompt — clicking the button
-      // focuses that provider's form below.
+      // re-renders the page with that provider's form inline.
       href: `/login${nextParam}${nextParam ? "&" : "?"}ldap=${encodeURIComponent(p.slug)}`,
-    })),
-  ];
+    });
+  }
 
-  // Focus mode: when ?ldap=<slug> is set, render only that LDAP form.
-  const focusedLdap =
-    ldapFocusSlug !== undefined
-      ? dbLdapProviders.find((l) => l.slug === ldapFocusSlug)
-      : undefined;
-
-  const showLocalForm = env.LOCAL_AUTH_ENABLED && focusedLdap === undefined;
-  const showProviderList =
-    focusedLdap === undefined && (providerButtons.length > 0 || env.WEBAUTHN_ENABLED);
+  const showLocalForm = env.LOCAL_AUTH_ENABLED && !inlineLdap;
+  const showProviderList = providerButtons.length > 0 || env.WEBAUTHN_ENABLED;
 
   return (
     <>
@@ -221,16 +254,13 @@ export default async function LoginPage({
         </div>
       ) : null}
 
-      {focusedLdap ? (
-        <section className="space-y-3">
-          <h2 className="text-sm font-medium">{focusedLdap.name}</h2>
-          <LdapLoginForm
-            slug={focusedLdap.slug}
-            providerName={focusedLdap.name}
-            turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined}
-            next={safeNext}
-          />
-        </section>
+      {inlineLdap ? (
+        <LdapLoginForm
+          slug={inlineLdap.slug}
+          providerName={inlineLdap.name}
+          turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined}
+          next={safeNext}
+        />
       ) : null}
 
       {showProviderList ? (
@@ -273,16 +303,6 @@ export default async function LoginPage({
         </p>
       ) : null}
 
-      {focusedLdap ? (
-        <p className="mt-4 text-xs text-[color:var(--color-fg-muted)]">
-          <Link
-            href={env.LOCAL_AUTH_ENABLED ? "/login?force-local=1" : "/login"}
-            className="underline"
-          >
-            Show all sign-in options
-          </Link>
-        </p>
-      ) : null}
     </>
   );
 }

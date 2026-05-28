@@ -45,6 +45,27 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ slug: string }> },
 ): Promise<Response> {
+  try {
+    return await handleLdapLogin(request, context);
+  } catch (err) {
+    // Last-resort safety net: a directory misconfig (unresolvable host,
+    // wrong port, malformed bind DN) should still get an operator-friendly
+    // response instead of a blank 500 page. `authenticateLdap` already has
+    // its own outer try/catch, so getting here means something even further
+    // upstream broke — log loud, return 502.
+    const slug = await context.params.then((p) => p.slug).catch(() => "<unknown>");
+    logger.error(
+      { provider: slug, err: err instanceof Error ? err.message : "unknown" },
+      "ldap.login.route.unexpected-error",
+    );
+    return jsonError(502, "Could not reach the directory.");
+  }
+}
+
+async function handleLdapLogin(
+  request: Request,
+  context: { params: Promise<{ slug: string }> },
+): Promise<Response> {
   const { slug } = await context.params;
 
   const provider = await resolveLdapProvider(slug);
