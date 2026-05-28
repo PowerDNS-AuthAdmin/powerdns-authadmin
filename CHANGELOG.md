@@ -62,23 +62,45 @@ history — Back returns to the users list cleanly).
 
 ### Added — app-DB backup export (#84)
 
-Super-admin-gated `/admin/backup` page + `GET /api/admin/backup/export`
-streaming a JSON dump of the app DB. Excludes PDNS zone data and
-symmetric secrets (`APP_SECRET_KEY` / `APP_ENCRYPTION_KEY`).
-Encrypted columns exported as ciphertext — useless without the
-encryption key on the restore target. New `system.backup` permission,
+Super-admin-gated **Backup & Restore** wizard under
+`/admin/settings/backup` (no modal — every step renders inline with a
+back button). `GET /api/admin/backup/export` streams a JSON dump of the
+app DB; `POST /api/admin/backup/restore` does a merge-mode restore
+(`INSERT … ON CONFLICT DO NOTHING` in forward-FK order, one
+transaction, typed `RESTORE` confirmation phrase). Excludes PDNS zone
+data and symmetric secrets (`APP_SECRET_KEY` / `APP_ENCRYPTION_KEY`);
+encrypted columns ride as ciphertext — useless without the encryption
+key on the restore target. New `system.backup` permission,
 default-granted only to the seeded Super Admin role. Audit:
-`system.backup.exported` with per-table row counts. Interactive
-restore lands in a follow-up.
+`system.backup.exported` / `system.backup.restored` with per-table
+row counts.
 
-### Added — BIND zonefile serializer (#9 phase 1)
+### Added — zone Import / Export (#9)
 
-The existing zonefile export route now produces idiomatic BIND
-output: `$TTL` + `$ORIGIN` directives, owner names relativised
-against the zone origin (apex → `@`), SOA expanded as a parenthesised
-multi-line tuple. The output round-trips through BIND / NSD / PowerDNS
-`pdnsutil load-zone` without modification. Import (parser +
-preview-before-commit + bulk archive flow) lands as a follow-up.
+New **Import / Export** hub under **PowerDNS → Zones**
+(`/admin/import-export`, `zone.read` to view, `zone.create` to import):
+
+- **Import** — paste one or many zones in BIND format (or load from a
+  file). A new RFC 1035 parser (`lib/dns/zonefile-parser.ts`) splits
+  multi-zone input at `$ORIGIN` boundaries, handles `$TTL`, `@`,
+  comments, and parenthesised multi-line SOA, refuses `$INCLUDE`
+  (file-traversal vector), and skips DNSSEC types (PDNS manages those).
+  Each zone becomes one `createZone` call with its rrsets pre-populated;
+  the result is reported per-zone (created / failed + parse diagnostics).
+  Audit: one `zone.create` row per imported zone (`source: zonefile-import`).
+- **Export** — pick a backend, multi-select zones, download a single
+  BIND-format text bundle. The serializer (`lib/dns/zonefile.ts`, from
+  the per-zone export route) emits idiomatic `$TTL` + `$ORIGIN`,
+  owner names relativised against the origin (apex → `@`), and a
+  parenthesised multi-line SOA; output round-trips through BIND / NSD /
+  `pdnsutil load-zone`. Audit: one `zone.export` row per zone read.
+
+### Changed — PowerDNS sidebar grouped into sub-sections
+
+The PowerDNS nav section is now chunked into **Backends** (Servers,
+Clusters, Autoprimaries), **Zones** (Zone templates, Import / Export),
+**Security** (TSIG keys), and **Activity** (Request log) so the growing
+list stays scannable.
 
 ### Changed — admin URL restructure + `oidc.*` → `auth.*` rename (#74)
 

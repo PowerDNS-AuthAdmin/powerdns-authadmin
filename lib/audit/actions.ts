@@ -112,6 +112,7 @@ export const AUDIT_ACTIONS = [
   "zone.settings.update",
   "zone.grant.create",
   "zone.grant.delete",
+  "zone.export",
   "dnssec.cryptokey.create",
   "dnssec.cryptokey.update",
   "dnssec.cryptokey.delete",

@@ -131,7 +131,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // at least one of its children. The PowerDNS section now also houses the
   // Request log (moved from System), which is `audit.read`-gated.
   const hasInfrastructure =
-    canReadServers || canReadTsig || canManageAutoprimary || canUseTemplates || canReadAudit;
+    canReadServers ||
+    canReadTsig ||
+    canManageAutoprimary ||
+    canUseTemplates ||
+    canReadZones ||
+    canReadAudit;
   const hasAccess = canReadUsers || canReadRoles || canReadTeams || canReadAuth;
   const hasSystem = canReadSettings || canReadAudit;
 
@@ -157,16 +162,39 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
         {hasInfrastructure ? (
           <NavSection label="PowerDNS">
-            {canReadServers ? <NavLink nested href="/admin/servers" label="Servers" /> : null}
-            {canReadServers ? <NavLink nested href="/admin/clusters" label="Clusters" /> : null}
-            {canReadTsig ? <NavLink nested href="/admin/tsig-keys" label="TSIG keys" /> : null}
-            {canManageAutoprimary ? (
-              <NavLink nested href="/admin/autoprimaries" label="Autoprimaries" />
+            {canReadServers || canManageAutoprimary ? (
+              <>
+                <NavGroupLabel label="Backends" />
+                {canReadServers ? <NavLink nested href="/admin/servers" label="Servers" /> : null}
+                {canReadServers ? <NavLink nested href="/admin/clusters" label="Clusters" /> : null}
+                {canManageAutoprimary ? (
+                  <NavLink nested href="/admin/autoprimaries" label="Autoprimaries" />
+                ) : null}
+              </>
             ) : null}
-            {canUseTemplates ? (
-              <NavLink nested href="/admin/zone-templates" label="Zone templates" />
+            {canUseTemplates || canReadZones ? (
+              <>
+                <NavGroupLabel label="Zones" />
+                {canUseTemplates ? (
+                  <NavLink nested href="/admin/zone-templates" label="Zone templates" />
+                ) : null}
+                {canReadZones ? (
+                  <NavLink nested href="/admin/import-export" label="Import / Export" />
+                ) : null}
+              </>
             ) : null}
-            {canReadAudit ? <NavLink nested href="/admin/requests" label="Request log" /> : null}
+            {canReadTsig ? (
+              <>
+                <NavGroupLabel label="Security" />
+                <NavLink nested href="/admin/tsig-keys" label="TSIG keys" />
+              </>
+            ) : null}
+            {canReadAudit ? (
+              <>
+                <NavGroupLabel label="Activity" />
+                <NavLink nested href="/admin/requests" label="Request log" />
+              </>
+            ) : null}
           </NavSection>
         ) : null}
 
@@ -272,6 +300,20 @@ function NavSection({ label, children }: { label: string; children: React.ReactN
         {label}
       </div>
       <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Sub-grouping label rendered inside a NavSection — quieter than the
+ * section heading itself, used to chunk the PowerDNS section into
+ * Backends / Zones / Security / Activity without spawning four
+ * top-level NavSections (which would lose the "PowerDNS" umbrella).
+ */
+function NavGroupLabel({ label }: { label: string }) {
+  return (
+    <div className="mt-3 px-3 pb-0.5 text-[0.65rem] font-medium tracking-wider text-[color:var(--color-fg-muted)] uppercase first:mt-0">
+      {label}
     </div>
   );
 }
