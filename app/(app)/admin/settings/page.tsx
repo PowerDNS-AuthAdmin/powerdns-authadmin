@@ -11,15 +11,17 @@
  */
 
 import Link from "next/link";
+import { Database } from "lucide-react";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { listAllSettings } from "@/lib/db/repositories/settings";
 import { SETTING_DEFAULTS, type KnownSettingKey } from "@/lib/validators/settings";
 import { SettingsForm } from "./_components/settings-form";
 
 export default async function SettingsPage() {
-  const { ability } = await requireUserForPage({ can: "settings.read" });
+  const { ability, globalPermissions } = await requireUserForPage({ can: "settings.read" });
   const canWrite = ability.can("write", "Settings");
   const canReadAuth = ability.can("read", "Auth");
+  const canBackup = globalPermissions.has("system.backup");
 
   const rows = await listAllSettings();
   const byKey = new Map(rows.map((r) => [r.key, r.value]));
@@ -63,8 +65,8 @@ export default async function SettingsPage() {
           {canReadAuth ? (
             <>
               Identity-provider configuration lives on{" "}
-              <Link href="/admin/authentication/oidc" className="underline">
-                OIDC providers
+              <Link href="/admin/authentication" className="underline">
+                Authentication
               </Link>
               .{" "}
             </>
@@ -75,6 +77,29 @@ export default async function SettingsPage() {
       </header>
 
       <SettingsForm initial={initial} canWrite={canWrite} />
+
+      {canBackup ? (
+        <section className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-5">
+          <div className="flex items-start gap-4">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[color:var(--color-accent)]/10 text-[color:var(--color-accent)]">
+              <Database className="h-5 w-5" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-semibold">Backup &amp; Restore</h2>
+              <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
+                Snapshot the app database as a JSON file or merge one back in. Super-admin gated;
+                excludes PDNS zone data and the symmetric secrets.
+              </p>
+            </div>
+            <Link
+              href="/admin/settings/backup"
+              className="shrink-0 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-1.5 text-sm font-medium hover:bg-[color:var(--color-bg-muted)]"
+            >
+              Open
+            </Link>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
