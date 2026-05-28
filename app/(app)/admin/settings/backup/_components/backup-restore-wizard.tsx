@@ -143,7 +143,9 @@ export function BackupRestoreWizard() {
       ) : null}
 
       {step === "choose" ? <ChoosePicker onPick={(next) => setStep(next)} /> : null}
-      {step === "backup" ? <BackupStep onToast={(text) => toast({ kind: "success", description: text })} /> : null}
+      {step === "backup" ? (
+        <BackupStep onToast={(text) => toast({ kind: "success", description: text })} />
+      ) : null}
       {step === "restore-upload" ? (
         <RestoreUploadStep
           file={file}
@@ -229,9 +231,7 @@ function ChooseCard({
       onClick={onClick}
       className={`flex flex-col items-start gap-3 rounded-lg border-2 ${accentBorder} bg-[color:var(--color-bg-subtle)] p-5 text-left transition-colors`}
     >
-      <span
-        className={`inline-flex h-10 w-10 items-center justify-center rounded-md ${accentBg}`}
-      >
+      <span className={`inline-flex h-10 w-10 items-center justify-center rounded-md ${accentBg}`}>
         {icon}
       </span>
       <span className="text-base font-semibold">{title}</span>
@@ -267,7 +267,9 @@ function BackupStep({ onToast }: { onToast: (text: string) => void }) {
           <li>
             <Pill>settings</Pill> <Pill>zone_templates</Pill> <Pill>api_tokens</Pill>
           </li>
-          <li>Last 10,000 <Pill>audit_log</Pill> entries.</li>
+          <li>
+            Last 10,000 <Pill>audit_log</Pill> entries.
+          </li>
         </ul>
       </Panel>
 
@@ -388,7 +390,10 @@ function RestoreUploadStep({
             </summary>
             <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
               {bundlePreview.rowCountsByTable.map(([name, n]) => (
-                <li key={name} className="flex justify-between border-b border-[color:var(--color-border)]/40 py-0.5">
+                <li
+                  key={name}
+                  className="flex justify-between border-b border-[color:var(--color-border)]/40 py-0.5"
+                >
                   <code className="font-mono">{name}</code>
                   <span className="text-[color:var(--color-fg-muted)]">{n.toLocaleString()}</span>
                 </li>
@@ -434,9 +439,9 @@ function RestoreConfirmStep({
   return (
     <div className="space-y-5">
       <Hero icon={<AlertTriangle />} title="Confirm restore" tone="warn">
-        About to merge <strong>{bundlePreview?.totalRows.toLocaleString() ?? "0"}</strong> rows
-        into the live database in a single transaction. Existing rows with the same primary key
-        are <em>not</em> overwritten — operators preserving prod state can restore on top safely.
+        About to merge <strong>{bundlePreview?.totalRows.toLocaleString() ?? "0"}</strong> rows into
+        the live database in a single transaction. Existing rows with the same primary key are{" "}
+        <em>not</em> overwritten — operators preserving prod state can restore on top safely.
       </Hero>
 
       <Panel title="What will happen" tone="warn">
@@ -526,10 +531,10 @@ function RestoreResultStep({
                     <code className="font-mono text-xs">{name}</code>
                   </td>
                   <td className="py-1.5 text-right tabular-nums">{c.attempted}</td>
-                  <td className="py-1.5 text-right tabular-nums text-[color:var(--color-success)]">
+                  <td className="py-1.5 text-right text-[color:var(--color-success)] tabular-nums">
                     {c.inserted}
                   </td>
-                  <td className="py-1.5 text-right tabular-nums text-[color:var(--color-fg-muted)]">
+                  <td className="py-1.5 text-right text-[color:var(--color-fg-muted)] tabular-nums">
                     {c.skipped}
                   </td>
                 </tr>
@@ -602,9 +607,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   const border =
-    tone === "warn"
-      ? "border-[color:var(--color-warn)]/30"
-      : "border-[color:var(--color-border)]";
+    tone === "warn" ? "border-[color:var(--color-warn)]/30" : "border-[color:var(--color-border)]";
   return (
     <section className={`rounded-lg border ${border} bg-[color:var(--color-bg)] p-5`}>
       <h3 className="mb-3 text-sm font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
@@ -642,4 +645,3 @@ function ErrorBanner({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

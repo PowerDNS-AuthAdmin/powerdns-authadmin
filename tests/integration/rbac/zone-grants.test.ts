@@ -494,11 +494,10 @@ describe("zone grants — per-zone permission grants", () => {
       kind: "Master",
       nameservers: NS,
     });
-    const { team } = await admin.sendJson<{ team: { id: string } }>(
-      "POST",
-      "/api/admin/teams",
-      { slug: uniqueSlug("dup"), name: "Dup" },
-    );
+    const { team } = await admin.sendJson<{ team: { id: string } }>("POST", "/api/admin/teams", {
+      slug: uniqueSlug("dup"),
+      name: "Dup",
+    });
 
     const first = await admin.sendJson<{ grant: { id: string } }>(
       "POST",

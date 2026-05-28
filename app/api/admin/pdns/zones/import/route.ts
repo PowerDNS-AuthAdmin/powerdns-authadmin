@@ -32,7 +32,10 @@ import { parseZonefile } from "@/lib/dns/zonefile-parser";
 
 const importSchema = z.object({
   serverSlug: z.string().min(1),
-  zoneText: z.string().min(1).max(2 * 1024 * 1024), // 2 MiB cap — enough for a Fortune-500 worth of records
+  zoneText: z
+    .string()
+    .min(1)
+    .max(2 * 1024 * 1024), // 2 MiB cap — enough for a Fortune-500 worth of records
   kind: z.enum(["Master", "Primary", "Native"]).default("Master"),
 });
 
@@ -124,7 +127,11 @@ export async function POST(request: Request): Promise<Response> {
         });
       } catch (err) {
         const message =
-          err instanceof PdnsError ? redact(err.message) : err instanceof Error ? err.message : "unknown";
+          err instanceof PdnsError
+            ? redact(err.message)
+            : err instanceof Error
+              ? err.message
+              : "unknown";
         logger.warn(
           { zone: zone.name, server: server.slug, err: message },
           "pdns.zone.import.failed",

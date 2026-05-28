@@ -244,9 +244,7 @@ export function ZoneGrantsPanel({
                   key={p}
                   checked={selectedPerms.has(p)}
                   onChange={() => togglePerm(p)}
-                  label={
-                    <code className="font-mono text-xs leading-none">{p}</code>
-                  }
+                  label={<code className="font-mono text-xs leading-none">{p}</code>}
                 />
               ))}
             </div>

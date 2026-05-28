@@ -123,8 +123,7 @@ export default async function LoginPage({
   // bypass), and within 60s of an explicit logout (`pda_just_logged_out`).
   const forceLocalRequested = forceLocal !== undefined;
   const justLoggedOut = (await cookies()).get("pda_just_logged_out")?.value === "1";
-  const isFreshArrival =
-    !error && !signedOut && !flash && !forceLocalRequested && !justLoggedOut;
+  const isFreshArrival = !error && !signedOut && !flash && !forceLocalRequested && !justLoggedOut;
   const { authDefaultProvider } = await getAppSettings();
   const defaultSep = authDefaultProvider.indexOf(":");
   const defaultType = defaultSep > 0 ? authDefaultProvider.slice(0, defaultSep) : "";
@@ -280,10 +279,7 @@ export default async function LoginPage({
 
       {showLocalForm ? (
         <div className="space-y-2">
-          <LoginForm
-            turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined}
-            next={safeNext}
-          />
+          <LoginForm turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined} next={safeNext} />
           {allowPasswordReset ? (
             <p className="text-xs text-[color:var(--color-fg-muted)]">
               <Link href="/reset-password" className="underline">
@@ -350,7 +346,6 @@ export default async function LoginPage({
           </Link>
         </p>
       ) : null}
-
     </>
   );
 }

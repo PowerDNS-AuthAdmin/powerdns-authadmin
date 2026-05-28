@@ -212,7 +212,7 @@ function ImportPanel({ backends }: { backends: Backend[] }) {
               onChange={(e) => setZoneText(e.target.value)}
               rows={14}
               spellCheck={false}
-              className="w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 font-mono text-xs text-[color:var(--color-fg)] focus:border-[color:var(--color-accent)] focus:outline-none focus:ring-1 focus:ring-[color:var(--color-accent)]"
+              className="w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 font-mono text-xs text-[color:var(--color-fg)] focus:border-[color:var(--color-accent)] focus:ring-1 focus:ring-[color:var(--color-accent)] focus:outline-none"
               placeholder={`$ORIGIN example.com.\n$TTL 3600\n@   IN SOA ns1.example.com. hostmaster.example.com. (\n        2026052801 ; serial\n        3600       ; refresh\n        900        ; retry\n        1209600    ; expire\n        3600 )     ; minimum\n@   IN NS  ns1.example.com.\n@   IN NS  ns2.example.com.\nwww IN A   192.0.2.1`}
             />
           </Field>
@@ -434,8 +434,8 @@ function ExportPanel({ backends }: { backends: Backend[] }) {
       <Panel>
         <h2 className="text-base font-semibold">Export zones</h2>
         <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
-          Pick a backend, choose the zones you want, and download them as a single text bundle
-          (one file, BIND format). One audit row is written per zone read.
+          Pick a backend, choose the zones you want, and download them as a single text bundle (one
+          file, BIND format). One audit row is written per zone read.
         </p>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -453,7 +453,7 @@ function ExportPanel({ backends }: { backends: Backend[] }) {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="zone name contains…"
-              className="w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm text-[color:var(--color-fg)] focus:border-[color:var(--color-accent)] focus:outline-none focus:ring-1 focus:ring-[color:var(--color-accent)]"
+              className="w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm text-[color:var(--color-fg)] focus:border-[color:var(--color-accent)] focus:ring-1 focus:ring-[color:var(--color-accent)] focus:outline-none"
             />
           </Field>
         </div>
@@ -542,7 +542,7 @@ function Panel({ children }: { children: React.ReactNode }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-xs font-medium uppercase tracking-wide text-[color:var(--color-fg-muted)]">
+      <span className="block text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
         {label}
       </span>
       <div className="mt-1.5">{children}</div>
@@ -600,4 +600,3 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => voi
     </span>
   );
 }
-

@@ -5,6 +5,7 @@ dist
 build
 coverage
 drizzle/meta
+drizzle-sqlite/meta
 public/generated
 PowerDNS-Admin
 *.min.js

@@ -145,8 +145,7 @@ export async function AccessSection({ serverId, zoneName }: Props) {
           Users with direct grants on this zone
         </h2>
         <p className="mb-3 text-xs text-[color:var(--color-fg-muted)]">
-          Users named individually on this zone. Inherited access via roles or teams is shown
-          above.
+          Users named individually on this zone. Inherited access via roles or teams is shown above.
         </p>
         {userGrants.length === 0 ? (
           <p className="text-xs text-[color:var(--color-fg-muted)] italic">

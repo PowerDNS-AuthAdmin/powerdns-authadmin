@@ -755,10 +755,7 @@ export { emailDomainAllowed, resolveAllowedDomains } from "../email-domain-allow
  * token is no worse than what we already have; the staleness self-heals
  * on the user's next sign-in.
  */
-export async function fetchOidcGroupsForUser(
-  slug: string,
-  refreshToken: string,
-): Promise<unknown> {
+export async function fetchOidcGroupsForUser(slug: string, refreshToken: string): Promise<unknown> {
   let provider: ResolvedOidcProvider | null;
   try {
     provider = await resolveOidcProvider(slug);
