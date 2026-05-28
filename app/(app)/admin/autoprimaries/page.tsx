@@ -111,14 +111,11 @@ export default async function AutoprimariesPage({ searchParams }: PageProps) {
         </div>
       ) : null}
 
-      {sorted?.length === 0 ? (
-        <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-5 text-sm">
-          No autoprimaries configured. Incoming NOTIFYs that don't match an existing zone are
-          ignored.
-        </div>
-      ) : null}
-
-      <AutoprimaryActions serverSlug={selected.slug} rows={sorted ?? []} />
+      {/* The empty-state copy now renders inside the table via DataTable's
+          `noDataMessage` (matches the TSIG keys page). Skip the actions
+          component entirely on a fetch error so we don't show "No
+          autoprimaries configured" when the real answer is "we couldn't ask". */}
+      {fetchError ? null : <AutoprimaryActions serverSlug={selected.slug} rows={sorted ?? []} />}
     </div>
   );
 }

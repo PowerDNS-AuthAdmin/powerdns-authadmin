@@ -91,7 +91,6 @@ describeSqlite("countGlobalAssignmentsOfRoleSlug (last-SuperAdmin guard query)",
         scope_type TEXT NOT NULL,
         scope_id TEXT,
         created_by TEXT,
-        provider_id TEXT,
         created_at INTEGER NOT NULL DEFAULT 0,
         updated_at INTEGER NOT NULL DEFAULT 0
       );

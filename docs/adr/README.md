@@ -38,6 +38,8 @@ durability, not exhaustiveness.
 | 0015 | [Backend health advisories (the notification bell)](./0015-backend-health-advisories.md)                         | Accepted                   |
 | 0016 | [Optional Redis for horizontal scale (replicas > 1)](./0016-redis-horizontal-scale.md)                           | Accepted                   |
 | 0017 | [Squash the 1.1.0 schema deltas into one migration per dialect](./0017-migration-squash-1.1.0.md)                | Accepted                   |
+| 0020 | [LDAP authentication architecture](./0020-ldap-architecture.md)                                                  | Accepted                   |
+| 0021 | [SAML 2.0 service-provider architecture](./0021-saml-architecture.md)                                            | Accepted                   |
 
 > **Numbering note:** there is no ADR 0003 — that number was reserved for a decision that was
 > withdrawn before it was written. The gap is intentional; numbers are never reused.

@@ -39,7 +39,7 @@ interface RouteContext {
 
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { user } = await requireUser({ can: "oidc.read" });
+    const { user } = await requireUser({ can: "auth.read" });
     await requireCsrf(request);
     const { id } = await context.params;
     const hdrs = await headers();

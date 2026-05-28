@@ -81,6 +81,24 @@ settings:
   # local accounts only; SSO users always reset through their IdP.
   allow_password_reset: true
 
+  # Default sign-in method. Decides which provider /login auto-redirects to
+  # on a fresh visit. Three accepted forms:
+  #
+  #   - "local" — show the form (the default; recovery via /login?force-local=1).
+  #   - bare slug, e.g. "company-sso" — resolved against the slugs reserved
+  #     in this file or already in the DB. Slugs are globally unique across
+  #     OIDC / SAML / LDAP, so a bare slug is unambiguous.
+  #   - typed-prefix, e.g. "oidc:company-sso" — equivalent; useful when
+  #     scripting against the DB directly.
+  #
+  # The applier resolves whatever form you write into the canonical
+  # typed-prefix form before persisting. Edited at runtime from
+  # /admin/authentication.
+  auth_default_provider: "local"
+  # Example bare-slug form (uncomment to make `company-sso` defined below
+  # the default — operators hitting /login auto-redirect through its initiate):
+  # auth_default_provider: "company-sso"
+
 # -----------------------------------------------------------------------------
 # roles  —  custom (org-specific) roles
 # -----------------------------------------------------------------------------
@@ -453,7 +471,11 @@ oidc:
     claim_name: name
     claim_groups: groups
     enabled: true # false hides the provider from the login page
-    force_default: false # true ⇒ /login auto-redirects to this provider's initiate
+    # DEPRECATED — kept for one minor for backward compat. Set the global
+    # `auth_default_provider` setting from /admin/authentication instead;
+    # the applier translates a legacy `force_default: true` here into that
+    # setting at apply time and logs a deprecation warning.
+    force_default: false
     # Optional inline logo for the login button. https:// only.
     # icon_url: "https://auth.example.com/static/logo.png"
     # Restrict auto-provisioning of NEW users to these email domains.
@@ -506,5 +528,170 @@ oidc:
     claim_name: name
     claim_groups: groups
     enabled: false
+    # DEPRECATED — see the note on the first provider above.
     force_default: false
     group_mappings: [] # explicit empty list — no group sync
+
+# -----------------------------------------------------------------------------
+# saml: SAML 2.0 identity providers (ADR-0021)
+# -----------------------------------------------------------------------------
+# One entry per IdP. Identifiers + group sync work the same way as OIDC; the
+# transport differences are: SP signing keypair is REQUIRED (we sign every
+# AuthnRequest), assertions MUST be signed by default, and the optional SP
+# encryption keypair adds support for EncryptedAssertion.
+#
+# Public certs (IdP signing cert, SP signing cert, SP encryption cert) sit as
+# PEM blocks in plain text. Private keys are encrypted at rest by the applier;
+# YAML still holds them plaintext, so this file MUST live in a secret store /
+# git-crypt setup (same posture as OIDC client secrets, PDNS API keys, …).
+# -----------------------------------------------------------------------------
+saml:
+  - slug: corp-sso # lowercase kebab-case; reserved across every provider type
+    name: "Corporate SSO"
+    idp_entity_id: "https://idp.example.com/saml"
+    idp_sso_url: "https://idp.example.com/saml/sso"
+    # Optional. When unset, /api/auth/saml/<slug>/slo clears the local session
+    # only — the IdP keeps its own session until it expires.
+    idp_slo_url: "https://idp.example.com/saml/slo"
+    # Public X.509 cert the IdP signs Responses with.
+    idp_signing_cert: |
+      -----BEGIN CERTIFICATE-----
+      MIIDazCCAlOgAwIBAgIUREPLACE_ME_with_your_IdPs_signing_certificate
+      -----END CERTIFICATE-----
+    # SP signing keypair. Generate locally with:
+    #   openssl req -x509 -newkey rsa:2048 -keyout sp.key -out sp.crt \
+    #     -nodes -days 1825 -subj "/CN=corp-sso"
+    sp_signing_key: |
+      -----BEGIN PRIVATE KEY-----
+      REPLACE_ME_with_the_SP_private_key_PEM
+      -----END PRIVATE KEY-----
+    sp_signing_cert: |
+      -----BEGIN CERTIFICATE-----
+      REPLACE_ME_with_the_SP_signing_certificate_PEM
+      -----END CERTIFICATE-----
+    # Optional: enable EncryptedAssertion. Both halves required together.
+    # sp_encryption_key: |
+    #   -----BEGIN PRIVATE KEY-----
+    #   ...
+    #   -----END PRIVATE KEY-----
+    # sp_encryption_cert: |
+    #   -----BEGIN CERTIFICATE-----
+    #   ...
+    #   -----END CERTIFICATE-----
+    # require_encrypted_assertion: false
+    require_signed_response: true
+    signature_algorithm: sha256 # sha1 | sha256 | sha512
+    name_id_format: "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+    claim_email: email
+    claim_name: name
+    claim_groups: groups
+    enabled: true
+    # allowed_email_domains:
+    #   - example.com
+    group_mappings:
+      - group: DomainAdmins
+        role: super-admin
+        scope: global
+      - group: NetOps
+        role: operator
+        scope: global
+      - group: NocZoneEditors
+        role: zone-editor
+        scope: team:noc
+
+# -----------------------------------------------------------------------------
+# LDAP providers (ADR-0020)
+#
+# Direct-bind sign-in against Active Directory or OpenLDAP. The applier
+# encrypts `bind_password` (and `tls_ca_cert`, if you pin a CA) with the
+# same AES-256-GCM envelope used everywhere else — they NEVER round-trip
+# back through the API in plaintext.
+#
+# Slugs are reserved in the cross-type `auth_provider_slugs` table the
+# same way as OIDC + SAML; a slug collision across types fails the
+# provisioning step with a clean error.
+# -----------------------------------------------------------------------------
+ldap:
+  # ----- Worked AD example -----------------------------------------------
+  - slug: corp-ad
+    name: "Corporate AD"
+    server_url: "ldaps://ad.corp.example.com:636"
+    # StartTLS upgrades a plain ldap:// connection after connect.
+    # MUST be false on ldaps:// URLs (the implicit-TLS port doesn't
+    # speak StartTLS) — the validator refuses the redundant pairing.
+    start_tls: false
+    bind_dn: "CN=svc-authadmin,OU=ServiceAccounts,DC=corp,DC=example,DC=com"
+    bind_password: "REPLACE_ME_ad_service_account_password"
+    user_search_base: "OU=Employees,DC=corp,DC=example,DC=com"
+    # AD's typical OR filter — matches `sAMAccountName` (the
+    # Active Directory login name), `userPrincipalName`, or `mail`.
+    user_search_filter: "(|(sAMAccountName={{username}})(userPrincipalName={{username}})(mail={{username}}))"
+    # AD fully resolves `memberOf` on the user record at query time,
+    # so the optional second-search pair is unnecessary. Leave
+    # group_search_base / group_search_filter out for AD.
+    group_attr: memberOf
+    claim_email: mail
+    claim_name: displayName
+    # Optional CA pin for an internal certificate authority. Concatenated
+    # PEM is accepted (cert + intermediates). Use this OR
+    # LDAP_TLS_INSECURE_SKIP_VERIFY=true (NEVER both — the pin is the
+    # secure equivalent).
+    # tls_ca_cert: |
+    #   -----BEGIN CERTIFICATE-----
+    #   ...
+    #   -----END CERTIFICATE-----
+    enabled: true
+    allowed_email_domains:
+      - corp.example.com
+    group_mappings:
+      # Map AD groups (by their full DN — AD's memberOf is DN-valued)
+      # to roles. Group strings are case-sensitive matches against the
+      # values in the user's memberOf attribute.
+      - group: "CN=PDNS Super Admins,OU=Groups,DC=corp,DC=example,DC=com"
+        role: super-admin
+        scope: global
+
+      - group: "CN=NOC,OU=Groups,DC=corp,DC=example,DC=com"
+        role: zone-editor
+        scope: team:noc
+
+      - group: "CN=DNS Public Zone Readers,OU=Groups,DC=corp,DC=example,DC=com"
+        role: read-only
+        scope: zone:corp.example.
+
+  # ----- Worked OpenLDAP 2.6 example -----------------------------------
+  # OpenLDAP with the memberof overlay enabled in cn=config behaves
+  # like AD (group memberships resolved on the user record). Without
+  # the overlay, configure the optional second search below — we
+  # match groupOfNames / groupOfUniqueNames by `member={{userDn}}`.
+  - slug: dev-openldap
+    name: "Dev OpenLDAP"
+    # Plain ldap:// is refused by the validator unless start_tls=true
+    # is set here (RFC 4511 §4.14 upgrade) or
+    # LDAP_ALLOW_INSECURE_PORT_389=true is set in the environment.
+    server_url: "ldap://openldap.dev.example.com:389"
+    start_tls: true
+    bind_dn: "cn=svc-authadmin,ou=ServiceAccounts,dc=example,dc=com"
+    bind_password: "REPLACE_ME_openldap_service_account_password"
+    user_search_base: "ou=Users,dc=example,dc=com"
+    user_search_filter: "(|(uid={{username}})(mail={{username}}))"
+    # OpenLDAP without the memberof overlay: configure the second
+    # search. The filter substitutes {{userDn}} with the LDAP-escaped
+    # DN of the just-authenticated user.
+    group_search_base: "ou=Groups,dc=example,dc=com"
+    group_search_filter: "(&(objectClass=groupOfNames)(member={{userDn}}))"
+    # Empty attr is the conventional "no in-entry attribute, always
+    # consult the second search" path; keep memberOf as the default
+    # so installs that later flip the overlay on don't need a config
+    # change here.
+    group_attr: memberOf
+    claim_email: mail
+    claim_name: cn
+    enabled: true
+    group_mappings:
+      - group: "cn=admins,ou=Groups,dc=example,dc=com"
+        role: super-admin
+        scope: global
+      - group: "cn=devs,ou=Groups,dc=example,dc=com"
+        role: read-only
+        scope: global

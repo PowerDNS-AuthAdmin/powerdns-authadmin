@@ -19,7 +19,7 @@ import { SettingsForm } from "./_components/settings-form";
 export default async function SettingsPage() {
   const { ability } = await requireUserForPage({ can: "settings.read" });
   const canWrite = ability.can("write", "Settings");
-  const canReadOidc = ability.can("read", "Oidc");
+  const canReadAuth = ability.can("read", "Auth");
 
   const rows = await listAllSettings();
   const byKey = new Map(rows.map((r) => [r.key, r.value]));
@@ -60,10 +60,10 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
           Runtime-mutable app settings.{" "}
-          {canReadOidc ? (
+          {canReadAuth ? (
             <>
               Identity-provider configuration lives on{" "}
-              <Link href="/admin/oidc-providers" className="underline">
+              <Link href="/admin/auth-providers/oidc" className="underline">
                 OIDC providers
               </Link>
               .{" "}

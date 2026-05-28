@@ -101,9 +101,17 @@ export const PERMISSIONS = [
   "settings.read",
   "settings.write",
 
-  // === OIDC identity providers ===
-  "oidc.read",
-  "oidc.manage",
+  // === Authentication providers (OIDC, SAML, LDAP) ===
+  // One permission pair for all three protocols. Gated by the unified
+  // `/admin/auth-providers` admin surface.
+  "auth.read",
+  "auth.manage",
+
+  // === System / backup ===
+  // App-DB export + restore. Reveals every configured admin object
+  // (users, providers, settings, audit) and can wholesale replace them
+  // on restore. Default-granted only to the seeded Super Admin role.
+  "system.backup",
 ] as const;
 
 /** Union type of every valid permission. */

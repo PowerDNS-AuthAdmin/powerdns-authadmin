@@ -155,10 +155,14 @@ proceeds. See [Roles & permissions](./07-RBAC.md) for the role catalog.
 
 ## Convenience options (DB providers)
 
-- **`force_default: true`** — `/login` redirects straight to this provider's
-  initiate URL instead of showing the form. Recovery escape hatch:
-  `…/login?force-local=1` shows the local form (and any other providers). If
-  several providers set `force_default`, the most recent wins.
+- **Default sign-in method** — pick which provider `/login` auto-redirects
+  to from the dropdown at the top of **Admin → Authentication**. Replaces
+  the retired per-provider `force_default` checkbox: there's now one global
+  default across the whole app, including a "Local Auth" choice that just
+  shows the form. Recovery escape hatch: `…/login?force-local=1` shows the
+  local form regardless of the setting. Existing deployments are migrated
+  automatically at upgrade time (the most recently created enabled
+  `force_default=true` provider wins).
 - **`icon_url`** — an `https://` logo shown on the login button.
 - **`enabled: false`** — keep a provider configured but hidden from the login page.
 

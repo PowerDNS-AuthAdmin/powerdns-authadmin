@@ -19,7 +19,6 @@ export const oidcProviders = sqliteTable(
     claimEmail: text("claim_email").notNull().default("email"),
     claimName: text("claim_name").notNull().default("name"),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
-    forceDefault: integer("force_default", { mode: "boolean" }).notNull().default(false),
     requireEmailVerified: integer("require_email_verified", { mode: "boolean" })
       .notNull()
       .default(false),

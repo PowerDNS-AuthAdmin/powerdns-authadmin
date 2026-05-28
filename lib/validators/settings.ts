@@ -34,6 +34,11 @@ export const KNOWN_SETTING_KEYS = [
   // login-page link and makes the forgot-password endpoint a no-op. Local
   // accounts only — SSO users reset through their IdP.
   "allow_password_reset",
+  // Default sign-in method. When set to anything other than "local", `/login`
+  // auto-redirects to the matching provider's initiate URL on a fresh visit
+  // (escape hatch: `/login?force-local=1`). Format: `local` | `oidc:<slug>`
+  // | `saml:<slug>` | `ldap:<slug>`. Edited from /admin/authentication.
+  "auth_default_provider",
 ] as const;
 
 export type KnownSettingKey = (typeof KNOWN_SETTING_KEYS)[number];
@@ -96,6 +101,18 @@ export const SETTING_VALUE_SCHEMAS = {
     .min(60)
     .max(24 * 60 * 60),
   allow_password_reset: z.boolean(),
+  // `local` is always valid; the typed-prefix forms (`oidc:`, `saml:`, `ldap:`)
+  // require the referenced provider to exist at render time. The pure validator
+  // here only checks the shape; existence is enforced at the API boundary
+  // (lib/auth/default-provider.ts) so the admin form gets a useful error.
+  auth_default_provider: z
+    .string()
+    .min(1)
+    .max(200)
+    .regex(
+      /^(local|(?:oidc|saml|ldap):[a-z][a-z0-9-]*)$/,
+      "Must be 'local' or '<type>:<slug>' (type ∈ oidc | saml | ldap).",
+    ),
 } satisfies Record<KnownSettingKey, z.ZodTypeAny>;
 
 /**
@@ -110,6 +127,7 @@ export const settingsResponseSchema = z.object({
   login_lockout_threshold: z.number().int().optional(),
   login_lockout_seconds: z.number().int().optional(),
   allow_password_reset: z.boolean().optional(),
+  auth_default_provider: z.string().optional(),
 });
 
 export type SettingsResponse = z.infer<typeof settingsResponseSchema>;
@@ -130,6 +148,9 @@ export const updateSettingsSchema = z.object({
     .union([SETTING_VALUE_SCHEMAS.login_lockout_seconds, z.null()])
     .optional(),
   allow_password_reset: z.union([SETTING_VALUE_SCHEMAS.allow_password_reset, z.null()]).optional(),
+  auth_default_provider: z
+    .union([SETTING_VALUE_SCHEMAS.auth_default_provider, z.null()])
+    .optional(),
 });
 
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
@@ -147,4 +168,7 @@ export const SETTING_DEFAULTS: Required<SettingsResponse> = {
   login_lockout_seconds: 15 * 60,
   // Self-service password reset is on by default (matches prior behavior).
   allow_password_reset: true,
+  // Default sign-in method. "local" preserves the pre-existing behaviour
+  // (show the form) for deployments that don't pick a provider explicitly.
+  auth_default_provider: "local",
 };

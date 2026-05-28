@@ -262,7 +262,7 @@ Two behavioural points specific to this release (ADR-0014 / ADR-0017):
   briefly show as "unknown" until that completes. A primary + secondaries that
   was wired only by the old `primary_id` pin re-derives automatically when the
   secondary's zones list the primary's advertised address — otherwise group them
-  under **Admin → Groups** (or set the primary's advertised addresses).
+  under **Admin → Clusters** (or set the primary's advertised addresses).
 - **Keep your `APP_ENCRYPTION_KEY`.** Stored PDNS API keys and OIDC client
   secrets are decrypted with it; an upgrade that loses the key can't decrypt them
   (you'd see `Unsupported state or unable to authenticate data` in the logs).

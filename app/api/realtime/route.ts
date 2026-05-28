@@ -49,13 +49,17 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const { user, globalPermissions, zoneGrants } = await requireUser();
     const globalZoneRead = globalPermissions.has("zone.read");
-    // Stream is useful only if the user can read SOME zone — globally or via
-    // a zone_grant. A type-level `ability.can("read","Zone")` would admit a
-    // team-scoped role and then leak every zone's events; see
-    // lib/rbac/ability.ts:globalPermissionsOf.
-    if (!globalZoneRead && zoneGrants.length === 0) {
-      throw new ForbiddenError("Missing zone.read.");
-    }
+    // The stream is per-user and per-event filtered, so even a user with
+    // no read permissions can hold an open connection — they just receive
+    // no events. We deliberately don't gate the connection itself: an
+    // EventSource that fails-open leaves the SSE badge stuck on OFFLINE
+    // even for an authenticated user, which is misleading (the connection
+    // isn't lost; the user simply has nothing to subscribe to). The
+    // per-event filters below ensure no zone events leak.
+    //
+    // Cost: a permissionless user opens an idle stream (capped at
+    // MAX_CONNS_PER_USER). That's a small concession for honest UX —
+    // far better than a "OFFLINE" badge on every page for them.
     const canReadAudit = globalPermissions.has("audit.read");
     // The health bell's audience (ADR-0015) — gates the payload-free
     // `health.updated` nudge so it isn't sent to users with no bell mounted.

@@ -23,8 +23,12 @@ export const AUDIT_ACTIONS = [
   "auth.session.revoked",
   "auth.token.issued",
   "auth.token.revoked",
-  "auth.oidc.linked",
-  "auth.oidc.rejected_provisioning",
+  // External IdP events — emitted by OIDC, SAML, and LDAP sign-in paths.
+  // The `after` snapshot carries `method: "oidc" | "saml" | "ldap"` and
+  // `provider: "<slug>"` so audit search can filter by protocol or by
+  // specific provider without needing per-protocol action names.
+  "auth.idp.linked",
+  "auth.idp.rejected_provisioning",
   // Self-service signup (SIGNUP_ENABLED) refused before any user row is
   // created — currently only the email-domain allow-list rejection. The
   // successful-signup path reuses `user.create` (source: signup).
@@ -74,6 +78,18 @@ export const AUDIT_ACTIONS = [
   "oidc.provider.created",
   "oidc.provider.updated",
   "oidc.provider.deleted",
+  // SAML providers (ADR-0021)
+  "saml.provider.created",
+  "saml.provider.updated",
+  "saml.provider.deleted",
+
+  // LDAP providers (ADR-0020). Sign-in events reuse the generic
+  // `auth.login.success` / `auth.login.failure` vocabulary; the after-
+  // state carries `method: "ldap"` (and `provider: "<slug>"`) to
+  // disambiguate without an extra action.
+  "ldap.provider.created",
+  "ldap.provider.updated",
+  "ldap.provider.deleted",
   // Fleet-level refresh of every enabled provider's discovery cache
   // (T-107). One audit row per operator click — per-provider cache
   // writes don't audit individually (would dwarf the signal).
@@ -134,10 +150,23 @@ export const AUDIT_ACTIONS = [
   "provisioning.skipped",
   "provisioning.failed",
 
-  // OIDC group → role materialisation (ADR-0012)
-  "auth.oidc.group_sync.assignment_added",
-  "auth.oidc.group_sync.assignment_removed",
-  "auth.oidc.group_sync.mapping_unresolved",
+  // IdP group → permission resolution. One row per sign-in when a
+  // mapping references a role slug that no longer exists. Protocol-
+  // neutral: OIDC, SAML, and LDAP all emit it with `provider` in the
+  // `after` snapshot.
+  "auth.group_sync.mapping_unresolved",
+  // Live recompute of IdP-derived permissions on the token-auth path.
+  // One row per cache miss — at most one per user per
+  // `IDP_PERMS_CACHE_TTL_SECONDS` window. `after` carries the provider
+  // slug + type and the count of derived ability sources, so audit
+  // search can spot "a user's perms shifted under them" patterns.
+  "auth.token.idp_perms_refreshed",
+
+  // Super-admin-gated app-DB backup. Excludes PDNS zone data and
+  // symmetric secrets. The `after` snapshot carries row counts per
+  // table — useful for audit search to spot empty / partial exports.
+  "system.backup.exported",
+  "system.backup.restored",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

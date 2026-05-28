@@ -269,7 +269,7 @@ export interface UserAttentionCounts {
  * OIDC discovery health attention counts. Mirror of
  * `pdnsAttentionCounts` for the OIDC providers list, surfaced on the
  * dashboard once the T-103 sampler started keeping `discoveryCache`
- * fresh on every /admin/oidc-providers page load:
+ * fresh on every /admin/auth-providers/oidc page load:
  *   - `neverProbed`: enabled providers whose `discovery_cache` is
  *     null. Either freshly added (the next visit to the admin page
  *     will sample) or row predates the sampler.

@@ -8,10 +8,14 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { findTeamById, listTeamMembers } from "@/lib/db/repositories/teams";
+import { listGrantsForTeam } from "@/lib/db/repositories/zone-grants";
+import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { recentAdminEditsForTeam } from "@/lib/db/repositories/audit-log";
 import { AdminAuditPanel } from "@/components/domain/admin-audit-panel";
+import { ZONE_GRANT_PERMISSIONS } from "@/lib/rbac/zone-grant-permissions";
 import { TeamMembersPanel } from "../_components/team-members-panel";
 import { TeamDangerZone } from "../_components/team-danger-zone";
+import { ZoneGrantsPanel } from "../../_components/zone-grants-panel";
 
 export const metadata: Metadata = { title: "Team" };
 
@@ -28,8 +32,13 @@ export default async function TeamDetailPage({ params }: PageProps) {
   const team = await findTeamById(id);
   if (!team) notFound();
 
-  const members = await listTeamMembers(id);
+  const [members, grants, allServers] = await Promise.all([
+    listTeamMembers(id),
+    listGrantsForTeam(id),
+    listAllPdnsServers(),
+  ]);
   const canManageMembers = ability.can("manage-members", teamSubject);
+  const canUpdate = ability.can("update", teamSubject);
   const canDelete = ability.can("delete", teamSubject);
   const canReadAudit = ability.can("read", "Audit");
   const recentEdits = canReadAudit ? await recentAdminEditsForTeam(id, 10) : [];
@@ -65,6 +74,24 @@ export default async function TeamDetailPage({ params }: PageProps) {
           teamRole: m.teamRole,
           addedAt: m.addedAt.toISOString(),
         }))}
+      />
+
+      <ZoneGrantsPanel
+        endpointBase={`/api/admin/teams/${id}/zone-grants`}
+        principalKind="team"
+        canManage={canUpdate}
+        grants={grants.map((g) => {
+          const server = allServers.find((s) => s.id === g.serverId);
+          return {
+            id: g.id,
+            serverId: g.serverId,
+            serverName: server?.name ?? "(unknown server)",
+            zoneName: g.zoneName,
+            permissions: g.permissions,
+          };
+        })}
+        servers={allServers.map((s) => ({ id: s.id, name: s.name }))}
+        permissionVocab={ZONE_GRANT_PERMISSIONS}
       />
 
       {canReadAudit ? (

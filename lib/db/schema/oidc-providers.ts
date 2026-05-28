@@ -54,16 +54,6 @@ export const oidcProviders = pgTable(
     enabled: boolean("enabled").notNull().default(true),
 
     /**
-     * When true, hitting `/login` immediately redirects to this provider's
-     * initiate URL instead of showing the form. Useful for SSO-only
-     * deployments. The escape hatch is `/login?force-local=1` (sign-out
-     * destinations and explicit error redirects also keep the form
-     * visible). If multiple providers have this set, the most recently
-     * created one wins — the admin UI warns when ticking a second one.
-     */
-    forceDefault: boolean("force_default").notNull().default(false),
-
-    /**
      * When true, sign-in for an existing local account is blocked
      * unless the IdP attests `email_verified: true`. Default `false`
      * — we trust the IdP by default ("if it's federated, the IdP is
@@ -80,7 +70,7 @@ export const oidcProviders = pgTable(
      *. `null` until the first Test. Stored as jsonb:
      *   { fetchedAt: ISO string, ok: boolean, reason?: string }
      * Auto-refresh isn't wired — operators hit Test on
-     * /admin/oidc-providers when they want a fresh check. The cache
+     * /admin/auth-providers/oidc when they want a fresh check. The cache
      * lets the list show the last known state without probing on
      * every page render (which would round-trip the IdP each time).
      */

@@ -96,7 +96,7 @@ describe("groupMappingsExceedingGrant (OIDC group→role ceiling, GHSA-wf29-rmhc
 
   it("allows mappings whose roles stay within the actor's global permissions", () => {
     const violations = groupMappingsExceedingGrant(
-      actor(["zone.read", "record.update", "oidc.manage"]),
+      actor(["zone.read", "record.update", "auth.manage"]),
       [
         mapping("dns-readers", "read-only", ["zone.read"]),
         mapping("dns-editors", "editor", ["zone.read", "record.update"]),
@@ -106,7 +106,7 @@ describe("groupMappingsExceedingGrant (OIDC group→role ceiling, GHSA-wf29-rmhc
   });
 
   it("flags a mapping to a role granting permissions the actor lacks (no SuperAdmin laundering)", () => {
-    const violations = groupMappingsExceedingGrant(actor(["oidc.manage", "zone.read"]), [
+    const violations = groupMappingsExceedingGrant(actor(["auth.manage", "zone.read"]), [
       mapping("dns-readers", "read-only", ["zone.read"]),
       mapping("superusers", "super-admin", ["zone.read", "user.delete", "settings.write"]),
     ]);
@@ -127,7 +127,7 @@ describe("groupMappingsExceedingGrant (OIDC group→role ceiling, GHSA-wf29-rmhc
   });
 
   it("is a no-op for an empty mapping set", () => {
-    expect(groupMappingsExceedingGrant(actor(["oidc.manage"]), [])).toEqual([]);
+    expect(groupMappingsExceedingGrant(actor(["auth.manage"]), [])).toEqual([]);
   });
 });
 

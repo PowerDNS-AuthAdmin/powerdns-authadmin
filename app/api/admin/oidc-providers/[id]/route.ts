@@ -25,6 +25,7 @@ import {
   updateOidcProvider,
 } from "@/lib/db/repositories/oidc-providers";
 import { updateOidcProviderSchema } from "@/lib/validators/oidc-providers";
+import { releaseProviderSlug } from "@/lib/db/repositories/auth-provider-slugs";
 import { invalidateOidcConfigCache } from "@/lib/auth/providers/oidc";
 import { probeOidcDiscovery } from "@/lib/auth/providers/oidc-probe";
 import { assertSafeOidcIssuerUrl } from "@/lib/auth/providers/oidc-url-safety";
@@ -39,7 +40,7 @@ interface RouteContext {
 
 export async function PATCH(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { user } = await requireUser({ can: "oidc.manage" });
+    const { user } = await requireUser({ can: "auth.manage" });
     await requireCsrf(request);
     const { id } = await context.params;
 
@@ -80,7 +81,6 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     if (input.claimEmail !== undefined) patch.claimEmail = input.claimEmail;
     if (input.claimName !== undefined) patch.claimName = input.claimName;
     if (input.enabled !== undefined) patch.enabled = input.enabled;
-    if (input.forceDefault !== undefined) patch.forceDefault = input.forceDefault;
     if (input.requireEmailVerified !== undefined) {
       patch.requireEmailVerified = input.requireEmailVerified;
     }
@@ -154,7 +154,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
 
 export async function DELETE(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { user } = await requireUser({ can: "oidc.manage" });
+    const { user } = await requireUser({ can: "auth.manage" });
     await requireCsrf(request);
     const { id } = await context.params;
 
@@ -164,6 +164,10 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     const hdrs = await headers();
     await db.transaction(async (tx) => {
       await deleteOidcProvider(id, tx);
+      // Release the slug for reuse by any provider type. The reservation
+      // table doesn't have FKs back to the per-type tables, so this is the
+      // explicit second half of the cross-type uniqueness handshake.
+      await releaseProviderSlug(existing.slug, tx);
 
       await appendAudit(
         {
@@ -196,7 +200,6 @@ function snapshot(row: {
   claimEmail: string;
   claimName: string;
   enabled: boolean;
-  forceDefault: boolean;
   requireEmailVerified: boolean;
   allowedEmailDomains: string[] | null;
   groupMappings: ReadonlyArray<{
@@ -217,7 +220,6 @@ function snapshot(row: {
     claimEmail: row.claimEmail,
     claimName: row.claimName,
     enabled: row.enabled,
-    forceDefault: row.forceDefault,
     requireEmailVerified: row.requireEmailVerified,
     allowedEmailDomains: row.allowedEmailDomains,
     groupMappingsCount: row.groupMappings?.length ?? 0,

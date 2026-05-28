@@ -21,7 +21,6 @@ interface OidcProvider {
   claimEmail: string;
   claimName: string;
   enabled: boolean;
-  forceDefault: boolean;
   requireEmailVerified: boolean;
   allowedEmailDomains: string[] | null;
   iconUrl: string | null;

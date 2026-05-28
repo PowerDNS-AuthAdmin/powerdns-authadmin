@@ -43,17 +43,25 @@ can jump straight into the code that owns each feature.
   `app/api/auth/oidc/[provider]/{initiate,callback}/route.ts`,
   `app/(app)/admin/oidc-providers/`.
 - **How.**
-  - Add a provider from `/admin/oidc-providers` (gated on `oidc.manage`).
+  - Add a provider from `/admin/authentication` (gated on `oidc.manage`). The
+    unified Authentication page lists Local Auth + every configured OIDC
+    provider in one table; per-provider edit pages live under
+    `/admin/oidc-providers/<id>`.
   - The redirect URI to register with the IdP is `${APP_URL}/api/auth/oidc/<slug>/callback`.
+  - Slugs are **globally unique across every authentication provider** (OIDC,
+    SAML, LDAP) — the `auth_provider_slugs` table enforces this at the DB
+    level, so the same slug can't be reused across protocol types.
   - Per-provider toggles:
     - `enabled` — hides the provider from the login page when off.
-    - `force_default` — `/login` auto-redirects here instead of showing the form. Escape hatch
-      is `/login?force-local=1`.
     - `require_email_verified` — default on; sign-in is blocked unless the IdP attests
       `email_verified: true`. Defends against account-takeover when the same email exists
       locally and the IdP lets users set arbitrary unverified emails. Relax it only for IdPs
       that never emit the claim.
     - `allowed_email_domains` — per-provider override of the env-level allow-list.
+  - **Default sign-in method** lives on the unified Authentication page, not
+    on individual providers. Pick "Local Auth" or one of the configured
+    providers from the dropdown; `/login` auto-redirects on a fresh visit
+    (escape hatch: `/login?force-local=1`).
   - Discovery health is operator-pollable via the **Test** button on the providers list AND
     the edit page; the result is cached on the row's `discovery_cache` field.
   - **RP-initiated logout.** When the IdP advertises an `end_session_endpoint`, sign-in
@@ -239,11 +247,11 @@ can jump straight into the code that owns each feature.
 
 - **What.** Every HTTP call the app issues to PowerDNS is recorded with timestamp, server,
   operation, method, URL, response status, error (if any), and the correlator `requestId` of
-  the audit row that triggered it. Visible at `/admin/pdns-requests` with filters for server,
+  the audit row that triggered it. Visible at `/admin/requests` with filters for server,
   op, status code, request id, and date range. Each row expands inline to the full request +
   response detail; the `req:` link cross-pivots to / from the matching audit row, so an audit
   failure is one click from the exact PDNS exchange.
-- **Where.** `lib/pdns/request-log.ts`, `app/(app)/admin/pdns-requests/`,
+- **Where.** `lib/pdns/request-log.ts`, `app/(app)/admin/requests/`,
   `lib/db/repositories/pdns-requests.ts`.
 
 <picture>

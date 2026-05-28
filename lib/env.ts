@@ -122,6 +122,22 @@ const envSchema = z.object({
   // multi-subdomain SSO scenarios.
   COOKIE_DOMAIN: z.string().optional(),
 
+  // --- IdP-derived permissions ---
+  // How old the latest session's `derived_permissions` snapshot is allowed
+  // to be before the token-auth path stops using it. After this window, an
+  // API token used by an OIDC/SAML/LDAP user falls back to admin-issued
+  // permissions only — the IdP-derived perms drop off until the user
+  // signs in again (which re-mints the snapshot). Default: 24h.
+  TOKEN_IDP_FALLBACK_TTL_SECONDS: z.coerce.number().int().positive().default(86400),
+  // Cache window for the live IdP-perms recompute. When a token
+  // authenticates for an OIDC/LDAP user, we re-fetch their current
+  // groups from the IdP (OIDC: refresh-token → userinfo; LDAP:
+  // service-account bind + search) and cache the result for this many
+  // seconds so a burst of API calls doesn't hammer the IdP. Lower →
+  // tighter freshness, more IdP load. Higher → looser freshness, less
+  // load. Default: 60s.
+  IDP_PERMS_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
+
   // --- Local auth ---
   // Whether email + password sign-in is enabled at all. Default true.
   LOCAL_AUTH_ENABLED: z
@@ -276,6 +292,31 @@ const envSchema = z.object({
     .pipe(z.boolean())
     .optional(),
 
+  // --- LDAP transport relaxations (mirrors the PDNS / OIDC pair) ---
+  // LDAP traffic is admin-configured but it carries the user's password on
+  // re-bind, so we default to strict TLS. The two opt-outs below are loud:
+  // the env-level one for trusted-LAN homelabs that have no TLS at all,
+  // the provider-row `start_tls` flag for the upgrade-after-connect case
+  // (RFC 4511 § 4.14). See ADR-0020 for the security posture.
+  //
+  // When false (default), the LDAP provider validator refuses an
+  // `ldap://...:389` URL unless the provider row sets `start_tls: true`.
+  // Set true to allow plain ldap:// for a directory you fully trust the
+  // path to.
+  LDAP_ALLOW_INSECURE_PORT_389: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .default(false),
+  // When true, the LDAP TLS handshake accepts self-signed / mismatched
+  // certificates. Loud opt-in for lab use only — re-issue the certs and
+  // pin the CA on the provider row for production.
+  LDAP_TLS_INSECURE_SKIP_VERIFY: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .default(false),
+
   // --- OIDC issuer connectivity (SSRF guard, mirrors the PDNS pair) ---
   // The OIDC issuer/discovery URL is operator-supplied and fetched server-side
   // (probe + live discovery), so it runs through the same outbound-URL guard.
@@ -398,6 +439,8 @@ const ENV_KEYS = [
   "DATABASE_POOL_SIZE",
   "REDIS_URL",
   "SESSION_TTL_SECONDS",
+  "TOKEN_IDP_FALLBACK_TTL_SECONDS",
+  "IDP_PERMS_CACHE_TTL_SECONDS",
   "COOKIE_DOMAIN",
   "LOCAL_AUTH_ENABLED",
   "SIGNUP_ENABLED",
@@ -423,6 +466,8 @@ const ENV_KEYS = [
   "PDNS_BACKGROUND_POLLING",
   "APP_OIDC_ALLOW_PRIVATE_NETWORKS",
   "APP_OIDC_ALLOW_INSECURE_HTTP",
+  "LDAP_ALLOW_INSECURE_PORT_389",
+  "LDAP_TLS_INSECURE_SKIP_VERIFY",
   "SMTP_HOST",
   "SMTP_PORT",
   "SMTP_SECURE",

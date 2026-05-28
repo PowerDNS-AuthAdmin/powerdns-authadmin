@@ -80,7 +80,13 @@ export function AppShell({
           <div className="ml-auto flex items-center gap-3">{headerControls}</div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">{children}</main>
+        {/* `min-h-0` is the canonical flexbox-clipping fix: a `flex-1` child
+            without it can grow beyond its parent's height when its content
+            is taller, defeating `overflow-y-auto` and leaking a second
+            outer scroll region. Previously this surfaced on the zones list
+            at high page sizes (100+) as the "scroll-in-scroll, half the
+            page goes black at the bottom" bug. */}
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

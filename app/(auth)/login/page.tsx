@@ -16,11 +16,14 @@ import { redirect } from "next/navigation";
 import { env, isProduction } from "@/lib/env";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { listEnabledOidcProviders } from "@/lib/db/repositories/oidc-providers";
+import { listEnabledSamlProviders } from "@/lib/db/repositories/saml-providers";
+import { listEnabledLdapProviders } from "@/lib/db/repositories/ldap-providers";
 import { envOidcProviderSummary } from "@/lib/auth/providers/oidc";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { safeNextPath } from "@/lib/auth/safe-redirect";
 import { detectAppUrlMismatch } from "@/lib/auth/app-url-check";
 import { LoginForm } from "./login-form";
+import { LdapLoginForm } from "./ldap-login-form";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -33,6 +36,10 @@ export default async function LoginPage({
     "signed-out"?: string;
     flash?: string;
     "force-local"?: string;
+    /** When set to an LDAP provider slug, the login page hides every other
+     *  LDAP form and only shows that one. Used by the default-provider
+     *  redirect when the operator pins an LDAP provider as default. */
+    ldap?: string;
   }>;
 }) {
   // Already signed in? Send them to the dashboard.
@@ -45,6 +52,7 @@ export default async function LoginPage({
     "signed-out": signedOut,
     flash,
     "force-local": forceLocal,
+    ldap: ldapFocusSlug,
   } = await searchParams;
   const { loginIntro, allowPasswordReset } = await getAppSettings();
 
@@ -67,7 +75,10 @@ export default async function LoginPage({
   // alongside DB providers, not as a hidden fallback. A DB provider with the
   // same slug shadows it. See lib/auth/providers/oidc.ts for the matching
   // precedence on the dispatcher side.
-  const dbProviders = await listEnabledOidcProviders();
+  const [dbProviders, dbLdapProviders] = await Promise.all([
+    listEnabledOidcProviders(),
+    listEnabledLdapProviders(),
+  ]);
   const dbSlugs = new Set(dbProviders.map((p) => p.slug));
   const envProvider = envOidcProviderSummary();
   const oidcProviders: Array<{ id: string; name: string; iconUrl: string | null }> = [
@@ -78,23 +89,37 @@ export default async function LoginPage({
       ? [{ id: envProvider.slug, name: envProvider.name, iconUrl: null }]
       : []),
   ];
+  const samlProviders = await listEnabledSamlProviders();
 
-  // Force-default OIDC: if any DB provider is marked `forceDefault`, send the
-  // user straight to its initiate URL instead of showing the form. Skipped on
-  // post-signout, post-error, flash redirects, and when the operator opts out
-  // explicitly via `?force-local=1` (the escape hatch for fixing a broken IdP
-  // or local-admin recovery). Most recent `forceDefault` row wins if multiple
-  // are set — the admin form warns about that.
-  //
+  // Default sign-in method: when `authDefaultProvider` resolves to a typed-
+  // prefix value (e.g. `oidc:company-sso`), auto-redirect to that provider's
+  // initiate URL instead of showing the form. Skipped on post-signout, post-
+  // error, flash redirects, and when the operator opts out explicitly via
+  // `?force-local=1` (the escape hatch for fixing a broken IdP or local-admin
+  // recovery). The setting is global (one value across the app); per-provider
+  // `force_default` is retired (migrated to this setting at upgrade time).
   const forceLocalRequested = forceLocal !== undefined;
   const isFreshArrival = !error && !signedOut && !flash && !forceLocalRequested;
-  if (isFreshArrival && dbProviders.length > 0) {
-    const forceProvider = [...dbProviders]
-      .filter((p) => p.forceDefault)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
-    if (forceProvider) {
-      const target = `/api/auth/oidc/${forceProvider.slug}/initiate${nextParam}`;
-      redirect(target);
+  const { authDefaultProvider } = await getAppSettings();
+  if (isFreshArrival && authDefaultProvider !== "local") {
+    const sep = authDefaultProvider.indexOf(":");
+    const type = sep > 0 ? authDefaultProvider.slice(0, sep) : "";
+    const slug = sep > 0 ? authDefaultProvider.slice(sep + 1) : "";
+    // OIDC + SAML redirect straight to the IdP. LDAP is on-page (no
+    // separate redirect target — the form is rendered below); we re-enter
+    // this page with `?ldap=<slug>` so the form switch knows which
+    // provider's form to focus. A setting that resolves to an unsupported
+    // type (or a provider whose row was deleted) silently falls back to
+    // showing the form rather than redirecting to a 404.
+    if (type === "oidc" && slug && dbProviders.some((p) => p.slug === slug && p.enabled)) {
+      redirect(`/api/auth/oidc/${slug}/initiate${nextParam}`);
+    }
+    if (type === "saml" && slug && samlProviders.some((p) => p.slug === slug && p.enabled)) {
+      redirect(`/api/auth/saml/${slug}/login${nextParam}`);
+    }
+    if (type === "ldap" && slug && dbLdapProviders.some((p) => p.slug === slug && p.enabled)) {
+      const sep2 = nextParam ? "&" : "?";
+      redirect(`/login${nextParam}${sep2}ldap=${encodeURIComponent(slug)}`);
     }
   }
 
@@ -159,11 +184,11 @@ export default async function LoginPage({
         </div>
       ) : null}
 
-      {oidcProviders.length > 0 ? (
+      {(oidcProviders.length > 0 || samlProviders.length > 0) && ldapFocusSlug === undefined ? (
         <div className="mb-6 space-y-2">
           {oidcProviders.map((p) => (
             <a
-              key={p.id}
+              key={`oidc-${p.id}`}
               href={`/api/auth/oidc/${p.id}/initiate${nextParam}`}
               className="flex w-full items-center justify-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-4 py-2 text-sm font-medium hover:bg-[color:var(--color-bg-muted)]"
             >
@@ -182,7 +207,16 @@ export default async function LoginPage({
               <span>Continue with {p.name}</span>
             </a>
           ))}
-          {env.LOCAL_AUTH_ENABLED ? (
+          {samlProviders.map((p) => (
+            <a
+              key={`saml-${p.slug}`}
+              href={`/api/auth/saml/${p.slug}/login${nextParam}`}
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-4 py-2 text-sm font-medium hover:bg-[color:var(--color-bg-muted)]"
+            >
+              <span>Continue with {p.name}</span>
+            </a>
+          ))}
+          {env.LOCAL_AUTH_ENABLED || dbLdapProviders.length > 0 ? (
             <div className="my-4 flex items-center gap-3 text-xs text-[color:var(--color-fg-subtle)]">
               <span className="h-px flex-1 bg-[color:var(--color-border)]" />
               <span>or</span>
@@ -192,7 +226,39 @@ export default async function LoginPage({
         </div>
       ) : null}
 
-      {env.LOCAL_AUTH_ENABLED ? (
+      {/* LDAP forms. When `?ldap=<slug>` focuses one provider (the default-
+          provider dispatcher above), other LDAP forms are hidden. Otherwise
+          every enabled LDAP provider gets its own form — most deployments
+          will only have one. */}
+      {dbLdapProviders.length > 0 ? (
+        <div className="mb-6 space-y-6">
+          {dbLdapProviders
+            .filter((l) => ldapFocusSlug === undefined || l.slug === ldapFocusSlug)
+            .map((l) => (
+              <section
+                key={l.id}
+                className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-4"
+              >
+                <h2 className="mb-3 text-sm font-medium">Sign in with {l.name}</h2>
+                <LdapLoginForm
+                  slug={l.slug}
+                  providerName={l.name}
+                  turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined}
+                  next={safeNext}
+                />
+              </section>
+            ))}
+          {env.LOCAL_AUTH_ENABLED && ldapFocusSlug === undefined ? (
+            <div className="my-4 flex items-center gap-3 text-xs text-[color:var(--color-fg-subtle)]">
+              <span className="h-px flex-1 bg-[color:var(--color-border)]" />
+              <span>or</span>
+              <span className="h-px flex-1 bg-[color:var(--color-border)]" />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {env.LOCAL_AUTH_ENABLED && ldapFocusSlug === undefined ? (
         <>
           <LoginForm turnstileSiteKey={env.TURNSTILE_SITE_KEY ?? undefined} next={safeNext} />
           {allowPasswordReset ? (
@@ -219,6 +285,17 @@ export default async function LoginPage({
         <p className="mt-4 text-xs text-[color:var(--color-fg-muted)]">
           Force-default OIDC bypassed for this visit. Remove <code>?force-local=1</code> from the
           URL to return to the normal login flow.
+        </p>
+      ) : null}
+
+      {ldapFocusSlug !== undefined ? (
+        <p className="mt-4 text-xs text-[color:var(--color-fg-muted)]">
+          <Link
+            href={env.LOCAL_AUTH_ENABLED ? "/login?force-local=1" : "/login"}
+            className="underline"
+          >
+            Show all sign-in options
+          </Link>
         </p>
       ) : null}
     </>
@@ -286,6 +363,18 @@ function humanizeError(code: string): string {
     case "oidc-email-unverified":
       return "Sign-in refused: the identity provider did not attest that this email address is verified.";
     case "oidc-not-authorized":
+      return "Sign-in refused: your account is not authorized for this system. Contact your administrator if you believe this is a mistake.";
+    case "saml-unknown-provider":
+      return "The SAML provider in the request URL is not configured.";
+    case "saml-state-missing":
+      return "Your sign-in attempt expired. Please try again.";
+    case "saml-response-missing":
+      return "The SAML response was missing or malformed.";
+    case "saml-exchange-failed":
+      return "We couldn't verify the SAML assertion from your identity provider.";
+    case "saml-build-failed":
+      return "We couldn't build the SAML sign-in request.";
+    case "saml-not-authorized":
       return "Sign-in refused: your account is not authorized for this system. Contact your administrator if you believe this is a mistake.";
     case "captcha-required":
       return "Sign-in requires a captcha challenge. Refresh the page and try again.";

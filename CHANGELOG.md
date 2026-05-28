@@ -4,7 +4,251 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] — targeting v1.3.0
+
+A major feature pile: WebAuthn primary + 2FA, SAML 2.0 SP, LDAP direct-bind,
+teams zone grants, session-scoped IdP-derived permissions with live token
+recompute, the unified `/admin/auth-providers` admin surface, and a new
+super-admin-gated app-DB backup export. See [`UPGRADING.md`](./UPGRADING.md)
+for operator actions.
+
+**Migration**: one new SQL file per dialect (`drizzle/0004_*.sql` and
+`drizzle-sqlite/0004_*.sql`). Runs at boot.
+
+### Added — teams: per-zone grants (#75)
+
+`zone_grants` now supports a team principal alongside the existing user
+principal. A grant attached to a team flows through to every member via
+`team_members`; revoking the grant or removing a member from the team
+revokes access without surgery on per-user rows. Same admin surface as
+user grants (`/admin/teams/[id]` gets a Zone-grants section). Cross-type
+duplicate prevention via partial unique indexes; exactly-one principal
+enforced by a CHECK constraint.
+
+### Added — session-scoped IdP-derived permissions + live token recompute (#85)
+
+IdP groups stop materialising into persistent `role_assignments` rows.
+At sign-in, the user's group claim is resolved to an
+`AbilitySource[]` snapshot via the new `computeGroupSync` and stored on
+`sessions.derived_permissions` (new JSONB column). Sessions naturally
+expire; stale grants for inactive users disappear with the session.
+
+Tokens follow current real permissions. At token use time, an OIDC or
+LDAP user's groups are re-fetched live (LDAP service-account search,
+OIDC refresh-token → userinfo) and materialised through the same
+`computeGroupSync`, cached per `IDP_PERMS_CACHE_TTL_SECONDS` (default
+60s). Fallback path: when the live recompute fails (IdP unreachable,
+refresh rejected, SAML — which has no back-channel), the token uses
+the latest session's snapshot bounded by `TOKEN_IDP_FALLBACK_TTL_SECONDS`
+(default 24h). New audit action `auth.token.idp_perms_refreshed` —
+one row per cache window.
+
+### Added — zone detail "Access" tab (#76)
+
+New "Access" tab on `/zones/[id]` (gated on `user.read`) listing every
+principal with access to the zone: roles that grant any zone-scope
+permission (dynamically derived from each role's permission list —
+system roles surface naturally, custom roles too if the operator gave
+them zone perms), teams with explicit `zone_grants` on this zone, and
+users with direct grants.
+
+### Added — tabbed admin user-edit (#79)
+
+`/admin/users/[id]` matches `/profile`'s tab vocabulary (Account / Roles /
+Zone grants / Sessions / Two-factor / API tokens / Audit) instead of a
+long scroll. Tabs gated on the actor's capabilities. Self-edit
+server-redirects to `/profile` (the admin user-detail URL never enters
+history — Back returns to the users list cleanly).
+
+### Added — app-DB backup export (#84)
+
+Super-admin-gated `/admin/backup` page + `GET /api/admin/backup/export`
+streaming a JSON dump of the app DB. Excludes PDNS zone data and
+symmetric secrets (`APP_SECRET_KEY` / `APP_ENCRYPTION_KEY`).
+Encrypted columns exported as ciphertext — useless without the
+encryption key on the restore target. New `system.backup` permission,
+default-granted only to the seeded Super Admin role. Audit:
+`system.backup.exported` with per-table row counts. Interactive
+restore lands in a follow-up.
+
+### Added — BIND zonefile serializer (#9 phase 1)
+
+The existing zonefile export route now produces idiomatic BIND
+output: `$TTL` + `$ORIGIN` directives, owner names relativised
+against the zone origin (apex → `@`), SOA expanded as a parenthesised
+multi-line tuple. The output round-trips through BIND / NSD / PowerDNS
+`pdnsutil load-zone` without modification. Import (parser +
+preview-before-commit + bulk archive flow) lands as a follow-up.
+
+### Changed — admin URL restructure + `oidc.*` → `auth.*` rename (#74)
+
+`/admin/oidc-providers` → `/admin/auth-providers/oidc`. Same shape for
+SAML and LDAP. Old URLs keep redirect stubs so external links survive.
+The CASL "Oidc" subject type became "Auth" and the `oidc.read` /
+`oidc.manage` permission strings became `auth.read` / `auth.manage`
+since the gates now cover three protocols at the unified surface.
+Existing role permission lists are auto-rewritten by the migration.
+
+### Changed — profile tabs actually switch panels (#78)
+
+`/profile` tabs were rendering every panel and just scrolling. Tab
+identification swapped from a fragile component-function equality
+check to a `data-section-tab` marker attribute; visibility uses inline
+`style.display` instead of the `hidden` attribute (highest cascade
+specificity, no CSS-conflict surface). The component moved to
+`components/ui/section-tabs.tsx` and is reused by the new tabbed admin
+user-edit page.
+
+### Changed — audit-vocabulary consolidation
+
+Three IdP-prefixed actions unified into protocol-neutral ones:
+
+| Old                                       | New                                |
+| ----------------------------------------- | ---------------------------------- |
+| `auth.oidc.group_sync.assignment_added`   | _removed_                          |
+| `auth.oidc.group_sync.assignment_removed` | _removed_                          |
+| `auth.oidc.group_sync.mapping_unresolved` | `auth.group_sync.mapping_unresolved` |
+| `auth.{oidc,saml}.linked`                 | `auth.idp.linked`                  |
+| `auth.{oidc,saml,ldap}.rejected_provisioning` | `auth.idp.rejected_provisioning` |
+
+Protocol context is preserved via `method` + `provider` fields in the
+audit row's `after` snapshot.
+
+### Fixed — SSE badge no longer stuck on OFFLINE for permissionless users (#80)
+
+`/api/realtime` previously hard-403'd a user who couldn't read any
+zone. Their EventSource never opened; the chip reported "OFFLINE"
+forever. The stream is now opened unconditionally for any
+authenticated user — the per-event filters already gate what reaches
+them, so the connection is honest about its state.
+
+### Fixed — zones-list scroll-in-scroll at high page sizes (#80)
+
+`<main>` was `flex-1 overflow-y-auto` without `min-h-0`. Under flexbox,
+a flex-1 child without `min-h-0` can grow past its parent's height
+when its content is taller, defeating `overflow-y-auto` and leaking a
+second outer scroll region. One-class fix.
+
+### Added — DataTable pagination at top AND bottom (#80)
+
+Long lists no longer force operators to scroll all the way down just
+to flip a page or change the page size. Same controls render at the
+top and the bottom of every paginated table.
+
+### Added — SAML 2.0 single sign-on
+
+- **`saml_providers` table** stores SAML SP configurations (ADR-0021). One
+  row per IdP relationship: AD FS, Authentik SAML, Keycloak SAML, etc.
+  Encrypted SP signing key + optional encryption key + the IdP's public
+  signing cert.
+- **Admin UI**: `/admin/authentication/new` now offers SAML as an active
+  card. Provider edit page at `/admin/saml-providers/<id>` mirrors the
+  OIDC equivalent — same pickers, same audit panel, same danger zone.
+- **Sign-in routes**:
+  - `GET /api/auth/saml/<slug>/login` — signed AuthnRequest + redirect to IdP.
+  - `POST /api/auth/saml/<slug>/acs` — Assertion Consumer Service; verifies
+    signature, decrypts EncryptedAssertion if configured, applies group →
+    role mappings, mints session.
+  - `GET /api/auth/saml/<slug>/metadata` — SP metadata XML (paste into IdP).
+  - `GET /api/auth/saml/<slug>/slo` — SP-initiated single logout.
+- **Secure defaults**: `wantAssertionsSigned: true`, `wantAuthnResponseSigned:
+true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
+  Operators can relax per-provider via the form.
+- **Group → role mapping** reuses the OIDC materialiser — same shape, same
+  `provider_id`-tagged `role_assignments` rows.
+- **Provisioning**: new `saml:` block in `provisioning.yaml`. See
+  `provisioning.example.yaml` for a worked example. Slug is reserved in
+  `auth_provider_slugs(provider_type='saml')` atomically with the row insert.
+- **Login dispatcher**: `auth_default_provider = "saml:<slug>"` now auto-
+  redirects to the SAML initiate URL on a fresh visit.
+- Library: `@node-saml/node-saml@^5.1.0` (MIT, CVE-2025-54369 fixed).
+- Docs: new [`docs/13-SAML.md`](./docs/13-SAML.md) with worked AD FS,
+  Authentik, and Keycloak setup. ADR-0021 captures the architecture.
+
+### Added — LDAP authentication (ADR-0020)
+
+- Direct-bind sign-in against **Active Directory** and **OpenLDAP**. Operators
+  configure providers under **Admin → Authentication** (the LDAP card on the
+  "Add provider" picker is now live alongside OIDC and SAML).
+- Bind-then-search-then-rebind flow via the maintained TypeScript-first
+  [`ldapts`](https://www.npmjs.com/package/ldapts) library. Strict TLS by
+  default — plain `ldap://` is refused unless either StartTLS is enabled on
+  the provider row OR `LDAP_ALLOW_INSECURE_PORT_389=true` is set. A new
+  `LDAP_TLS_INSECURE_SKIP_VERIFY=true` env knob exists for lab use only;
+  production deploys should pin the internal CA on the provider row instead.
+- Group → role mappings (global / team / zone / server scope) feed the
+  shared `applyGroupSync` materialiser. AD's `memberOf` is read first; an
+  optional second search (`group_search_base` + `group_search_filter` with a
+  `{{userDn}}` placeholder) handles OpenLDAP installs without the `memberof`
+  overlay.
+- New `POST /api/auth/ldap/<slug>/login` route — same captcha + per-IP
+  rate-limit pipeline as the local + OIDC paths.
+- New `ldap_providers` table (PG + SQLite); migrations
+  `drizzle/0008_ldap_providers.sql` and
+  `drizzle-sqlite/0008_ldap_providers.sql`.
+- Provisioning gains an `ldap:` block (worked AD + OpenLDAP examples in
+  `provisioning.example.yaml`). A bare-slug `auth_default_provider` resolves
+  to an LDAP provider through the existing `auth_provider_slugs` table.
+- New audit actions: `ldap.provider.created` / `.updated` / `.deleted` and
+  `auth.ldap.rejected_provisioning`. `auth.login.success` after-state now
+  carries `method: "ldap"` and `provider: "<slug>"` for sign-ins through
+  this path.
+- Operator guide: [`docs/12-LDAP.md`](./docs/12-LDAP.md) (worked AD example
+  with KB4520412 channel-binding note, OpenLDAP 2.6 example with
+  `olcTLSCipherSuite` + memberof-overlay setup).
+
+### Changed — admin sidebar restructure + URL alignment
+
+- **Sidebar "Infrastructure" section renamed to "PowerDNS"**, with shorter
+  nav labels now that the section name carries the protocol context:
+  - "PowerDNS servers" → "Servers"
+  - "Groups" → "Clusters" (the underlying concept is a cluster of peers
+    or a primary with its secondaries; "Groups" was a UI carry-over).
+  - "Request log" moves up from the "System" section into "PowerDNS" —
+    it's PDNS HTTP traffic, not platform audit.
+- **URL alignment**: two admin paths renamed to match the rest of the
+  section (no `pdns-` prefix; the section already says PowerDNS):
+  - `/admin/pdns-clusters` → `/admin/clusters`
+  - `/admin/pdns-requests` → `/admin/requests`
+  - The old paths redirect to the new ones so bookmarks and audit-log
+    links keep working.
+- "System" now contains only Settings + Audit log.
+
+### Added — globally-unique provider slugs
+
+- New `auth_provider_slugs` table acts as a cross-type reservation: every
+  provider create transaction reserves its slug here first, and the table's
+  PK enforces uniqueness across **every** authentication provider type
+  (OIDC today; SAML + LDAP when PRs 2 + 3 of `feat/auth-providers-...`
+  land). A SAML provider can't claim the same slug as an existing OIDC
+  provider. Existing OIDC rows are backfilled by the migration in both
+  dialects.
+- **Provisioning shorthand**: `auth_default_provider` in the YAML now
+  accepts a bare provider slug (e.g. `auth_default_provider: "company-sso"`)
+  alongside the existing `local` / `<type>:<slug>` forms. The applier
+  resolves a bare slug against `auth_provider_slugs` (including providers
+  declared in the SAME file) and persists the canonical typed-prefix form.
+  Unknown slugs log a warning and leave the previous value intact.
+
+### Changed — unified authentication admin
+
+- **New `Admin → Authentication` page** consolidates the view of every
+  sign-in method into one list. Local Auth appears as a synthetic row
+  alongside every configured OIDC provider (and, when PR 2 + PR 3 of
+  `feat/auth-providers-ldap-saml-webauthn` land, SAML and LDAP). The old
+  `/admin/oidc-providers` index redirects here; per-provider edit pages
+  (`/admin/oidc-providers/<id>`, `/admin/oidc-providers/new`) keep their
+  URLs. Sidebar nav renames from "OIDC providers" to "Authentication".
+- **Default sign-in method is now a single global setting** edited from
+  the new page via a themed dropdown — replaces the per-OIDC-provider
+  `force_default` checkbox. Stored as `settings.auth_default_provider`
+  in the `local` / `oidc:<slug>` / `saml:<slug>` / `ldap:<slug>` format.
+  Existing deployments are migrated automatically by the Drizzle migration
+  in both dialects (most recently created enabled `force_default=true`
+  wins). The `force_default` column is dropped.
+- **Provisioning compat**: `force_default: true` in YAML still parses; the
+  applier translates it into `auth_default_provider` and logs a
+  deprecation warning. Will be removed in a future minor.
 
 ### Changed — bounded retention on dashboard time-series tables (1:1 with display windows)
 

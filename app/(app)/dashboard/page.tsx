@@ -108,7 +108,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
   const canReadZones = ability.can("read", "Zone");
   const canCreateServer = ability.can("create", "Server");
   const canReadUsers = ability.can("read", "User");
-  const canReadOidc = ability.can("read", "Oidc");
+  const canReadAuth = ability.can("read", "Auth");
 
   // Ask the broker to ensure a recent observation so the PDNS-attention tiles
   // read live reachability (same source as the servers list + bell). For an
@@ -152,7 +152,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
     canReadUsers
       ? userAttentionCounts()
       : Promise.resolve({ lockedOut: 0, unverifiedEmail: 0, noMfa: 0, mustChangePassword: 0 }),
-    canReadOidc ? oidcAttentionCounts() : Promise.resolve({ neverProbed: 0, failing: 0 }),
+    canReadAuth ? oidcAttentionCounts() : Promise.resolve({ neverProbed: 0, failing: 0 }),
   ]);
 
   // PDNS attention from the live reachability store (the single source of truth):
@@ -269,7 +269,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
         <PdnsAttentionWidget counts={pdnsAttention} />
       ) : null}
 
-      {canReadOidc && hasOidcAttention(oidcAttention) ? (
+      {canReadAuth && hasOidcAttention(oidcAttention) ? (
         <OidcAttentionWidget counts={oidcAttention} />
       ) : null}
 
@@ -753,13 +753,13 @@ function OidcAttentionWidget({ counts }: { counts: { neverProbed: number; failin
           label="Never probed"
           count={counts.neverProbed}
           tone="warn"
-          href="/admin/oidc-providers"
+          href="/admin/auth-providers/oidc"
         />
         <AttentionTile
           label="Failing probe"
           count={counts.failing}
           tone="error"
-          href="/admin/oidc-providers"
+          href="/admin/auth-providers/oidc"
         />
       </div>
     </section>

@@ -109,7 +109,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const canReadTeams = current.ability.can("read", "Team");
   const canReadAudit = current.ability.can("read", "Audit");
   const canReadSettings = current.ability.can("read", "Settings");
-  const canReadOidc = current.ability.can("read", "Oidc");
+  const canReadAuth = current.ability.can("read", "Auth");
+  const canSystemBackup = current.globalPermissions.has("system.backup");
   const canUseTemplates = current.ability.can("use", "Template");
 
   // Health-bell advisories (ADR-0015) — only for users who can read backends.
@@ -127,11 +128,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   // Sidebar is grouped by function (Infrastructure / Access / System) rather
   // than one flat "Admin" pile. Each group renders only when the user can see
-  // at least one of its children.
+  // at least one of its children. The PowerDNS section now also houses the
+  // Request log (moved from System), which is `audit.read`-gated.
   const hasInfrastructure =
-    canReadServers || canReadTsig || canManageAutoprimary || canUseTemplates;
-  const hasAccess = canReadUsers || canReadRoles || canReadTeams || canReadOidc;
-  const hasSystem = canReadSettings || canReadAudit;
+    canReadServers || canReadTsig || canManageAutoprimary || canUseTemplates || canReadAudit;
+  const hasAccess = canReadUsers || canReadRoles || canReadTeams || canReadAuth;
+  const hasSystem = canReadSettings || canReadAudit || canSystemBackup;
 
   const sidebar = (
     <>
@@ -154,11 +156,9 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         {canReadZones ? <NavLink href="/zones" label="Zones" /> : null}
 
         {hasInfrastructure ? (
-          <NavSection label="Infrastructure">
-            {canReadServers ? (
-              <NavLink nested href="/admin/servers" label="PowerDNS servers" />
-            ) : null}
-            {canReadServers ? <NavLink nested href="/admin/pdns-clusters" label="Groups" /> : null}
+          <NavSection label="PowerDNS">
+            {canReadServers ? <NavLink nested href="/admin/servers" label="Servers" /> : null}
+            {canReadServers ? <NavLink nested href="/admin/clusters" label="Clusters" /> : null}
             {canReadTsig ? <NavLink nested href="/admin/tsig-keys" label="TSIG keys" /> : null}
             {canManageAutoprimary ? (
               <NavLink nested href="/admin/autoprimaries" label="Autoprimaries" />
@@ -166,6 +166,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             {canUseTemplates ? (
               <NavLink nested href="/admin/zone-templates" label="Zone templates" />
             ) : null}
+            {canReadAudit ? <NavLink nested href="/admin/requests" label="Request log" /> : null}
           </NavSection>
         ) : null}
 
@@ -174,8 +175,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             {canReadUsers ? <NavLink nested href="/admin/users" label="Users" /> : null}
             {canReadTeams ? <NavLink nested href="/admin/teams" label="Teams" /> : null}
             {canReadRoles ? <NavLink nested href="/admin/roles" label="Roles" /> : null}
-            {canReadOidc ? (
-              <NavLink nested href="/admin/oidc-providers" label="OIDC providers" />
+            {canReadAuth ? (
+              <NavLink nested href="/admin/authentication" label="Authentication" />
             ) : null}
           </NavSection>
         ) : null}
@@ -184,9 +185,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <NavSection label="System">
             {canReadSettings ? <NavLink nested href="/admin/settings" label="Settings" /> : null}
             {canReadAudit ? <NavLink nested href="/admin/audit" label="Audit log" /> : null}
-            {canReadAudit ? (
-              <NavLink nested href="/admin/pdns-requests" label="Request log" />
-            ) : null}
+            {canSystemBackup ? <NavLink nested href="/admin/backup" label="Backup" /> : null}
           </NavSection>
         ) : null}
       </nav>
