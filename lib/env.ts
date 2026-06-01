@@ -83,7 +83,7 @@ const secretKey = z
     message: "looks like a placeholder. Generate a real secret with: openssl rand -base64 32",
   });
 
-const envSchema = z.object({
+export const envSchema = z.object({
   // --- Runtime ---
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -519,7 +519,11 @@ export type Env = z.infer<typeof envSchema>;
 // Boot-time validation
 // =============================================================================
 
-const ENV_KEYS = [
+// The allow-list of variables read from the environment (each also accepts a
+// `_FILE` suffix - see readEnvWithFileSuffix). Every key in `envSchema` MUST
+// appear here, or its value is never collected and the schema silently falls
+// back to its default. The env.test.ts coverage check enforces that invariant.
+export const ENV_KEYS = [
   "NODE_ENV",
   "PORT",
   "APP_URL",
@@ -540,6 +544,7 @@ const ENV_KEYS = [
   "BOOTSTRAP_ADMIN_EMAIL",
   "BOOTSTRAP_ADMIN_PASSWORD",
   "BOOTSTRAP_ADMIN_RO",
+  "SETTINGS_RO",
   "OIDC_ENABLED",
   "OIDC_PROVIDER_ID",
   "OIDC_PROVIDER_NAME",
