@@ -1,10 +1,10 @@
 # =============================================================================
-# CI/CD — runs on every PR, every push to main, and every vX.Y.Z tag.
+# CI/CD - runs on every PR, every push to main, and every vX.Y.Z tag.
 #
 # Goals:
 #   • Catch lint / type / format errors before review.
 #   • Run unit + integration (real Postgres) tests on every change.
-#   • Keep PRs honest — npm audit gates on high/critical CVEs.
+#   • Keep PRs honest - npm audit gates on high/critical CVEs.
 #   • Build the production image on every change; PUBLISH a multi-arch
 #     (linux/amd64 + linux/arm64) image to the GitHub Container Registry
 #     (ghcr.io) once the tests pass on main / tags.
@@ -88,7 +88,7 @@ jobs:
         run: npm run test
 
   # -------------------------------------------------------------------------
-  # Integration tests — true end-to-end against a real running stack.
+  # Integration tests - true end-to-end against a real running stack.
   #
   # The suite (tests/integration/setup.ts) hits a live app's /healthz + its
   # Postgres and FAILS LOUD if either is missing, so it can't run against a
@@ -160,7 +160,7 @@ jobs:
   #   • Tag vX.Y.Z    → also push the semver tags `X.Y.Z` and `X.Y`.
   #
   # arm64 is built under QEMU emulation (one simple job); the Buildx layer
-  # cache keeps repeat runs quick. Auth uses the built-in GITHUB_TOKEN — no
+  # cache keeps repeat runs quick. Auth uses the built-in GITHUB_TOKEN - no
   # registry secrets to manage.
   # -------------------------------------------------------------------------
   docker:

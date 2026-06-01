@@ -1,11 +1,11 @@
 /**
  * app/api/profile/mfa/webauthn/[credentialId]/route.ts
  *
- * DELETE — remove ONE passkey credential from the signed-in user's account.
+ * DELETE - remove ONE passkey credential from the signed-in user's account.
  * Selective (not blanket): a user with three passkeys can drop the lost
  * one and keep the others. Mirrors the per-row admin reset.
  *
- * PATCH — rename the credential (nickname only). Useful when a user enrolls
+ * PATCH - rename the credential (nickname only). Useful when a user enrolls
  * "Touch ID" then later wants to call it "MacBook Pro 14".
  */
 
@@ -15,6 +15,7 @@ import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { assertBootstrapAdminMutable } from "@/lib/auth/bootstrap-admin";
 import { db } from "@/lib/db";
 import {
   findCredentialById,
@@ -38,6 +39,7 @@ export async function DELETE(request: Request, ctx: RouteContext): Promise<Respo
 
     const { user } = await requireUser({ skipComplianceGate: true });
     await requireCsrf(request);
+    assertBootstrapAdminMutable(user.email);
     const { credentialId } = await ctx.params;
 
     const existing = await findCredentialById(user.id, credentialId);
@@ -76,6 +78,7 @@ export async function PATCH(request: Request, ctx: RouteContext): Promise<Respon
 
     const { user } = await requireUser({ skipComplianceGate: true });
     await requireCsrf(request);
+    assertBootstrapAdminMutable(user.email);
     const { credentialId } = await ctx.params;
 
     let input;

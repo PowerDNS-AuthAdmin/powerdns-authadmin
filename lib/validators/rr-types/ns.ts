@@ -1,7 +1,7 @@
 /**
  * lib/validators/rr-types/ns.ts
  *
- * NS content — RFC 1035 § 3.3.11: the authoritative name server for the
+ * NS content - RFC 1035 § 3.3.11: the authoritative name server for the
  * zone (or delegated subzone). Single domain name.
  */
 

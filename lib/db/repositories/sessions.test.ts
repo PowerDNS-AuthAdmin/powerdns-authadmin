@@ -6,7 +6,7 @@ import { countActiveSessions } from "./sessions";
  * Build a stand-in executor whose `select().from().where()` chain resolves to
  * `rows`. Casting through `unknown` keeps the test off a live DB without an
  * `any` (lint forbids it); we only exercise the count-extraction logic, not
- * Drizzle's SQL generation — that's the integration suite's job.
+ * Drizzle's SQL generation - that's the integration suite's job.
  */
 function executorReturning(rows: Array<{ count: number }>): DbExecutor {
   const where = vi.fn(() => Promise.resolve(rows));

@@ -6,7 +6,7 @@
  * Client wrapper that feeds the amalgamated zones list into the reusable
  * DataTable. The page fetches zones from every logical backend
  * (standalone primary, primary+secondaries primary, or cluster) and
- * merges them — each row carries its source backend so the link target
+ * merges them - each row carries its source backend so the link target
  * and Sync rendering branch correctly.
  */
 
@@ -29,7 +29,7 @@ function isValidScope(s: unknown): s is ScopeFilter {
 
 /**
  * DNSSEC status cell: a green closed padlock when the zone is signed, a
- * muted open padlock when it isn't — quicker to scan down the column than
+ * muted open padlock when it isn't - quicker to scan down the column than
  * "on"/"off" text. Title + sr-only text keep it accessible.
  */
 function DnssecCell({ on }: { on: boolean }) {
@@ -65,11 +65,11 @@ export interface ZoneRow {
     kind: "server" | "cluster";
     /** Human-readable name for the table cell. */
     name: string;
-    /** When kind = "cluster", the cluster slug — used for the link
+    /** When kind = "cluster", the cluster slug - used for the link
      *  target so writes route through chooseWritePeer. When kind =
      *  "server", null. */
     clusterSlug: string | null;
-    /** Concrete server slug — for kind=server, the row itself; for
+    /** Concrete server slug - for kind=server, the row itself; for
      *  kind=cluster, any peer (reads identically across peers). */
     serverSlug: string;
   };
@@ -81,7 +81,7 @@ export interface ZoneRow {
    */
   lastEditIso: string | null;
   /**
-   * Where `lastEditIso` came from — surfaced as a small "(SOA)" hint
+   * Where `lastEditIso` came from - surfaced as a small "(SOA)" hint
    * when serial-derived so operators can tell apart "we logged this
    * recently" from "we inferred this from the serial."
    */
@@ -91,8 +91,8 @@ export interface ZoneRow {
    * serials relative to the representative peer's read; for a primary
    * with Secondaries, the entries are the Secondaries.
    *
-   * Empty when the source is a standalone primary — Sync cell renders
-   * "—". The display is the same shape ("synced" / "desynced") for
+   * Empty when the source is a standalone primary - Sync cell renders
+   * "-". The display is the same shape ("synced" / "desynced") for
    * both cluster and primary+secondary cases because the operator-
    * facing question is identical: are all peers serving the same view.
    */
@@ -103,7 +103,7 @@ export interface ZoneRow {
     serial: number | null;
   }>;
   /** Worst sync state across peers (drives the column's color). Null
-   *  means "no peers to compare" → the Sync cell renders "—". */
+   *  means "no peers to compare" → the Sync cell renders "-". */
   syncWorst: "in-sync" | "ahead" | "lagging" | "missing" | "error" | null;
   /** True when this row is a read-only mirror (an unpinned secondary's zone
    *  that no primary serves). The row links to a read-only zone detail. */
@@ -120,13 +120,13 @@ interface ZonesTableProps {
   showLastEdit: boolean;
   /**
    * Whether the polled mirror-state column should render. Off when
-   * `PDNS_BACKGROUND_POLLING=false` — there is no live primary↔secondary
+   * `PDNS_BACKGROUND_POLLING=false` - there is no live primary↔secondary
    * verdict to display, so the column is dropped entirely.
    */
   showSync: boolean;
 }
 
-/** Detail URL for a zone row — cluster-backed zones carry ?cluster=, standalone
+/** Detail URL for a zone row - cluster-backed zones carry ?cluster=, standalone
  *  ones carry ?server=. Shared by the name link and the clickable row. */
 function zoneHref(row: ZoneRow): string {
   return row.backend.clusterSlug
@@ -171,7 +171,7 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
               {row.readOnly ? (
                 <span
                   className="ml-2 rounded bg-[color:var(--color-bg-muted)] px-1 py-0.5 font-mono text-[0.625rem] tracking-wide text-[color:var(--color-fg-muted)] uppercase"
-                  title="Read-only mirror — unpinned secondary"
+                  title="Read-only mirror - unpinned secondary"
                 >
                   read-only
                 </span>
@@ -192,7 +192,7 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
         header: "Serial",
         cell: (ctx) => {
           const value = ctx.getValue<number | null>();
-          return <span className="font-mono text-xs">{value ?? "—"}</span>;
+          return <span className="font-mono text-xs">{value ?? "-"}</span>;
         },
         meta: { className: "w-[12%]" },
       },
@@ -210,7 +210,7 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
         // Numeric rank so `desc: true` orders desync first, in-sync
         // last. Standalone primaries (no peers, `syncWorst === null`)
         // sort below in-sync so a fleet of all-synced + standalones
-        // shows standalones at the bottom of the section — operators
+        // shows standalones at the bottom of the section - operators
         // care about replicated state first.
         accessorFn: (row) => syncRank(row.syncWorst),
         sortingFn: "basic" as const,
@@ -227,11 +227,11 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
         cell: (ctx) => {
           const row = ctx.row.original;
           const iso = row.lastEditIso;
-          if (!iso) return <span className="text-xs text-[color:var(--color-fg-muted)]">—</span>;
+          if (!iso) return <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>;
           const fromSerial = row.lastEditSource === "serial";
           const label = fromSerial ? freshnessOfDay(iso).label : freshnessOf(iso).label;
           const titleText = fromSerial
-            ? `${iso} — inferred from SOA serial (no audit log entry for this or a later day)`
+            ? `${iso} - inferred from SOA serial (no audit log entry for this or a later day)`
             : iso;
           return (
             <span className="text-xs text-[color:var(--color-fg-muted)]" title={titleText}>
@@ -256,7 +256,7 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
       const raw = window.localStorage.getItem(SCOPE_STORAGE_KEY);
       if (raw && isValidScope(raw)) setScope(raw);
     } catch {
-      // Corrupt / blocked localStorage — keep the default.
+      // Corrupt / blocked localStorage - keep the default.
     }
   }, []);
   useEffect(() => {
@@ -264,7 +264,7 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
     try {
       window.localStorage.setItem(SCOPE_STORAGE_KEY, scope);
     } catch {
-      // Quota / blocked — non-fatal.
+      // Quota / blocked - non-fatal.
     }
   }, [scope]);
 
@@ -293,7 +293,7 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
         searchPlaceholder="Search zones by name or backend…"
         // Default order: desynced first (Sync desc), then name asc.
         // When every row is in-sync the Sync rank ties and Name asc
-        // becomes the visible order — i.e. "show me anything that
+        // becomes the visible order - i.e. "show me anything that
         // needs attention first; otherwise alphabetical." With the Sync
         // column hidden (`PDNS_BACKGROUND_POLLING=false`), the initial
         // sort collapses to Name asc.
@@ -395,9 +395,9 @@ function syncRank(state: ZoneRow["syncWorst"]): number {
 
 function SyncCell({ row }: { row: ZoneRow }) {
   // Standalone primary (no secondaries, not in a cluster) → no peers
-  // to compare → render "—". Same convention the dashboard uses.
+  // to compare → render "-". Same convention the dashboard uses.
   if (row.syncStates.length === 0) {
-    return <span className="text-xs text-[color:var(--color-fg-muted)]">—</span>;
+    return <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>;
   }
   const worst = row.syncWorst;
   const isSynced = worst === "in-sync";
@@ -413,7 +413,7 @@ function SyncCell({ row }: { row: ZoneRow }) {
         ? "text-[color:var(--color-warn)]"
         : "text-[color:var(--color-error)]";
   const label = isSynced ? "synced" : "desynced";
-  // Include the row's own backend in the count — `syncStates` enumerates the
+  // Include the row's own backend in the count - `syncStates` enumerates the
   // OTHER peers (secondaries, or non-anchor cluster peers), so +1 surfaces
   // the total fleet size the operator is looking at.
   const total = row.syncStates.length + 1;

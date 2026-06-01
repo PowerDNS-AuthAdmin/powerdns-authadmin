@@ -1,7 +1,7 @@
 /**
  * tests/integration/admin/teams.test.ts
  *
- * /api/admin/teams — CRUD plus member add/remove. Verifies the audit log
+ * /api/admin/teams - CRUD plus member add/remove. Verifies the audit log
  * captures team.create + team.member.added, and that a non-admin operator
  * is forbidden from creating teams.
  */
@@ -27,7 +27,7 @@ describe("/api/admin/teams", () => {
     await resetState({ skipPdns: true });
   });
 
-  it("GET lists teams — empty after reset, then includes a newly created team", async () => {
+  it("GET lists teams - empty after reset, then includes a newly created team", async () => {
     const admin = await loginAsBootstrap();
     const before = await admin.getJson<{ teams: TeamRow[] }>("/api/admin/teams");
     expect(before.teams).toEqual([]);
@@ -129,7 +129,7 @@ describe("/api/admin/teams", () => {
     expect(rows).toHaveLength(0);
   });
 
-  it("GET /api/admin/teams/[id]/members — route is not exposed; expect 404 or 405", async () => {
+  it("GET /api/admin/teams/[id]/members - route is not exposed; expect 404 or 405", async () => {
     const admin = await loginAsBootstrap();
     const { team } = await admin.sendJson<{ team: TeamRow }>("POST", "/api/admin/teams", {
       slug: uniqueSlug("listmemb"),
@@ -139,7 +139,7 @@ describe("/api/admin/teams", () => {
     expect([404, 405]).toContain(res.status);
   });
 
-  it("non-admin (operator) cannot create a team — 403", async () => {
+  it("non-admin (operator) cannot create a team - 403", async () => {
     const admin = await loginAsBootstrap();
     const op = await createUser(admin, {
       email: uniqueEmail("op-team"),

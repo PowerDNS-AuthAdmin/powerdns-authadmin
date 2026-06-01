@@ -2,18 +2,18 @@
  * lib/pdns/tsig-install.ts
  *
  * Replicating a TSIG key from a primary onto its secondaries so AXFR
- * authenticates — both ends must hold the IDENTICAL secret (name + algorithm +
+ * authenticates - both ends must hold the IDENTICAL secret (name + algorithm +
  * key). Two delivery paths, both surfaced in the UI:
  *
  *   • API-driven (`installKeyOnBackend`): the app POSTs the imported secret to
  *     the secondary's TSIG API. Requires the daemon's TSIG API (≥ 4.1); the
  *     caller gates on `version_cache.capabilities.supportsTsigApi`.
  *   • Manual (`tsigManualCommands`): version-agnostic `pdnsutil` commands the
- *     operator runs on the box — for older daemons or air-gapped setups.
+ *     operator runs on the box - for older daemons or air-gapped setups.
  *
  * Conflict policy (decided): if a secondary already holds a key of the same
  * name with a DIFFERENT secret, we DON'T overwrite (it may be in use by other
- * zones) — we report `conflict` and let the operator resolve it.
+ * zones) - we report `conflict` and let the operator resolve it.
  *
  * Pure + dependency-light: the API path is parameterized on a minimal client
  * interface so it's unit-testable with a fake; no I/O of its own.
@@ -44,7 +44,7 @@ const sameAlgo = (a: string, b: string): boolean => a.toLowerCase() === b.toLowe
  *   - absent          → create with the imported secret  → "created"
  *   - present, matches → no-op                            → "unchanged"
  *   - present, differs → leave it, report                 → "conflict"
- * Throws only on unexpected I/O — the caller maps that to an error result.
+ * Throws only on unexpected I/O - the caller maps that to an error result.
  */
 export async function installKeyOnBackend(
   client: TsigInstallClient,

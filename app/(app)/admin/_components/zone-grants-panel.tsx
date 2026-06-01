@@ -5,7 +5,7 @@
  *
  * Per-principal zone-grant management. Renders the same surface for
  * both user principals (admin /admin/users/[id]) and team principals
- * (admin /admin/teams/[id]) — the only differences are which API
+ * (admin /admin/teams/[id]) - the only differences are which API
  * endpoint to call, the empty-state copy, and the "what does this
  * grant do?" wording.
  *
@@ -34,7 +34,7 @@ interface ServerOption {
 }
 
 interface Props {
-  /** Where to POST/GET/DELETE — e.g. `/api/admin/users/<id>/zone-grants`. */
+  /** Where to POST/GET/DELETE - e.g. `/api/admin/users/<id>/zone-grants`. */
   endpointBase: string;
   /** "user" → "the user immediately loses…"; "team" → "every member of this team immediately loses…". */
   principalKind: "user" | "team";

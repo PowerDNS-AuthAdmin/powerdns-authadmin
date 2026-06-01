@@ -1,10 +1,10 @@
 /**
  * app/api/admin/ldap-providers/route.ts
  *
- * GET  — list every LDAP provider (gated by `oidc.read`; the unified
+ * GET  - list every LDAP provider (gated by `oidc.read`; the unified
  *        Authentication admin view treats LDAP as one of several
  *        provider types alongside OIDC).
- * POST — create a new provider (gated by `oidc.manage`). The bind
+ * POST - create a new provider (gated by `oidc.manage`). The bind
  *        password is encrypted before insert and never returned over
  *        the wire.
  */
@@ -36,7 +36,7 @@ export async function GET(): Promise<Response> {
     await requireUser({ can: "auth.read" });
     const rows = await listAllLdapProviders();
     // Never return the encrypted secret over the wire. Strip the CA cert
-    // too — it can be sizable and isn't needed by the list view.
+    // too - it can be sizable and isn't needed by the list view.
     const safe = rows.map(({ bindPasswordEncrypted: _drop, tlsCaCert: _drop2, ...rest }) => ({
       ...rest,
       tlsCaCertSet: rows.some((r) => r.id === rest.id && r.tlsCaCert !== null),
@@ -79,7 +79,7 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    // Privilege ceiling — same guard as OIDC. LDAP group mappings auto-
+    // Privilege ceiling - same guard as OIDC. LDAP group mappings auto-
     // assign roles at first sign-in, so they can't carry permissions the
     // actor lacks globally. The same helper handles both provider types
     // because the mapping shape is identical.

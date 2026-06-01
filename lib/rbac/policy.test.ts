@@ -2,7 +2,7 @@
  * lib/rbac/policy.test.ts
  *
  * RBAC is one of the load-bearing security boundaries. These tests cover the
- * scope-matching logic — the part most likely to drift if someone refactors
+ * scope-matching logic - the part most likely to drift if someone refactors
  * `ability.ts`.
  */
 

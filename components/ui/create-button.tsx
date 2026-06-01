@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
  *
  * Primary "create / add" call-to-action. Green (deliberately distinct from the
  * indigo accent the app uses for active tabs/links) with a leading plus icon.
- * Full-width on mobile, auto-width on `sm+` — pairs with the stacked page
+ * Full-width on mobile, auto-width on `sm+` - pairs with the stacked page
  * headers so the CTA reads as a clear full-width button on a phone.
  *
  * `createCtaClass` is exported for the handful of CTAs that are <button>s

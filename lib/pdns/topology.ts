@@ -2,18 +2,18 @@
  * lib/pdns/topology.ts
  *
  * Derive replication topology from PowerDNS truth (ADR-0014). A Slave/Secondary
- * zone's `masters[]` holds DNS-layer AXFR source addresses (IP[:port][;tsig]) —
+ * zone's `masters[]` holds DNS-layer AXFR source addresses (IP[:port][;tsig]) -
  * NOT API URLs. We match those against each backend's *advertised DNS
  * addresses* to draw a real primary→secondary edge. The match key is the AXFR
  * address, not NS membership, so hidden primaries (deliberately absent from the
  * NS set) resolve correctly. Anything we can't match is an external/unmanaged
- * node — never a false "orphan".
+ * node - never a false "orphan".
  *
  * Pure: no I/O. Advertised addresses default to the host parsed from the API
  * base URL; operators override per backend when the API host ≠ the DNS address.
  */
 
-// Bare host/IP of an API base URL — sourced from the shared util and re-exported
+// Bare host/IP of an API base URL - sourced from the shared util and re-exported
 // so the topology matcher and its tests keep importing it from here.
 import { hostFromUrl } from "@/lib/net/host";
 export { hostFromUrl };

@@ -12,7 +12,7 @@
  * external files instead.
  */
 
-/** Cloudflare Turnstile origin — its script, iframe, and API calls. */
+/** Cloudflare Turnstile origin - its script, iframe, and API calls. */
 const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 
 export function buildCsp(nonce: string, isDev: boolean, turnstileEnabled: boolean): string {
@@ -21,7 +21,7 @@ export function buildCsp(nonce: string, isDev: boolean, turnstileEnabled: boolea
     "script-src": [
       // NO 'self' / host-source / 'unsafe-inline' here: under CSP Level 3 the
       // presence of 'strict-dynamic' (below) makes browsers IGNORE all of them
-      // in script-src — listing them does nothing and emits a console warning
+      // in script-src - listing them does nothing and emits a console warning
       // ("Ignoring 'self' within script-src: 'strict-dynamic' specified").
       // Script trust comes solely from the per-request nonce plus
       // strict-dynamic propagation to scripts those nonced scripts load.
@@ -45,7 +45,7 @@ export function buildCsp(nonce: string, isDev: boolean, turnstileEnabled: boolea
       // dropped without an app-wide refactor. Two hard constraints:
       //   1. React/Radix render `style="…"` ATTRIBUTES throughout (every
       //      dialog/dropdown/chart). Style attributes cannot carry a nonce
-      //      — only `<style>`/`<link>` elements can — so the only CSP source
+      //      - only `<style>`/`<link>` elements can - so the only CSP source
       //      that permits them is `'unsafe-inline'`.
       //   2. Adding a nonce does NOT help: under CSP3, the presence of a
       //      nonce makes Chromium/WebKit *ignore* `'unsafe-inline'` for both
@@ -54,7 +54,7 @@ export function buildCsp(nonce: string, isDev: boolean, turnstileEnabled: boolea
       //      split that could thread this needle is ignored by Firefox
       //      (it falls back to `style-src`), so it can't be relied on.
       // Net: dropping `'unsafe-inline'` requires eliminating every inline
-      // style attribute first. Tracked as future work. The risk is low —
+      // style attribute first. Tracked as future work. The risk is low -
       // `style-src` is the lowest-value CSP relaxation (no script, no
       // external load, no exfil-via-form); `script-src` stays strict
       // (nonce + 'strict-dynamic', no 'unsafe-inline').
@@ -63,7 +63,7 @@ export function buildCsp(nonce: string, isDev: boolean, turnstileEnabled: boolea
     // Images: own origin, inline data URIs, blob URLs, plus arbitrary https
     // origins. The HTTPS opening exists for operator-set brand logo URLs in
     // /admin/settings and future OIDC avatar URLs. We do NOT open script-src or
-    // style-src — only the image directive, the lowest-risk channel. `http:` is
+    // style-src - only the image directive, the lowest-risk channel. `http:` is
     // added in dev so localhost-served logos work; production stays https-only.
     "img-src": ["'self'", "data:", "blob:", "https:", ...(isDev ? ["http:"] : [])],
     "font-src": ["'self'"],

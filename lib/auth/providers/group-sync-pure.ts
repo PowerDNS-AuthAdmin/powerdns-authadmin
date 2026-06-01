@@ -2,7 +2,7 @@
  * lib/auth/providers/group-sync-pure.ts
  *
  * Pure (DB-free) helpers for IdP group → role mapping. Used by every
- * provider type — OIDC, SAML, LDAP — because the mapping shape is
+ * provider type - OIDC, SAML, LDAP - because the mapping shape is
  * identical across them. The protocol-specific code stays in each
  * provider's own module (`oidc.ts`, `saml.ts`, `ldap.ts`); resolving
  * mappings to permissions is shared from here.
@@ -17,7 +17,7 @@
 /**
  * One row of an IdP's `group_mappings` JSON column. Structurally
  * identical across `oidc_providers`, `saml_providers`, and
- * `ldap_providers` — define a neutral shape here so the sync code
+ * `ldap_providers` - define a neutral shape here so the sync code
  * doesn't lean on any specific protocol's schema type.
  *
  * The per-table types (`OidcGroupMapping`, `SamlGroupMapping`,
@@ -40,7 +40,7 @@ export interface ResolvedAssignment {
   roleId: string;
   scopeType: "global" | "team" | "zone" | "server";
   scopeId: string | null;
-  /** Original mapping that produced this — carried through for audit. */
+  /** Original mapping that produced this - carried through for audit. */
   source: GroupMapping;
 }
 
@@ -51,9 +51,9 @@ export interface GroupSyncDiff {
 
 /**
  * Diff the target set (from group mappings) against the current set (from
- * provider-managed role assignments). Pure — exported for tests.
+ * provider-managed role assignments). Pure - exported for tests.
  *
- * Not used at runtime today — IdP-derived permissions live on
+ * Not used at runtime today - IdP-derived permissions live on
  * `sessions.derived_permissions` and don't persist on the user, so there's
  * no row set to diff against. Kept here as a building block for any future
  * "live session refresh" path that needs the same shape.

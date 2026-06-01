@@ -8,8 +8,8 @@
  *   - `file:...` / `sqlite:...`             → drizzle-orm/better-sqlite3 + drizzle-sqlite/
  *
  * Used by:
- *   - `npm run db:migrate` — operator-driven invocation
- *   - The app container entrypoint at boot (ADR-0011) — same script, no
+ *   - `npm run db:migrate` - operator-driven invocation
+ *   - The app container entrypoint at boot (ADR-0011) - same script, no
  *     special-casing needed
  *
  * For Postgres in multi-instance deployments, the migrate step takes a
@@ -17,7 +17,7 @@
  * several boot simultaneously. SQLite is single-writer so no lock is needed.
  *
  * Logging is deliberately loud: a list of pending migrations before the
- * run, a list of applied migrations after, an explicit "0 pending — DB is
+ * run, a list of applied migrations after, an explicit "0 pending - DB is
  * up to date" when there's nothing to do. A silent migrate hid a missing
  * column once; the louder shape lets `docker compose logs app | grep
  * migrate` answer "did the migration run?" without psql digging.
@@ -97,7 +97,7 @@ async function migratePostgres(databaseUrl: string): Promise<void> {
 
       const finalStatus = diffByOrdinal(journal, afterCount);
       if (finalStatus.pending.length > 0) {
-        // This should never happen — Drizzle's migrate is supposed to apply
+        // This should never happen - Drizzle's migrate is supposed to apply
         // everything pending. Loud warning so an operator notices.
         logger.error({ stillPending: finalStatus.pending }, "migrate.pg.incomplete");
         throw new Error(

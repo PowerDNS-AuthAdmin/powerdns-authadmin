@@ -4,7 +4,7 @@
  * app/(auth)/login/passkey-button.tsx
  *
  * Primary-credential passkey sign-in. Discoverable-credential flow: the
- * caller doesn't know which user is signing in — the platform shows its
+ * caller doesn't know which user is signing in - the platform shows its
  * own picker, returns an assertion bound to one of the user's resident
  * credentials, and the `/assertion-verify` route maps it back to the
  * owning account and mints the session.
@@ -12,7 +12,7 @@
  * The same button-and-handler used to live inside `LoginForm` next to
  * the password fields, but the unified login layout renders every
  * non-local sign-in option as a peer of the local form rather than
- * nested under it — so this lives standalone.
+ * nested under it - so this lives standalone.
  */
 
 import { useState } from "react";
@@ -58,7 +58,7 @@ export function PasskeyButton({ next = "/dashboard" }: { next?: string }) {
       window.location.assign(next);
     } catch (err) {
       const name = err instanceof Error ? err.name : "";
-      // User cancelled the platform picker — quiet failure, no banner.
+      // User cancelled the platform picker - quiet failure, no banner.
       if (name !== "NotAllowedError") {
         setError(err instanceof Error ? err.message : "Passkey sign-in failed.");
       }

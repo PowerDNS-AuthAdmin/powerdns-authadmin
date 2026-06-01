@@ -11,7 +11,7 @@ interface ZoneHeaderProps {
   /**
    * Cached sync verdict (primary vs secondaries). Drives the realtime
    * indicator into fast-poll mode while replication is in flight. `null`
-   * when `PDNS_BACKGROUND_POLLING=false` — the header chip stays in plain
+   * when `PDNS_BACKGROUND_POLLING=false` - the header chip stays in plain
    * "Live" mode and the subscriber only refreshes on mutation events.
    */
   inSync: boolean | null;
@@ -24,7 +24,7 @@ interface ZoneHeaderProps {
    */
   server: { name: string; slug: string };
   /**
-   * When set, the zone is being viewed through a cluster context — the
+   * When set, the zone is being viewed through a cluster context - the
    * UI surfaces the cluster name (not the peer's) in the backend
    * caption and uses `?cluster=` on internal links so navigation stays
    * cluster-aware.
@@ -70,8 +70,8 @@ export function ZoneHeader({
         </div>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
           <Stat label="Kind" value={zone.kind} />
-          <Stat label="Serial" value={String(zone.serial ?? "—")} />
-          <Stat label="Edited serial" value={String(zone.edited_serial ?? "—")} />
+          <Stat label="Serial" value={String(zone.serial ?? "-")} />
+          <Stat label="Edited serial" value={String(zone.edited_serial ?? "-")} />
           <Stat label="DNSSEC" value={zone.dnssec ? "on" : "off"} />
         </dl>
         {canReadAudit ? (
@@ -88,7 +88,7 @@ export function ZoneHeader({
                 ) : lastEdit.actorType === "system" ? (
                   <> by system</>
                 ) : null}
-                {" — "}
+                {" - "}
                 <Link
                   href={historyHref}
                   className="text-[color:var(--color-accent)] hover:underline"

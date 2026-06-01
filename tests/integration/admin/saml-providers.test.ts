@@ -1,7 +1,7 @@
 /**
  * tests/integration/admin/saml-providers.test.ts
  *
- * /api/admin/saml-providers — list / create / update / delete + slug
+ * /api/admin/saml-providers - list / create / update / delete + slug
  * reservation. Mirrors the OIDC integration test shape; signature
  * verification against a real IdP needs a Keycloak SAML realm in the
  * docker-compose stack which is tracked separately.

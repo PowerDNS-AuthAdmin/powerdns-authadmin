@@ -4,7 +4,7 @@
  * Drizzle Kit config for the SQLite variant. Mirrors `drizzle.config.ts` but
  * points at the SQLite schema directory and writes migrations to `drizzle-sqlite/`.
  *
- * The two dialects deliberately have separate migration histories — the SQL
+ * The two dialects deliberately have separate migration histories - the SQL
  * differs (no enums, no jsonb operators, different default expressions) and a
  * single migration file can't satisfy both. Operators choose one DATABASE_URL
  * shape and stick with it; cross-dialect migration is a manual data export +

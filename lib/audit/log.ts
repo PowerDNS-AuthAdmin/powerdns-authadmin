@@ -3,7 +3,7 @@
  *
  * The audit-log writer. Every state-changing path calls `appendAudit()`. If
  * a code path mutates the DB but doesn't write an audit entry, that's a bug
- * — reviewers check for this explicitly.
+ * - reviewers check for this explicitly.
  *
  * Pattern:
  *
@@ -53,7 +53,7 @@ export interface AppendAuditInput {
 }
 
 /**
- * Insert one audit log entry. Synchronous for ordering — the row is in the
+ * Insert one audit log entry. Synchronous for ordering - the row is in the
  * same DB as the mutated table, so we get transactional consistency by
  * running both inside a single Drizzle transaction at the call site.
  *
@@ -65,7 +65,7 @@ export interface AppendAuditInput {
  */
 export async function appendAudit(
   input: AppendAuditInput,
-  // Optional Drizzle transaction handle — passed through when the call site
+  // Optional Drizzle transaction handle - passed through when the call site
   // wraps in a transaction. Falls back to the module-level `db`.
   tx: typeof db = db,
 ): Promise<void> {

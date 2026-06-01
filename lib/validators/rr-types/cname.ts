@@ -1,15 +1,15 @@
 /**
  * lib/validators/rr-types/cname.ts
  *
- * CNAME content — RFC 1035 § 3.3.1: a single domain name pointing to the
+ * CNAME content - RFC 1035 § 3.3.1: a single domain name pointing to the
  * canonical name. Combined with the CNAME-only-at-apex prohibition, this is
  * one of DNS's most frequently mis-used record types.
  *
  * Warnings the validator emits:
- *   - Content looks like an IP literal — CNAME points to a *name*, not an
+ *   - Content looks like an IP literal - CNAME points to a *name*, not an
  *     address. RFC 1912 § 2.4.
- *   - Content equals "@" or the zone apex — circular reference.
- *   - Content equals the RRset's own name — circular CNAME.
+ *   - Content equals "@" or the zone apex - circular reference.
+ *   - Content equals the RRset's own name - circular CNAME.
  *
  * Apex-CNAME (CNAME on the zone apex) is also forbidden per RFC 1034 § 3.6.2
  * but that's a property of the RRset's name, not the content; the editor

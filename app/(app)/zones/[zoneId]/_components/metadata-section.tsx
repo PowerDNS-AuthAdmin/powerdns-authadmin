@@ -1,5 +1,5 @@
 /**
- * Metadata tab body — rendered from the main zone page when `?tab=metadata`.
+ * Metadata tab body - rendered from the main zone page when `?tab=metadata`.
  * Originally lived at `/zones/[id]/metadata/page.tsx`; collapsed in so
  * every tab is a query-string switch.
  */
@@ -20,10 +20,10 @@ interface Props {
   zoneName: string;
   selected: PdnsServer;
   // Per-zone authorization decided by the parent page (global permission OR
-  // a zone_grant for this server+zone) — see app/(app)/zones/[zoneId]/page.tsx.
+  // a zone_grant for this server+zone) - see app/(app)/zones/[zoneId]/page.tsx.
   canRead: boolean;
   canWrite: boolean;
-  /** Authoritative (Master/Primary) zone — show the friendly TSIG transfer-key
+  /** Authoritative (Master/Primary) zone - show the friendly TSIG transfer-key
    *  selector. Mirror/Native zones don't serve AXFR, so it's hidden there. */
   showTsigTransfer: boolean;
 }
@@ -109,7 +109,7 @@ export async function MetadataSection({
         <h2 className="text-lg font-semibold">
           Zone metadata{" "}
           <span className="text-sm font-normal text-[color:var(--color-fg-muted)]">
-            — per-zone configuration the PDNS daemon honors at lookup and transfer time.
+            - per-zone configuration the PDNS daemon honors at lookup and transfer time.
           </span>
         </h2>
         {canWrite ? (

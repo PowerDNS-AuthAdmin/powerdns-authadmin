@@ -29,7 +29,7 @@ import type { VerifiedIdentity } from "./types";
 /**
  * Cached "constant-time pad" hash used to keep verification timing similar
  * for the user-doesn't-exist path. Generated on first need; never matches a
- * real input. Lazy + memoized so we don't pay the hash cost on cold start —
+ * real input. Lazy + memoized so we don't pay the hash cost on cold start -
  * and so the value tracks current Argon2 parameters without a maintenance
  * burden.
  */
@@ -70,7 +70,7 @@ export async function authenticateLocal(input: {
     return { kind: "locked-out", unlockAt: user.lockedUntil! };
   }
   if (!user.passwordHash) {
-    // SSO-only user trying local login. Treat as invalid credentials —
+    // SSO-only user trying local login. Treat as invalid credentials -
     // we don't leak which auth path the user is configured for.
     return { kind: "invalid-credentials" };
   }
@@ -91,7 +91,7 @@ export async function authenticateLocal(input: {
     return { kind: "invalid-credentials" };
   }
 
-  // Successful verify — clear lockout state, bump login timestamps.
+  // Successful verify - clear lockout state, bump login timestamps.
   await recordSuccessfulLogin(user.id, input.ip);
 
   // Opportunistic rehash if parameters were bumped since the hash was made.

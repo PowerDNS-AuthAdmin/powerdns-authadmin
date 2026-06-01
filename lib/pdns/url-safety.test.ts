@@ -2,14 +2,14 @@
  * lib/pdns/url-safety.test.ts
  *
  * Unit tests for the SSRF guard. These are pure address-classification tests
- * — no DNS — so they exercise both the IPv4 and IPv6 bitwise math paths and
+ * - no DNS - so they exercise both the IPv4 and IPv6 bitwise math paths and
  * the always-blocked / private-network policy split.
  */
 
 import { describe, expect, it } from "vitest";
 import { checkPdnsUrlSafe } from "./url-safety";
 
-describe("checkPdnsUrlSafe — always-blocked ranges", () => {
+describe("checkPdnsUrlSafe - always-blocked ranges", () => {
   it("rejects IPv4 link-local (169.254.x.x / cloud metadata)", async () => {
     const result = await checkPdnsUrlSafe("http://169.254.169.254/latest/meta-data", {
       allowPrivateNetworks: true,
@@ -40,7 +40,7 @@ describe("checkPdnsUrlSafe — always-blocked ranges", () => {
   });
 });
 
-describe("checkPdnsUrlSafe — private-network gating", () => {
+describe("checkPdnsUrlSafe - private-network gating", () => {
   it("rejects 127.0.0.1 when private not allowed", async () => {
     const result = await checkPdnsUrlSafe("http://127.0.0.1:8081/api/v1", {
       allowPrivateNetworks: false,
@@ -106,7 +106,7 @@ describe("checkPdnsUrlSafe — private-network gating", () => {
   });
 });
 
-describe("checkPdnsUrlSafe — globally-routable addresses", () => {
+describe("checkPdnsUrlSafe - globally-routable addresses", () => {
   it("allows a globally routable IPv4 literal", async () => {
     const result = await checkPdnsUrlSafe("https://8.8.8.8/api/v1", {
       allowPrivateNetworks: false,
@@ -122,7 +122,7 @@ describe("checkPdnsUrlSafe — globally-routable addresses", () => {
   });
 });
 
-describe("checkPdnsUrlSafe — IPv4-mapped IPv6 escape attempts", () => {
+describe("checkPdnsUrlSafe - IPv4-mapped IPv6 escape attempts", () => {
   it("classifies ::ffff:127.0.0.1 as private (escape via v6 form)", async () => {
     const result = await checkPdnsUrlSafe("http://[::ffff:127.0.0.1]/", {
       allowPrivateNetworks: false,
@@ -139,7 +139,7 @@ describe("checkPdnsUrlSafe — IPv4-mapped IPv6 escape attempts", () => {
   });
 });
 
-describe("checkPdnsUrlSafe — URL shape", () => {
+describe("checkPdnsUrlSafe - URL shape", () => {
   it("rejects non-http schemes", async () => {
     const result = await checkPdnsUrlSafe("ftp://example.com/", {
       allowPrivateNetworks: true,

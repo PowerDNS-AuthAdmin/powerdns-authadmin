@@ -4,7 +4,51 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.0] — 2026-05-28
+## [1.4.0] - 2026-06-01
+
+Demo-hardening and dashboard polish: a lockable bootstrap admin for public demos,
+fixes to the per-backend PDNS statistics charts, a demo graph-data seed helper,
+and a repo-wide prose cleanup. No migration; no breaking changes. See
+[Upgrading -> 1.4.0](./docs/09-UPGRADING.md#upgrading-to-140-from-13x).
+
+### Added - lockable bootstrap admin for public demos (BOOTSTRAP_ADMIN_RO)
+
+New opt-in `BOOTSTRAP_ADMIN_RO` flag (default `false`). When `true` it freezes
+the bootstrap admin account (the one matching `BOOTSTRAP_ADMIN_EMAIL`) against
+any change to its own identity or credentials: password, email, name, MFA /
+passkey enrolment, disable / delete, and role assignment all return 403. Intended
+for a publicly-hosted demo whose login is published, so a visitor signed in as
+the shared admin can neither hijack nor lock out the login. Everything else the
+account can do (zones, managing other users, ...) is unaffected - it is an
+identity lock, not a global read-only mode. Enforced at every relevant route via
+`assertBootstrapAdminMutable`; the profile and admin-user pages surface a
+read-only notice. When enabled, the boot seed creates the account with
+`must_change_password=false` (it can no longer change its own password, so the
+compliance gate must not trap it), and the flag requires `BOOTSTRAP_ADMIN_EMAIL`
+to be set (checked at boot).
+
+### Added - demo graph-data seed helper (`npm run demo:seed:graphs`)
+
+`scripts/demo-seed-graphs.ts` backfills realistic time-series into
+`metric_samples`, `pdns_server_stats`, and `audit_log` so a freshly-booted demo
+stack shows full dashboard graphs instead of empty panels. It writes only rows
+the dashboard already reads (no app-code change), is re-runnable (clears its own
+prior rows; audit rows are tagged with a `demo-seed:` request-id), and is guarded
+behind `DEMO_SEED=1`. Demo / screenshots only - never production.
+
+### Fixed - per-backend PDNS statistics charts
+
+The query-rate / latency / cache-hit cards on the dashboard's PowerDNS-stats tab
+no longer render a redundant series legend that overlapped the x-axis labels, the
+y-axis unit ("q/s" / "us" / "%") is no longer clipped at the top of the card, and
+the plot grid is tightened so the line uses the full card width.
+
+### Changed - prose: em-dashes replaced with hyphens repo-wide
+
+Swept every em-dash (and the stray horizontal bar) out of comments, docs, and
+strings across the tree, replacing them with hyphens. Cosmetic only.
+
+## [1.3.0] - 2026-05-28
 
 A major feature pile: WebAuthn primary + 2FA, SAML 2.0 SP, LDAP direct-bind,
 teams zone grants, session-scoped IdP-derived permissions with live token
@@ -16,7 +60,7 @@ operator actions.
 **Migration**: one new SQL file per dialect (`drizzle/0004_*.sql` and
 `drizzle-sqlite/0004_*.sql`). Runs at boot.
 
-### Added — teams: per-zone grants (#75)
+### Added - teams: per-zone grants (#75)
 
 `zone_grants` now supports a team principal alongside the existing user
 principal. A grant attached to a team flows through to every member via
@@ -26,7 +70,7 @@ user grants (`/admin/teams/[id]` gets a Zone-grants section). Cross-type
 duplicate prevention via partial unique indexes; exactly-one principal
 enforced by a CHECK constraint.
 
-### Added — session-scoped IdP-derived permissions + live token recompute (#85)
+### Added - session-scoped IdP-derived permissions + live token recompute (#85)
 
 IdP groups stop materialising into persistent `role_assignments` rows.
 At sign-in, the user's group claim is resolved to an
@@ -39,49 +83,49 @@ LDAP user's groups are re-fetched live (LDAP service-account search,
 OIDC refresh-token → userinfo) and materialised through the same
 `computeGroupSync`, cached per `IDP_PERMS_CACHE_TTL_SECONDS` (default
 60s). Fallback path: when the live recompute fails (IdP unreachable,
-refresh rejected, SAML — which has no back-channel), the token uses
+refresh rejected, SAML - which has no back-channel), the token uses
 the latest session's snapshot bounded by `TOKEN_IDP_FALLBACK_TTL_SECONDS`
-(default 24h). New audit action `auth.token.idp_perms_refreshed` —
+(default 24h). New audit action `auth.token.idp_perms_refreshed` -
 one row per cache window.
 
-### Added — zone detail "Access" tab (#76)
+### Added - zone detail "Access" tab (#76)
 
 New "Access" tab on `/zones/[id]` (gated on `user.read`) listing every
 principal with access to the zone: roles that grant any zone-scope
-permission (dynamically derived from each role's permission list —
+permission (dynamically derived from each role's permission list -
 system roles surface naturally, custom roles too if the operator gave
 them zone perms), teams with explicit `zone_grants` on this zone, and
 users with direct grants.
 
-### Added — tabbed admin user-edit (#79)
+### Added - tabbed admin user-edit (#79)
 
 `/admin/users/[id]` matches `/profile`'s tab vocabulary (Account / Roles /
 Zone grants / Sessions / Two-factor / API tokens / Audit) instead of a
 long scroll. Tabs gated on the actor's capabilities. Self-edit
 server-redirects to `/profile` (the admin user-detail URL never enters
-history — Back returns to the users list cleanly).
+history - Back returns to the users list cleanly).
 
-### Added — app-DB backup export (#84)
+### Added - app-DB backup export (#84)
 
 Super-admin-gated **Backup & Restore** wizard under
-`/admin/settings/backup` (no modal — every step renders inline with a
+`/admin/settings/backup` (no modal - every step renders inline with a
 back button). `GET /api/admin/backup/export` streams a JSON dump of the
 app DB; `POST /api/admin/backup/restore` does a merge-mode restore
 (`INSERT … ON CONFLICT DO NOTHING` in forward-FK order, one
 transaction, typed `RESTORE` confirmation phrase). Excludes PDNS zone
 data and symmetric secrets (`APP_SECRET_KEY` / `APP_ENCRYPTION_KEY`);
-encrypted columns ride as ciphertext — useless without the encryption
+encrypted columns ride as ciphertext - useless without the encryption
 key on the restore target. New `system.backup` permission,
 default-granted only to the seeded Super Admin role. Audit:
 `system.backup.exported` / `system.backup.restored` with per-table
 row counts.
 
-### Added — zone Import / Export (#9)
+### Added - zone Import / Export (#9)
 
 New **Import / Export** hub under **PowerDNS → Zones**
 (`/admin/import-export`, `zone.read` to view, `zone.create` to import):
 
-- **Import** — paste one or many zones in BIND format (or load from a
+- **Import** - paste one or many zones in BIND format (or load from a
   file). A new RFC 1035 parser (`lib/dns/zonefile-parser.ts`) splits
   multi-zone input at `$ORIGIN` boundaries, handles `$TTL`, `@`,
   comments, and parenthesised multi-line SOA, refuses `$INCLUDE`
@@ -89,21 +133,21 @@ New **Import / Export** hub under **PowerDNS → Zones**
   Each zone becomes one `createZone` call with its rrsets pre-populated;
   the result is reported per-zone (created / failed + parse diagnostics).
   Audit: one `zone.create` row per imported zone (`source: zonefile-import`).
-- **Export** — pick a backend, multi-select zones, download a single
+- **Export** - pick a backend, multi-select zones, download a single
   BIND-format text bundle. The serializer (`lib/dns/zonefile.ts`, from
   the per-zone export route) emits idiomatic `$TTL` + `$ORIGIN`,
   owner names relativised against the origin (apex → `@`), and a
   parenthesised multi-line SOA; output round-trips through BIND / NSD /
   `pdnsutil load-zone`. Audit: one `zone.export` row per zone read.
 
-### Changed — PowerDNS sidebar grouped into sub-sections
+### Changed - PowerDNS sidebar grouped into sub-sections
 
 The PowerDNS nav section is now chunked into **Backends** (Servers,
 Clusters, Autoprimaries), **Zones** (Zone templates, Import / Export),
 **Security** (TSIG keys), and **Activity** (Request log) so the growing
 list stays scannable.
 
-### Changed — admin URL restructure + `oidc.*` → `auth.*` rename (#74)
+### Changed - admin URL restructure + `oidc.*` → `auth.*` rename (#74)
 
 `/admin/oidc-providers` → `/admin/authentication/oidc`. Same shape for
 SAML and LDAP. Old URLs keep redirect stubs so external links survive.
@@ -112,7 +156,7 @@ The CASL "Oidc" subject type became "Auth" and the `oidc.read` /
 since the gates now cover three protocols at the unified surface.
 Existing role permission lists are auto-rewritten by the migration.
 
-### Changed — profile tabs actually switch panels (#78)
+### Changed - profile tabs actually switch panels (#78)
 
 `/profile` tabs were rendering every panel and just scrolling. Tab
 identification swapped from a fragile component-function equality
@@ -122,7 +166,7 @@ specificity, no CSS-conflict surface). The component moved to
 `components/ui/section-tabs.tsx` and is reused by the new tabbed admin
 user-edit page.
 
-### Changed — audit-vocabulary consolidation
+### Changed - audit-vocabulary consolidation
 
 Three IdP-prefixed actions unified into protocol-neutral ones:
 
@@ -137,28 +181,28 @@ Three IdP-prefixed actions unified into protocol-neutral ones:
 Protocol context is preserved via `method` + `provider` fields in the
 audit row's `after` snapshot.
 
-### Fixed — SSE badge no longer stuck on OFFLINE for permissionless users (#80)
+### Fixed - SSE badge no longer stuck on OFFLINE for permissionless users (#80)
 
 `/api/realtime` previously hard-403'd a user who couldn't read any
 zone. Their EventSource never opened; the chip reported "OFFLINE"
 forever. The stream is now opened unconditionally for any
-authenticated user — the per-event filters already gate what reaches
+authenticated user - the per-event filters already gate what reaches
 them, so the connection is honest about its state.
 
-### Fixed — zones-list scroll-in-scroll at high page sizes (#80)
+### Fixed - zones-list scroll-in-scroll at high page sizes (#80)
 
 `<main>` was `flex-1 overflow-y-auto` without `min-h-0`. Under flexbox,
 a flex-1 child without `min-h-0` can grow past its parent's height
 when its content is taller, defeating `overflow-y-auto` and leaking a
 second outer scroll region. One-class fix.
 
-### Added — DataTable pagination at top AND bottom (#80)
+### Added - DataTable pagination at top AND bottom (#80)
 
 Long lists no longer force operators to scroll all the way down just
 to flip a page or change the page size. Same controls render at the
 top and the bottom of every paginated table.
 
-### Added — SAML 2.0 single sign-on
+### Added - SAML 2.0 single sign-on
 
 - **`saml_providers` table** stores SAML SP configurations (ADR-0021). One
   row per IdP relationship: AD FS, Authentik SAML, Keycloak SAML, etc.
@@ -166,18 +210,18 @@ top and the bottom of every paginated table.
   signing cert.
 - **Admin UI**: `/admin/authentication/new` now offers SAML as an active
   card. Provider edit page at `/admin/saml-providers/<id>` mirrors the
-  OIDC equivalent — same pickers, same audit panel, same danger zone.
+  OIDC equivalent - same pickers, same audit panel, same danger zone.
 - **Sign-in routes**:
-  - `GET /api/auth/saml/<slug>/login` — signed AuthnRequest + redirect to IdP.
-  - `POST /api/auth/saml/<slug>/acs` — Assertion Consumer Service; verifies
+  - `GET /api/auth/saml/<slug>/login` - signed AuthnRequest + redirect to IdP.
+  - `POST /api/auth/saml/<slug>/acs` - Assertion Consumer Service; verifies
     signature, decrypts EncryptedAssertion if configured, applies group →
     role mappings, mints session.
-  - `GET /api/auth/saml/<slug>/metadata` — SP metadata XML (paste into IdP).
-  - `GET /api/auth/saml/<slug>/slo` — SP-initiated single logout.
+  - `GET /api/auth/saml/<slug>/metadata` - SP metadata XML (paste into IdP).
+  - `GET /api/auth/saml/<slug>/slo` - SP-initiated single logout.
 - **Secure defaults**: `wantAssertionsSigned: true`, `wantAuthnResponseSigned:
 true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
   Operators can relax per-provider via the form.
-- **Group → role mapping** reuses the OIDC materialiser — same shape, same
+- **Group → role mapping** reuses the OIDC materialiser - same shape, same
   `provider_id`-tagged `role_assignments` rows.
 - **Provisioning**: new `saml:` block in `provisioning.yaml`. See
   `provisioning.example.yaml` for a worked example. Slug is reserved in
@@ -188,14 +232,14 @@ true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
 - Docs: new [`docs/13-SAML.md`](./docs/13-SAML.md) with worked AD FS,
   Authentik, and Keycloak setup. ADR-0021 captures the architecture.
 
-### Added — LDAP authentication (ADR-0020)
+### Added - LDAP authentication (ADR-0020)
 
 - Direct-bind sign-in against **Active Directory** and **OpenLDAP**. Operators
   configure providers under **Admin → Authentication** (the LDAP card on the
   "Add provider" picker is now live alongside OIDC and SAML).
 - Bind-then-search-then-rebind flow via the maintained TypeScript-first
   [`ldapts`](https://www.npmjs.com/package/ldapts) library. Strict TLS by
-  default — plain `ldap://` is refused unless either StartTLS is enabled on
+  default - plain `ldap://` is refused unless either StartTLS is enabled on
   the provider row OR `LDAP_ALLOW_INSECURE_PORT_389=true` is set. A new
   `LDAP_TLS_INSECURE_SKIP_VERIFY=true` env knob exists for lab use only;
   production deploys should pin the internal CA on the provider row instead.
@@ -204,7 +248,7 @@ true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
   optional second search (`group_search_base` + `group_search_filter` with a
   `{{userDn}}` placeholder) handles OpenLDAP installs without the `memberof`
   overlay.
-- New `POST /api/auth/ldap/<slug>/login` route — same captcha + per-IP
+- New `POST /api/auth/ldap/<slug>/login` route - same captcha + per-IP
   rate-limit pipeline as the local + OIDC paths.
 - New `ldap_providers` table (PG + SQLite); migrations
   `drizzle/0008_ldap_providers.sql` and
@@ -220,14 +264,14 @@ true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
   with KB4520412 channel-binding note, OpenLDAP 2.6 example with
   `olcTLSCipherSuite` + memberof-overlay setup).
 
-### Changed — admin sidebar restructure + URL alignment
+### Changed - admin sidebar restructure + URL alignment
 
 - **Sidebar "Infrastructure" section renamed to "PowerDNS"**, with shorter
   nav labels now that the section name carries the protocol context:
   - "PowerDNS servers" → "Servers"
   - "Groups" → "Clusters" (the underlying concept is a cluster of peers
     or a primary with its secondaries; "Groups" was a UI carry-over).
-  - "Request log" moves up from the "System" section into "PowerDNS" —
+  - "Request log" moves up from the "System" section into "PowerDNS" -
     it's PDNS HTTP traffic, not platform audit.
 - **URL alignment**: two admin paths renamed to match the rest of the
   section (no `pdns-` prefix; the section already says PowerDNS):
@@ -237,7 +281,7 @@ true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
     links keep working.
 - "System" now contains only Settings + Audit log.
 
-### Added — globally-unique provider slugs
+### Added - globally-unique provider slugs
 
 - New `auth_provider_slugs` table acts as a cross-type reservation: every
   provider create transaction reserves its slug here first, and the table's
@@ -253,7 +297,7 @@ true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
   declared in the SAME file) and persists the canonical typed-prefix form.
   Unknown slugs log a warning and leave the previous value intact.
 
-### Changed — unified authentication admin
+### Changed - unified authentication admin
 
 - **New `Admin → Authentication` page** consolidates the view of every
   sign-in method into one list. Local Auth appears as a synthetic row
@@ -263,7 +307,7 @@ true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
   (`/admin/oidc-providers/<id>`, `/admin/oidc-providers/new`) keep their
   URLs. Sidebar nav renames from "OIDC providers" to "Authentication".
 - **Default sign-in method is now a single global setting** edited from
-  the new page via a themed dropdown — replaces the per-OIDC-provider
+  the new page via a themed dropdown - replaces the per-OIDC-provider
   `force_default` checkbox. Stored as `settings.auth_default_provider`
   in the `local` / `oidc:<slug>` / `saml:<slug>` / `ldap:<slug>` format.
   Existing deployments are migrated automatically by the Drizzle migration
@@ -273,17 +317,17 @@ true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
   applier translates it into `auth_default_provider` and logs a
   deprecation warning. Will be removed in a future minor.
 
-### Changed — bounded retention on dashboard time-series tables (1:1 with display windows)
+### Changed - bounded retention on dashboard time-series tables (1:1 with display windows)
 
 - **The two time-series tables the zone-poller writes now prune to exactly
   the windows the dashboard reads.** `lib/metrics/dashboard-windows.ts` is
-  the single source of truth — the dashboard graphs and the retention sweep
+  the single source of truth - the dashboard graphs and the retention sweep
   both read from there, so changing a window in one place updates both.
   We keep nothing we don't display.
-  - `metric_samples` — 7 days (`backendSeries()` + `sessionsSeries()`).
-  - `pdns_server_stats` — 2 hours (per-backend metric widget).
+  - `metric_samples` - 7 days (`backendSeries()` + `sessionsSeries()`).
+  - `pdns_server_stats` - 2 hours (per-backend metric widget).
 - `readRecentMetrics()` is now time-bounded (takes a `since: Date`) instead
-  of the previous count-bounded shape — the count was an implicit 2h window
+  of the previous count-bounded shape - the count was an implicit 2h window
   at the 60s sampling cadence, and turning it explicit lets retention link
   to the same window cleanly.
 - Throttled to one pair of DELETEs per 5 minutes so the sampler's 60-second
@@ -294,14 +338,14 @@ true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
   was discarded. On stacks with long uptime + many backends, this was the
   largest contributor to the SQLite/Postgres data volume.
 
-### Added — auth providers (Phase 1 of `feat/auth-providers-ldap-saml-webauthn`)
+### Added - auth providers (Phase 1 of `feat/auth-providers-ldap-saml-webauthn`)
 
-- **WebAuthn / passkeys** — sign in with Touch ID, Windows Hello, Android
+- **WebAuthn / passkeys** - sign in with Touch ID, Windows Hello, Android
   screen-lock, hardware security keys (YubiKey etc.) or cross-device
   passkeys (1Password, Bitwarden, iCloud Keychain). Two flows:
-  - **Primary credential** — "Sign in with passkey" button on `/login`
+  - **Primary credential** - "Sign in with passkey" button on `/login`
     skips the password entirely (discoverable-credential flow).
-  - **Second factor** — alongside TOTP. The MFA-required gate (per-role
+  - **Second factor** - alongside TOTP. The MFA-required gate (per-role
     `requires_mfa`, per-user override) is now satisfied by EITHER a
     TOTP enrollment OR any WebAuthn credential.
   - Per-credential enrolment + remove + rename under
@@ -313,7 +357,7 @@ true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
   - Strict-by-default origins; LAN-dev opt-out via
     `WEBAUTHN_ALLOW_INSECURE_ORIGINS=true`.
   - New docs page: [`docs/11-PASSKEYS.md`](./docs/11-PASSKEYS.md).
-- **OIDC logout hardening** — fixes the "sign out lands me back signed in"
+- **OIDC logout hardening** - fixes the "sign out lands me back signed in"
   bug operators hit with IdPs that don't advertise `end_session_endpoint`:
   - `/api/auth/logout` sets a 60-second `pda_just_logged_out` cookie that
     suppresses `force_default` OIDC auto-redirect on the next `/login`
@@ -323,13 +367,13 @@ true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
     "no end-session" warning chip when it's missing, with IdP-specific
     fix guidance in `docs/05-OIDC.md`.
 - **Architecture decision records** for the road map:
-  - ADR-0018: provider abstraction — keep OIDC where it is, layer SAML +
+  - ADR-0018: provider abstraction - keep OIDC where it is, layer SAML +
     LDAP as siblings.
-  - ADR-0019: WebAuthn — both primary credential and second factor.
-  - ADR-0020 (proposed): LDAP architecture — TLS-strict default,
+  - ADR-0019: WebAuthn - both primary credential and second factor.
+  - ADR-0020 (proposed): LDAP architecture - TLS-strict default,
     `ldapts@^8`, bind-then-search, AD + OpenLDAP doc examples
     (lands in PR 2 of the feature branch).
-  - ADR-0021 (proposed): SAML 2.0 SP — signed assertions required by
+  - ADR-0021 (proposed): SAML 2.0 SP - signed assertions required by
     default, `@node-saml/node-saml@^5.1.0` (CVE-2025-54369 fixed),
     AD FS / Authentik / Keycloak doc examples (lands in PR 3).
 
@@ -349,7 +393,7 @@ true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
   and custom-role detail pages. Wraps cleanly, never truncates.
 - **METRICS_TOKEN auto-generation.** When `/metrics` is enabled but no token is
   pinned in env, the app generates a random 32-char bearer on boot and logs it
-  once — keeps the endpoint from being accidentally open on a shared LAN.
+  once - keeps the endpoint from being accidentally open on a shared LAN.
 
 ### Changed
 
@@ -370,18 +414,18 @@ true`, `signatureAlgorithm: "sha256"`, `validateInResponseTo: always`.
 
 - **Login page "preload was not used" warnings.** The wordmark rendered both
   light + dark PNGs with Next.js `priority`, emitting two `<link rel="preload">`
-  tags while CSS hid one — browsers warned every page load. Dropped `priority`;
+  tags while CSS hid one - browsers warned every page load. Dropped `priority`;
   the visible image still loads eagerly above the fold.
 
-## [1.2.1] — 2026-05-27
+## [1.2.1] - 2026-05-27
 
-A **build-pipeline patch** — significant image-size reduction with
+A **build-pipeline patch** - significant image-size reduction with
 no operator-facing behaviour change. The published image goes from
 **~1.18 GB local / ~225 MB compressed pull** to **~290 MB local /
 ~80 MB compressed pull** (about a 75% local / 65% compressed cut).
-Drop-in upgrade — no schema, API, or operator-config changes.
+Drop-in upgrade - no schema, API, or operator-config changes.
 
-### Changed — build pipeline
+### Changed - build pipeline
 
 - **Boot scripts pre-bundled at image-build time.** `scripts/migrate.ts`,
   `scripts/seed.ts`, and `scripts/provision.ts` are now built into
@@ -393,13 +437,13 @@ Drop-in upgrade — no schema, API, or operator-config changes.
   - the full `lib/` and `scripts/` source trees,
   - `tsconfig.json`, or
   - the separate prod-deps `node_modules` overlay (the previous `deps`
-    stage — ~700 MB on disk used solely to make boot succeed).
+    stage - ~700 MB on disk used solely to make boot succeed).
 - **Dockerfile: `deps` stage removed; runner switched to distroless.**
   The build now goes builder → fs-prep → runner, where the final
   runner is `gcr.io/distroless/nodejs24-debian12:nonroot`. Boot
   externals (`better-sqlite3`, `@node-rs/argon2`, `pg`, `pino` +
   transports) resolve at runtime from the standalone bundle's
-  already-traced `node_modules` — Next's image-tracer has been
+  already-traced `node_modules` - Next's image-tracer has been
   ensuring those are present all along; the dedicated `deps` overlay
   was redundant.
 - **Next.js trace exclusion for `@img/sharp*`** combined with
@@ -414,7 +458,7 @@ Drop-in upgrade — no schema, API, or operator-config changes.
 ### Operator-facing trade-offs
 
 - **No shell in the runtime image.** `docker exec <container> sh` is
-  not available anymore — the distroless base ships only the `node`
+  not available anymore - the distroless base ships only the `node`
   binary, glibc, openssl, and ca-certificates. For incident triage
   that needs a shell, build a `:debug` tag against bookworm-slim using
   the same builder stage. Day-to-day operations (logs, healthz/readyz
@@ -425,13 +469,13 @@ Drop-in upgrade — no schema, API, or operator-config changes.
   upgraded boot. The compose files in this repo's docker-compose-\*.yml
   examples don't pin a uid and need no change.
 - **Next.js built-in image optimizer is disabled.** `<Image>` tags
-  still render — they just serve the file at its intrinsic size, no
+  still render - they just serve the file at its intrinsic size, no
   resize or format conversion at the edge. No PowerDNS-AuthAdmin page
   relied on the optimizer (our images are static brand assets); this
   is only a difference for downstream customisation that adds dynamic
   image processing via `next/image`.
 
-### Changed — image tags
+### Changed - image tags
 
 `:latest` now follows releases, not `main`.
 
@@ -457,11 +501,11 @@ then stay there until the next release tag. Use `:edge` to track
 
 ### Upgrading
 
-Pull the new image and recreate the container — that's the whole
+Pull the new image and recreate the container - that's the whole
 upgrade. See [Upgrading → 1.2.1](./docs/09-UPGRADING.md#upgrading-to-121-from-12x)
 for the no-shell / non-root caveats.
 
-## [1.2.0] — 2026-05-26
+## [1.2.0] - 2026-05-26
 
 A **minor release** that combines two closely-related changes:
 
@@ -475,7 +519,7 @@ A **minor release** that combines two closely-related changes:
    column, dashboard PDNS metrics, drift advisories) are gated on
    this flag.
 
-> **NOTE — behaviour change on upgrade.** `PDNS_BACKGROUND_POLLING`
+> **NOTE - behaviour change on upgrade.** `PDNS_BACKGROUND_POLLING`
 > defaults to `false`. Existing 1.1.x deployments that rely on the
 > sync chip, dashboard PDNS metrics, per-zone Sync tab, or drift
 > advisories **MUST NOW ENABLE** `PDNS_BACKGROUND_POLLING=true` in
@@ -490,7 +534,7 @@ Closes #57; reported by @insxa in
 
 - **`PDNS_BACKGROUND_POLLING` env var (default `false`).** Single
   opt-in switch for the replication-awareness layer. When off, every
-  PDNS interaction is a direct consequence of an operator action — no
+  PDNS interaction is a direct consequence of an operator action - no
   background traffic. When on, the unified poller runs on its 30 s /
   60 s / 5 min cadences and powers the SYNCED/DESYNCED chip, per-zone
   Sync + Statistics tabs, servers-list Sync column, zones-list mirror
@@ -498,25 +542,25 @@ Closes #57; reported by @insxa in
   advisories in the bell. (#57)
 - **`(i)` polling-mode hint** on every polling-gated page heading
   (`/dashboard`, `/admin/servers`, `/zones`, `/zones/<id>`) when polling
-  is off — hover tooltip explains the current state and links to the live
+  is off - hover tooltip explains the current state and links to the live
   CONFIGURATION doc. One small icon, consistent across the app, so an
   operator can flip the flag deliberately from wherever they are when
   they notice a sync-aware feature is missing.
 - **`flash=polling-required` error toast** when an operator follows a
   direct URL to a gated feature (`/dashboard?tab=pdns`,
   `/zones/<id>?tab=sync`, `/zones/<id>?tab=statistics`) on a polling-off
-  install — the page redirects to the default view and surfaces a red
+  install - the page redirects to the default view and surfaces a red
   error toast naming the env var.
 - **Boot-time log line** at the first `/healthz` hit summarising the
   effective polling mode plus a sharp warning when the configured fleet
   has replication topology but the flag is off (mirrors / multiple
-  primaries / clusters). Hard 3 s budget — never blocks startup.
+  primaries / clusters). Hard 3 s budget - never blocks startup.
 
 ### Changed
 
 - **`isWriteCapable` is now `caps ? !isReadOnlyMirror(caps) : true`.**
   The predicate flipped from gating on the AXFR-primary flag to gating
-  on the explicit observation of a read-only mirror — so standalone
+  on the explicit observation of a read-only mirror - so standalone
   (`primary=no, secondary=no`), explicit primary, and dual-role
   primary+secondary all correctly count as writable. Only a pure
   secondary mirror is excluded from `/zones/new`'s picker. (#57)
@@ -532,7 +576,7 @@ Closes #57; reported by @insxa in
   and removing the alarming "none" label. Same neutral tone.
   `summarizeCapabilities()`'s fallback follows suit (`api` →
   `standalone`); `api: no` → `unreachable`.
-- **Dashboard tab strip hides** when polling is off — the "Admin" view
+- **Dashboard tab strip hides** when polling is off - the "Admin" view
   becomes the default (and only) tab. The PDNS-metrics tab body
   redirects with the flash toast on direct URL.
 - **Zone-detail Sync + Statistics tabs hide** when polling is off.
@@ -563,7 +607,7 @@ Closes #57; reported by @insxa in
   and `scheduleImmediatePoll` to no `setTimeout`, when the flag is off.
 - **`decideHeaderChipMode` pure helper** (extracted from `app/(app)/layout.tsx`)
   is unit-tested across all five gating inputs (polling enabled, realtime
-  available, can-read-backends, has-topology, lagging) — every false
+  available, can-read-backends, has-topology, lagging) - every false
   gate falls back to plain "Live"; only the full happy path enters sync
   mode.
 - **`describeFlash` for `polling-required`** is unit-tested to produce a
@@ -576,7 +620,7 @@ Closes #57; reported by @insxa in
 - Integration suite pinned to `PDNS_BACKGROUND_POLLING=true` so the
   replication-aware code paths stay exercised end-to-end.
 
-## [1.1.5] — 2026-05-26
+## [1.1.5] - 2026-05-26
 
 A **security-hygiene patch**. No app-code changes; ships only a defensive
 dependency pin to neutralise the **Mini Shai-Hulud** npm supply-chain
@@ -588,7 +632,7 @@ for the full advisory.
 
 - **Defensive pin: `size-sensor` → `1.0.3` via package.json `overrides`.**
   The npm package `size-sensor` (an indirect dependency through
-  `echarts-for-react`) was hijacked on 2026-05-19 — versions `1.0.4`,
+  `echarts-for-react`) was hijacked on 2026-05-19 - versions `1.0.4`,
   `1.1.4`, and `1.2.4` were published by an attacker who took over the
   `atool` npm account and contain a `preinstall` hook that runs an
   obfuscated Bun script exfiltrating secrets to GitHub via
@@ -597,7 +641,7 @@ for the full advisory.
   [MAL-2026-4153](https://osv.dev/vulnerability/MAL-2026-4153) /
   [GHSA-gx6x-v325-85g4](https://github.com/advisories/GHSA-gx6x-v325-85g4).
 
-  **PowerDNS-AuthAdmin was never affected** — every `1.1.x` release
+  **PowerDNS-AuthAdmin was never affected** - every `1.1.x` release
   shipped `size-sensor@1.0.3`, the last clean version (published before
   the takeover). `npm audit` was clean throughout. This release adds an
   explicit `"size-sensor": "1.0.3"` to `package.json` `overrides` so that
@@ -607,15 +651,15 @@ for the full advisory.
   advisory's overly-broad SEMVER range, should clear on its next
   refresh.
 
-## [1.1.4] — 2026-05-26
+## [1.1.4] - 2026-05-26
 
 A **major operator-UX release**: top-to-bottom responsive overhaul, every table
 unified onto one mobile-friendly recipe, live fleet-wide sync state in the header
 chrome, a new animated sync indicator, full screenshots gallery regen, plus the
 security and supply-chain hardening previously parked in `[Unreleased]`. No
-schema or API breaking changes — drop-in upgrade.
+schema or API breaking changes - drop-in upgrade.
 
-### Added — operator UX
+### Added - operator UX
 
 - **Mobile-first responsive shell.** Off-canvas hamburger drawer under `md`,
   full sidebar from `md+`. The drawer closes on backdrop tap, Esc, and route
@@ -641,7 +685,7 @@ schema or API breaking changes — drop-in upgrade.
   OIDC providers, TSIG keys (read-only + manage), dashboard backends + recent
   activity, role-assignments panel, team-members panel, zone change-history,
   and the zone-templates / servers / users / roles / teams lists now all use
-  the same `<DataTable>` recipe — `bg-bg-muted` thead, `even:bg-bg-subtle`
+  the same `<DataTable>` recipe - `bg-bg-muted` thead, `even:bg-bg-subtle`
   body stripes, accent-tinted hover wash, mobile auto-reflow to labelled
   cards. No more bespoke `<table>` markup outside dialog-internal review
   panels. (#52)
@@ -653,7 +697,7 @@ schema or API breaking changes — drop-in upgrade.
 - **One-button theme toggle.** Was three buttons (sun / monitor / moon). Now
   one button whose icon mirrors the active preference and cycles
   `light → dark → system → light` on click. Pre-hydration `.dark` class
-  unchanged — no flash of wrong theme. (#52)
+  unchanged - no flash of wrong theme. (#52)
 - **Capability badges + clickable rows.** Per-backend badges (`CLUSTER`,
   `DEFAULT`, `PRIMARY`, `READ-ONLY MIRROR`) standardised across every list.
   Rows + mobile cards are now click-to-detail; embedded links/buttons (Edit,
@@ -667,10 +711,10 @@ schema or API breaking changes — drop-in upgrade.
   `flex-wrap` on `< sm` so "Change history" (the widest label) never falls
   off-screen. New `<ScrollToTab/>` auto-scrolls to the tab strip when
   `?tab=` is set in the URL. Zone change-log gets a mobile-card layout
-  alongside the desktop table — same expand-on-click pattern, but no clipped
+  alongside the desktop table - same expand-on-click pattern, but no clipped
   Resource/Actor columns on a 360 px viewport. (#52)
 - **CTAs no longer wrap their labels.** `whitespace-nowrap` on the shared
-  green "+ Add" button class — fixes the "+ Add role" rendering as
+  green "+ Add" button class - fixes the "+ Add role" rendering as
   "+ Add" / "role" on narrow flex rows. (#52)
 - **PDNS request log documented.** The per-call HTTP audit surface at
   `/admin/pdns-requests` was undocumented despite shipping since 1.1.0.
@@ -683,10 +727,10 @@ schema or API breaking changes — drop-in upgrade.
   drift between peers) is now an explicit feature in the catalog.
   ([FEATURES § 3.7](./docs/FEATURES.md#37-backend-health-advisories) · [ADR-0015](./docs/adr/0015-backend-health-advisories.md))
 
-### Added — documentation
+### Added - documentation
 
-- **Visual gallery regen.** Every page is captured at four parities —
-  desktop+light, desktop+dark, mobile+light, mobile+dark — and rendered with
+- **Visual gallery regen.** Every page is captured at four parities -
+  desktop+light, desktop+dark, mobile+light, mobile+dark - and rendered with
   `<picture>` so they auto-switch to match the reader's theme. Mobile shots
   are wrapped in a CSS-rendered iPhone 16 Pro bezel (status bar with Dynamic
   Island sits above the page; Action Button left, Camera Control right).
@@ -698,7 +742,7 @@ schema or API breaking changes — drop-in upgrade.
   post-pass shrinks the gallery by ~70 % when both binaries are on PATH.
   Documented in [`docs/dev-setup.md`](./docs/dev-setup.md#regenerating-screenshots).
   (#53)
-- **`docs/FEATURES.md` § 19 — Operator UX & responsive design.** Eight
+- **`docs/FEATURES.md` § 19 - Operator UX & responsive design.** Eight
   sub-sections covering everything new in this release with module pointers.
   Cross-linked from the screenshots gallery. (#53)
 - **Root README mobile-first showcase.** Three iPhone-framed mobile shots
@@ -710,15 +754,15 @@ schema or API breaking changes — drop-in upgrade.
 
 ### Security
 
-- **Patched dev/build dependency CVEs** via `overrides` — the deprecated `@esbuild-kit`
+- **Patched dev/build dependency CVEs** via `overrides` - the deprecated `@esbuild-kit`
   chain is forced onto `esbuild@0.25.12` (dev-server CORS) and `next`'s pinned `postcss`
   up to `8.5.15` (`</style>` XSS). `npm audit` is clean. (OpenSSF Scorecard: Vulnerabilities.)
   (#47)
 
-### Added — supply-chain
+### Added - supply-chain
 
-- **Property-based fuzz tests** (`fast-check`) for the DNS parsers — TXT presentation,
-  DynDNS request/auth, and every RR-type content validator — running in the unit suite as
+- **Property-based fuzz tests** (`fast-check`) for the DNS parsers - TXT presentation,
+  DynDNS request/auth, and every RR-type content validator - running in the unit suite as
   `*.fuzz.test.ts`. Hardens the hand-rolled parsers (which have shipped real bugs) and
   satisfies the OpenSSF Scorecard Fuzzing check. (#48)
 - **Signed releases + image provenance.** A `release-sign` workflow (on release publish)
@@ -732,7 +776,7 @@ schema or API breaking changes — drop-in upgrade.
 
 - **Stale CODEOWNERS path** (`middleware.ts` → `proxy.ts`). (#50)
 
-## [1.1.3] — 2026-05-26
+## [1.1.3] - 2026-05-26
 
 ### Fixed
 
@@ -760,7 +804,7 @@ schema or API breaking changes — drop-in upgrade.
 - README: added a GHCR pulls badge and a "PowerDNS Auth tested versions" header over the
   compatibility badges.
 
-## [1.1.2] — 2026-05-25
+## [1.1.2] - 2026-05-25
 
 ### Security
 
@@ -772,7 +816,7 @@ as GHSA records; the fixes are summarized here.
   whose role requires MFA but hasn't enrolled, or that is flagged
   `mustChangePassword`, with the self-remediation endpoints (TOTP enrollment, change
   password, logout) explicitly exempt. Previously these gates lived only in the page
-  layout, so a non-compliant user — or anyone holding their session — could call the
+  layout, so a non-compliant user - or anyone holding their session - could call the
   JSON write APIs directly and bypass them.
 - **Privilege-escalation ceilings closed on three admin paths.** Creating a user
   with an initial role now applies the same "can't grant permissions you don't hold
@@ -783,7 +827,7 @@ as GHSA records; the fixes are summarized here.
   take over a Super Admin account).
 - **OIDC outbound requests are now IP-pinned against DNS rebinding.** Discovery, JWKS,
   and the token-exchange POST (which carries the client secret) now connect only to
-  the address the SSRF guard validated — closing the TOCTOU window the PDNS client
+  the address the SSRF guard validated - closing the TOCTOU window the PDNS client
   already guarded. The background discovery sampler also runs the SSRF guard before
   probing. The pinning logic is shared via a new `lib/net/pinned-fetch` module.
 - **Defense-in-depth hardening:** the audit-log redaction backstop now also catches
@@ -797,7 +841,7 @@ as GHSA records; the fixes are summarized here.
 
 - **Self-service-signup email verification is now redeemable.** The verification link
   worked only for an already-signed-in user, but a freshly-signed-up local account is
-  blocked from signing in until verified — a deadlock. Verification is now an
+  blocked from signing in until verified - a deadlock. Verification is now an
   unauthenticated, token-only flow (the signed token proves ownership), and the verify
   page renders for logged-out users.
 - **Audit writes made atomic with their mutation** on the PowerDNS-server create/update
@@ -808,7 +852,7 @@ as GHSA records; the fixes are summarized here.
 - Minor: per-team member counts filter in SQL rather than in memory; a failed audit
   insert after an already-applied zone edit no longer returns a 500.
 
-## [1.1.1] — 2026-05-25
+## [1.1.1] - 2026-05-25
 
 ### Security
 
@@ -817,7 +861,7 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
 
 - **Zone-grant route now enforces the permission ceiling (GHSA-gjg4-58c5-2qg3, high).** The
   per-user zone-grant route assigned a role's permissions without checking them against the
-  granting admin's own authority, so an admin could grant — through a zone scope — permissions
+  granting admin's own authority, so an admin could grant - through a zone scope - permissions
   they didn't hold globally (privilege escalation). It now applies the same
   `permissionsExceedingGrant` ceiling as role assignment.
 - **OIDC group→role mappings now enforce the permission ceiling (GHSA-wf29-rmhc-rqc9, high).** An
@@ -828,7 +872,7 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
   `createOidcProviderSchema` previously defaulted `requireEmailVerified` to `false`, shipping
   new DB-configured OIDC providers with the account-takeover guard disabled. The default is now
   `true`, matching the documented intent and the env-provider behaviour. **Existing DB rows
-  keep their stored value** — operators should audit any provider where `requireEmailVerified`
+  keep their stored value** - operators should audit any provider where `requireEmailVerified`
   is `false` and confirm the IdP does not emit the `email_verified` claim before retaining
   that setting.
 - **AES-GCM authentication-tag length enforced on decrypt (GHSA-phv2-wjmm-pqqq, medium).**
@@ -841,7 +885,7 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
   `failed_login_count = failed_login_count + 1 … RETURNING` statement.
 - **Last-Super-Admin guard hardened (GHSA-86v6-w5p9-29r8, medium).** The guard counted raw
   assignment rows (including disabled users and duplicate rows), so the last _usable_ global
-  Super Admin could be disabled or deleted — locking the install out of its own administration.
+  Super Admin could be disabled or deleted - locking the install out of its own administration.
   It now counts distinct **enabled** users and also covers the user disable + delete routes
   (previously only assignment removal was guarded).
 - **Content-Security-Policy `script-src` tightened.** Removed `'self'` and the Cloudflare
@@ -849,20 +893,20 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
   `strict-dynamic` (with `'unsafe-eval'` only in dev), so an injected inline or remote script can
   no longer execute by virtue of same-origin or a hard-coded allow-listed host.
 - **DNS-rebinding hardening on outbound PowerDNS requests.** The reachability guard validated the
-  backend host, but the follow-up HTTP request re-resolved DNS — a TOCTOU window a rebinding
+  backend host, but the follow-up HTTP request re-resolved DNS - a TOCTOU window a rebinding
   record could exploit to reach a blocked address. The guard-validated IP is now pinned into the
   request dispatcher, so the connection targets the address that actually passed the guard.
 - **Supply-chain & scanning hardening.** Every third-party GitHub Action is pinned to a full
   commit SHA, and the container base image to a `sha256` digest; CodeQL runs the
   `security-and-quality` query suite; and CodeQL, dependency-review, and OpenSSF Scorecard now gate
-  pushes/PRs. Also resolved three `js/incomplete-sanitization` findings — a literal backslash is
+  pushes/PRs. Also resolved three `js/incomplete-sanitization` findings - a literal backslash is
   now escaped before the following metacharacter when building SVCB/HTTPS and SOA-mailbox rdata.
 
 ### Added
 
 - **Self-service signup.** Optional `SIGNUP_ENABLED` exposes a `/signup` page and API (both 404
-  when off, the default). New accounts receive the low-privilege `SIGNUP_DEFAULT_ROLE` — a
-  boot-time guard refuses an admin-equivalent role — with an optional `SIGNUP_ALLOWED_EMAIL_DOMAINS`
+  when off, the default). New accounts receive the low-privilege `SIGNUP_DEFAULT_ROLE` - a
+  boot-time guard refuses an admin-equivalent role - with an optional `SIGNUP_ALLOWED_EMAIL_DOMAINS`
   allow-list and SMTP-backed email verification. See [Configuration](./docs/03-CONFIGURATION.md).
 - **Inline SVG brand logo.** The settings brand logo now accepts an inline `data:` SVG URI in
   addition to an `https://` URL; inline SVG is sanitized server-side (DOMPurify) before it is
@@ -894,7 +938,7 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
   lockout. It now writes them once into a Compose-loaded `.env`, with explicit `down` vs `down -v`
   guidance.
 
-## [1.1.0] — 2026-05-24
+## [1.1.0] - 2026-05-24
 
 ### Security
 
@@ -905,7 +949,7 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
   always blocked. Two new opt-in flags relax it for an internal IdP:
   `APP_OIDC_ALLOW_PRIVATE_NETWORKS` and `APP_OIDC_ALLOW_INSECURE_HTTP`.
 - **Role-assignment permission ceiling.** Granting a role now refuses to assign permissions the
-  acting admin doesn't themselves hold globally — you can no longer mint a role assignment that
+  acting admin doesn't themselves hold globally - you can no longer mint a role assignment that
   exceeds your own authority. A last-Super-Admin guard also blocks removing the final global
   Super-Admin assignment, so an install can't be locked out of its own administration.
 
@@ -918,7 +962,7 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
   coordination rather than causing an outage. Ships a `docker-compose.ha.yml` example and a README
   High-availability section. See [ADR-0016](./docs/adr/0016-redis-horizontal-scale.md).
 - **Return-to-intended-page after sign-in.** Hitting a deep link (e.g. `/zones`) while signed out
-  now sends you back to that page after login — including through the OIDC round-trip — instead of
+  now sends you back to that page after login - including through the OIDC round-trip - instead of
   always dumping you on the dashboard. The redirect target is validated to be a same-origin
   relative path.
 - **Add servers while creating a group.** The "new group" form now has a themed, multi-select list
@@ -926,24 +970,24 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
   server); the Groups page is a list view.
 - **Hidden-zone warning on the zones list.** When the same zone name is served by a backend that
   isn't shown, a banner above the ALL / FORWARD / REVERSE filter surfaces the count and the distinct
-  hidden backends. It fires only for cases an operator should notice — standalone secondaries
-  mirroring an unmanaged primary, or the same name on a second primary — and stays silent for a
+  hidden backends. It fires only for cases an operator should notice - standalone secondaries
+  mirroring an unmanaged primary, or the same name on a second primary - and stays silent for a
   primary's secondaries whether they're **grouped or auto-derived** (matched to their managed
   primary by `masters[]`, exactly as the servers page nests them), since that's normal replication.
-- **Read-only secondary backends** — secondaries can now be added **without** an app-managed
+- **Read-only secondary backends** - secondaries can now be added **without** an app-managed
   primary (unpinned mirrors of an external/upstream primary), and their otherwise-invisible zones
   appear in the amalgamated zone list (deduped: only zones no primary already serves), badged
   "read-only". The zone detail renders records + DNSSEC read-only for a secondary while leaving the
   legitimately-writable replication config (the zone's `masters`, transfer metadata, and removing
   the mirror) editable. A server-side guard backstops this for the API/token surface: zone-content
   writes (records, DNSSEC, zone create/clone) to a secondary are rejected (409).
-- **DNSSEC + DNS-resolution integration tests** — DNSSEC is now enabled on the test backends
+- **DNSSEC + DNS-resolution integration tests** - DNSSEC is now enabled on the test backends
   (`g*-dnssec=yes`), and the suite verifies, against a live stack, that records resolve over real
   DNS after the app writes them, that securing a zone serves DNSKEY + RRSIG on the primary, and
   that the signed zone transfers presigned to a secondary via AXFR and resolves there.
 - **PowerDNS compatibility matrix + badges.** One workflow per supported PowerDNS Authoritative
   version (**4.6 → 5.0**, sharing a reusable core) runs the full end-to-end suite on each
-  minor/major release tag (plus monthly and on demand) — not on every push. Each exposes a live
+  minor/major release tag (plus monthly and on demand) - not on every push. Each exposes a live
   GitHub Actions status badge in the README (no committed state to maintain).
 
 ### Changed
@@ -953,8 +997,8 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
   previously-orphaned **TSIG keys** and **Autoprimaries** admin pages are now linked.
 - The zones list's **DNSSEC** column now shows a green closed padlock when a zone is signed and a
   muted open padlock when it isn't (was "on"/"off" text).
-- **Server `/config` view** dropped the `# slug — /config (read-only)` caption header, and the
-  daemon `api-key` now shows redacted (`<redacted>`) rather than being omitted entirely — so the
+- **Server `/config` view** dropped the `# slug - /config (read-only)` caption header, and the
+  daemon `api-key` now shows redacted (`<redacted>`) rather than being omitted entirely - so the
   operator can see the setting is present without exposing the secret.
 - **Unified the collapsible "summary" disclosure** used by the audit log and the PowerDNS HTTP
   request logs into one shared component, and fixed the cramped top spacing in the expanded request
@@ -968,7 +1012,7 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
 
 ### Fixed
 
-- The **TSIG keys** admin page (`/admin/tsig-keys`) was unreachable — `tsig.read` was granted by
+- The **TSIG keys** admin page (`/admin/tsig-keys`) was unreachable - `tsig.read` was granted by
   no role, so even Super Admin got bounced to the dashboard. It's now granted alongside
   `tsig.manage` (Team Owner and above); the boot seed rewrites system-role permissions, so a
   redeploy fixes existing installs.
@@ -978,7 +1022,7 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
   single `stripTrailingDot` helper.
 - **Self-contention against a backend store.** The background poll (reads) and the request path
   (writes) could hit the same backend simultaneously; on a single-file gsqlite3 store a reader can
-  stall a writer into a transient HTTP 500. The app now coordinates per backend — the poll's reads
+  stall a writer into a transient HTTP 500. The app now coordinates per backend - the poll's reads
   and the request path's writes take turns (keyed per backend; interactive reads stay fully
   concurrent, and separate backends never block each other), so the app no longer contends with
   itself. No PowerDNS configuration change required.
@@ -988,7 +1032,7 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
   than stalling the zones/servers pages (which await the poll) or the Test toast for ~30s.
   User-initiated reads and writes keep the full retry resilience.
 
-## [1.0.2] — 2026-05-23
+## [1.0.2] - 2026-05-23
 
 ### Changed
 
@@ -997,20 +1041,20 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
   instead of Docker Hub.** Pull `ghcr.io/powerdns-authadmin/powerdns-authadmin:latest` (or a
   `:X.Y.Z` tag). The previous Docker Hub repository is no longer updated.
 
-## [1.0.1] — 2026-05-23
+## [1.0.1] - 2026-05-23
 
 ### Fixed
 
 - The dashboard "PDNS backends needing attention" widget and the PowerDNS-servers Status column
   no longer flag healthy backends as stale/unreachable. Reachability now tracks a `last_seen_at`
   timestamp, bumped on every successful background poll (and on a manual Test / Refresh all),
-  instead of the version-probe timestamp — which only moved on a manual probe and so went "stale"
+  instead of the version-probe timestamp - which only moved on a manual probe and so went "stale"
   within 24h even while the backend was being polled successfully every 30s.
 
 ### Changed
 
 - An OIDC provider configured via `OIDC_*` environment variables now appears as a **read-only**
-  provider badged "Configured by ENV" — shown on the login page and in **Admin → OIDC providers**
+  provider badged "Configured by ENV" - shown on the login page and in **Admin → OIDC providers**
   alongside DB-backed providers, instead of being a hidden fallback that only surfaced when no DB
   providers existed. A DB provider with the same slug still shadows it.
 
@@ -1021,30 +1065,30 @@ GHSA-24hf-rxww-95cf, GHSA-phv2-wjmm-pqqq, GHSA-frpq-xgm7-574x, GHSA-86v6-w5p9-29
 - Sidebar footer showing the running version (linked to its GitHub release) and a Docs link pinned
   to the matching version's `docs/`.
 
-## [1.0.0] — 2026-05-22
+## [1.0.0] - 2026-05-22
 
 First production release.
 
 ### Added
 
-- **Multi-backend management** — standalone primaries, primary + secondaries groups, and
+- **Multi-backend management** - standalone primaries, primary + secondaries groups, and
   multi-primary clusters from one app, with per-cluster peer-selection strategies
   (round-robin / random / lowest-latency / least-load).
-- **RBAC** (CASL) — five system roles plus custom roles; ~60 permissions scoped global / team /
+- **RBAC** (CASL) - five system roles plus custom roles; ~60 permissions scoped global / team /
   zone / server.
-- **Authentication** — local accounts (Argon2id), generic OIDC SSO with PKCE + group→role mapping
+- **Authentication** - local accounts (Argon2id), generic OIDC SSO with PKCE + group→role mapping
   and RP-initiated logout, TOTP MFA with a per-user override, and scoped `pda_pat_` API tokens.
-- **Zones & records** — per-RRset editor with diff-before-apply, per-type validators, zone cloning,
+- **Zones & records** - per-RRset editor with diff-before-apply, per-type validators, zone cloning,
   zone templates, and optimistic concurrency.
 - **DNSSEC, TSIG, autoprimaries** management.
-- **Sync probes** — serial + record-for-record comparison for primary/secondary groups and clusters.
+- **Sync probes** - serial + record-for-record comparison for primary/secondary groups and clusters.
 - **Append-only audit log** with redacted before/after snapshots and per-zone history.
-- **Transactional email** — email verification, password reset, and email-change confirmation (SMTP).
-- **First-boot provisioning** — YAML-driven setup of settings, roles, teams, templates, servers,
+- **Transactional email** - email verification, password reset, and email-change confirmation (SMTP).
+- **First-boot provisioning** - YAML-driven setup of settings, roles, teams, templates, servers,
   clusters, demo zones, and OIDC providers.
-- **Storage** — SQLite or Postgres; migrations run automatically on boot.
-- **Observability** — Pino structured logs, Prometheus `/metrics`, `/healthz` + `/readyz` probes.
-- **Distribution** — multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
+- **Storage** - SQLite or Postgres; migrations run automatically on boot.
+- **Observability** - Pino structured logs, Prometheus `/metrics`, `/healthz` + `/readyz` probes.
+- **Distribution** - multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
 [Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.5...HEAD

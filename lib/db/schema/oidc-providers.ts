@@ -2,7 +2,7 @@
  * lib/db/schema/oidc-providers.ts
  *
  * DB-backed OIDC identity providers. Replaces the single-provider env-only
- * config from future work — operators can now add Google / Azure / Keycloak / etc.
+ * config from future work - operators can now add Google / Azure / Keycloak / etc.
  * from the admin UI without restarting the app.
  *
  * Env config (`OIDC_*` in lib/env.ts) is preserved as a fallback: if this
@@ -24,7 +24,7 @@ export const oidcProviders = pgTable(
     id: pk(),
 
     /**
-     * URL-safe slug — used as the `<provider>` path segment in
+     * URL-safe slug - used as the `<provider>` path segment in
      * `/api/auth/oidc/<provider>/{initiate,callback}`. Cannot be changed once
      * created (would break in-flight sign-in attempts).
      */
@@ -33,7 +33,7 @@ export const oidcProviders = pgTable(
     /** Human display name on the login button. */
     name: text("name").notNull(),
 
-    /** OIDC issuer URL — used for discovery. */
+    /** OIDC issuer URL - used for discovery. */
     issuerUrl: text("issuer_url").notNull(),
 
     clientId: text("client_id").notNull(),
@@ -56,7 +56,7 @@ export const oidcProviders = pgTable(
     /**
      * When true, sign-in for an existing local account is blocked
      * unless the IdP attests `email_verified: true`. Default `false`
-     * — we trust the IdP by default ("if it's federated, the IdP is
+     * - we trust the IdP by default ("if it's federated, the IdP is
      * the source of truth for who owns this address"). Operators flip
      * it ON only for environments where the IdP lets users set
      * arbitrary unverified emails AND there's a non-trivial overlap
@@ -70,7 +70,7 @@ export const oidcProviders = pgTable(
      *. `null` until the first Test. Stored as jsonb:
      *   { fetchedAt: ISO string, ok: boolean, reason?: string,
      *     endSessionEndpoint?: string | null }
-     * Auto-refresh isn't wired — operators hit Test on
+     * Auto-refresh isn't wired - operators hit Test on
      * /admin/authentication/oidc when they want a fresh check. The cache
      * lets the list show the last known state without probing on
      * every page render (which would round-trip the IdP each time).
@@ -87,7 +87,7 @@ export const oidcProviders = pgTable(
     /**
      * Optional URL or inline `data:image/...` URI for a small icon
      * rendered on the provider's login button. Same shape as
-     * `settings.brand_logo_url` — operators can paste a CDN URL or
+     * `settings.brand_logo_url` - operators can paste a CDN URL or
      * upload a small image that gets base64-inlined. Kept narrower
      * by validator (~50KB cap, much smaller than the brand logo's
      * 2MB) since login-button icons should be tiny.
@@ -99,7 +99,7 @@ export const oidcProviders = pgTable(
      * Null = inherit the env `OIDC_ALLOWED_EMAIL_DOMAINS` default.
      * Empty array = "no restriction" at the provider level even when
      * env imposes one. Non-empty array = exact list for THIS provider
-     * (replaces env, doesn't append — operators wanting to extend
+     * (replaces env, doesn't append - operators wanting to extend
      * should include the env list verbatim plus their additions).
      * Compared case-insensitively against the part after `@`.
      */
@@ -110,7 +110,7 @@ export const oidcProviders = pgTable(
      * the user's group claim (`claim_groups`, default "groups") is matched
      * against this list and the matching role assignments are materialised
      * with `role_assignments.provider_id = this.id`. The next sign-in
-     * recomputes the set — removed group → revoked assignment.
+     * recomputes the set - removed group → revoked assignment.
      *
      * Empty array / null disables group-based materialisation for this
      * provider; admin-issued assignments are unaffected (only rows with
@@ -159,7 +159,7 @@ export type NewOidcProvider = typeof oidcProviders.$inferInsert;
 export interface OidcGroupMapping {
   /** Exact group value to match in the user's group claim. Case-sensitive. */
   group: string;
-  /** Role slug to assign — system or custom; resolved at sign-in time. */
+  /** Role slug to assign - system or custom; resolved at sign-in time. */
   roleSlug: string;
   /** Assignment scope. */
   scopeType: "global" | "team" | "zone" | "server";

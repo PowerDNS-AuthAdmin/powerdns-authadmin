@@ -9,7 +9,7 @@
  * alongside without needing a JSDOM environment.
  *
  * Format choices (kept stable so URLs in operator bookmarks survive):
- *   - Sort: `col.dir[,col.dir...]` — multi-column comma-separated.
+ *   - Sort: `col.dir[,col.dir...]` - multi-column comma-separated.
  *     `col` is the column id, `dir` is `asc` or `desc`. Unknown
  *     directions drop silently (graceful for renamed columns).
  *   - Page size: a positive integer that MUST appear in the
@@ -38,7 +38,7 @@ export function serializeSortParam(sort: SortingState): string {
 
 /**
  * Parse `?pageSize=N` to a positive integer that's in the allowed
- * options set. Returns null for anything else — the caller falls
+ * options set. Returns null for anything else - the caller falls
  * back to the `pageSize` prop default. Strict membership check
  * prevents URL-driven row counts that would surprise the user (a
  * link with `?pageSize=9999` shouldn't blow up the DOM).

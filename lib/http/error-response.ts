@@ -9,7 +9,7 @@
  *   • AppError (lib/errors.ts) → its `.status` + `.message` (+ `.details` for
  *     ValidationError / ConflictError). RateLimitedError also sets `Retry-After`.
  *   • PdnsError (lib/pdns/errors.ts) → 502 with a generic message. The detailed
- *     (already-redacted) PDNS message is logged at warn, never returned — it can
+ *     (already-redacted) PDNS message is logged at warn, never returned - it can
  *     carry upstream specifics we don't surface to API clients. This matches the
  *     behavior the PDNS-touching routes already had and fixes the others, which
  *     used to collapse a PdnsError to a generic 500.
@@ -17,7 +17,7 @@
  *     cause `toAppError` captures.
  *
  * Every 5xx is logged server-side under `context` (used as the log event name),
- * so an internal error is never silent — the copies that skipped the log
+ * so an internal error is never silent - the copies that skipped the log
  * produced invisible 500s.
  *
  * `context` is a stable dotted tag identifying the route + operation, e.g.

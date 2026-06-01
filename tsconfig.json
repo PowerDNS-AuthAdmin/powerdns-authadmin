@@ -8,7 +8,7 @@
     "moduleResolution": "Bundler",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
-    // === Strictness — these are the rules CONTRIBUTING.md commits us to ===
+    // === Strictness - these are the rules CONTRIBUTING.md commits us to ===
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -18,7 +18,7 @@
     "noImplicitThis": true,
     "alwaysStrict": true,
     "useUnknownInCatchVariables": true,
-    // Surfaces footguns the default strict mode misses — array index access returning `T | undefined`,
+    // Surfaces footguns the default strict mode misses - array index access returning `T | undefined`,
     // unreachable code, switch cases falling through.
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
@@ -41,7 +41,7 @@
     "skipLibCheck": true,
     "noEmit": true,
     "incremental": true,
-    // === Path aliases — kept short and explicit ===
+    // === Path aliases - kept short and explicit ===
     // No `baseUrl` (deprecated in TS 6): with moduleResolution "Bundler",
     // `paths` resolve relative to this tsconfig's directory.
     "paths": {

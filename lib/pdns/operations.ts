@@ -13,7 +13,7 @@
  * provisioning's demo-zone generator, the clone route) and only the
  * admin POST remembered to fire NOTIFY afterwards. On a fresh
  * `docker compose up` the provisioning path raced the secondaries'
- * supermaster registration — zones got created on the primary BEFORE
+ * supermaster registration - zones got created on the primary BEFORE
  * the secondaries were ready to receive NOTIFY, so the freshly-
  * provisioned demo stacks looked desynced for ~60s until the
  * secondaries' periodic refresh kicked in.
@@ -46,7 +46,7 @@ function isPrimaryKind(kind: string): boolean {
 
 /**
  * Create a zone, then best-effort NOTIFY when the kind warrants it.
- * NOTIFY failures are logged but never bubble — the zone is created
+ * NOTIFY failures are logged but never bubble - the zone is created
  * regardless; the secondaries will catch up on their next refresh
  * even if NOTIFY couldn't be delivered.
  */
@@ -84,7 +84,7 @@ export async function notifyZoneBestEffort(
  * Iterate every zone on a backend and NOTIFY each Master/Primary
  * one. Used by the provisioning sweep + post-restart convergence
  * paths to recover from a window where the primary held zones
- * that the secondaries hadn't seen — i.e. exactly the
+ * that the secondaries hadn't seen - i.e. exactly the
  * `docker compose up` race the demo stacks were exhibiting.
  *
  * Returns per-zone status so callers can audit how many notifies

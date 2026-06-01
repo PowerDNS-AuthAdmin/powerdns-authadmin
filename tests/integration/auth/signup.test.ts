@@ -1,7 +1,7 @@
 /**
  * tests/integration/auth/signup.test.ts
  *
- * POST /api/auth/signup — public self-service signup, gated by SIGNUP_ENABLED.
+ * POST /api/auth/signup - public self-service signup, gated by SIGNUP_ENABLED.
  *
  * The shared integration stack boots with SIGNUP_ENABLED unset (signup OFF) so
  * the existing auth suite's admin-created/unverified login flows keep working.
@@ -23,7 +23,7 @@ import { resetState } from "../helpers/reset";
 
 const STRONG_PASSWORD = "signup-passw0rd-1234";
 
-describe("POST /api/auth/signup — feature gate", () => {
+describe("POST /api/auth/signup - feature gate", () => {
   it("returns 404 when disabled, or a uniform 200 OK when enabled", async () => {
     const res = await anonClient().call("/api/auth/signup", {
       method: "POST",
@@ -34,7 +34,7 @@ describe("POST /api/auth/signup — feature gate", () => {
 });
 
 describe.skipIf(!process.env["SIGNUP_INTEGRATION"])(
-  "POST /api/auth/signup — full flow (requires SIGNUP_ENABLED=true)",
+  "POST /api/auth/signup - full flow (requires SIGNUP_ENABLED=true)",
   () => {
     beforeEach(async () => {
       await resetState({ skipPdns: true });
@@ -150,7 +150,7 @@ describe.skipIf(!process.env["SIGNUP_INTEGRATION"])(
           break;
         }
       }
-      // sensitiveLimiter is capacity 3 — a burst of 8 must trip it.
+      // sensitiveLimiter is capacity 3 - a burst of 8 must trip it.
       expect(saw429).toBe(true);
     });
   },
@@ -163,7 +163,7 @@ describe.skipIf(!process.env["SIGNUP_INTEGRATION"])(
  * rejected with 403/domain-not-allowed and no user is created.
  */
 describe.skipIf(!process.env["SIGNUP_INTEGRATION_DOMAIN_DENY"])(
-  "POST /api/auth/signup — email-domain allow-list",
+  "POST /api/auth/signup - email-domain allow-list",
   () => {
     it("rejects an out-of-allow-list domain with 403 and creates no user", async () => {
       const email = `signup-denied-${Date.now()}@blocked.invalid`;

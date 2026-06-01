@@ -3,7 +3,7 @@
  *
  * CRUD for the OIDC providers table. The `client_secret_encrypted` column is
  * the AES-256-GCM envelope; callers pass the already-encrypted string in /
- * receive it out — `lib/crypto/encryption.ts` does the actual encrypt /
+ * receive it out - `lib/crypto/encryption.ts` does the actual encrypt /
  * decrypt at the route boundary.
  */
 
@@ -62,7 +62,7 @@ export async function deleteOidcProvider(id: string, executor: DbExecutor = db):
 
 /**
  * Persist the latest discovery-probe result on the provider row.
- * Narrow setter — the operator-facing Test action can't accidentally
+ * Narrow setter - the operator-facing Test action can't accidentally
  * touch other fields. Cache shape mirrors the schema's `$type<...>`.
  */
 export async function setOidcDiscoveryCache(

@@ -2,7 +2,7 @@
  * lib/pdns/backend-lock.ts
  *
  * Per-backend request coordination. The app talks to a backend from two places
- * at once — the background poll (reads) and the request path (writes) — and
+ * at once - the background poll (reads) and the request path (writes) - and
  * against a single-file store (gsqlite3) a reader can stall a writer long enough
  * that PowerDNS returns a 500. We own both sides, so rather than tuning the
  * backend we make the app take turns: at most one *coordinated* operation per
@@ -11,7 +11,7 @@
  * Scope is deliberately narrow (see `lib/pdns/http.ts`): WRITE requests and the
  * poll's probe reads pass through the lock; ordinary interactive reads do NOT,
  * so a busy multi-user deployment keeps full read concurrency. Different
- * backends never block each other — the lock is keyed per backend.
+ * backends never block each other - the lock is keyed per backend.
  *
  * Implementation: a promise chain per key (a fair FIFO async mutex). The map
  * lives on globalThis so Next's per-route bundle duplication can't create two

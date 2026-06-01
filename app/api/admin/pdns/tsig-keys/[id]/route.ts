@@ -1,13 +1,13 @@
 /**
  * app/api/admin/pdns/tsig-keys/[id]/route.ts
  *
- * DELETE — remove a TSIG key from the PDNS backend. Permission:
+ * DELETE - remove a TSIG key from the PDNS backend. Permission:
  *          `tsig.manage`. Audit captures the name (the only
  *          identifying field the operator usually remembers); the
  *          secret is never logged.
  *
  * Rename / regenerate (`PUT`) is intentionally not implemented in
- * this slice — operators rotate TSIG keys by creating a new key and
+ * this slice - operators rotate TSIG keys by creating a new key and
  * updating their secondary configs, then deleting the old key. That
  * workflow happens to be the same physical sequence PUT would
  * achieve, but with explicit audit rows for each step.
@@ -59,7 +59,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     const client = getBackendGateway(selected);
 
     // Best-effort "before" snapshot. Strips `key` explicitly before
-    // it reaches the audit shape — the redactor would catch it too,
+    // it reaches the audit shape - the redactor would catch it too,
     // but destructuring is the primary defense.
     let nameSnapshot: string | null = null;
     let algorithmSnapshot: string | null = null;
@@ -69,7 +69,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
       algorithmSnapshot = before.algorithm;
     } catch (err) {
       if (!(err instanceof PdnsNotFoundError)) throw err;
-      // PDNS already returned 404 — treat the delete as already done.
+      // PDNS already returned 404 - treat the delete as already done.
       throw new NotFoundError("TSIG key not found.");
     }
 

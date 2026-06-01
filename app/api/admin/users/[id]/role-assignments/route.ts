@@ -1,7 +1,7 @@
 /**
  * app/api/admin/users/[id]/role-assignments/route.ts
  *
- * POST — assign a role to a user at a scope (role.assign permission).
+ * POST - assign a role to a user at a scope (role.assign permission).
  */
 
 import { headers } from "next/headers";
@@ -10,6 +10,7 @@ import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { assertBootstrapAdminMutable } from "@/lib/auth/bootstrap-admin";
 import { db } from "@/lib/db";
 import {
   createRoleAssignment,
@@ -41,6 +42,9 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
 
     const target = await findUserById(userId);
     if (!target) throw new NotFoundError("User not found.");
+    // Freezing the demo login's roles is part of the RO identity lock - a
+    // visitor mustn't be able to reshape the shared account's permissions.
+    assertBootstrapAdminMutable(target.email);
 
     let input;
     try {
@@ -58,7 +62,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     if (!role) throw new ValidationError("Role does not exist.");
 
     // Privilege ceiling (L-3): an actor can only grant permissions they already
-    // hold globally — a `role.assign` holder must not be able to mint SuperAdmin
+    // hold globally - a `role.assign` holder must not be able to mint SuperAdmin
     // (or any permission they lack) for others or themselves. `role.assign` is
     // global-only here, so the actor's global permission set is the basis.
     // Cast mirrors get-current-user.ts: the DB column is structurally string[]

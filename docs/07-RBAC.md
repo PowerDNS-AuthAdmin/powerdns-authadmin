@@ -6,12 +6,12 @@ permission set is the union of a user's assignments that apply in context.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/roles.png" />
-  <img src="../screenshots/light/roles.png" alt="Roles — seeded system roles + operator-defined custom roles" width="720" />
+  <img src="../screenshots/light/roles.png" alt="Roles - seeded system roles + operator-defined custom roles" width="720" />
 </picture>
 
 ## The five system roles
 
-Seeded on first boot and protected from deletion. Each builds on the previous —
+Seeded on first boot and protected from deletion. Each builds on the previous -
 the description shown here is the one seeded into the `roles.description`
 column, surfaced verbatim on the Roles list and detail pages.
 
@@ -27,7 +27,7 @@ The seed asserts Super Admin contains every permission, so a new permission adde
 to the codebase is always held by Super Admin. The seeded descriptions are owned
 by `lib/rbac/default-roles.ts`; edits there apply on next boot via `upsertRole`.
 
-Custom roles carry an optional free-text description too — set it on the create
+Custom roles carry an optional free-text description too - set it on the create
 or edit form. It's shown verbatim on the Roles list and detail pages and surfaces
 naturally as "what does this role do?" context for newer operators.
 
@@ -68,13 +68,13 @@ edit records in that one zone and nothing else.
 
 ## Assigning roles
 
-- **Admin UI** — assign roles to a user (with a scope) under **Admin → Users**;
+- **Admin UI** - assign roles to a user (with a scope) under **Admin → Users**;
   manage role definitions under **Admin → Roles**.
-- **OIDC group mapping** — map an IdP group to a role + scope so membership is
+- **OIDC group mapping** - map an IdP group to a role + scope so membership is
   driven by your directory. These assignments are reconciled on every sign-in
   (granted when in the group, revoked when not). See [OIDC](./05-OIDC.md#group--role-mapping).
 
-Admin-issued assignments and OIDC-managed assignments are tracked separately — the
+Admin-issued assignments and OIDC-managed assignments are tracked separately - the
 group sync never touches an assignment an admin made by hand.
 
 ## Custom roles
@@ -95,7 +95,7 @@ roles:
 ## MFA-required roles
 
 A role can be marked **`requires_mfa`**. A user holding such a role must enrol TOTP
-before they can act — they're redirected to enrol until they do. SSO-only users
+before they can act - they're redirected to enrol until they do. SSO-only users
 (no local password) are exempt: their IdP is the second-factor authority, so
 enforce MFA there. See [OIDC → MFA and SSO users](./05-OIDC.md#mfa-and-sso-users).
 

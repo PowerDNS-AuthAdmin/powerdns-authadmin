@@ -3,18 +3,18 @@
  *
  * The concentric-circle glyph used wherever the UI states a replication
  * verdict ("Synced" / "Desynced"). Defined once so every consumer renders the
- * same shape + colour pairing — header chip, servers list, zones list all
+ * same shape + colour pairing - header chip, servers list, zones list all
  * agree on what "synced" looks like.
  *
  * Synced: a solid centre with two outward-pulsing rings (sonar/radar ping
- * effect via SVG SMIL — staggered 1.2 s apart so one ring is always travelling
+ * effect via SVG SMIL - staggered 1.2 s apart so one ring is always travelling
  * outward as the other resets).
- * Desynced: a hollow centre ring with two static dashed concentric rings —
+ * Desynced: a hollow centre ring with two static dashed concentric rings -
  * deliberately quiet, "frozen", to read as "stuck" rather than "active".
  *
  * Colour travels via `currentColor`; defaults map synced → `var(--color-success)`,
  * desynced → `var(--color-error)`. Stroke widths are tuned for the small inline
- * sizes (12–18 px) the chips render at — thicker than typical SVG defaults so
+ * sizes (12–18 px) the chips render at - thicker than typical SVG defaults so
  * the rings stay legible without zooming.
  */
 

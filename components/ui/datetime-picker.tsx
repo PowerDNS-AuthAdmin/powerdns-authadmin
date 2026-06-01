@@ -5,14 +5,14 @@
  *
  * Thin wrapper around react-datepicker that takes + returns ISO
  * strings. Keeps the on-the-wire format unambiguous (UTC ISO) while
- * the picker itself renders in the BROWSER's local timezone — same
+ * the picker itself renders in the BROWSER's local timezone - same
  * shape every filter form uses.
  *
  * On a fresh date click that lands at midnight, snap to start-of-day
  * (`side="from"`) or end-of-day (`side="to"`) so a single date
  * selection produces a useful range filter without the operator
  * having to scrub through the time column. If the operator picked a
- * specific time the snap is skipped — their explicit choice wins.
+ * specific time the snap is skipped - their explicit choice wins.
  *
  * Used by every datetime filter input across the admin surface so the
  * UX is consistent: zone change log, audit log, PDNS request log,
@@ -31,7 +31,7 @@ export interface DateTimePickerProps {
   /** Called with the next ISO string, or empty string when cleared. */
   onChange: (iso: string) => void;
   /**
-   * Boundary semantic — controls the start/end-of-day snap on a
+   * Boundary semantic - controls the start/end-of-day snap on a
    * fresh date click. `"point"` skips the snap (used for the API-
    * token expiry field where there's no natural side).
    */
@@ -93,7 +93,7 @@ function isoToLocalDate(iso: string): Date | null {
 }
 
 /** Snap to start-of-day (`from`) or end-of-day (`to`) when the time
- *  is at exact midnight — i.e. the operator clicked a date in the
+ *  is at exact midnight - i.e. the operator clicked a date in the
  *  calendar without touching the time column. Any explicit time
  *  choice survives untouched. */
 function snapBoundary(d: Date, side: "from" | "to"): Date {

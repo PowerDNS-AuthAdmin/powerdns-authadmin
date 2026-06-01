@@ -1,4 +1,4 @@
-# CODEOWNERS — required reviewers for sensitive paths.
+# CODEOWNERS - required reviewers for sensitive paths.
 #
 # At this stage the project has one maintainer. As contributors are added,
 # their handles go alongside @jseifeddine for the paths they own.
@@ -9,7 +9,7 @@
 # Catch-all
 *                            @jseifeddine
 
-# Security-sensitive — two reviewers required at branch-protection level.
+# Security-sensitive - two reviewers required at branch-protection level.
 /lib/auth/                   @jseifeddine
 /lib/rbac/                   @jseifeddine
 /lib/pdns/                   @jseifeddine

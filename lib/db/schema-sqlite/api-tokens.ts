@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/api-tokens.ts — SQLite mirror of `../schema/api-tokens.ts`.
+ * lib/db/schema-sqlite/api-tokens.ts - SQLite mirror of `../schema/api-tokens.ts`.
  */
 
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";

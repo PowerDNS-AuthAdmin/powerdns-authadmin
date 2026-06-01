@@ -1,7 +1,7 @@
 /**
  * tests/integration/admin/pdns-servers.test.ts
  *
- * /api/admin/pdns-servers — CRUD + credentials test + fleet refresh. Walks
+ * /api/admin/pdns-servers - CRUD + credentials test + fleet refresh. Walks
  * the provisioning baseline (8 backends across 3 topologies) and then
  * exercises the create/read/patch/delete + audit paths against a
  * throwaway row so the seeded rows survive the suite.

@@ -1,13 +1,13 @@
 /**
  * app/api/admin/pdns-servers/route.ts
  *
- * GET  — list every backend (server.read permission).
- * POST — create a new backend (server.create permission).
+ * GET  - list every backend (server.read permission).
+ * POST - create a new backend (server.create permission).
  *
  * Writes are audited; the API key is encrypted before insert and never
  * round-tripped to the client. The version-probe runs once after create so
  * the row's `version_cache` is populated immediately; failures don't roll
- * back the insert — the operator can re-test from the admin UI.
+ * back the insert - the operator can re-test from the admin UI.
  */
 
 import { headers } from "next/headers";
@@ -39,7 +39,7 @@ export async function GET(): Promise<Response> {
     const { ability } = await requireUser({ can: "server.read" });
     void ability;
     const rows = await listAllPdnsServers();
-    // Strip the encrypted key — never returned over the wire.
+    // Strip the encrypted key - never returned over the wire.
     const safe = rows.map(({ apiKeyEncrypted: _unused, ...rest }) => rest);
     return Response.json({ servers: safe }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {

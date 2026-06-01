@@ -1,7 +1,7 @@
 /**
  * tests/integration/auth/login.test.ts
  *
- * POST /api/auth/login — local credential login. Covers the happy path,
+ * POST /api/auth/login - local credential login. Covers the happy path,
  * the family of failure modes, and the session cookie issuance contract
  * the rest of the suite depends on.
  *

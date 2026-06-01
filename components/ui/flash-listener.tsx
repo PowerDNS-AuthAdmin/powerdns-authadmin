@@ -36,7 +36,7 @@ export function describeFlash(flash: string, need: string | null): FlashConfig |
     case "session-required":
       return {
         kind: "info",
-        description: "Your session expired — please sign in again.",
+        description: "Your session expired - please sign in again.",
       };
     case "polling-required":
       return {
@@ -63,7 +63,7 @@ export function FlashListener() {
       // Critical: clear the dedupe key once the URL no longer carries a flash
       // param. Without this, a *second* forbidden click that produces an
       // identical URL would match the stored `fired.current` and silently
-      // skip — only a page reload would let it fire again. The toast must
+      // skip - only a page reload would let it fire again. The toast must
       // fire every time the user hits a forbidden route, so we reset here.
       fired.current = null;
       return;

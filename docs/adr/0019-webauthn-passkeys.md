@@ -1,4 +1,4 @@
-# ADR 0019 — WebAuthn: both primary credential and second factor
+# ADR 0019 - WebAuthn: both primary credential and second factor
 
 - **Status:** Accepted
 - **Date:** 2026-05-28
@@ -8,19 +8,19 @@
 
 The app shipped with TOTP-only MFA. WebAuthn (`users.webauthn_credentials`
 JSONB column with a schema that already matches `@simplewebauthn/server`'s
-shape) was scaffolded but never wired. Modern auth UX expects passkeys —
+shape) was scaffolded but never wired. Modern auth UX expects passkeys -
 both as a passwordless primary credential and as a strong second factor.
 
 Library landscape (mid-2026):
 
-- `@simplewebauthn/server@^13.3.1` — MIT, first-party TS types, no native
+- `@simplewebauthn/server@^13.3.1` - MIT, first-party TS types, no native
   deps (uses `cbor-x` vendored), Node ≥20, ESM. De-facto standard.
-- `@simplewebauthn/browser@^13` — pairs with the server package, used
+- `@simplewebauthn/browser@^13` - pairs with the server package, used
   to drive `navigator.credentials.create()` / `get()` from the SPA.
 
 WebAuthn binds to a Relying-Party identifier (`rpId`, a bare hostname) and
 an `origin` (scheme+host+port). Both must match the URL the operator's
-browser uses — same constraint as the cookie-domain issue this branch
+browser uses - same constraint as the cookie-domain issue this branch
 already fixed in the previous PR.
 
 ## Decision
@@ -64,7 +64,7 @@ browser` handle them. The complexity is bounded.
 
 ## Alternatives considered
 
-- **Second-factor only.** Simpler — same flow as TOTP. But it leaves
+- **Second-factor only.** Simpler - same flow as TOTP. But it leaves
   passkey-first UX (which is the actual long-term win) for a follow-up.
   Given the schema is already there, doing both at once is cheap.
 - **Primary only.** Forces an immediate UX rewrite for the password flow;
@@ -74,7 +74,7 @@ browser` handle them. The complexity is bounded.
 
 ## Consequences
 
-- `MfaPanel` admin component renames in spirit — the per-credential reset
+- `MfaPanel` admin component renames in spirit - the per-credential reset
   is by credential id, not blanket "reset MFA". TOTP admin reset stays
   blanket.
 - The login form has two states beyond happy-path: a passkey-primary

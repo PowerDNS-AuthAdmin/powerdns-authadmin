@@ -21,9 +21,9 @@
 #   ./tests/integration/run.sh tests/integration/auth/login.test.ts   # single file
 #
 # Tunables (env):
-#   COMPOSE_BIN     — defaults to `docker compose`
-#   TEST_APP_URL    — defaults to http://localhost:3000
-#   KEEP_STACK      — "1" to skip teardown after tests
+#   COMPOSE_BIN     - defaults to `docker compose`
+#   TEST_APP_URL    - defaults to http://localhost:3000
+#   KEEP_STACK      - "1" to skip teardown after tests
 # =============================================================================
 
 set -euo pipefail
@@ -47,7 +47,7 @@ compose() {
 remove_conflicting_projects() {
   # Any other powerdns-authadmin-* project would hold the same host ports
   # AND its volumes would shadow the test stack's data on the next run.
-  # Tear them down with -v so the test starts clean — anything you wanted
+  # Tear them down with -v so the test starts clean - anything you wanted
   # to keep there should already be committed/exported.
   local other
   other=$(docker compose ls -a --filter "name=powerdns-authadmin" --format json 2>/dev/null \
@@ -73,7 +73,7 @@ remove_conflicting_projects() {
 teardown() {
   local status=$?
   # On failure, dump app + every PDNS container's logs before teardown so CI
-  # has the backend-side reason (e.g. a gsqlite3 500) — vitest only shows the
+  # has the backend-side reason (e.g. a gsqlite3 500) - vitest only shows the
   # client-side "HTTP 500".
   if [ "$status" -ne 0 ]; then
     echo "[run.sh] ===== FAILURE (exit $status): dumping container logs ====="
@@ -84,7 +84,7 @@ teardown() {
     done
   fi
   if [ "${KEEP_STACK:-0}" = "1" ]; then
-    echo "[run.sh] KEEP_STACK=1 — leaving stack running"
+    echo "[run.sh] KEEP_STACK=1 - leaving stack running"
     return
   fi
   echo "[run.sh] tearing down test stack"

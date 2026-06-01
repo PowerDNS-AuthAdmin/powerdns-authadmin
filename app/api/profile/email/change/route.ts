@@ -1,20 +1,20 @@
 /**
  * app/api/profile/email/change/route.ts
  *
- * POST — start an email-change. Authenticated user submits the new
+ * POST - start an email-change. Authenticated user submits the new
  * email + their current password (defense against session hijack).
  * Server mints an email-verification-style HMAC token bound to
  * (userId, newEmail) and records the confirm URL in the audit log.
  *
  * Why a token (not a direct swap): the new email must be proven
  * reachable. Until transactional email lands, the audit log carries
- * the URL — operators with audit.read share it with the user out-of-
+ * the URL - operators with audit.read share it with the user out-of-
  * band, mirroring the forgot-password flow. Once SMTP is wired up,
  * the route will additionally send the URL to the NEW email so the
  * confirm step is a click rather than a paste.
  *
  * The TOKEN type is the same `pde_…` shape used for email
- * verification — both flows are "prove control of an email." The
+ * verification - both flows are "prove control of an email." The
  * confirm endpoint reads `payload.email` as the NEW email when the
  * payload differs from the user's current email; otherwise it
  * behaves as plain verification. This explicit-email-in-payload
@@ -28,6 +28,7 @@ import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { assertBootstrapAdminMutable } from "@/lib/auth/bootstrap-admin";
 import { mintVerifyToken } from "@/lib/auth/email-verification-token";
 import { verifyPassword } from "@/lib/auth/password";
 import { sensitiveLimiter } from "@/lib/auth/rate-limit";
@@ -44,6 +45,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const { user } = await requireUser();
     await requireCsrf(request);
+    assertBootstrapAdminMutable(user.email);
 
     const limit = await sensitiveLimiter.takeShared(`change-email:${user.id}`);
     if (!limit.allowed) {
@@ -100,7 +102,7 @@ export async function POST(request: Request): Promise<Response> {
       secret: env.APP_SECRET_KEY,
     });
     const confirmUrl = `${env.APP_URL}/change-email?token=${encodeURIComponent(token)}`;
-    // Confirmation goes to the NEW address — that's the ownership proof.
+    // Confirmation goes to the NEW address - that's the ownership proof.
     const mail = await sendEmail({
       to: newEmail,
       kind: "email-change",
@@ -126,7 +128,7 @@ export async function POST(request: Request): Promise<Response> {
     if (mail.skipped) {
       logger.warn(
         { userId: user.id, newEmail, confirmUrl },
-        "auth.email.change.requested — SMTP disabled; share this URL with the user out-of-band",
+        "auth.email.change.requested - SMTP disabled; share this URL with the user out-of-band",
       );
     } else if (!mail.ok) {
       logger.error({ userId: user.id, error: mail.error }, "auth.email.change.send-failed");

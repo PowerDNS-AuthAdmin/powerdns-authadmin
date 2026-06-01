@@ -1,7 +1,7 @@
 /**
  * app/api/profile/mfa/webauthn/registration-options/route.ts
  *
- * POST — start a WebAuthn registration ceremony for the signed-in user.
+ * POST - start a WebAuthn registration ceremony for the signed-in user.
  *
  * Mirrors the TOTP enrol-start pattern: we mint the ceremony challenge,
  * stash it in the temp-reveal-store keyed by a single-use token bound to
@@ -16,6 +16,7 @@
 
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { assertBootstrapAdminMutable } from "@/lib/auth/bootstrap-admin";
 import { mint } from "@/lib/auth/temp-reveal-store";
 import { getWebauthnConfig } from "@/lib/auth/webauthn";
 import { startRegistration } from "@/lib/auth/webauthn/registration";
@@ -32,6 +33,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const { user } = await requireUser({ skipComplianceGate: true });
     await requireCsrf(request);
+    assertBootstrapAdminMutable(user.email);
 
     const config = await getWebauthnConfig();
     const existing = await listCredentials(user.id);

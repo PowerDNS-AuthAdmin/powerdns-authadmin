@@ -19,19 +19,19 @@ export interface TlsaStruct {
 }
 
 const USAGE: Array<{ value: number; label: string }> = [
-  { value: 0, label: "0 — PKIX-TA" },
-  { value: 1, label: "1 — PKIX-EE" },
-  { value: 2, label: "2 — DANE-TA" },
-  { value: 3, label: "3 — DANE-EE" },
+  { value: 0, label: "0 - PKIX-TA" },
+  { value: 1, label: "1 - PKIX-EE" },
+  { value: 2, label: "2 - DANE-TA" },
+  { value: 3, label: "3 - DANE-EE" },
 ];
 const SELECTOR: Array<{ value: number; label: string }> = [
-  { value: 0, label: "0 — Full certificate" },
-  { value: 1, label: "1 — SubjectPublicKeyInfo" },
+  { value: 0, label: "0 - Full certificate" },
+  { value: 1, label: "1 - SubjectPublicKeyInfo" },
 ];
 const MATCHING: Array<{ value: number; label: string }> = [
-  { value: 0, label: "0 — Exact" },
-  { value: 1, label: "1 — SHA-256" },
-  { value: 2, label: "2 — SHA-512" },
+  { value: 0, label: "0 - Exact" },
+  { value: 1, label: "1 - SHA-256" },
+  { value: 2, label: "2 - SHA-512" },
 ];
 
 function tlsaImpl(type: "TLSA" | "SMIMEA"): RREditor<TlsaStruct> {

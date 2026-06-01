@@ -1,7 +1,7 @@
 /**
  * app/api/auth/logout/route.ts
  *
- * POST /api/auth/logout — revoke the current session and clear cookies.
+ * POST /api/auth/logout - revoke the current session and clear cookies.
  *
  * Idempotent: callable even without a session. We still audit-log the
  * call so a "logout pressed twice" pattern shows up in the trail.
@@ -10,7 +10,7 @@
  * either the IdP's RP-initiated-logout URL (when the session was minted
  * via OIDC and the IdP advertised an end_session_endpoint at sign-in
  * time) or the local `/login?signed-out=1` fallback. The client does a
- * top-level navigation via `window.location.replace(location)` —
+ * top-level navigation via `window.location.replace(location)` -
  * specifically NOT a fetch-followed redirect, because the
  * `connect-src 'self'` CSP would block a fetch chain that ends on the
  * IdP's domain. Top-level navigation is exempt from connect-src.
@@ -32,7 +32,7 @@ import { logger } from "@/lib/logger";
 /**
  * Cookie name + TTL for the "just-logged-out" suppression cookie. Read by
  * /login to skip `forceDefault` OIDC auto-redirect for a short window
- * after sign-out — without this, the IdP's still-valid session would
+ * after sign-out - without this, the IdP's still-valid session would
  * silently re-auth the user and they'd never see a logout confirmation.
  * 60 seconds is enough for the user to land back on /login + hit the
  * sign-in button manually if they want to. Belt-and-braces with the
@@ -53,7 +53,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const session = await readSession();
 
-  // RP-initiated-logout target — captured at OIDC sign-in time and
+  // RP-initiated-logout target - captured at OIDC sign-in time and
   // stored on the session row. Read it BEFORE endSession() destroys
   // the row. Local-source sessions and OIDC sessions on IdPs that
   // didn't advertise `end_session_endpoint` both fall through to the
@@ -80,7 +80,7 @@ export async function POST(request: Request): Promise<Response> {
   await endSession();
 
   // Mark this browser as "just logged out". /login reads this cookie and
-  // suppresses the forceDefault OIDC auto-redirect — without this, a still-
+  // suppresses the forceDefault OIDC auto-redirect - without this, a still-
   // valid IdP session re-auths the operator silently and they never see a
   // logout confirmation. HttpOnly so JS can't tamper, scoped to /login by
   // path so it doesn't leak into other requests.
@@ -120,7 +120,7 @@ export async function POST(request: Request): Promise<Response> {
 
 /**
  * Build an OpenID Connect RP-initiated-logout URL per the OpenID
- * Connect Session Management spec — `end_session_endpoint` plus
+ * Connect Session Management spec - `end_session_endpoint` plus
  * `id_token_hint` (so the IdP can identify the session to end) and
  * `client_id` (some IdPs require it).
  *
@@ -128,13 +128,13 @@ export async function POST(request: Request): Promise<Response> {
  *
  *   1. Most IdPs require it pre-registered. When it isn't, authentik
  *      / Keycloak / Okta silently strip it and either redirect home
- *      or show a generic logout screen — UX is unpredictable.
+ *      or show a generic logout screen - UX is unpredictable.
  *
  *   2. With forceDefault enabled, redirecting back to /login means
  *      the user instantly auto-bounces through the IdP and is
  *      silently signed back in (the IdP just ended their session,
  *      but the OIDC flow re-prompts only if forced via prompt=login
- *      — silent re-auth is the spec's default). Visible to the user
+ *      - silent re-auth is the spec's default). Visible to the user
  *      as "logout did nothing."
  *
  * Same call as certifi makes (see `build_rp_logout_url` in its
@@ -152,7 +152,7 @@ function buildRpLogoutUrl(input: {
   try {
     url = new URL(input.endSessionUrl);
   } catch {
-    // Stored URL is malformed — return as-is so the browser still
+    // Stored URL is malformed - return as-is so the browser still
     // lands on the IdP's logout page even without the hint params.
     return input.endSessionUrl;
   }

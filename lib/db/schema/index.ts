@@ -9,7 +9,7 @@
  *  - SQLite mode: the structurally-equivalent sqlite-core tables in
  *    `lib/db/schema-sqlite/`.
  *
- * Type-wise, every export is annotated as its Postgres flavor — that's the
+ * Type-wise, every export is annotated as its Postgres flavor - that's the
  * canonical shape the rest of the codebase types against. At runtime, when
  * SQLite is active, the underlying object is the sqlite-core table. The two
  * schemas keep matching JS-side row types (modulo `bigint` ↔ `number` for
@@ -18,7 +18,7 @@
  *
  * Why this shape: repositories import `users` etc. from here. Making the
  * import point dispatch at module load means repository code is dialect-
- * agnostic — `db.select().from(users)` builds the right SQL because both
+ * agnostic - `db.select().from(users)` builds the right SQL because both
  * `db` (from `../index.ts`) and `users` (from this file) come from the
  * same dialect.
  *

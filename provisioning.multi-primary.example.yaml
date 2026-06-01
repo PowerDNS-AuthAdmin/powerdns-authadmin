@@ -2,7 +2,7 @@
 # provisioning.multi-primary.example.yaml
 #
 # Provisioning file for the docker-compose-multi-primary.yml stack.
-# Registers one cluster ("prod") containing three peer primaries — all
+# Registers one cluster ("prod") containing three peer primaries - all
 # writable, all backed by the same MariaDB instance in the demo.
 #
 # Mounted by the compose at /etc/powerdns-authadmin/provisioning.yaml on the
@@ -18,10 +18,10 @@ settings:
 # Cluster definition. The `write_strategy` chosen here governs which peer
 # the app picks when a write targets `?cluster=prod`:
 #
-#   round_robin    — rotate evenly across active peers (default).
-#   lowest_latency — pick the peer with the lowest recent p50 latency.
-#   random         — uniform random.
-#   least_load     — pick the peer with the fewest recent zone-count
+#   round_robin    - rotate evenly across active peers (default).
+#   lowest_latency - pick the peer with the lowest recent p50 latency.
+#   random         - uniform random.
+#   least_load     - pick the peer with the fewest recent zone-count
 #                    samples.
 # -----------------------------------------------------------------------------
 clusters:
@@ -31,7 +31,7 @@ clusters:
     write_strategy: round_robin
 
 # -----------------------------------------------------------------------------
-# Three peers — every row is role=primary with cluster_slug=prod. The
+# Three peers - every row is role=primary with cluster_slug=prod. The
 # applier resolves cluster_slug to the cluster's row id at write time.
 # -----------------------------------------------------------------------------
 pdns_servers:

@@ -7,7 +7,7 @@
  * Data flow:
  *   1. `ensurePollerRunning()` kicks the unified background poller (zone-state
  *      + PDNS `/statistics` + the 5-min `metric_samples` snapshot) if it isn't
- *      already running. The page itself does no sampling — it renders against
+ *      already running. The page itself does no sampling - it renders against
  *      whatever the poller has already written.
  *   2. All chart data is fetched via the dashboard repo; ECharts option
  *      objects are composed server-side and shipped as props to the
@@ -69,11 +69,11 @@ export const metadata: Metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
 // Graph windows. Live in `lib/metrics/dashboard-windows.ts` so the retention
-// sweep can link to them 1:1 — we don't keep metrics we don't display.
+// sweep can link to them 1:1 - we don't keep metrics we don't display.
 const HOURS_24 = DASHBOARD_AUDIT_HOURLY_WINDOW_HOURS;
 const HOURS_7D = DASHBOARD_METRIC_SAMPLES_WINDOW_HOURS;
 const PDNS_STATS_WINDOW_MS = DASHBOARD_PDNS_STATS_WINDOW_MS;
-void DASHBOARD_METRIC_SAMPLES_WINDOW_MS; // re-exported via _HOURS — silence linter
+void DASHBOARD_METRIC_SAMPLES_WINDOW_MS; // re-exported via _HOURS - silence linter
 
 interface DashboardProps {
   searchParams: Promise<{ tab?: string }>;
@@ -85,12 +85,12 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
   // Two tabs: pdns (PowerDNS server statistics) vs. admin (audit / user /
   // server admin metrics). With background polling enabled, "pdns" is the
   // default; with polling disabled there's nothing to chart, so "admin"
-  // becomes the default and the tab strip hides — the PDNS-stats tab still
+  // becomes the default and the tab strip hides - the PDNS-stats tab still
   // resolves but renders a subtle inline note pointing at the env flag.
   const defaultTab: "admin" | "pdns" = pdnsBackgroundPollingEnabled ? "pdns" : "admin";
   // Direct URL ?tab=pdns with the flag off bounces to the admin tab with a
   // flash toast ("This view requires PDNS_BACKGROUND_POLLING=true"). A bare
-  // `/dashboard` falls back to the admin tab silently — the dashboard heading
+  // `/dashboard` falls back to the admin tab silently - the dashboard heading
   // already carries a <PollingDisabledHint/> that explains the flag.
   if (requestedTab === "pdns" && !pdnsBackgroundPollingEnabled) {
     redirect("/dashboard?tab=admin&flash=polling-required&need=PDNS+statistics");
@@ -99,7 +99,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
     requestedTab === "admin" ? "admin" : requestedTab === "pdns" ? "pdns" : defaultTab;
 
   // Permission gates. Every section below is scoped to the perms the actor
-  // has — a freshly-provisioned OIDC user with no roles sees just the
+  // has - a freshly-provisioned OIDC user with no roles sees just the
   // welcome message and the password-rotation banner (if applicable). Audit
   // and server stats are sensitive (actor names, internal hostnames,
   // request volumes) and only render for users explicitly granted access.
@@ -168,7 +168,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
     }
   }
 
-  // Primaries only — secondaries mirror their primary's zone set, so
+  // Primaries only - secondaries mirror their primary's zone set, so
   // including them here would double-count.
   const primaryBackends = backendsLatest.filter((b) => b.isWriteTarget);
   // De-duplicate cluster peers: every peer in a cluster shares the same
@@ -207,7 +207,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
         </div>
       </header>
 
-      {/* Email-verification banner — LOCAL (password) accounts only.
+      {/* Email-verification banner - LOCAL (password) accounts only.
           OIDC/SSO users (no passwordHash) are exempt: their identity and
           email are owned by the IdP and the app runs no verification flow
           for them. This mirrors the SSO-only MFA exemption in (app)/layout. */}
@@ -215,7 +215,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
         <UnverifiedEmailBanner />
       ) : null}
 
-      {/* Forced password change — surfaced right below the header, above the
+      {/* Forced password change - surfaced right below the header, above the
           KPIs, so it's the first thing the operator acts on. */}
       {user.mustChangePassword ? (
         <section className="rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 p-4 text-sm">
@@ -228,7 +228,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
         </section>
       ) : null}
 
-      {/* KPI cards — each one is conditional on the perm needed to derive it. */}
+      {/* KPI cards - each one is conditional on the perm needed to derive it. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {canReadAudit ? (
           <KpiCard label="Active sessions" value={String(currentSessions)} href="/profile" />
@@ -258,7 +258,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
         ) : null}
       </div>
 
-      {/* Attention required — admin-only at-a-glance counts of users
+      {/* Attention required - admin-only at-a-glance counts of users
           in actionable states. Hidden entirely when all counters are
           zero, so a healthy deployment doesn't show a "0 items"
           shelf. Each tile links to a pre-filtered users list when
@@ -287,17 +287,17 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
         )
       ) : (
         <>
-          {/* Activity charts — audit-derived. */}
+          {/* Activity charts - audit-derived. */}
           {canReadAudit ? (
             <div className="grid gap-4 lg:grid-cols-2">
               <ChartCard
-                title="Record changes — last 24h"
+                title="Record changes - last 24h"
                 subtitle="Per-hour bucket of record.create/update/delete events"
               >
                 <Chart option={hourlyLineOption(editsHourly, HOURS_24, "Edits")} height={260} />
               </ChartCard>
               <ChartCard
-                title="Successful logins — last 24h"
+                title="Successful logins - last 24h"
                 subtitle="Per-hour bucket of auth.login.success events"
               >
                 <Chart option={hourlyLineOption(loginsHourly, HOURS_24, "Logins")} height={260} />
@@ -305,11 +305,11 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
             </div>
           ) : null}
 
-          {/* Backend health — exposes hostnames + latency, gated by server.read. */}
+          {/* Backend health - exposes hostnames + latency, gated by server.read. */}
           {canReadServers ? (
             <div className="grid gap-4 lg:grid-cols-2">
               <ChartCard
-                title="Zones per backend — last 7 days"
+                title="Zones per backend - last 7 days"
                 subtitle="One sample per ~5 minutes; gaps mean the backend wasn't sampled"
               >
                 <Chart
@@ -318,7 +318,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
                 />
               </ChartCard>
               <ChartCard
-                title="PowerDNS p95 latency — last 7 days"
+                title="PowerDNS p95 latency - last 7 days"
                 subtitle="Milliseconds (lower is better)"
               >
                 <Chart
@@ -333,13 +333,13 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
           {canReadAudit ? (
             <div className="grid gap-4 lg:grid-cols-2">
               <ChartCard
-                title="Top actors — last 7 days"
+                title="Top actors - last 7 days"
                 subtitle="Users by number of audited actions"
               >
                 <Chart option={topActorsOption(actorBars)} height={260} />
               </ChartCard>
               <ChartCard
-                title="Action breakdown — last 7 days"
+                title="Action breakdown - last 7 days"
                 subtitle="Top 8 actions by frequency"
               >
                 <Chart option={actionPieOption(actionPie)} height={260} />
@@ -352,7 +352,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
             <div className="grid gap-4 lg:grid-cols-2">
               {canReadAudit ? (
                 <ChartCard
-                  title="Active sessions — last 7 days"
+                  title="Active sessions - last 7 days"
                   subtitle="Snapshot per dashboard load (~5 min cadence)"
                 >
                   <Chart option={sessionsOption(sessionsTimeSeries)} height={260} />
@@ -407,13 +407,13 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
                                 </Link>
                               </td>
                               <td className="px-3 py-3 align-top font-mono text-xs">
-                                {b.zoneCount ?? "—"}
+                                {b.zoneCount ?? "-"}
                               </td>
                               <td className="px-3 py-3 align-top font-mono text-xs">
-                                {b.latencyP50Ms === null ? "—" : `${Math.round(b.latencyP50Ms)}ms`}
+                                {b.latencyP50Ms === null ? "-" : `${Math.round(b.latencyP50Ms)}ms`}
                               </td>
                               <td className="px-3 py-3 align-top font-mono text-xs">
-                                {b.latencyP95Ms === null ? "—" : `${Math.round(b.latencyP95Ms)}ms`}
+                                {b.latencyP95Ms === null ? "-" : `${Math.round(b.latencyP95Ms)}ms`}
                               </td>
                             </tr>
                           ))
@@ -426,7 +426,7 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
             </div>
           ) : null}
 
-          {/* Recent activity preview — audit content, gated by audit.read. */}
+          {/* Recent activity preview - audit content, gated by audit.read. */}
           {canReadAudit ? (
             <Card
               title="Recent activity"
@@ -559,11 +559,11 @@ function ChartCard({
 /**
  * Inline attention-widget. Lives at the top of the dashboard for
  * admins (gated by `user.read`). Surfaces operational items that
- * need human action — locked-out users (incident triage), users
+ * need human action - locked-out users (incident triage), users
  * without MFA (policy hardening), unverified emails (signup
  * follow-up), forced password changes pending.
  *
- * Hidden when every count is zero — a clean deployment shouldn't
+ * Hidden when every count is zero - a clean deployment shouldn't
  * see an empty alert shelf.
  */
 function hasAttention(c: {
@@ -680,8 +680,8 @@ function AttentionTile({
  *
  * Tile semantics:
  *   - "Never observed": a freshly-added backend the broker hasn't reached
- *      yet — actionable via the Test button on the row.
- *   - "Unreachable": the broker can't reach it right now (live status) — the
+ *      yet - actionable via the Test button on the row.
+ *   - "Unreachable": the broker can't reach it right now (live status) - the
  *      same signal the servers list + bell show; operator should Test/fix.
  */
 function hasPdnsAttention(c: { neverProbed: number; unreachable: number }): boolean {
@@ -724,7 +724,7 @@ function PdnsAttentionWidget({ counts }: { counts: { neverProbed: number; unreac
  * OIDC discovery attention widget. Mirror of the PDNS
  * variant. Surfaces enabled providers whose discovery probe is
  * either missing entirely (`Never probed`) or actively failing
- * (`Failing probe` — discovery_cache.ok=false). Hidden when both
+ * (`Failing probe` - discovery_cache.ok=false). Hidden when both
  * counts are zero so healthy fleets see nothing. Tiles deep-link
  * to /admin/oidc-providers where each row's discovery badge
  * carries the human-readable reason.
@@ -789,7 +789,7 @@ function Card({
 }
 
 /**
- * Per-backend card with live PDNS statistics — query rate, latency,
+ * Per-backend card with live PDNS statistics - query rate, latency,
  * cache hit ratio, response-by-qtype, response-by-rcode. Pulls from
  * the `pdns_server_stats` table (populated by the sampler at top of
  * the page render). Renders one full-width card per primary plus
@@ -962,7 +962,7 @@ async function PdnsStatsCard({
               yAxisLabel="q/s"
             />
           ) : (
-            <StatEmpty label="Not enough samples yet — collecting." />
+            <StatEmpty label="Not enough samples yet - collecting." />
           )}
         </StatBlock>
         <StatBlock title="Latency (µs)">

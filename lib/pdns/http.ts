@@ -43,13 +43,13 @@ async function loadRecorder(): Promise<RecordPdnsRequest> {
 export interface PdnsHttpConfig {
   /** Root URL, no trailing slash, no `/servers/...` segment. */
   baseUrl: string;
-  /** PDNS X-API-Key — already decrypted by the caller. */
+  /** PDNS X-API-Key - already decrypted by the caller. */
   apiKey: string;
   /** Maximum attempts including the first try. Default 3. */
   maxAttempts?: number;
   /** Per-request timeout in milliseconds. Default 10s. */
   timeoutMs?: number;
-  /** Slug of the backend this client talks to — included in log fields. */
+  /** Slug of the backend this client talks to - included in log fields. */
   serverSlug: string;
   /**
    * Our DB row id for the backend (pdns_servers.id). Passed through to
@@ -102,11 +102,11 @@ export async function pdnsRequest<T>(config: PdnsHttpConfig, init: PdnsRequestIn
 
   // Tie the audit row to the per-HTTP-request correlation id. If we're inside
   // an explicit request-context frame (background NOTIFY, poller tick, …) use
-  // ITS id — `next/headers` would otherwise leak the parent route handler's id
+  // ITS id - `next/headers` would otherwise leak the parent route handler's id
   // into every async task spawned within the handler's scope, producing the
   // "single user action shows 60+ unrelated PDNS calls under one request-id"
   // symptom. Outside both frames (background samplers, CLI scripts) `headers()`
-  // throws — fall back to null silently.
+  // throws - fall back to null silently.
   let requestId: string | null;
   if (hasRequestIdOverride()) {
     requestId = currentRequestIdOverride();
@@ -150,7 +150,7 @@ export async function pdnsRequest<T>(config: PdnsHttpConfig, init: PdnsRequestIn
         // `metric_samples`, which the cluster picker reads to route writes
         // (`lowest_latency` strategy). A peer that fails *fast* (instant 5xx,
         // refused connection) would otherwise post a tiny latency and become
-        // the preferred write target — exactly backwards. Keeping the buffer
+        // the preferred write target - exactly backwards. Keeping the buffer
         // success-only also makes the operator-facing latency percentile mean
         // "latency of requests that worked," not a number a flapping backend
         // can drag down. Failures are still fully observable via the
@@ -173,14 +173,14 @@ export async function pdnsRequest<T>(config: PdnsHttpConfig, init: PdnsRequestIn
       }
     }
     // After retries exhaust, re-throw the last error. Already classified by
-    // `singleRequest` — no double-wrap.
+    // `singleRequest` - no double-wrap.
     throw lastError;
   };
 
   // Coordinate per backend so the app doesn't read + write the same store at
   // once (notably gsqlite3, where a concurrent reader can stall a writer into a
   // 500). WRITES always take the lock; reads only when the caller opts in (the
-  // poll's probe client) — interactive reads stay fully concurrent. Keyed by
+  // poll's probe client) - interactive reads stay fully concurrent. Keyed by
   // the backend's DB id, falling back to its slug for registry-less clients.
   const coordinate = method !== "GET" || config.coordinateAllRequests === true;
   if (!coordinate) return runWithRetries();
@@ -236,11 +236,11 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
   };
 
   // DNS-rebinding defense. The hostname passed config-time safety, but DNS is
-  // mutable — re-resolve immediately before the call and reject if the current
+  // mutable - re-resolve immediately before the call and reject if the current
   // resolution lands in a blocked range. `checkPdnsUrlSafe` returns the exact
   // addresses it validated; we PIN one of them into the request (see
   // `pinnedDispatcher` below) so the peer undici connects to is byte-for-byte
-  // the address the guard checked — closing the rebinding window where undici's
+  // the address the guard checked - closing the rebinding window where undici's
   // own independent lookup could resolve the same hostname to a different
   // (blocked) IP between the guard's lookup and the connect.
   const safety = await checkPdnsUrlSafe(url);
@@ -256,7 +256,7 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
   // address (a literal IP, or the resolved A/AAAA set). Pin one into a
   // single-use dispatcher (shared logic in `lib/net/pinned-fetch.ts`); the
   // Agent mirrors `PDNS_AGENT_OPTIONS` so TLS/H2 negotiation and timeouts match
-  // the shared pool exactly — the only difference is the pinned `connect.lookup`.
+  // the shared pool exactly - the only difference is the pinned `connect.lookup`.
   const dispatcher = buildPinnedDispatcher(safety.addresses, PDNS_AGENT_OPTIONS);
 
   const controller = new AbortController();
@@ -295,7 +295,7 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
     // address and must not be reused for a hostname that may now resolve
     // elsewhere. Tear it down once the request settles. `close()` waits for
     // in-flight work; body bytes are fully drained below before we return, so
-    // closing here (vs. after the read) would race the body — fire-and-forget
+    // closing here (vs. after the read) would race the body - fire-and-forget
     // and let it drain. A close failure is irrelevant to the caller.
     void dispatcher.close().catch(() => undefined);
   }
@@ -305,7 +305,7 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
   // hit PDNS and got a 422" rather than silently disappearing.
   writeAudit(response.status, null);
 
-  // 204 No Content / empty body — return undefined as the inferred T. Callers
+  // 204 No Content / empty body - return undefined as the inferred T. Callers
   // typing the call as `<void>` for DELETE etc. get the right thing.
   if (response.status === 204) return undefined as T;
 
@@ -381,7 +381,7 @@ function extractPdnsErrorMessage(body: unknown): string | null {
   if (body === null || body === undefined) return null;
   if (typeof body === "string") return body;
   if (typeof body !== "object") {
-    // Numbers, booleans, bigints — fine to coerce directly without
+    // Numbers, booleans, bigints - fine to coerce directly without
     // tripping the no-base-to-string rule.
     return stringifyUnknown(body);
   }

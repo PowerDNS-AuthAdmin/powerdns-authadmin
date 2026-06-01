@@ -1,7 +1,7 @@
 /**
  * app/api/admin/pdns-servers/[id]/test/route.ts
  *
- * POST — actively probe the backend, NOW, through the one central health op
+ * POST - actively probe the backend, NOW, through the one central health op
  * (`refreshBackendHealth`, immediate). It runs the same listZones-based
  * reachability probe the background poll uses and authoritatively re-syncs the
  * advisory (debounce bypassed), so the Test result, the status badge, and the

@@ -2,7 +2,7 @@
  * app/(app)/zones/[zoneId]/loading.tsx
  *
  * Initial-load shimmer for the zone detail page. Matches the rendered
- * page's chrome — Back link · header · stats grid · tab strip · body —
+ * page's chrome - Back link · header · stats grid · tab strip · body -
  * so the swap to the real page doesn't shift layout.
  *
  * The dnssec/ and metadata/ child segments have their own loading.tsx

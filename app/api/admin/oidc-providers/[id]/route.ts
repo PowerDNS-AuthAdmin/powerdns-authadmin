@@ -1,9 +1,9 @@
 /**
  * app/api/admin/oidc-providers/[id]/route.ts
  *
- * PATCH  — update a provider (oidc.manage). The client_secret rotates only
+ * PATCH  - update a provider (oidc.manage). The client_secret rotates only
  *          when provided; omit to leave it in place.
- * DELETE — remove a provider (oidc.manage). Hard-delete; the audit log
+ * DELETE - remove a provider (oidc.manage). Hard-delete; the audit log
  *          carries the historical record.
  *
  * On either mutation, the in-process OIDC discovery cache is dropped so
@@ -64,7 +64,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       await assertSafeOidcIssuerUrl(input.issuerUrl);
     }
 
-    // Privilege ceiling (GHSA-wf29-rmhc-rqc9): same guard as create — a PATCH
+    // Privilege ceiling (GHSA-wf29-rmhc-rqc9): same guard as create - a PATCH
     // that sets/changes the mappings must stay within the actor's global grant.
     if (input.groupMappings !== undefined) {
       await assertGroupMappingsWithinCeiling(user.id, input.groupMappings);
@@ -115,7 +115,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       return row;
     });
 
-    // Cache invalidation runs only after the update commits — invalidating on
+    // Cache invalidation runs only after the update commits - invalidating on
     // a rolled-back write would needlessly force a re-discovery.
     invalidateOidcConfigCache();
 
@@ -223,7 +223,7 @@ function snapshot(row: {
     requireEmailVerified: row.requireEmailVerified,
     allowedEmailDomains: row.allowedEmailDomains,
     groupMappingsCount: row.groupMappings?.length ?? 0,
-    // Icon URL itself may be huge (inline data: URI) — don't bloat
+    // Icon URL itself may be huge (inline data: URI) - don't bloat
     // audit before/after with the bytes. Capture only "set / unset"
     // for the diff; operators reviewing changes care that an icon
     // changed, not the specific base64 payload.

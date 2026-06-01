@@ -9,10 +9,10 @@
  *   - `X-API-Key` header → `<redacted>`
  *   - Any header whose name matches `/auth|token|secret|key/i`
  *
- * The response body is intentionally NOT stored — only the response
+ * The response body is intentionally NOT stored - only the response
  * status code. Storing PDNS' responses (zone listings, full rrset
  * dumps) would balloon the table and rarely adds diagnostic value
- * beyond the status. Bodies stay in the live PDNS — the log captures
+ * beyond the status. Bodies stay in the live PDNS - the log captures
  * intent + outcome.
  */
 
@@ -47,7 +47,7 @@ const REDACTED = "<redacted>";
 
 /**
  * Insert one row into `pdns_requests`. Errors are swallowed and logged
- * — a failed audit insert must NEVER block the upstream PDNS call.
+ * - a failed audit insert must NEVER block the upstream PDNS call.
  */
 export function recordPdnsRequest(input: PdnsRequestLogInput): void {
   // Fire-and-forget. The caller is mid-PDNS-call and can't afford to wait.

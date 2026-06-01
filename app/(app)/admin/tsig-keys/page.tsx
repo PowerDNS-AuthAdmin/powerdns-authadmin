@@ -1,7 +1,7 @@
 /**
  * app/(app)/admin/tsig-keys/page.tsx
  *
- * Per-backend inventory of TSIG keys. Lists name + algorithm only —
+ * Per-backend inventory of TSIG keys. Lists name + algorithm only -
  * **never** the shared-secret material, which is reserved for a
  * future reveal flow gated on `tsig.manage`.
  *
@@ -68,11 +68,11 @@ export default async function TsigKeysPage({ searchParams }: PageProps) {
     keys = await loadKeys(selected);
   } catch (err) {
     // The gateway already recorded reachability; show a generic message (the raw
-    // connect error host:port is a fingerprint oracle — S-12 — log-only).
+    // connect error host:port is a fingerprint oracle - S-12 - log-only).
     fetchError =
       err instanceof PdnsAuthError
         ? "API rejected the configured key (401/403)."
-        : "Backend unreachable — the app hasn't reached its API recently.";
+        : "Backend unreachable - the app hasn't reached its API recently.";
     logger.warn(
       { server: selected.slug, err: err instanceof Error ? redact(err.message) : "unknown" },
       "admin.tsig.list.failed",
@@ -138,7 +138,7 @@ export default async function TsigKeysPage({ searchParams }: PageProps) {
       ) : null}
 
       {canManage ? (
-        // Key on the slug so switching backends remounts the component — the
+        // Key on the slug so switching backends remounts the component - the
         // one-time secret is per-server and must NOT carry across a server
         // switch (a soft `?server=` nav otherwise preserves its client state).
         // `rows={sorted}` is null on a fetch error (the error box above covers

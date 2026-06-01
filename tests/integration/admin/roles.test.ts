@@ -1,7 +1,7 @@
 /**
  * tests/integration/admin/roles.test.ts
  *
- * /api/admin/roles — list / create / update / delete custom roles. System
+ * /api/admin/roles - list / create / update / delete custom roles. System
  * roles (super-admin, operator, etc.) refuse most mutations: full-field
  * PATCH and DELETE both reject. Non-admin callers get 403 on create.
  */
@@ -98,7 +98,7 @@ describe("/api/admin/roles", () => {
     expect(roles.find((r) => r.id === role.id)).toBeUndefined();
   });
 
-  it("non-admin (operator) cannot create roles — 403", async () => {
+  it("non-admin (operator) cannot create roles - 403", async () => {
     const admin = await loginAsBootstrap();
     const op = await createUser(admin, {
       email: uniqueEmail("op-role"),

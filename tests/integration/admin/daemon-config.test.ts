@@ -7,7 +7,7 @@
  * PowerDNS release that renames or drops a replication flag fails here loudly.
  *
  * deriveCapabilities() itself is unit-tested (lib/pdns/capabilities.test.ts);
- * this proves the live data source is shaped the way that unit test assumes —
+ * this proves the live data source is shaped the way that unit test assumes -
  * across a primary daemon, a secondary daemon, and every backend in the stack.
  */
 
@@ -23,7 +23,7 @@ function flag(config: PdnsConfigSetting[], name: string): string | undefined {
   return config.find((c) => c.name.toLowerCase() === name)?.value.toLowerCase();
 }
 const isYes = (config: PdnsConfigSetting[], name: string): boolean => flag(config, name) === "yes";
-/** modern flag OR its pre-4.5 legacy alias — either being yes counts. */
+/** modern flag OR its pre-4.5 legacy alias - either being yes counts. */
 const cap = (config: PdnsConfigSetting[], modern: string, legacy: string): boolean =>
   isYes(config, modern) || isYes(config, legacy);
 

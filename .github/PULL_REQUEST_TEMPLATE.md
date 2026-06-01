@@ -1,6 +1,6 @@
 <!--
 A good PR description is the difference between a 10-minute review and a 60-minute one.
-Fill out each section honestly. If a section doesn't apply, write "n/a" — don't leave it blank.
+Fill out each section honestly. If a section doesn't apply, write "n/a" - don't leave it blank.
 -->
 
 ## What and why

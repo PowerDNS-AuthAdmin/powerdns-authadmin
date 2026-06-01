@@ -13,7 +13,7 @@
  *     than GET with a query string) because zone lists can be long.
  *
  * The backend selector uses `SelectMenu` (themed). Native <select>
- * isn't allowed in this app — feedback memory.
+ * isn't allowed in this app - feedback memory.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -183,7 +183,7 @@ function ImportPanel({ backends }: { backends: Backend[] }) {
             $ORIGIN
           </code>{" "}
           boundaries; each becomes its own zone with its records pre-populated. DNSSEC records
-          (RRSIG, NSEC, …) are skipped — PowerDNS manages those.
+          (RRSIG, NSEC, …) are skipped - PowerDNS manages those.
         </p>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -392,7 +392,7 @@ function ExportPanel({ backends }: { backends: Backend[] }) {
     setDownloading(true);
     setError(null);
     try {
-      // Raw apiFetch (not mutate) so we can read the response as a blob —
+      // Raw apiFetch (not mutate) so we can read the response as a blob -
       // mutate assumes JSON. apiFetch attaches CSRF automatically.
       const res = await apiFetch("/api/admin/pdns/zones/export", {
         method: "POST",
@@ -559,7 +559,7 @@ function ErrorBanner({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Themed checkbox — the user has banned default <input type="checkbox">
+ * Themed checkbox - the user has banned default <input type="checkbox">
  * (feedback-themed-form-controls). This is a styled box that mirrors
  * the rest of the app.
  */

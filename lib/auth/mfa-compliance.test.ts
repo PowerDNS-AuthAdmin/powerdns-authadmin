@@ -68,7 +68,7 @@ describe("checkMfaCompliance", () => {
   });
 });
 
-describe("checkMfaCompliance — SSO exemption + per-user override", () => {
+describe("checkMfaCompliance - SSO exemption + per-user override", () => {
   it("SSO-only accounts are exempt under inherit, even with an MFA-required role", () => {
     expect(
       checkMfaCompliance({ totpEnrolled: false, webauthnEnrolled: false, ssoOnly: true }, [
@@ -116,7 +116,7 @@ describe("checkMfaCompliance — SSO exemption + per-user override", () => {
   });
 });
 
-describe("checkMfaCompliance — WebAuthn satisfies the gate", () => {
+describe("checkMfaCompliance - WebAuthn satisfies the gate", () => {
   it("a passkey alone is enough to satisfy a role-required gate", () => {
     expect(
       checkMfaCompliance({ totpEnrolled: false, webauthnEnrolled: true }, [

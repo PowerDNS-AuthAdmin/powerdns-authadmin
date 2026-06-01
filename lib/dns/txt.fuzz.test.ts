@@ -3,7 +3,7 @@
  *
  * Property-based (fuzz) tests for the TXT presentation parser. fast-check
  * generates thousands of adversarial inputs and shrinks any failure to a
- * minimal reproducer — the right shape of fuzzing for a pure string parser
+ * minimal reproducer - the right shape of fuzzing for a pure string parser
  * (and what OpenSSF Scorecard recognises as fuzzing for JS/TS).
  *
  * Invariants under test:
@@ -18,7 +18,7 @@ import { extractQuotedStrings, canonicalTxtContent, octetLength } from "./txt";
 
 const RUNS = { numRuns: 1000 };
 
-describe("txt parser — fuzz", () => {
+describe("txt parser - fuzz", () => {
   it("extractQuotedStrings never throws and returns string[] | null", () => {
     fc.assert(
       fc.property(fc.string({ unit: "binary" }), (input) => {

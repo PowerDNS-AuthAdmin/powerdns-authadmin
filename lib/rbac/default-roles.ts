@@ -22,7 +22,7 @@ export interface DefaultRoleSpec {
 }
 
 /**
- * Read-only — can see, can't touch. Useful for auditors, on-call observers,
+ * Read-only - can see, can't touch. Useful for auditors, on-call observers,
  * or as a temporary scope while training someone.
  */
 const READ_ONLY: Permission[] = [
@@ -39,7 +39,7 @@ const READ_ONLY: Permission[] = [
   "settings.read",
 ];
 
-/** ZoneEditor — can manage records on assigned zones. No structural changes. */
+/** ZoneEditor - can manage records on assigned zones. No structural changes. */
 const ZONE_EDITOR: Permission[] = [
   ...READ_ONLY,
   "record.create",
@@ -49,7 +49,7 @@ const ZONE_EDITOR: Permission[] = [
   "token.delete.own",
 ];
 
-/** Operator — typical day-to-day admin scope within a team. */
+/** Operator - typical day-to-day admin scope within a team. */
 const OPERATOR: Permission[] = [
   ...ZONE_EDITOR,
   "zone.create",
@@ -61,11 +61,11 @@ const OPERATOR: Permission[] = [
   "template.manage",
 ];
 
-/** TeamOwner — full control of their team + member management. */
+/** TeamOwner - full control of their team + member management. */
 const TEAM_OWNER: Permission[] = [
   ...OPERATOR,
   "dnssec.configure",
-  // `tsig.read` (list keys) is granted alongside `tsig.manage` — managing
+  // `tsig.read` (list keys) is granted alongside `tsig.manage` - managing
   // implies seeing the list, and the /admin/tsig-keys page guards on
   // `tsig.read`. Without this pairing the page is unreachable even for
   // SuperAdmin (which spreads this list).
@@ -76,7 +76,7 @@ const TEAM_OWNER: Permission[] = [
   "team.manage-members",
 ];
 
-/** SuperAdmin — every permission. The seed script asserts this contains them all. */
+/** SuperAdmin - every permission. The seed script asserts this contains them all. */
 const SUPER_ADMIN: Permission[] = [
   ...TEAM_OWNER,
   "team.create",

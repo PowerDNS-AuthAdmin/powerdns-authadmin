@@ -1,4 +1,4 @@
-# ADR NNNN — Title
+# ADR NNNN - Title
 
 - **Status:** Proposed | Accepted | Superseded by ADR-XXXX | Deprecated
 - **Date:** YYYY-MM-DD
@@ -15,7 +15,7 @@ What we decided, stated in active voice. "We will use X." not "X should be used.
 
 ## Rationale
 
-Why this option won. Include the trade-offs honestly — every decision has a downside, and naming it
+Why this option won. Include the trade-offs honestly - every decision has a downside, and naming it
 now saves future-you a confused half-hour.
 
 ## Alternatives considered

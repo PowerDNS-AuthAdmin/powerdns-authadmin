@@ -14,7 +14,7 @@ export function ZoneTemplateActions({ id, name }: { id: string; name: string }) 
     const ok = await confirm({
       title: `Delete template "${name}"?`,
       description:
-        "Removes the template definition. Zones already created from it keep their records — templates are a creation-time scaffold, not a live link.",
+        "Removes the template definition. Zones already created from it keep their records - templates are a creation-time scaffold, not a live link.",
       confirmLabel: "Delete template",
       variant: "danger",
       dismissOnBackdrop: false,

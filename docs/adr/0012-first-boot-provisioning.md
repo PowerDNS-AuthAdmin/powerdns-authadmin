@@ -20,7 +20,7 @@ operator with a fresh PowerDNS-AuthAdmin install has to:
 7. Manually assign roles to every user as they trickle in via OIDC, since
    we have no group→role mapping today.
 
-Steps 3–7 are repeatable across every fresh install of an org — they're
+Steps 3–7 are repeatable across every fresh install of an org - they're
 declarative configuration, not per-instance state. They belong in source
 control next to the rest of the deployment manifest.
 
@@ -42,7 +42,7 @@ first boot. The applier is idempotent:
   successful apply. Subsequent restarts see the sentinel and skip the file.
 - An operator force-re-applies by deleting the sentinel row and restarting.
 
-The file is parsed by Zod with `.strict()` on every section — typos in
+The file is parsed by Zod with `.strict()` on every section - typos in
 top-level keys or section entries abort startup with a precise error rather
 than silently becoming a no-op.
 
@@ -52,26 +52,26 @@ opts out (operators using an out-of-band provisioning workflow).
 
 ### Sections covered
 
-- `settings` — KV writes against the known-keys vocabulary in
+- `settings` - KV writes against the known-keys vocabulary in
   `lib/validators/settings.ts`.
-- `roles` — custom roles only; system roles stay in `scripts/seed.ts`.
-- `teams` — teams as DB rows. Members come from OIDC group mappings, not
-  the YAML — keeping plaintext-password users out of the file is a
+- `roles` - custom roles only; system roles stay in `scripts/seed.ts`.
+- `teams` - teams as DB rows. Members come from OIDC group mappings, not
+  the YAML - keeping plaintext-password users out of the file is a
   deliberate scope choice.
-- `zone_templates` — applied to new zones at create time.
-- `pdns_servers` — primaries + secondaries. Secondaries reference their
+- `zone_templates` - applied to new zones at create time.
+- `pdns_servers` - primaries + secondaries. Secondaries reference their
   primary by slug; resolution happens at apply time.
-- `oidc` — providers + their group→role mappings.
+- `oidc` - providers + their group→role mappings.
 
 ### OIDC group → role materialisation
 
 Two schema additions (single migration each for PG + SQLite):
 
-- `oidc_providers.group_mappings` — JSON array of
+- `oidc_providers.group_mappings` - JSON array of
   `{ group, roleSlug, scopeType, scopeId }`. Provisioning resolves
   team/server slug references to ids at write time; zone scope is a
   literal name (no FK).
-- `role_assignments.provider_id` — nullable FK to `oidc_providers`,
+- `role_assignments.provider_id` - nullable FK to `oidc_providers`,
   `ON DELETE SET NULL`. Set ONLY by the OIDC sign-in materialiser;
   admin-issued assignments stay NULL.
 
@@ -93,9 +93,9 @@ Properties:
 provider.id`.
 - **Group-membership churn is reflected on the next sign-in.** A user
   removed from a group on the IdP loses their role on their next
-  sign-in. Until then they keep the role — we don't push from the IdP.
+  sign-in. Until then they keep the role - we don't push from the IdP.
 - **Failure is non-fatal.** A group-sync failure logs + audits but
-  doesn't block the sign-in itself — the user's identity is already
+  doesn't block the sign-in itself - the user's identity is already
   verified at that point. An admin can reconcile manually.
 
 ## Consequences

@@ -1,8 +1,8 @@
 /**
  * app/api/admin/zone-templates/route.ts
  *
- * GET  — list every template (template.use is enough to read).
- * POST — create (template.manage). All writes are audited + CSRF-guarded.
+ * GET  - list every template (template.use is enough to read).
+ * POST - create (template.manage). All writes are audited + CSRF-guarded.
  */
 
 import { headers } from "next/headers";

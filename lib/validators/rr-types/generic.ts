@@ -15,7 +15,7 @@ export function makeGenericValidator(type: string): RRTypeValidator {
   return {
     type: upper,
     label: `${upper} record`,
-    description: `Free-form content. We don't have a typed validator for ${upper} yet — PowerDNS itself rejects malformed RDATA when the patch lands.`,
+    description: `Free-form content. We don't have a typed validator for ${upper} yet - PowerDNS itself rejects malformed RDATA when the patch lands.`,
     placeholder: "",
     rfc: "varies",
     validate(content: string) {

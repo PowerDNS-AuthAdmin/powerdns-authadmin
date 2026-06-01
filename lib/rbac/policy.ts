@@ -1,7 +1,7 @@
 /**
  * lib/rbac/policy.ts
  *
- * The thin layer route handlers use. Routes don't talk to CASL directly —
+ * The thin layer route handlers use. Routes don't talk to CASL directly -
  * they call `can()` or `requirePermission()` and don't need to know that the
  * implementation underneath is CASL.
  *

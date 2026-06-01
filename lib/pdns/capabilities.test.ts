@@ -27,7 +27,7 @@ describe("deriveCapabilities", () => {
     expect(caps.autosecondary).toBe(true);
   });
 
-  it("models a mixed primary+secondary daemon — the case role couldn't express", () => {
+  it("models a mixed primary+secondary daemon - the case role couldn't express", () => {
     const caps = deriveCapabilities(cfg({ primary: "yes", secondary: "yes" }));
     expect(caps.primary && caps.secondary).toBe(true);
   });
@@ -61,7 +61,7 @@ describe("summarizeCapabilities", () => {
     expect(summarizeCapabilities(null)).toBe("unknown");
     expect(summarizeCapabilities(deriveCapabilities(cfg({ primary: "yes" })))).toBe("primary");
     expect(summarizeCapabilities(deriveCapabilities(cfg({ secondary: "yes" })))).toBe("secondary");
-    // autosecondary is its own flag — never folded into "Secondary (auto)".
+    // autosecondary is its own flag - never folded into "Secondary (auto)".
     expect(
       summarizeCapabilities(deriveCapabilities(cfg({ secondary: "yes", autosecondary: "yes" }))),
     ).toBe("secondary + autosecondary");
@@ -78,7 +78,7 @@ describe("summarizeCapabilities", () => {
   });
 });
 
-// #57 — A standalone PDNS Auth (no `primary` / `secondary` in pdns.conf) is the
+// #57 - A standalone PDNS Auth (no `primary` / `secondary` in pdns.conf) is the
 // default config and accepts zone creates over the HTTP API. The old
 // `isWriteCapable` checked `caps.primary` directly and so excluded standalones
 // from /zones/new's backend picker. Pin the four-way matrix here so it stays

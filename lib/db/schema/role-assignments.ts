@@ -39,7 +39,7 @@ export const roleAssignments = pgTable(
     // the assignment was created by the seed script or system boot.
     //
     // `role_assignments` holds admin-issued rows only. IdP-derived
-    // permissions live on `sessions.derived_permissions` — they don't
+    // permissions live on `sessions.derived_permissions` - they don't
     // persist on the user.
     createdBy: uuid("created_by").references(() => users.id, {
       onDelete: "set null",

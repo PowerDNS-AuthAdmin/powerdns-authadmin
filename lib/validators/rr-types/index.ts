@@ -59,7 +59,7 @@ const REGISTRY = new Map<string, RRTypeValidator>(
 
 /**
  * Types presented in the type dropdown by default. SOA is intentionally
- * absent — operators manage SOA via the dedicated panel, not as a record.
+ * absent - operators manage SOA via the dedicated panel, not as a record.
  * Add `HTTPS`, `SVCB`, `DNSKEY`, etc. once they have typed validators.
  */
 export const SUPPORTED_TYPES: readonly string[] = [
@@ -95,7 +95,7 @@ export const SUPPORTED_TYPES: readonly string[] = [
 export const REVERSE_ZONE_TYPES: readonly string[] = ["PTR", "NS", "DNAME", "CNAME", "TXT"];
 
 /**
- * Forward zones get the full menu minus PTR — PTR in a forward zone
+ * Forward zones get the full menu minus PTR - PTR in a forward zone
  * is technically valid but a strong smell, and we don't surface it to
  * keep the dropdown intentional.
  */

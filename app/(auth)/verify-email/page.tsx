@@ -3,8 +3,8 @@
  *
  * Public (no-session) page that redeems an email-verification link.
  * It lives under `(auth)` rather than `(app)` because signup users
- * can't sign in until their email is verified — login returns 403 for
- * unverified local accounts when SIGNUP_ENABLED — so they have no
+ * can't sign in until their email is verified - login returns 403 for
+ * unverified local accounts when SIGNUP_ENABLED - so they have no
  * session and the page must be reachable while logged out. The signed
  * token in `?token=` is the bearer credential; the API route
  * (`/api/auth/email/verify`) validates its HMAC and marks the email

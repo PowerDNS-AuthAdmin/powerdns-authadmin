@@ -8,15 +8,15 @@
  * reveal endpoint that returns text/plain and the entry is deleted on first read.
  *
  * Defenses (identical across both backends below):
- *   1. **Single-use** — `redeem()` deletes before returning. A second call → null.
- *   2. **Allowed-actor binding** — entries record the minting user-id; a leaked
+ *   1. **Single-use** - `redeem()` deletes before returning. A second call → null.
+ *   2. **Allowed-actor binding** - entries record the minting user-id; a leaked
  *      token can only be redeemed by a session for that same operator.
- *   3. **TTL** — entries auto-expire after `DEFAULT_TTL_SEC`.
- *   4. **Bounded size** — the in-memory map is capped (Redis self-expires).
+ *   3. **TTL** - entries auto-expire after `DEFAULT_TTL_SEC`.
+ *   4. **Bounded size** - the in-memory map is capped (Redis self-expires).
  *
  * Backend (ADR-0016): when `REDIS_URL` is set the entry lives in Redis (atomic
  * `SET … PX` + single-use `GETDEL`), so a token minted on replica A is
- * redeemable on replica B — essential for HA, where the reveal call may land on
+ * redeemable on replica B - essential for HA, where the reveal call may land on
  * a different replica than the mint. Without Redis (single instance) it's an
  * in-process Map. A Redis error degrades to the in-process Map (same-replica
  * only) rather than failing the mint outright.
@@ -94,7 +94,7 @@ export async function redeem(input: {
         if (entry.allowedActorId !== input.actorId) return null;
         return { plaintext: entry.plaintext };
       }
-      // Not in Redis — may be a same-replica fallback entry from a mint-time blip.
+      // Not in Redis - may be a same-replica fallback entry from a mint-time blip.
     } catch (err) {
       logger.warn(
         { err: err instanceof Error ? err.message : "unknown" },
@@ -123,7 +123,7 @@ function mintLocal(token: string, plaintext: string, allowedActorId: string, ttl
 function redeemLocal(token: string, actorId: string): { plaintext: string } | null {
   const entry = store.get(token);
   if (!entry) return null;
-  // Always remove on lookup — a wrong-actor attempt still burns the token.
+  // Always remove on lookup - a wrong-actor attempt still burns the token.
   store.delete(token);
   if (entry.expiresAtMs <= Date.now()) return null;
   if (entry.allowedActorId !== actorId) return null;
@@ -139,7 +139,7 @@ function pruneExpired(): void {
 
 function enforceCap(): void {
   while (store.size >= MAX_ENTRIES) {
-    // Map iteration order is insertion order — the first key is the oldest.
+    // Map iteration order is insertion order - the first key is the oldest.
     const oldest = store.keys().next().value;
     if (oldest === undefined) break;
     store.delete(oldest);

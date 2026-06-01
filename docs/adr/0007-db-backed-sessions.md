@@ -1,4 +1,4 @@
-# ADR 0007 — DB-backed sessions over stateless JWTs
+# ADR 0007 - DB-backed sessions over stateless JWTs
 
 - **Status:** Accepted
 - **Date:** 2026-05-16
@@ -39,8 +39,8 @@ revoked.
 ## Trade-offs (the honest part)
 
 - **The DB is on the hot path.** If Postgres is down, the app can't authenticate. We accept this
-  — `lib/db/` is on the hot path for everything else too, so adding sessions doesn't widen the
-  blast radius.
+  - `lib/db/` is on the hot path for everything else too, so adding sessions doesn't widen the
+    blast radius.
 - **Horizontal scaling needs shared DB.** Already true for the rest of the app.
 - **Cookie size.** The opaque encrypted session ID is ~80 bytes; a typical JWT is 400+. We win
   here, not lose.
@@ -50,7 +50,7 @@ revoked.
 - Every request that needs authentication does one indexed SELECT against `sessions`. This is
   the single biggest per-request cost.
 - `sessions.expires_at` is indexed; the `session-prune` job deletes expired rows hourly.
-- We track `ip`, `user_agent`, `last_seen_at` per session — useful for the "your active sessions"
+- We track `ip`, `user_agent`, `last_seen_at` per session - useful for the "your active sessions"
   admin view and for anomaly detection.
 - CSRF protection uses double-submit cookies + a `csrf_secret` field on the session row. The
   cookie isn't enough on its own because subdomains may not be isolated.

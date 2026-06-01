@@ -47,7 +47,7 @@ export default async function OidcProviderEditPage({
     ? freshnessOf(provider.discoveryCache.fetchedAt)
     : null;
 
-  // Pickers for the group-mappings editor — operators pick a role
+  // Pickers for the group-mappings editor - operators pick a role
   // by slug and a scope target (team / server / zone-name) without a
   // runtime fetch round-trip.
   const [pickerRoles, pickerTeams, pickerServers] = await Promise.all([
@@ -62,7 +62,7 @@ export default async function OidcProviderEditPage({
         <h1 className="text-2xl font-semibold tracking-tight">{provider.name}</h1>
         <p className="text-sm text-[color:var(--color-fg-muted)]">
           Slug{" "}
-          <code className="rounded bg-[color:var(--color-bg-subtle)] px-1">{provider.slug}</code> —
+          <code className="rounded bg-[color:var(--color-bg-subtle)] px-1">{provider.slug}</code> -
           the slug can&apos;t be renamed (would break in-flight sign-ins).
         </p>
         <p className="text-xs text-[color:var(--color-fg-muted)]">

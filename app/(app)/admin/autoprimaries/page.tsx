@@ -5,7 +5,7 @@
  * server will auto-create slave zones via incoming NOTIFY.
  *
  * Permission: `autoprimary.manage` (read AND mutate gated under the
- * same permission — autoprimaries are connection config, not
+ * same permission - autoprimaries are connection config, not
  * something operators with read-only access need to inspect).
  *
  * Backend selection: `?server=<slug>` to inspect a non-default
@@ -58,12 +58,12 @@ export default async function AutoprimariesPage({ searchParams }: PageProps) {
     rows = await loadRows(selected);
   } catch (err) {
     // The gateway already recorded reachability in the shared store; here we
-    // just show a generic message — the raw connect error (host:port) is a
+    // just show a generic message - the raw connect error (host:port) is a
     // fingerprint oracle (S-12), so it goes to the log only.
     fetchError =
       err instanceof PdnsAuthError
         ? "API rejected the configured key (401/403)."
-        : "Backend unreachable — the app hasn't reached its API recently.";
+        : "Backend unreachable - the app hasn't reached its API recently.";
     logger.warn(
       { server: selected.slug, err: err instanceof Error ? redact(err.message) : "unknown" },
       "admin.autoprimaries.list.failed",

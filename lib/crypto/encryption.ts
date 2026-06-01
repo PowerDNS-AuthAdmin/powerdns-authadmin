@@ -2,7 +2,7 @@
  * lib/crypto/encryption.ts
  *
  * Authenticated symmetric encryption for at-rest secrets: PDNS API keys, OAuth
- * client secrets, TOTP secrets, the session cookie payload — anything that
+ * client secrets, TOTP secrets, the session cookie payload - anything that
  * lives in the DB or a cookie and contains data we don't want a DB read or a
  * cookie-jar dump to disclose.
  *
@@ -32,7 +32,7 @@ const HKDF_SALT = Buffer.from("powerdns-authadmin/v1", "utf8");
 /**
  * Derive a 32-byte subkey for a named usage. Different usages get different
  * keys, so a hypothetical disclosure of one subkey doesn't help an attacker
- * with another (defense in depth — the master key is still the secret).
+ * with another (defense in depth - the master key is still the secret).
  *
  * @param usage stable string identifying the subkey, e.g. "session-cookie".
  */
@@ -68,7 +68,7 @@ export function encrypt(plaintext: string, usage = "default"): string {
 /**
  * Decrypt an envelope produced by `encrypt`. Throws if the envelope is
  * malformed, the version isn't supported, or the auth tag doesn't verify
- * (which means the ciphertext was tampered with — fail loudly).
+ * (which means the ciphertext was tampered with - fail loudly).
  */
 export function decrypt(envelope: string, usage = "default"): string {
   const parts = envelope.split(":");
@@ -106,7 +106,7 @@ export function decrypt(envelope: string, usage = "default"): string {
   return plaintext.toString("utf8");
 }
 
-/** True if a value looks like one of our envelopes — useful for migrations. */
+/** True if a value looks like one of our envelopes - useful for migrations. */
 export function looksLikeEnvelope(value: string): boolean {
   return /^v\d+:[A-Za-z0-9_-]+:[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$/.test(value);
 }

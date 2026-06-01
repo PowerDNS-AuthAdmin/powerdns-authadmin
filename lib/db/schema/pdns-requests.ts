@@ -6,7 +6,7 @@
  * "the actual HTTP traffic for this operation" inline.
  *
  * Sensitive material (the X-API-Key header, TSIG secrets in response
- * bodies) is redacted at write time — the row stores something readable
+ * bodies) is redacted at write time - the row stores something readable
  * for an operator without leaking credentials to anyone with audit.read.
  *
  * Retention: not yet enforced. A periodic job should prune rows older
@@ -32,7 +32,7 @@ export const pdnsRequests = pgTable(
     id: bigserial("id", { mode: "bigint" }).primaryKey(),
     ts: timestamp("ts", { withTimezone: true }).notNull().defaultNow(),
     /**
-     * Operation correlation id — every audit row + PDNS request from the
+     * Operation correlation id - every audit row + PDNS request from the
      * same HTTP request shares this. Indexed for the per-row lookup the
      * change-history feed performs.
      */
@@ -40,7 +40,7 @@ export const pdnsRequests = pgTable(
     /** FK to the backend the request went to. `set null` so removing a
      *  PDNS server doesn't cascade-delete its request log. */
     serverId: uuid("server_id").references(() => pdnsServers.id, { onDelete: "set null" }),
-    /** Server slug snapshot — survives even after `serverId` is nulled. */
+    /** Server slug snapshot - survives even after `serverId` is nulled. */
     serverSlug: text("server_slug"),
     /** Logical op name passed by the client method (`zones.list`,
      *  `zone.metadata.set`, …). Matches the Pino log tag. */
@@ -52,7 +52,7 @@ export const pdnsRequests = pgTable(
     requestHeaders: jsonb("request_headers").$type<Record<string, string>>(),
     /**
      * Outbound JSON body (or null for GET/DELETE). Strings stored as
-     * strings, objects stored verbatim — the viewer pretty-prints.
+     * strings, objects stored verbatim - the viewer pretty-prints.
      */
     requestBody: jsonb("request_body"),
     /**

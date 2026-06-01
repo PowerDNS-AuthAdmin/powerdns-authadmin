@@ -4,10 +4,10 @@
  * Compare what's on disk (`meta/_journal.json`) against what the database
  * believes is applied (`__drizzle_migrations`). Used in two places:
  *
- *   - `scripts/migrate.ts` — log pending list before running, applied list
+ *   - `scripts/migrate.ts` - log pending list before running, applied list
  *     after, so an operator tailing `docker compose logs app | grep migrate`
  *     can see whether a migration actually ran.
- *   - `instrumentation.ts` — Next.js startup hook. If the journal lists
+ *   - `instrumentation.ts` - Next.js startup hook. If the journal lists
  *     migrations the DB doesn't have applied, emit a loud warning (and
  *     refuse to boot when MIGRATION_CHECK_STRICT=true). Protects against
  *     the entrypoint silently skipping migrate.
@@ -39,7 +39,7 @@ export interface MigrationStatus {
 
 /**
  * Parse `meta/_journal.json` from a Drizzle migrations folder. Returns the
- * entries in idx order. Throws if the file is missing or malformed — both
+ * entries in idx order. Throws if the file is missing or malformed - both
  * cases mean the runtime can't trust the migration story.
  */
 export function readJournal(migrationsDir: string): JournalEntry[] {
@@ -74,7 +74,7 @@ export function readJournal(migrationsDir: string): JournalEntry[] {
 }
 
 /**
- * Diff the on-disk journal against a list of applied tags. Pure — exported
+ * Diff the on-disk journal against a list of applied tags. Pure - exported
  * for tests + reused by both callers.
  */
 export function buildStatus(expected: JournalEntry[], applied: readonly string[]): MigrationStatus {
@@ -96,7 +96,7 @@ export function buildStatus(expected: JournalEntry[], applied: readonly string[]
  * Drizzle stores each applied migration as a row with `hash` (sha256 of
  * the SQL) and `created_at` (ms). The journal tag isn't recorded by
  * Drizzle, so we look the tag up via the journal entries' hashes by
- * comparing SQL contents — but the simpler proxy (rows = tags applied
+ * comparing SQL contents - but the simpler proxy (rows = tags applied
  * by ordinal) is good enough for status display.
  */
 export async function readAppliedTagsPostgres(client: {
@@ -107,7 +107,7 @@ export async function readAppliedTagsPostgres(client: {
     const result = await client.query(
       "SELECT created_at FROM drizzle.__drizzle_migrations ORDER BY id",
     );
-    // Drizzle doesn't persist tags — we only know the COUNT of applied.
+    // Drizzle doesn't persist tags - we only know the COUNT of applied.
     // Return a placeholder list of the right length so the diff math works
     // against `expected[].tag` by index, not by name.
     return result.rows.map((_, i) => `idx-${i}`);
@@ -130,8 +130,8 @@ export function readAppliedTagsSqlite(handle: {
 
 /**
  * High-level: compare journal vs DB-applied counts and return a
- * summary. The journal-vs-applied diff is by ORDINAL — Drizzle doesn't
- * persist tags, only hashes — so a journal of length 2 against an
+ * summary. The journal-vs-applied diff is by ORDINAL - Drizzle doesn't
+ * persist tags, only hashes - so a journal of length 2 against an
  * applied count of 1 marks the last journal entry as pending. That's
  * the case we care about ("the new migration didn't run").
  */

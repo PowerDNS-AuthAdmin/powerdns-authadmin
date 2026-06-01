@@ -1,7 +1,7 @@
 /**
  * tests/integration/admin/zone-templates.test.ts
  *
- * /api/admin/zone-templates — list / create / update / delete. The
+ * /api/admin/zone-templates - list / create / update / delete. The
  * provisioning step seeds at least one template ("standard-primary") into
  * a fresh DB, so the list endpoint is never empty after boot.
  */
@@ -100,7 +100,7 @@ describe("/api/admin/zone-templates", () => {
     expect(templates.find((t) => t.id === template.id)).toBeUndefined();
   });
 
-  it("DELETE on a seeded template — route does not gate on 'default'; it succeeds", async () => {
+  it("DELETE on a seeded template - route does not gate on 'default'; it succeeds", async () => {
     const admin = await loginAsBootstrap();
     const { templates: before } = await admin.getJson<{ templates: ZoneTemplate[] }>(
       "/api/admin/zone-templates",
@@ -108,11 +108,11 @@ describe("/api/admin/zone-templates", () => {
     const seeded = before[0]!;
     const res = await admin.call(`/api/admin/zone-templates/${seeded.id}`, { method: "DELETE" });
     // The route does not currently refuse deletion of seeded/default templates.
-    // Tests document the existing behavior — DELETE succeeds with 200.
+    // Tests document the existing behavior - DELETE succeeds with 200.
     expect(res.status).toBe(200);
   });
 
-  it("GET /api/admin/zone-templates/[id] — route is not exposed; expect 404 or 405", async () => {
+  it("GET /api/admin/zone-templates/[id] - route is not exposed; expect 404 or 405", async () => {
     const admin = await loginAsBootstrap();
     const { template } = await admin.sendJson<{ template: ZoneTemplate }>(
       "POST",

@@ -1,7 +1,7 @@
 /**
  * app/api/admin/users/[id]/tokens/[tokenId]/route.ts
  *
- * DELETE — admin revokes another user's API token. Use case:
+ * DELETE - admin revokes another user's API token. Use case:
  * suspected PAT compromise (token in a leaked script, lost laptop,
  * offboarded employee). Mirrors the self-service flow at
  * /api/profile/tokens/[id], but acts on behalf of `[id]` rather
@@ -13,7 +13,7 @@
  * used to probe whether a token id belongs to a given user).
  *
  * Gate: `user.update`. Self-revoke through this route is allowed
- * too — useful when an operator is fighting their own compromised
+ * too - useful when an operator is fighting their own compromised
  * token via the admin panel.
  */
 

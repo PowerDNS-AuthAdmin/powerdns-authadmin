@@ -4,7 +4,7 @@
  * The OIDC outbound SSRF hardening (sec/oidc-pinning): openid-client must use
  * the guarded + pinned `customFetch` for discovery AND the token exchange, and
  * that fetch must REFUSE to connect when the SSRF guard rejects the issuer's
- * current resolution — closing the DNS-rebinding / TOCTOU window where the
+ * current resolution - closing the DNS-rebinding / TOCTOU window where the
  * token POST (carrying the client_secret) could be rebound to an internal host.
  *
  * Fully hermetic: openid-client and the DB repo are stubbed; the guard is
@@ -87,7 +87,7 @@ function provider() {
   };
 }
 
-describe("oidc.ts — guarded + pinned customFetch", () => {
+describe("oidc.ts - guarded + pinned customFetch", () => {
   beforeEach(() => {
     discoveryMock.mockReset();
     buildAuthUrlMock.mockReset();

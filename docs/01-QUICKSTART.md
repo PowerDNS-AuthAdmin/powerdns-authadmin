@@ -1,7 +1,7 @@
 # Quickstart
 
-Get a working PowerDNS-AuthAdmin — with a bundled PowerDNS Authoritative and
-10 demo zones — running locally in a couple of minutes. This is for evaluation
+Get a working PowerDNS-AuthAdmin - with a bundled PowerDNS Authoritative and
+10 demo zones - running locally in a couple of minutes. This is for evaluation
 and clicking around. For a real deployment, read [Installation](./02-INSTALLATION.md).
 
 <picture>
@@ -51,11 +51,11 @@ registers the bundled PowerDNS as a backend and generates 10 zones with 10
 records each, so the dashboard, zone list, and record editor have real data on
 first load. Things to try:
 
-1. **Dashboard** — live PowerDNS statistics and operator-attention surfaces.
-2. **Zones** — the amalgamated zone list. Open one, edit an RRset, and watch the
+1. **Dashboard** - live PowerDNS statistics and operator-attention surfaces.
+2. **Zones** - the amalgamated zone list. Open one, edit an RRset, and watch the
    **diff-before-apply** preview before you save.
-3. **Admin → PowerDNS servers** — the backend's reachability and version.
-4. **Admin → Audit log** — every change you just made, with before/after diffs.
+3. **Admin → PowerDNS servers** - the backend's reachability and version.
+4. **Admin → Audit log** - every change you just made, with before/after diffs.
 
 ## Tear it down
 

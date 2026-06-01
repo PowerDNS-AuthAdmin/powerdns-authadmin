@@ -7,7 +7,7 @@
  *                         generic "if account exists" copy)
  *
  * Both submit to the corresponding API route. Server-side validation
- * happens at /api/auth/{forgot,reset}-password — this page only does
+ * happens at /api/auth/{forgot,reset}-password - this page only does
  * the visible affordance.
  */
 

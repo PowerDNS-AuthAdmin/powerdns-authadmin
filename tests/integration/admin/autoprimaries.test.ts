@@ -1,8 +1,8 @@
 /**
  * tests/integration/admin/autoprimaries.test.ts
  *
- * /api/admin/pdns/autoprimaries — POST + DELETE proxy through to the
- * selected PDNS backend. There is no DB row + no GET list — autoprimary
+ * /api/admin/pdns/autoprimaries - POST + DELETE proxy through to the
+ * selected PDNS backend. There is no DB row + no GET list - autoprimary
  * inventory lives entirely in PDNS. The route only audits the tuple +
  * delegates; tests verify the round-trip + audit emission.
  */

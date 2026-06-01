@@ -1,7 +1,7 @@
 /**
  * lib/auth/password.ts
  *
- * Password hashing and verification — Argon2id, per ADR 0008.
+ * Password hashing and verification - Argon2id, per ADR 0008.
  *
  * Backed by `@node-rs/argon2` (a napi-rs binding to the Rust `argon2` crate).
  * Why this binding over the `argon2` npm package: napi-rs ships prebuilt
@@ -12,7 +12,7 @@
  * Parameters track OWASP's current Password Storage Cheat Sheet (reviewed
  * yearly). The library produces standard PHC-format hashes that encode the
  * parameters, so a future parameter bump doesn't invalidate existing hashes
- * — `needsRehash` tells us when to re-hash an old one on next successful login.
+ * - `needsRehash` tells us when to re-hash an old one on next successful login.
  *
  * `@node-rs/argon2` v2 does not export a `needsRehash` helper, so we
  * implement one by parsing the PHC string ourselves. This is a small
@@ -21,7 +21,7 @@
 
 import "server-only";
 import { hash, verify } from "@node-rs/argon2";
-// Type-only import — `Algorithm` is declared as a `const enum` in
+// Type-only import - `Algorithm` is declared as a `const enum` in
 // `@node-rs/argon2`, which can't be referenced by name across modules with
 // TypeScript's `isolatedModules` flag (required by Next.js). We import the
 // type alone and use the numeric value below.
@@ -67,7 +67,7 @@ export async function hashPassword(plaintext: string): Promise<string> {
 /**
  * Verify a password against a stored hash. Returns true on match.
  *
- * Catches verification errors and returns false rather than throwing — the
+ * Catches verification errors and returns false rather than throwing - the
  * caller doesn't need to distinguish "wrong password" from "malformed hash";
  * both mean "do not let this user in." The original error is logged by the
  * caller's logger if relevant.
@@ -106,7 +106,7 @@ export function needsRehash(storedHash: string): boolean {
     if (parsed.parallelism !== ARGON2_OPTIONS.parallelism) return true;
     return false;
   } catch {
-    // Malformed hash — easier to re-hash than to refuse the login.
+    // Malformed hash - easier to re-hash than to refuse the login.
     return true;
   }
 }

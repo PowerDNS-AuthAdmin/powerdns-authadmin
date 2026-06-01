@@ -9,7 +9,7 @@
  * `safeConfigSettings`). Static markup only, so it's CSP-safe with no
  * highlighter dependency.
  *
- * Row shape is inlined rather than imported from `lib/pdns` — the three-layer
+ * Row shape is inlined rather than imported from `lib/pdns` - the three-layer
  * boundary (ADR-0013) forbids `components/**` from importing the PDNS layer,
  * and structurally this matches `SafeConfigRow`.
  */

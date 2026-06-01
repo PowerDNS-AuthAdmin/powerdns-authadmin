@@ -7,7 +7,7 @@
  *
  * Encrypted columns (OIDC client secret, SAML SP private key, LDAP
  * bind password, refresh tokens) are exported as their ciphertext.
- * Useless without `APP_ENCRYPTION_KEY`, which is the point — the
+ * Useless without `APP_ENCRYPTION_KEY`, which is the point - the
  * export is safe to store next to the source DB without a separate
  * "secret holder" key.
  *
@@ -53,7 +53,7 @@ export async function GET(): Promise<Response> {
     }
 
     // Pull every export-relevant table in parallel. Order doesn't matter
-    // here — the export is a snapshot; restore handles dependency order.
+    // here - the export is a snapshot; restore handles dependency order.
     const [
       usersRows,
       teamsRows,
@@ -79,7 +79,7 @@ export async function GET(): Promise<Response> {
       db.select().from(roles),
       db.select().from(roleAssignments),
       db.select().from(zoneGrants),
-      // Token-hash is the only column that's never re-importable — it's
+      // Token-hash is the only column that's never re-importable - it's
       // an Argon2 of the original opaque token, which the user only ever
       // sees at issue time. Including it in the export preserves the
       // ability to validate existing tokens on the restore side, so a
@@ -108,9 +108,9 @@ export async function GET(): Promise<Response> {
         exported_at: new Date().toISOString(),
         exported_by_user_id: user.id,
         notes: [
-          "This export contains app DB state only — no PDNS zone data.",
+          "This export contains app DB state only - no PDNS zone data.",
           "APP_SECRET_KEY and APP_ENCRYPTION_KEY are NOT included; they stay env-side.",
-          "Encrypted columns are ciphertext — useless without APP_ENCRYPTION_KEY.",
+          "Encrypted columns are ciphertext - useless without APP_ENCRYPTION_KEY.",
           "Restore must run against an instance with the SAME APP_ENCRYPTION_KEY.",
           "See RESTORE.md (downloadable separately) for the operator runbook.",
         ],
@@ -172,7 +172,7 @@ export async function GET(): Promise<Response> {
 /**
  * `Date` instances → ISO strings. Drizzle returns timestamps as Date
  * objects; JSON.stringify would otherwise call their `.toJSON()`
- * (already ISO), which is fine — this replacer is belt-and-braces in
+ * (already ISO), which is fine - this replacer is belt-and-braces in
  * case any column type surprises us with a different Date variant.
  */
 function dateReplacer(_key: string, value: unknown): unknown {

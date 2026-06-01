@@ -1,5 +1,5 @@
 /**
- * lib/security/svg.test.ts — issue #30
+ * lib/security/svg.test.ts - issue #30
  *
  * Asserts security properties of the DOMPurify-backed sanitizer (DOMPurify
  * normalizes markup, so we assert on what's stripped/kept, not exact strings).

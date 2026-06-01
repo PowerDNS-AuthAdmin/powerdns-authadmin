@@ -5,7 +5,7 @@
  * (GHSA-wf29-rmhc-rqc9). Resolves each group mapping's `roleSlug` to the
  * permission set its role grants, computes the acting user's GLOBAL
  * permissions, and throws if any mapping would mint permissions the actor
- * doesn't already hold globally — the same ceiling role *assignment* enforces
+ * doesn't already hold globally - the same ceiling role *assignment* enforces
  * (`permissionsExceedingGrant`), just applied to the rules that auto-assign
  * roles at first sign-in.
  *
@@ -37,7 +37,7 @@ export interface GroupMappingInput {
  *
  * Throws `ValidationError` when:
  *   - a mapping references a role slug that doesn't exist (so the ceiling can't
- *     be evaluated — a non-resolvable mapping is invalid input), or
+ *     be evaluated - a non-resolvable mapping is invalid input), or
  *   - any mapping's role grants a permission the actor lacks globally (the
  *     escalation the advisory describes).
  *
@@ -69,7 +69,7 @@ export async function assertGroupMappingsWithinCeiling(
   }));
 
   // `oidc.manage` is global-only, so the actor's global permission set is the
-  // correct basis — matching the role-assignment route's reasoning.
+  // correct basis - matching the role-assignment route's reasoning.
   const actorSources = (await loadUserAssignmentsForAbility(actorId)) as readonly AbilitySource[];
   const actorGlobal = globalPermissionsOf(actorSources);
 

@@ -1,7 +1,7 @@
 /**
- * lib/pdns/version.test.ts — version-parse + capability-cutoff coverage.
+ * lib/pdns/version.test.ts - version-parse + capability-cutoff coverage.
  *
- * The cutoffs encode — get them wrong and we'd silently
+ * The cutoffs encode - get them wrong and we'd silently
  * fall back to REPLACE semantics (the older systems concurrency footgun) on
  * servers that actually support EXTEND/PRUNE.
  */

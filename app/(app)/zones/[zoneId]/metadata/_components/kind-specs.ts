@@ -5,16 +5,16 @@
  * sense (CIDRs for ALLOW-AXFR-FROM, host:port for ALSO-NOTIFY, …).
  *
  * Anything not in this map falls through to a free-form textarea
- * with no validation — that covers `X-`-prefixed custom kinds and
+ * with no validation - that covers `X-`-prefixed custom kinds and
  * any new kinds future PDNS versions add.
  *
  * `apiWritable: false` is set for kinds PDNS consistently lists in
- * `protectedOptions` across recent 4.x versions — DNSSEC state
+ * `protectedOptions` across recent 4.x versions - DNSSEC state
  * (NSEC3PARAM, NSEC3NARROW, PRESIGNED) plus a couple of others that
  * the daemon owns (LUA-AXFR-SCRIPT, AXFR-MASTER-TSIG, TSIG-ALLOW-AXFR).
  * Those should be changed via the right PDNS surface (cryptokeys /
  * `pdnsutil`), not the metadata API. SOA-EDIT, SOA-EDIT-API and
- * API-RECTIFY are NOT metadata-API kinds at all on any current PDNS —
+ * API-RECTIFY are NOT metadata-API kinds at all on any current PDNS -
  * they're zone-object fields, so they live on `ZoneSettingsPanel`
  * instead of here.
  */
@@ -45,7 +45,7 @@ const ipOrCidr = (line: string): string | null => {
 };
 
 const hostPort = (line: string): string | null => {
-  // `host[:port]` — host can be a hostname or an IP. Loose check; PDNS
+  // `host[:port]` - host can be a hostname or an IP. Loose check; PDNS
   // does the strict parsing.
   if (/^[^:\s]+(:\d{1,5})?$/.test(line)) return null;
   if (/^\[[0-9a-fA-F:]+\](:\d{1,5})?$/.test(line)) return null;
@@ -154,7 +154,7 @@ export function getKindSpec(kind: string): KindShape {
   return (
     KIND_SPECS[kind] ?? {
       type: "list",
-      description: "Custom metadata kind — values are stored verbatim.",
+      description: "Custom metadata kind - values are stored verbatim.",
     }
   );
 }
@@ -163,7 +163,7 @@ export function getKindSpec(kind: string): KindShape {
  * Whether the kind can be set via the PDNS HTTP API on a typical 4.9-era
  * server. Custom `X-`-prefixed kinds are always writable. Kinds we
  * explicitly flag with `apiWritable: false` (protected per PDNS source)
- * return false. Unknown kinds default to true — let the server reject
+ * return false. Unknown kinds default to true - let the server reject
  * if it doesn't recognize them.
  */
 export function isKindApiWritable(kind: string): boolean {

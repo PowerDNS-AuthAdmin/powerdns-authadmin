@@ -4,11 +4,11 @@
  * Chart wrappers tuned for the per-server PDNS statistics we capture in
  * `pdns_server_stats`. Two shapes:
  *
- *   `<CounterRateChart>` — takes the raw (ts, value) samples of a
+ *   `<CounterRateChart>` - takes the raw (ts, value) samples of a
  *     cumulative counter and plots the per-second delta line. Suitable
  *     for `udp4-queries`, `query-cache-hit`, etc.
  *
- *   `<MapPieChart>` — takes the latest `MapStatisticItem` snapshot
+ *   `<MapPieChart>` - takes the latest `MapStatisticItem` snapshot
  *     (`[{name, value}, ...]`) and renders a donut. Suitable for
  *     `response-by-qtype`, `response-by-rcode`, `response-sizes`.
  */
@@ -26,7 +26,7 @@ interface CounterRateChartProps {
   /** Display label for the legend / tooltip. */
   label: string;
   height?: number;
-  /** Y-axis title — e.g. "queries / s", "ms". Defaults to a generic "rate". */
+  /** Y-axis title - e.g. "queries / s", "ms". Defaults to a generic "rate". */
   yAxisLabel?: string;
 }
 
@@ -56,16 +56,23 @@ export function CounterRateChart({
     <Chart
       height={height}
       option={{
+        // Single-series card - the series name is redundant with the card
+        // title, and a default legend overlaps the x-axis labels. Hide it.
+        legend: { show: false },
         tooltip: { trigger: "axis" },
         xAxis: {
           type: "time",
-          axisLabel: { fontSize: 10 },
+          axisLabel: { fontSize: 10, hideOverlap: true },
           splitLine: { show: false },
         },
         yAxis: {
           type: "value",
+          // Unit sits at the top of the axis (e.g. "q/s"). nameGap + the grid
+          // top margin below keep it inside the canvas instead of clipped.
           name: yAxisLabel ?? "",
-          nameTextStyle: { fontSize: 10 },
+          nameLocation: "end",
+          nameGap: 10,
+          nameTextStyle: { fontSize: 10, align: "left" },
           axisLabel: { fontSize: 10 },
           minInterval: 1,
           splitLine: { show: false },
@@ -81,7 +88,10 @@ export function CounterRateChart({
             lineStyle: { width: 1.5 },
           },
         ],
-        grid: { left: 48, right: 16, top: 16, bottom: 28 },
+        // containLabel (from the Chart wrapper) reserves room for tick labels;
+        // these margins just add a little breathing room around them. top:22
+        // is headroom for the axis-name unit.
+        grid: { left: 6, right: 14, top: 22, bottom: 6 },
       }}
     />
   );
@@ -94,7 +104,7 @@ interface ValueLineChartProps {
   yAxisLabel?: string;
 }
 
-/** Plot the raw values (no rate diff) — useful for gauges like `latency`,
+/** Plot the raw values (no rate diff) - useful for gauges like `latency`,
  *  `cpu-iowait`, `fd-usage` that are point-in-time, not counters. */
 export function ValueLineChart({ samples, label, height = 200, yAxisLabel }: ValueLineChartProps) {
   const points = samples.map((s) => [s.ts, s.value] as [string, number]);
@@ -102,16 +112,19 @@ export function ValueLineChart({ samples, label, height = 200, yAxisLabel }: Val
     <Chart
       height={height}
       option={{
+        legend: { show: false },
         tooltip: { trigger: "axis" },
         xAxis: {
           type: "time",
-          axisLabel: { fontSize: 10 },
+          axisLabel: { fontSize: 10, hideOverlap: true },
           splitLine: { show: false },
         },
         yAxis: {
           type: "value",
           name: yAxisLabel ?? "",
-          nameTextStyle: { fontSize: 10 },
+          nameLocation: "end",
+          nameGap: 10,
+          nameTextStyle: { fontSize: 10, align: "left" },
           axisLabel: { fontSize: 10 },
           splitLine: { show: false },
         },
@@ -126,21 +139,21 @@ export function ValueLineChart({ samples, label, height = 200, yAxisLabel }: Val
             lineStyle: { width: 1.5 },
           },
         ],
-        grid: { left: 48, right: 16, top: 16, bottom: 28 },
+        grid: { left: 6, right: 14, top: 22, bottom: 6 },
       }}
     />
   );
 }
 
 interface MapPieChartProps {
-  /** Latest `MapStatisticItem.value` — array of name/value pairs. */
+  /** Latest `MapStatisticItem.value` - array of name/value pairs. */
   entries: Array<{ name: string; value: string }>;
   title?: string;
   height?: number;
   /** Hide buckets whose value is 0 (PDNS sends a bunch of zero-rcode rows). */
   hideZeros?: boolean;
   /**
-   * By default slices are sorted by value (largest first) — right for
+   * By default slices are sorted by value (largest first) - right for
    * categorical maps like qtype/rcode. Set this to keep the caller's
    * order instead, for data that has a meaningful sequence of its own
    * (e.g. response-size buckets, which read best ordered by size).
@@ -171,7 +184,7 @@ export function MapPieChart({
         // is sized off the card *height*, keeping it well inside the left
         // half. `overflow: "truncate"` clips long rcode labels (e.g.
         // "Server Not Authoritative for zone / Not Authorized") with an
-        // ellipsis instead of letting them sprawl across the chart — the
+        // ellipsis instead of letting them sprawl across the chart - the
         // full name still shows in the hover tooltip.
         legend: {
           type: "scroll",

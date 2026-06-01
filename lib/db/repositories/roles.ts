@@ -14,7 +14,7 @@ import { roles, type NewRole, type Role } from "@/lib/db/schema";
 import { users } from "@/lib/db/schema";
 import { countStar } from "@/lib/db/sql-dialect";
 
-/** Find a role by its slug — used by seed and assignment paths. */
+/** Find a role by its slug - used by seed and assignment paths. */
 export async function findRoleBySlug(slug: string): Promise<Role | null> {
   const rows = await db.select().from(roles).where(eq(roles.slug, slug)).limit(1);
   return rows[0] ?? null;
@@ -24,7 +24,7 @@ export async function findRoleBySlug(slug: string): Promise<Role | null> {
  * Load every role whose slug is in `slugs`, in one query. Used by the OIDC
  * group→role ceiling check, which must resolve each mapping's `roleSlug` to its
  * permission set before deciding whether the actor may persist the mapping.
- * Missing slugs simply don't appear in the result — the caller treats an
+ * Missing slugs simply don't appear in the result - the caller treats an
  * unresolved mapping as invalid.
  */
 export async function findRolesBySlugs(slugs: readonly string[]): Promise<Role[]> {
@@ -127,7 +127,7 @@ export async function findAssignmentWithRole(
 
 /**
  * Count the distinct *enabled* users holding a global-scope assignment of the
- * role with `slug` — the population the last-SuperAdmin guard cares about.
+ * role with `slug` - the population the last-SuperAdmin guard cares about.
  *
  * Three things this query deliberately does, all of which the old `rows.length`
  * version got wrong (GHSA-86v6-w5p9-29r8):
@@ -135,7 +135,7 @@ export async function findAssignmentWithRole(
  *     account cannot sign in, so it can't actually administer anything. Counting
  *     it as a live Super Admin would let the last *usable* one be removed.
  *   - `count(distinct user_id)`: a user can hold the same role at global scope
- *     more than once (it's the unique key with scope_id, which is NULL here —
+ *     more than once (it's the unique key with scope_id, which is NULL here -
  *     and historically duplicate rows have existed). Two rows for one person is
  *     still one Super Admin, not two.
  *
@@ -185,7 +185,7 @@ export async function userHoldsGlobalRoleSlug(
 }
 
 /**
- * List the distinct role slugs assigned to a user — what the dashboard's
+ * List the distinct role slugs assigned to a user - what the dashboard's
  * "Your roles" summary needs. Deduplicates across scopes.
  */
 export async function listRoleSlugsForUser(userId: string): Promise<string[]> {
@@ -200,7 +200,7 @@ export async function listRoleSlugsForUser(userId: string): Promise<string[]> {
 /**
  * Distinct role identities the user holds, joined with their MFA-policy
  * flag. Feeds `checkMfaCompliance` from
- * `lib/auth/mfa-compliance.ts` — the layout calls this on every
+ * `lib/auth/mfa-compliance.ts` - the layout calls this on every
  * request to decide whether to shunt the operator to forced
  * enrollment.
  *
@@ -259,7 +259,7 @@ export async function findRoleById(id: string): Promise<Role | null> {
 }
 
 /**
- * Flip the `requiresMfa` flag on a role. Kept as a narrow setter — the
+ * Flip the `requiresMfa` flag on a role. Kept as a narrow setter - the
  * rest of a role (slug, name, permissions, isSystem) is either
  * read-only after creation or managed via different code paths. The
  * MFA policy is the only operator-facing setting today, and isolating
@@ -278,7 +278,7 @@ export async function setRoleRequiresMfa(id: string, requiresMfa: boolean): Prom
 }
 
 /**
- * Count assignments per user — used to enrich the admin users list with a
+ * Count assignments per user - used to enrich the admin users list with a
  * "role count" column without a row-by-row N+1.
  */
 export async function countAssignmentsForUsers(userIds: string[]): Promise<Map<string, number>> {
@@ -295,7 +295,7 @@ export async function countAssignmentsForUsers(userIds: string[]): Promise<Map<s
 }
 
 /**
- * Plain create — used by the admin "new role" form. Always inserts as a
+ * Plain create - used by the admin "new role" form. Always inserts as a
  * custom role (`is_system = false`); the seed script owns system roles
  * via `upsertRole`.
  */
@@ -310,7 +310,7 @@ export async function insertRole(input: NewRole, executor: DbExecutor = db): Pro
 
 /**
  * Patch the editable attributes of a custom role. Slug is intentionally NOT
- * updatable — it's the lookup key in `oidc_providers.group_mappings` and in
+ * updatable - it's the lookup key in `oidc_providers.group_mappings` and in
  * external IaC files, so renaming would break those silently. Callers that
  * want a different slug should create a new role and migrate assignments.
  *
@@ -339,7 +339,7 @@ export async function updateRoleAttrs(
 /**
  * Hard-delete a role. Refuses when the row is a system role. The FK on
  * `role_assignments.role_id` is `RESTRICT`, so the DB itself blocks deletes
- * of roles still in use — callers should pre-check via
+ * of roles still in use - callers should pre-check via
  * `countAssignmentsForRole` and surface a friendlier error.
  */
 export async function deleteRole(

@@ -1,9 +1,9 @@
 /**
- * lib/db/schema-sqlite/audit-log.ts — SQLite mirror of `../schema/audit-log.ts`.
+ * lib/db/schema-sqlite/audit-log.ts - SQLite mirror of `../schema/audit-log.ts`.
  *
  * The Postgres schema uses `bigserial` (typed as `bigint` in TS). SQLite's
  * INTEGER PRIMARY KEY AUTOINCREMENT is functionally equivalent up to 2^63,
- * but Drizzle's sqlite-core has no `bigint` mode — the value comes back as
+ * but Drizzle's sqlite-core has no `bigint` mode - the value comes back as
  * `number`. Repository code that consumes audit ids treats them as opaque
  * (stringified for React keys, cast to text in queries), so the runtime
  * divergence is invisible to consumers.

@@ -27,10 +27,10 @@ export interface UserMfaState {
   webauthnEnrolled: boolean;
   /**
    * SSO-only account (no local password). The IdP is the second-factor
-   * authority — the in-app TOTP flow renders read-only for SSO and the
+   * authority - the in-app TOTP flow renders read-only for SSO and the
    * admin UI hides the per-user MFA override for them, so SSO accounts
    * are ALWAYS exempt from this gate (only `mfaOverride === false`
-   * short-circuits earlier — same outcome). Default false.
+   * short-circuits earlier - same outcome). Default false.
    */
   ssoOnly?: boolean;
   /**
@@ -67,7 +67,7 @@ export function checkMfaCompliance(
   user: UserMfaState,
   roles: readonly RoleSlice[],
 ): ComplianceResult {
-  // The per-user override wins over everything — roles AND the SSO exemption.
+  // The per-user override wins over everything - roles AND the SSO exemption.
   if (user.mfaOverride === false) return { compliant: true };
 
   // SSO-only users can't enroll TOTP in this app: the IdP is the second-factor
@@ -75,7 +75,7 @@ export function checkMfaCompliance(
   // /profile TOTP section renders read-only for SSO). The admin UI hides the
   // per-user override for SSO users and the PATCH endpoint refuses to set it
   // to `true`, but we still defend against legacy rows that carried that
-  // setting before the policy landed — treat them as compliant rather than
+  // setting before the policy landed - treat them as compliant rather than
   // lock the operator out.
   if (user.ssoOnly) return { compliant: true };
 

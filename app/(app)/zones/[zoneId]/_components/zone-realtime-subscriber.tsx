@@ -2,15 +2,15 @@
 
 /**
  * Zone-detail realtime listener. Pure SSE-driven via the app-wide
- * RealtimeProvider — no client-side polling.
+ * RealtimeProvider - no client-side polling.
  *
  * The server-side poller adaptively quickens (chains a follow-up poll every
  * 2.5 s) while any primary↔secondary mismatch is observed, and publishes a
  * `zone.updated` event each time a serial transitions. So the page refreshes
- * within seconds of AXFR completing — one router.refresh per actual change.
+ * within seconds of AXFR completing - one router.refresh per actual change.
  *
  * Renders nothing visible: the "SYNCED / DESYNCED" chip lives in the shared
- * HeaderStatusChip in the top bar — we push the per-zone sync state into it
+ * HeaderStatusChip in the top bar - we push the per-zone sync state into it
  * via <HeaderStatusMode/>.
  */
 
@@ -23,7 +23,7 @@ interface Props {
   zoneName: string;
   /**
    * Cached primary↔secondaries sync verdict, OR `null` when
-   * `PDNS_BACKGROUND_POLLING=false` — there is no live mirror state to
+   * `PDNS_BACKGROUND_POLLING=false` - there is no live mirror state to
    * push, so the header chip stays in plain "Live" mode. The mutation-driven
    * router.refresh below still fires either way.
    */

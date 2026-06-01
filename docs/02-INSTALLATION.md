@@ -4,37 +4,37 @@ Two supported install paths:
 
 | Path                                       | Use when                                                                                | Skip to                                          |
 | ------------------------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| **A — Docker** (recommended for prod)      | You want a single image, scheduler-friendly health checks, auto-migrate on boot.        | [§ Docker install](#a--docker-install)           |
-| **B — From source** (build & run natively) | You can't (or won't) run Docker, you're packaging for systemd/PM2, or doing first dive. | [§ From-source install](#b--from-source-install) |
+| **A - Docker** (recommended for prod)      | You want a single image, scheduler-friendly health checks, auto-migrate on boot.        | [§ Docker install](#a--docker-install)           |
+| **B - From source** (build & run natively) | You can't (or won't) run Docker, you're packaging for systemd/PM2, or doing first dive. | [§ From-source install](#b--from-source-install) |
 
 Either path runs on **SQLite** (one file, single instance) or **Postgres**
 (any number of replicas + Redis). Database migrations + the first-run admin
-seed happen automatically — the install comes up ready to use.
+seed happen automatically - the install comes up ready to use.
 
-> The two database backends do **not** share a migration history — switching
+> The two database backends do **not** share a migration history - switching
 > later is a fresh install. Pick one now.
 
 |              | **SQLite**                                     | **Postgres**                                                                                    |
 | ------------ | ---------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Use when     | one instance — homelab, evaluation, small team | multiple instances, or you want a managed DB                                                    |
+| Use when     | one instance - homelab, evaluation, small team | multiple instances, or you want a managed DB                                                    |
 | Storage      | one file in a Docker volume / on the host      | a `postgres` service (or your own DB)                                                           |
-| Replicas > 1 | ❌                                             | ✅ (also set `REDIS_URL` — see [High availability](../README.md#high-availability-replicas--1)) |
+| Replicas > 1 | ❌                                             | ✅ (also set `REDIS_URL` - see [High availability](../README.md#high-availability-replicas--1)) |
 
 After install, both paths land at [§ First login](#first-login) and
 [§ Behind a reverse proxy](#behind-a-reverse-proxy).
 
 ---
 
-## A — Docker install
+## A - Docker install
 
-Production-recommended. The app is one image —
-[`ghcr.io/powerdns-authadmin/powerdns-authadmin`](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin) —
+Production-recommended. The app is one image -
+[`ghcr.io/powerdns-authadmin/powerdns-authadmin`](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin) -
 booted from a single `docker-compose.yml`. Five steps:
 **create `.env` secrets → set `APP_URL` → write `docker-compose.yml` → start → first login.**
 
 ### Before you start
 
-- **Docker** with the Compose plugin — `docker compose version` must be **v2+**.
+- **Docker** with the Compose plugin - `docker compose version` must be **v2+**.
 - A directory to hold your two files (`.env` + `docker-compose.yml`). Everything
   below runs from inside it:
 
@@ -54,14 +54,14 @@ once.**
   echo "APP_ENCRYPTION_KEY=$(openssl rand -base64 32)"
   echo "BOOTSTRAP_ADMIN_EMAIL=admin@example.com"
   echo "BOOTSTRAP_ADMIN_PASSWORD=$(openssl rand -base64 18)"
-  # Postgres only — delete this line if you chose SQLite:
+  # Postgres only - delete this line if you chose SQLite:
   echo "POSTGRES_PASSWORD=$(openssl rand -base64 18)"
 } > .env
 chmod 600 .env
 ```
 
 Edit `.env` and set **`BOOTSTRAP_ADMIN_EMAIL`** to your address. Note the
-generated `BOOTSTRAP_ADMIN_PASSWORD` — you'll use it for the first login (and
+generated `BOOTSTRAP_ADMIN_PASSWORD` - you'll use it for the first login (and
 change it immediately).
 
 | Variable                              | Purpose                                                      | Constraint                    |
@@ -73,17 +73,17 @@ change it immediately).
 > ⚠️ **Generate the two keys once and never change them.** Rotating
 > `APP_ENCRYPTION_KEY` makes every stored PowerDNS API key, OIDC secret, and MFA
 > secret undecryptable; changing `APP_SECRET_KEY` logs everyone out. Back up
-> `.env` — don't regenerate it. (The app refuses to start if either key is
+> `.env` - don't regenerate it. (The app refuses to start if either key is
 > missing, too short, or a placeholder like `changeme`.)
 
 Compose loads `.env` automatically, so the same values are reused on every `up`,
-`down`, and restart — there are no shell `export`s to remember.
+`down`, and restart - there are no shell `export`s to remember.
 
 ---
 
 ### 2. Set `APP_URL`
 
-**`APP_URL` must match the URL the browser uses to reach the app — exact scheme,
+**`APP_URL` must match the URL the browser uses to reach the app - exact scheme,
 host, and port.** Append it to `.env`:
 
 ```sh
@@ -104,7 +104,7 @@ URL, not the upstream `app:3000`.
 > the browser **silently rejects** the cookie (DevTools shows
 > `Cookie "pda_csrf" has been rejected for invalid domain`) and sign-in fails
 > with no useful error. The same value also builds OIDC redirect URIs,
-> password-reset email links, and the CSP origin allowlist — getting it wrong
+> password-reset email links, and the CSP origin allowlist - getting it wrong
 > breaks all three.
 >
 > The login page detects a mismatch on render and shows an inline error, so you
@@ -116,7 +116,7 @@ URL, not the upstream `app:3000`.
 
 Pick the block matching your database choice.
 
-#### Option A — SQLite
+#### Option A - SQLite
 
 ```yaml
 # docker-compose.yml
@@ -138,7 +138,7 @@ volumes:
   app-data:
 ```
 
-#### Option B — Postgres
+#### Option B - Postgres
 
 ```yaml
 # docker-compose.yml
@@ -178,7 +178,7 @@ volumes:
 | Tag            | Points to                                                                     |
 | -------------- | ----------------------------------------------------------------------------- |
 | `:latest`      | The most recent stable release. Updated only on `vX.Y.Z` tag pushes.          |
-| `:X.Y`         | The latest patch in a minor channel — e.g. `:1.2` follows `1.2.0` → `1.2.1`.  |
+| `:X.Y`         | The latest patch in a minor channel - e.g. `:1.2` follows `1.2.0` → `1.2.1`.  |
 | `:X.Y.Z`       | A single immutable release. Use this in production for deterministic deploys. |
 | `:edge`        | The tip of `main`. Updates on every push; not for production.                 |
 | `:sha-xxxxxxx` | An exact commit, kept forever.                                                |
@@ -199,19 +199,19 @@ docker compose logs -f app   # watch migrations + seed run, then "Ready"
 ```
 
 Later, `docker compose down` then `up -d` reuses the same `.env` and data.
-`docker compose down -v` **deletes the data volume** — only use it to start over.
+`docker compose down -v` **deletes the data volume** - only use it to start over.
 
 ---
 
-## B — From-source install
+## B - From-source install
 
 Build the app from a checkout and run it under plain `node`. Same migrations,
-same seed — just no Docker. Suitable for a VM / bare-metal install behind a
+same seed - just no Docker. Suitable for a VM / bare-metal install behind a
 reverse proxy.
 
 ### Prerequisites
 
-- **Node.js 24 LTS** — the `.nvmrc` pins the version; `nvm use` picks it up.
+- **Node.js 24 LTS** - the `.nvmrc` pins the version; `nvm use` picks it up.
 - **npm 10+** (ships with Node 24).
 - **Build toolchain** for the native bindings (`better-sqlite3`, `@node-rs/argon2`):
   Debian/Ubuntu `apt-get install -y python3 build-essential`, macOS `xcode-select --install`,
@@ -251,7 +251,7 @@ never rotate, back up alongside the DB.
 
 ### 3. Set `APP_URL`
 
-Same critical step as the Docker path — see [§ A.2 Set `APP_URL`](#2-set-app_url)
+Same critical step as the Docker path - see [§ A.2 Set `APP_URL`](#2-set-app_url)
 for the full reasoning. Append the exact browser-visible URL:
 
 ```sh
@@ -300,7 +300,7 @@ WorkingDirectory=/opt/powerdns-authadmin
 EnvironmentFile=/opt/powerdns-authadmin/.env
 # Adjust if node/npm aren't at /usr/bin (e.g. nvm: /home/pda/.nvm/versions/node/v24.x/bin).
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-# Migrations + seed are idempotent — running on every start is safe.
+# Migrations + seed are idempotent - running on every start is safe.
 ExecStartPre=/usr/bin/npm run db:migrate --silent
 ExecStartPre=/usr/bin/npm run db:seed --silent
 ExecStart=/usr/bin/npm run start --silent
@@ -326,7 +326,7 @@ sudo journalctl -fu powerdns-authadmin    # tail logs
 ```
 
 Upgrade later with `git pull && npm ci && npm run build && systemctl restart
-powerdns-authadmin` — migrations run on the next start.
+powerdns-authadmin` - migrations run on the next start.
 
 ---
 
@@ -335,11 +335,11 @@ powerdns-authadmin` — migrations run on the next start.
 Open `APP_URL`, sign in as `BOOTSTRAP_ADMIN_EMAIL` with the bootstrap password,
 and set a new password when prompted (the bootstrap admin is flagged
 "must change password"). Then add your PowerDNS backend(s) under **Admin →
-PowerDNS servers** ([Connecting backends](./04-BACKENDS.md)) — or define them in
+PowerDNS servers** ([Connecting backends](./04-BACKENDS.md)) - or define them in
 a [provisioning file](./06-PROVISIONING.md).
 
 The bootstrap admin seeds only when **both** `BOOTSTRAP_ADMIN_EMAIL` and
-`BOOTSTRAP_ADMIN_PASSWORD` are set. It's idempotent — keyed on the email, it
+`BOOTSTRAP_ADMIN_PASSWORD` are set. It's idempotent - keyed on the email, it
 ensures that account exists and never clobbers an existing one.
 
 ---
@@ -351,14 +351,14 @@ ensures that account exists and never clobbers an existing one.
 Terminate TLS at your proxy (nginx, HAProxy, Caddy, Traefik, a cloud LB) and
 forward to the app's port 3000. Three things must line up:
 
-1. **`APP_URL` is the public, browser-visible URL** — `https://dns.example.com`,
+1. **`APP_URL` is the public, browser-visible URL** - `https://dns.example.com`,
    not the upstream `http://app:3000`. It builds OIDC redirect URIs, email
    links, cookie scope, and the CSP origin. The login page shows an inline
    error if it doesn't match the address bar (see [§ A.2](#2-set-app_url)).
 2. **`X-Forwarded-Proto` and `X-Forwarded-Host`** so the app reconstructs the
    real public origin (and the APP_URL mismatch detector doesn't false-positive
    on the upstream hostname).
-3. **`X-Forwarded-For` / `X-Real-IP` must be the real client IP** — the proxy
+3. **`X-Forwarded-For` / `X-Real-IP` must be the real client IP** - the proxy
    sets/overwrites them, never appends. The app trusts these for audit + rate
    limiting; there is no `TRUST_PROXY` toggle.
 
@@ -385,13 +385,13 @@ server {
     http2 on;
     server_name dns.example.com;
 
-    # TLS — Let's Encrypt via certbot, or your own cert chain.
+    # TLS - Let's Encrypt via certbot, or your own cert chain.
     ssl_certificate     /etc/letsencrypt/live/dns.example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/dns.example.com/privkey.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_ciphers         HIGH:!aNULL:!MD5;
 
-    # Modest upload cap — zone imports + uploaded brand logos.
+    # Modest upload cap - zone imports + uploaded brand logos.
     client_max_body_size 4m;
 
     location / {
@@ -404,13 +404,13 @@ server {
         proxy_set_header X-Forwarded-Proto   $scheme;
 
         # Client IP for audit + rate limiting (§3 above).
-        # nginx automatically overwrites X-Real-IP — that's the secure default;
+        # nginx automatically overwrites X-Real-IP - that's the secure default;
         # don't `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`
         # because $proxy_add_x_forwarded_for APPENDS to any client-sent value.
         proxy_set_header X-Real-IP           $remote_addr;
         proxy_set_header X-Forwarded-For     $remote_addr;
 
-        # SSE health/realtime endpoints — disable buffering and long timeouts.
+        # SSE health/realtime endpoints - disable buffering and long timeouts.
         proxy_buffering    off;
         proxy_read_timeout 5m;
         proxy_send_timeout 5m;
@@ -428,7 +428,7 @@ place, set `APP_URL=https://dns.example.com` (not `http://localhost:3000`).
 #### HAProxy
 
 ```haproxy
-# /etc/haproxy/haproxy.cfg (excerpt — slot into your global/defaults)
+# /etc/haproxy/haproxy.cfg (excerpt - slot into your global/defaults)
 frontend pda_https
     bind *:443 ssl crt /etc/haproxy/certs/dns.example.com.pem alpn h2,http/1.1
     bind *:80
@@ -439,7 +439,7 @@ frontend pda_https
     http-request set-header X-Forwarded-Proto http  if !{ ssl_fc }
     http-request set-header X-Forwarded-Host  %[req.hdr(host)]
 
-    # Overwrite client IP headers — never trust the caller's value.
+    # Overwrite client IP headers - never trust the caller's value.
     http-request del-header  X-Forwarded-For
     http-request del-header  X-Real-IP
     http-request set-header  X-Forwarded-For %[src]
@@ -448,7 +448,7 @@ frontend pda_https
     default_backend pda_app
 
 backend pda_app
-    option forwardfor      # disabled — we already set X-Forwarded-For above
+    option forwardfor      # disabled - we already set X-Forwarded-For above
     server pda 127.0.0.1:3000 check
     timeout server  5m     # generous: SSE realtime streams stay open
 ```
@@ -469,7 +469,7 @@ dns.example.com {
 }
 ```
 
-Caddy auto-provisions Let's Encrypt certs on first hit — no `ssl_certificate`
+Caddy auto-provisions Let's Encrypt certs on first hit - no `ssl_certificate`
 plumbing needed.
 
 ### Secrets from files (Docker / Kubernetes secrets)
@@ -493,9 +493,9 @@ If both `FOO` and `FOO_FILE` are set, the inline value wins and a warning is log
 The entrypoint runs four stages; **any failure aborts the boot** (a broken
 migration or bad provisioning file gives a refused start, not a degraded run):
 
-1. **Migrate** — apply pending schema changes. Opt out: `MIGRATE_ON_BOOT=false`.
-2. **Seed** — create the five system roles and (if configured) the bootstrap admin. Opt out: `SEED_ON_BOOT=false`.
-3. **Provision** — apply `PROVISIONING_FILE` once, if set. Opt out: `PROVISION_ON_BOOT=false`. See [Provisioning](./06-PROVISIONING.md).
+1. **Migrate** - apply pending schema changes. Opt out: `MIGRATE_ON_BOOT=false`.
+2. **Seed** - create the five system roles and (if configured) the bootstrap admin. Opt out: `SEED_ON_BOOT=false`.
+3. **Provision** - apply `PROVISIONING_FILE` once, if set. Opt out: `PROVISION_ON_BOOT=false`. See [Provisioning](./06-PROVISIONING.md).
 4. **Start** the server.
 
 To run migrations as a separate CI/CD step, set `MIGRATE_ON_BOOT=false` and run
@@ -513,10 +513,10 @@ traffic to a replica that isn't ready.
 
 ### Backups
 
-- **SQLite** — back up the `app-data` volume (the DB is a single file at the
+- **SQLite** - back up the `app-data` volume (the DB is a single file at the
   `DATABASE_URL` path). Back up `APP_ENCRYPTION_KEY` alongside it, or the stored
   secrets are unreadable.
-- **Postgres** — `pg_dump` / `pg_restore` or volume snapshots:
+- **Postgres** - `pg_dump` / `pg_restore` or volume snapshots:
 
   ```sh
   docker compose exec postgres pg_dump -U pdns powerdns_authadmin > backup.sql
@@ -526,7 +526,7 @@ traffic to a replica that isn't ready.
 
 ## Next steps
 
-- [Configuration](./03-CONFIGURATION.md) — every environment variable.
+- [Configuration](./03-CONFIGURATION.md) - every environment variable.
 - [Connecting PowerDNS backends](./04-BACKENDS.md).
 - [Hardening](./08-HARDENING.md) and [Upgrading](./09-UPGRADING.md).
 

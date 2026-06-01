@@ -3,7 +3,7 @@
  *
  * Chrome for every authenticated route: left sidebar with the wordmark + nav,
  * top bar with the theme toggle and the user menu on the right. Runs
- * `requireUser()` at the top — when there's no session, it redirects to
+ * `requireUser()` at the top - when there's no session, it redirects to
  * /login rather than throwing 401 (better UX than a JSON error for a browser).
  *
  * Per-page authorization (e.g. "only Admins can see /admin") happens in the
@@ -64,13 +64,13 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // user's assigned roles is marked `requiresMfa` and the user
   // hasn't enrolled TOTP yet, shunt them to /profile so they can
   // enroll. The allowlist keeps /profile + the MFA-related API
-  // surface reachable — without it the operator would be in a
+  // surface reachable - without it the operator would be in a
   // deadlock.
   //
   // SSO-only users (no local password hash) are exempt: their IdP
   // is the second-factor authority. Adding a second TOTP gate on
   // top would be a TOTP-after-TOTP user-experience papercut without
-  // increasing security — the IdP is already the trust root for
+  // increasing security - the IdP is already the trust root for
   // this account.
   const hdrs = await headers();
   const pathname = hdrs.get("x-pathname") ?? "/";
@@ -113,7 +113,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const canReadAuth = current.ability.can("read", "Auth");
   const canUseTemplates = current.ability.can("use", "Template");
 
-  // Health-bell advisories (ADR-0015) — only for users who can read backends.
+  // Health-bell advisories (ADR-0015) - only for users who can read backends.
   const advisories = canReadServers
     ? (await listActiveAdvisories()).map((a) => ({
         id: a.id,
@@ -237,14 +237,14 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // Fleet-wide sync verdict as the chip's default mode. Pages that show
   // their own (per-zone or per-page) sync state push it via
   // <HeaderStatusMode/> and override this. Computed only when realtime is
-  // available + the operator can see backend state at all — otherwise the
+  // available + the operator can see backend state at all - otherwise the
   // chip falls back to plain "Live" so a profile-only user doesn't see a
   // signal they have no context for. The helper reads exclusively from the
   // poller's in-process caches, so this is a near-free lookup once the
   // first ensureBackendsObserved warms the store.
   // Sync-mode chip default. Pages that show their own per-zone or per-page
   // sync state override this via <HeaderStatusMode/>. The decision is a pure
-  // function (`decideHeaderChipMode`) — unit-tested in isolation; the awaits
+  // function (`decideHeaderChipMode`) - unit-tested in isolation; the awaits
   // here are I/O bridges feeding it.
   const canReadBackends = canReadZones || canReadServers;
   const showGlobalSync = pdnsBackgroundPollingEnabled && realtimeAvailable && canReadBackends;
@@ -305,7 +305,7 @@ function NavSection({ label, children }: { label: string; children: React.ReactN
 }
 
 /**
- * Sub-grouping label rendered inside a NavSection — quieter than the
+ * Sub-grouping label rendered inside a NavSection - quieter than the
  * section heading itself, used to chunk the PowerDNS section into
  * Backends / Zones / Security / Activity without spawning four
  * top-level NavSections (which would lose the "PowerDNS" umbrella).
@@ -354,7 +354,7 @@ function SidebarFooter() {
 }
 
 /**
- * GitHub mark — inlined because lucide-react dropped its brand icons over
+ * GitHub mark - inlined because lucide-react dropped its brand icons over
  * licensing. Octicon path, scaled by the `className` height/width.
  */
 function GitHubMark({ className }: { className?: string }) {

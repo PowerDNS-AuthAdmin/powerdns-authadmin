@@ -6,7 +6,7 @@ page covers doing it safely.
 
 ## Before you upgrade
 
-1. **Read the [CHANGELOG](../CHANGELOG.md)** for the target version — note any
+1. **Read the [CHANGELOG](../CHANGELOG.md)** for the target version - note any
    breaking changes.
 2. **Back up the database** (and your `APP_ENCRYPTION_KEY`):
    - SQLite: copy the DB file / snapshot the data volume.
@@ -25,7 +25,7 @@ docker compose logs -f app  # watch migrations apply
 
 On boot the entrypoint runs migrations, then the seed (idempotent), then any
 provisioning (skipped after first boot), then starts the server. Migration logs
-are intentionally loud — you'll see the pending list and the applied names. If a
+are intentionally loud - you'll see the pending list and the applied names. If a
 migration fails, **the container refuses to start** rather than running on a
 half-migrated schema; fix the cause and restart.
 
@@ -37,6 +37,23 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.4.0 (from 1.3.x)
+
+No migration and no breaking changes - pull the new tag and recreate the
+container as above. The release adds an opt-in demo guard rail and dashboard
+fixes.
+
+#### Optional - lock the bootstrap admin for public demos (`BOOTSTRAP_ADMIN_RO`)
+
+If you run a **publicly-reachable demo** with a published login, set
+`BOOTSTRAP_ADMIN_RO=true` (and make sure `BOOTSTRAP_ADMIN_EMAIL` is set). This
+freezes that account's own password, email, name, MFA / passkey, enable/disable,
+delete, and role assignments, so a visitor can't hijack or lock out the shared
+login. It changes nothing else the account can do. Leave it unset (`false`, the
+default) for normal deployments - existing behaviour is unchanged. When enabled,
+the seed provisions the account already password-compliant, so the first login
+isn't trapped on a change-password screen it can never clear.
+
 ### Upgrading to 1.3.0 (from 1.2.x)
 
 A **feature-pile release**: WebAuthn (passkeys, primary + 2FA), SAML 2.0 SP,
@@ -44,28 +61,28 @@ LDAP direct-bind, teams per-zone grants, session-scoped IdP-derived
 permissions with live token recompute, the unified `/admin/authentication`
 admin surface, and a super-admin Backup & Restore wizard. The migration is a
 single SQL file per dialect (`drizzle/0004_low_luminals.sql` +
-`drizzle-sqlite/0004_black_storm.sql`) and runs automatically at app boot —
+`drizzle-sqlite/0004_black_storm.sql`) and runs automatically at app boot -
 no manual schema steps.
 
 The items below need operator attention.
 
-#### Permission rename — `oidc.*` → `auth.*`
+#### Permission rename - `oidc.*` → `auth.*`
 
 The `oidc.read` / `oidc.manage` permission strings are renamed to `auth.read` /
 `auth.manage` since the same gates now cover OIDC, SAML, and LDAP at the
 unified `/admin/authentication` surface.
 
 **What the migration does for you**: existing `roles.permissions` arrays are
-rewritten in place — every `"oidc.read"` becomes `"auth.read"`, every
+rewritten in place - every `"oidc.read"` becomes `"auth.read"`, every
 `"oidc.manage"` becomes `"auth.manage"`. Seeded system roles + custom
 operator-defined roles both get the update.
 
 **What you need to do**: nothing in the typical case. If you provision roles
 declaratively via `provisioning.yaml`, update your YAML to use the new
-permission names — the applier won't fail on the old names, but they'll be
+permission names - the applier won't fail on the old names, but they'll be
 silently dropped (they're no longer in the master vocabulary).
 
-#### Admin URL renames — `/admin/oidc-providers` → `/admin/authentication/oidc`
+#### Admin URL renames - `/admin/oidc-providers` → `/admin/authentication/oidc`
 
 | Old                          | New                               |
 | ---------------------------- | --------------------------------- |
@@ -79,7 +96,7 @@ silently dropped (they're no longer in the master vocabulary).
 Every old URL keeps a server-side redirect to the new one, so external links,
 bookmarks, and audit-log references continue to resolve. Update your own docs
 and runbooks at your leisure. The internal API routes
-(`/api/admin/oidc-providers/...` etc.) are **not** moved — they're a stable
+(`/api/admin/oidc-providers/...` etc.) are **not** moved - they're a stable
 contract for external automation.
 
 #### IdP-derived permissions move from `role_assignments` to `sessions`
@@ -104,7 +121,7 @@ can't be reached. See issue #85 for the full design.
   admin-issued permissions. They temporarily lose IdP-derived perms until they
   sign in again, which re-materialises the snapshot. Sign-out / sign-in once
   after the upgrade.
-- SSO users with API tokens: same — token use falls back to admin-issued perms
+- SSO users with API tokens: same - token use falls back to admin-issued perms
   until the user re-signs-in (then within 60s the live recompute kicks in for
   LDAP / OIDC sessions).
 
@@ -124,7 +141,7 @@ IDP_PERMS_CACHE_TTL_SECONDS=60
 
 To get the OIDC live-recompute path (refresh-token → userinfo at API-token use
 time), the IdP must include `offline_access` in the scope on the authorization
-request — already the default for new OIDC providers configured under
+request - already the default for new OIDC providers configured under
 `/admin/authentication/oidc`. **Existing OIDC sessions created before the
 upgrade have no refresh token stored**; their tokens use the session-snapshot
 fallback until the user signs in fresh. Existing OIDC operators should sign
@@ -151,7 +168,7 @@ unchanged (43200 = 12h).
 | `auth.saml.rejected_provisioning`         | `auth.idp.rejected_provisioning`     |
 | `auth.ldap.rejected_provisioning`         | `auth.idp.rejected_provisioning`     |
 
-Existing audit rows are **untouched** — old action names stay on the rows
+Existing audit rows are **untouched** - old action names stay on the rows
 written under them. The change only affects new rows. Audit dashboards that
 filter on the old names should be updated.
 
@@ -170,11 +187,11 @@ the encryption key on the restore target.
 A new **Import / Export** hub at `/admin/import-export` (under PowerDNS →
 Zones) lets operators paste/upload BIND zonefiles to create zones in bulk, and
 download selected zones as a single BIND-format bundle. `zone.read` to view,
-`zone.create` to import. No operator action required — it's additive.
+`zone.create` to import. No operator action required - it's additive.
 
 ### Upgrading to 1.2.1 (from 1.2.x)
 
-A **build-pipeline patch** — drop-in upgrade. No schema, no API, no
+A **build-pipeline patch** - drop-in upgrade. No schema, no API, no
 operator-config changes. Pull-and-recreate the container:
 
 ```sh
@@ -191,7 +208,7 @@ What changes:
   `/app/boot/{migrate,seed,provision}.js`.
 - **Runner is now distroless.** Base swapped from
   `node:24-bookworm-slim` to `gcr.io/distroless/nodejs24-debian12:nonroot`.
-  No shell, no apt, no package manager in the runtime image — only
+  No shell, no apt, no package manager in the runtime image - only
   `node`, glibc, openssl, ca-certificates.
 - **Container user is `nonroot` (uid 65532)**, replacing `node`
   (uid 1000).
@@ -200,7 +217,7 @@ What changes:
 - **`:latest` follows releases**, not `main`. `:edge` tracks `main`.
   See [Installation → Image tags](./02-INSTALLATION.md#image-tags).
 
-> **NOTE — operator-facing trade-offs (read before upgrading a
+> **NOTE - operator-facing trade-offs (read before upgrading a
 > production deployment):**
 >
 > 1.  **No shell in the runtime container.** `docker exec <id> sh` is
@@ -217,13 +234,13 @@ What changes:
 
 If you mounted anything inside the image at one of the dropped paths
 (`/app/scripts`, `/app/lib`, `/app/tsconfig.json`) for custom tooling,
-that's the only meaningful breakage — those are build-time artefacts
+that's the only meaningful breakage - those are build-time artefacts
 and shouldn't be mounted in production, but the upgrade now enforces
 it.
 
 ### Upgrading to 1.2.0 (from 1.1.x)
 
-A **minor release** — no schema migration, no API changes, drop-in upgrade.
+A **minor release** - no schema migration, no API changes, drop-in upgrade.
 There is **one new env var with a behaviour-change default**, and a fix for
 operators running standalone PowerDNS.
 
@@ -241,7 +258,7 @@ What also changes after the upgrade:
 
 - **Standalone PDNS Auth instances (no `primary=yes` or `secondary=yes`
   in `pdns.conf`) become usable as zone-create targets.** Until 1.2.0,
-  AuthAdmin was treating "no replication flag set" as "not writable" —
+  AuthAdmin was treating "no replication flag set" as "not writable" -
   hiding the backend from `/zones/new`'s picker even though **Test**
   went green. After upgrading those backends appear on the create-zone
   page automatically; nothing to reconfigure. (Closes #57.)
@@ -249,15 +266,15 @@ What also changes after the upgrade:
   neutral tone, accurate label.
 - If you applied the **`primary=yes` workaround** mentioned in #57 to
   unblock zone creation on a standalone, you can now revert it from
-  `pdns.conf`. The override was operationally harmless either way — no
-  slaves to NOTIFY — but the badge will read `standalone` correctly
+  `pdns.conf`. The override was operationally harmless either way - no
+  slaves to NOTIFY - but the badge will read `standalone` correctly
   once it's gone.
 
 #### Choosing your `PDNS_BACKGROUND_POLLING` value
 
 | Deployment shape                                                          | Set `PDNS_BACKGROUND_POLLING` to     |
 | ------------------------------------------------------------------------- | ------------------------------------ |
-| Single PowerDNS server / standalone / homelab — no AXFR replication.      | `false` (the new default — leave it) |
+| Single PowerDNS server / standalone / homelab - no AXFR replication.      | `false` (the new default - leave it) |
 | Multiple standalone PowerDNS instances, none acting as primary/secondary. | `false`                              |
 | One primary with one or more secondaries replicating its zones via AXFR.  | `true` _(strongly recommended)_      |
 | Two or more PowerDNS instances forming a multi-primary cluster.           | `true` _(strongly recommended)_      |
@@ -267,7 +284,7 @@ What also changes after the upgrade:
 - AuthAdmin contacts PDNS only in direct response to operator actions:
   page renders, **Test**, **Refresh All**, zone create/edit/delete,
   DNSSEC/TSIG/autoprimaries actions. No background traffic.
-- The supplementary "replication-awareness" surfaces are hidden — see
+- The supplementary "replication-awareness" surfaces are hidden - see
   the list under "MUST NOW ENABLE" above.
 - The dashboard renders the Admin view only; a small `(i)` icon by the
   page heading explains how to enable polling.
@@ -303,7 +320,7 @@ A **security-hygiene patch.** No app-code changes; no schema, API, or
 config changes. Pull-and-recreate.
 
 Adds a defensive `package.json` `overrides` pin keeping `size-sensor` at
-`1.0.3` (the last clean version) — closes the resolver attack window for
+`1.0.3` (the last clean version) - closes the resolver attack window for
 the **Mini Shai-Hulud** npm campaign that hijacked `size-sensor` `1.0.4`
 / `1.1.4` / `1.2.4` on 2026-05-19. **PowerDNS-AuthAdmin was never
 shipped with the affected versions**; this release just locks the door.
@@ -312,17 +329,17 @@ and `MAL-2026-4153` / `GHSA-gx6x-v325-85g4` for the threat detail.
 
 ### Upgrading to 1.1.4 (from 1.1.x)
 
-A **major operator-UX release** — drop-in upgrade. **No schema migration, no API
+A **major operator-UX release** - drop-in upgrade. **No schema migration, no API
 changes, no config changes.** Pull-and-recreate the container and you're done.
 
 What changes when operators sign in:
 
 - **Mobile-first responsive shell.** Every page is usable on a phone now.
   Drawer-style navigation under `md`; full sidebar from `md+`.
-- **Live status chip in the top bar** — connection state plus a fleet-wide
+- **Live status chip in the top bar** - connection state plus a fleet-wide
   sync verdict (`SYNCED` / `DESYNCED`) on every page, with the per-page
   override on zone-detail / zones-list / servers preserved.
-- **New animated SyncIndicator** — concentric-ring glyph used everywhere a
+- **New animated SyncIndicator** - concentric-ring glyph used everywhere a
   sync state is displayed. Honours `prefers-reduced-motion`.
 - **Diff-before-apply on every record edit.** Save is now two clicks: an
   inline edit, then a **Review changes** modal with the BIND-style diff,
@@ -331,16 +348,16 @@ What changes when operators sign in:
 - **Every list is one DataTable.** Mobile reflows to labelled cards; the
   desktop chrome is uniform across audit / zones / users / roles / teams /
   PDNS requests / OIDC / TSIG / autoprimaries / zone templates.
-- **CSS-only changes** — no client-side breaking changes; saved theme
+- **CSS-only changes** - no client-side breaking changes; saved theme
   preferences, sessions, MFA enrolments, API tokens all carry over.
 
 If you've embedded our screenshots in your own docs, note that several
-filenames changed in this release — the canonical set is now
+filenames changed in this release - the canonical set is now
 [`screenshots/README.md`](../screenshots/README.md).
 
 ### Upgrading to 1.1.3 (from 1.1.x)
 
-A maintenance release — **no schema migration**, a plain pull-and-recreate, and
+A maintenance release - **no schema migration**, a plain pull-and-recreate, and
 nothing operator-facing to change. It fixes per-zone grants on multi-primary
 clusters (a grant on one peer now authorizes the zone on every peer), renames the
 internal request middleware to the Next 16 `proxy` convention (transparent), and
@@ -348,7 +365,7 @@ re-pins the CI GitHub Actions to Node 24 (CI-only).
 
 ### Upgrading to 1.1.2 (from 1.1.x)
 
-A security release — **no schema migration**, a plain pull-and-recreate. Two
+A security release - **no schema migration**, a plain pull-and-recreate. Two
 behavioural changes that close enforcement gaps (they may surface as a new `403`
 for accounts that were previously able to bypass a gate via the API):
 
@@ -358,7 +375,7 @@ for accounts that were previously able to bypass a gate via the API):
   enroll TOTP / change their password (the enrollment, change-password, and
   logout endpoints stay reachable). This previously only redirected the browser,
   so a direct API caller could skip it. No action needed unless you rely on
-  required-MFA accounts driving the API without having enrolled — have them
+  required-MFA accounts driving the API without having enrolled - have them
   enroll.
 - **Privilege ceilings are enforced on more admin paths.** Creating a user with
   an initial role, resetting another user's password, and removing another user's
@@ -367,24 +384,24 @@ for accounts that were previously able to bypass a gate via the API):
 
 ### Upgrading to 1.1.1 (from 1.1.0)
 
-A maintenance + security release — **no schema migration**, so it's a plain
+A maintenance + security release - **no schema migration**, so it's a plain
 pull-and-recreate. One behavioural change to be aware of:
 
 - **OIDC `requireEmailVerified` now defaults to `true`** for newly-created
   DB-backed providers (account-takeover hardening). **Existing provider rows keep
-  their stored value**, so nothing changes for them on upgrade — but if you have a
+  their stored value**, so nothing changes for them on upgrade - but if you have a
   provider with `requireEmailVerified` set to `false`, audit it: confirm the IdP
   genuinely never emits the `email_verified` claim before keeping it off. See
   [OIDC](./05-OIDC.md).
 
 Everything else in this release (the security batch, the CSP and supply-chain
 hardening, and the opt-in additions like self-service signup) is transparent on
-upgrade — signup stays off unless you set `SIGNUP_ENABLED=true`.
+upgrade - signup stays off unless you set `SIGNUP_ENABLED=true`.
 
 ### Upgrading to 1.1.0 (from 1.0.x)
 
 One schema migration applies on first boot (`0003_backend_caps_advisories_squash`).
-It is **data-preserving** — verified end-to-end against a real 1.0.x SQLite
+It is **data-preserving** - verified end-to-end against a real 1.0.x SQLite
 deployment (servers, users, roles, audit history all retained).
 
 Two behavioural points specific to this release (ADR-0014 / ADR-0017):
@@ -396,20 +413,20 @@ Two behavioural points specific to this release (ADR-0014 / ADR-0017):
   start empty and are re-populated by the first poll (seconds), so backends may
   briefly show as "unknown" until that completes. A primary + secondaries that
   was wired only by the old `primary_id` pin re-derives automatically when the
-  secondary's zones list the primary's advertised address — otherwise group them
+  secondary's zones list the primary's advertised address - otherwise group them
   under **Admin → Clusters** (or set the primary's advertised addresses).
 - **Keep your `APP_ENCRYPTION_KEY`.** Stored PDNS API keys and OIDC client
   secrets are decrypted with it; an upgrade that loses the key can't decrypt them
   (you'd see `Unsupported state or unable to authenticate data` in the logs).
   This isn't new in 1.1.0, but the backup step above is the reminder.
 
-If you run **SQLite**, this release also requires no manual steps — the squashed
+If you run **SQLite**, this release also requires no manual steps - the squashed
 migration handles the column add/drop in one table rebuild (see
 [ADR-0017](./adr/0017-migration-squash-1.1.0.md) for the SQLite-specific detail).
 
 ## Rollback
 
-Migrations are **forward-only** — there are no automated down-migrations. To roll
+Migrations are **forward-only** - there are no automated down-migrations. To roll
 back the application image you must also restore the database to its
 pre-upgrade backup, because a newer migration may have changed the schema in ways
 the older image doesn't understand.
@@ -426,7 +443,7 @@ path.
 
 ## Multi-replica notes (Postgres)
 
-Several replicas can boot at once — the migration step takes a `pg_advisory_lock`
+Several replicas can boot at once - the migration step takes a `pg_advisory_lock`
 so exactly one applies migrations while the others wait. Combined with `/readyz`
 gating, a rolling deploy won't send traffic to a replica until its schema is
 current. To run migrations as a separate pipeline step instead, set
@@ -434,8 +451,9 @@ current. To run migrations as a separate pipeline step instead, set
 
 For replicas > 1 you also need `REDIS_URL` set so auth rate limiting, reveal-once
 tokens, and the realtime event-bus coordinate across replicas (sessions already do
-— they're in Postgres). See [ADR-0016](./adr/0016-redis-horizontal-scale.md) and the
-[High availability](../README.md#high-availability-replicas--1) compose example.
+
+- they're in Postgres). See [ADR-0016](./adr/0016-redis-horizontal-scale.md) and the
+  [High availability](../README.md#high-availability-replicas--1) compose example.
 
 ---
 

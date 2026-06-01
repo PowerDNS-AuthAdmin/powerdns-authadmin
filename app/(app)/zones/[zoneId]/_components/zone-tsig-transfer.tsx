@@ -7,7 +7,7 @@
  * selection). Manages the zone's set of transfer keys: each call adds or removes
  * exactly ONE key via the tsig-transfer route, which read-modify-writes
  * `master_tsig_key_ids` on the primary + `slave_tsig_key_ids` on the secondaries
- * that host the zone — so other keys already on the zone are never clobbered.
+ * that host the zone - so other keys already on the zone are never clobbered.
  *
  * Shown only on authoritative (Master/Primary) zones; mirror zones get their
  * AXFR-MASTER-TSIG from their primary's view.
@@ -85,7 +85,7 @@ export function ZoneTsigTransfer({
     <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-5">
       <h3 className="text-sm font-medium">Zone transfer (TSIG)</h3>
       <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
-        Keys required for AXFR of this zone — sets <code>master_tsig_key_ids</code> here and{" "}
+        Keys required for AXFR of this zone - sets <code>master_tsig_key_ids</code> here and{" "}
         <code>slave_tsig_key_ids</code> on the secondaries that mirror it. Adding or removing a key
         leaves any others in place.
       </p>
@@ -93,7 +93,7 @@ export function ZoneTsigTransfer({
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {keys.length === 0 ? (
           <span className="text-xs text-[color:var(--color-fg-muted)]">
-            No TSIG key — AXFR is unauthenticated.{" "}
+            No TSIG key - AXFR is unauthenticated.{" "}
             <Link
               href={`/admin/tsig-keys?server=${encodeURIComponent(serverSlug)}`}
               className="text-[color:var(--color-accent)] hover:underline"
@@ -148,7 +148,7 @@ export function ZoneTsigTransfer({
 
       {!canWrite ? (
         <p className="mt-2 text-xs text-[color:var(--color-fg-muted)]">
-          Read-only — needs <code>metadata.write</code>.
+          Read-only - needs <code>metadata.write</code>.
         </p>
       ) : null}
     </div>

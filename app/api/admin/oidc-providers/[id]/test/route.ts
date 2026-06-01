@@ -1,7 +1,7 @@
 /**
  * app/api/admin/oidc-providers/[id]/test/route.ts
  *
- * POST — operator probes the OIDC issuer's discovery endpoint and
+ * POST - operator probes the OIDC issuer's discovery endpoint and
  * persists the result on the provider row's `discoveryCache`. The
  * admin list page reads the cache to render a health badge.
  *
@@ -48,7 +48,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     const provider = await findOidcProviderById(id);
     if (!provider) throw new NotFoundError("OIDC provider not found.");
 
-    // Re-validate the (persisted) issuer URL before fetching — DNS-rebind
+    // Re-validate the (persisted) issuer URL before fetching - DNS-rebind
     // defense, and surfaces a now-unsafe URL as a normal in-band test failure.
     const safety = await checkOidcIssuerUrlSafe(provider.issuerUrl);
     const result: ProbeResult = safety.safe
@@ -68,7 +68,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
         : { reason: result.reason }),
     });
 
-    // Audit BOTH outcomes — operator-visible diagnostics for "we
+    // Audit BOTH outcomes - operator-visible diagnostics for "we
     // tested at T, here's what we found." Cache is on the row; the
     // audit row has the historic decision trail.
     await appendAudit({

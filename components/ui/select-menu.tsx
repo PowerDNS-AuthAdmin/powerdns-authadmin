@@ -3,7 +3,7 @@
 /**
  * components/ui/select-menu.tsx
  *
- * Themed single-select dropdown — the project's replacement for native `<select>`
+ * Themed single-select dropdown - the project's replacement for native `<select>`
  * (which the user dislikes on UX grounds). Visually the zone-kind chooser: a
  * button trigger + a listbox of options, each with an optional description line.
  * Closes on outside-click or Escape.
@@ -79,7 +79,7 @@ export function SelectMenu<T extends string>({
     const spaceAbove = b.top - GAP - EDGE;
     // Flip up only when the menu can't get its full height below AND there's more
     // room above. Anchoring the up-menu by its BOTTOM edge means it sits directly
-    // above the trigger regardless of how many options it holds — no measuring.
+    // above the trigger regardless of how many options it holds - no measuring.
     const openUp = spaceBelow < MENU_MAX && spaceAbove > spaceBelow;
     if (openUp) {
       setAnchor({
@@ -126,7 +126,7 @@ export function SelectMenu<T extends string>({
   function toggle() {
     if (disabled) return;
     setOpen((o) => {
-      if (!o) reposition(); // compute the anchor BEFORE first paint — no flash
+      if (!o) reposition(); // compute the anchor BEFORE first paint - no flash
       return !o;
     });
   }

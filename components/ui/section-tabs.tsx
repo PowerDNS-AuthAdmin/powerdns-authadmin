@@ -16,7 +16,7 @@
  *   /page#sessions    → opens "sessions"
  *
  * Hidden tabs stay in the DOM (SSR-rendered, then display-toggled on
- * the client) so switching tabs is instant — no remount, no re-fetch
+ * the client) so switching tabs is instant - no remount, no re-fetch
  * of server data the panels already received as props.
  *
  * Panel identity uses a `data-section-tab` marker attribute rather
@@ -49,7 +49,7 @@ interface ContainerProps {
 export function SectionTabs({ tabs, defaultTab, children }: ContainerProps) {
   // SSR: trust the defaultTab. Client first paint: sync to the URL
   // hash BEFORE the user sees the wrong panel. The hydration mismatch
-  // from this is acceptable — hidden-panel content is identical SSR
+  // from this is acceptable - hidden-panel content is identical SSR
   // vs CSR; only the `display` style on each wrapper differs by one
   // render.
   const [activeId, setActiveId] = useState<string>(defaultTab);
@@ -100,7 +100,7 @@ export function SectionTabs({ tabs, defaultTab, children }: ContainerProps) {
 /**
  * Filter wrapper: hides every `<SectionTabPanel>` child whose `id`
  * doesn't match `activeId`. Non-panel children (no marker attribute)
- * pass through verbatim — useful for banners that should show on
+ * pass through verbatim - useful for banners that should show on
  * every tab.
  */
 function ActivePanelGate({ activeId, children }: { activeId: string; children: ReactNode }) {

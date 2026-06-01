@@ -1,6 +1,6 @@
 /**
  * Statistics tab body for the zone detail page. PDNS doesn't expose
- * per-zone statistics endpoints — what we surface here is audit-derived
+ * per-zone statistics endpoints - what we surface here is audit-derived
  * per-zone activity over the last 7 days. Server-wide PDNS counters
  * (query rate, latency, qtype mix) live on the dashboard "PowerDNS
  * stats" tab where they belong; surfacing them here implied per-zone
@@ -10,7 +10,7 @@
 import { zoneAuditCounts7d } from "@/lib/db/repositories/audit-log";
 
 interface Props {
-  /** Backend slug(s) — multiple for a cluster (edits scatter across peers). */
+  /** Backend slug(s) - multiple for a cluster (edits scatter across peers). */
   serverSlugs: readonly string[];
   zoneName: string;
 }

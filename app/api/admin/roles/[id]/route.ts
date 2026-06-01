@@ -1,14 +1,14 @@
 /**
  * app/api/admin/roles/[id]/route.ts
  *
- * PATCH  — update a role's mutable attributes (name, description,
+ * PATCH  - update a role's mutable attributes (name, description,
  *          requiresMfa, permissions). System roles accept only the
  *          `requiresMfa` toggle; every other field is rejected on
  *          `is_system = true` rows so the seeded vocabulary stays
  *          predictable across deployments.
- * DELETE — drop a custom role. System roles refuse with 400. Roles
+ * DELETE - drop a custom role. System roles refuse with 400. Roles
  *          still referenced by `role_assignments` refuse with 409 and a
- *          friendly count message — the operator must revoke the
+ *          friendly count message - the operator must revoke the
  *          assignments first.
  *
  * All mutations are audited + CSRF-guarded.
@@ -158,7 +158,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     await db.transaction(async (tx) => {
       const result = await deleteRole(id, tx);
       if (!result.ok) {
-        // Defence in depth — pre-checks above already covered these.
+        // Defence in depth - pre-checks above already covered these.
         throw new ValidationError(`Cannot delete role: ${result.reason}.`);
       }
 

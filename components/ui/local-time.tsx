@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * `<LocalTime>` — render a UTC ISO timestamp in the browser's local
+ * `<LocalTime>` - render a UTC ISO timestamp in the browser's local
  * timezone. Server data stays UTC end-to-end (canonical, comparable,
  * portable); only the rendered text is converted.
  *
@@ -9,17 +9,17 @@
  * browser, so the first render (both server and client) produces a
  * stable UTC string. Once mounted on the client, we re-render in the
  * user's local zone. This produces the SAME output on both sides of
- * hydration — no `suppressHydrationWarning` needed, and no
+ * hydration - no `suppressHydrationWarning` needed, and no
  * "server-text-stays-frozen" trap (which previously kept timestamps
  * in UTC and made the picker look 8 hours out of sync with the
  * table).
  *
  * Variants via `style`:
- *   • "datetime" (default) — "2026-05-18 13:45:21" in local zone
- *   • "date"               — "2026-05-18"
- *   • "time"               — "13:45:21"
- *   • "iso"                — local zone ISO (`YYYY-MM-DDTHH:mm:ss±HH:MM`)
- *   • "relative"           — "2 minutes ago" / "in 3 hours"
+ *   • "datetime" (default) - "2026-05-18 13:45:21" in local zone
+ *   • "date"               - "2026-05-18"
+ *   • "time"               - "13:45:21"
+ *   • "iso"                - local zone ISO (`YYYY-MM-DDTHH:mm:ss±HH:MM`)
+ *   • "relative"           - "2 minutes ago" / "in 3 hours"
  */
 
 import { useEffect, useState } from "react";
@@ -27,7 +27,7 @@ import { useEffect, useState } from "react";
 type LocalTimeStyle = "datetime" | "date" | "time" | "iso" | "relative";
 
 interface Props {
-  /** Either an ISO 8601 string or a Date — both interpreted as UTC by spec. */
+  /** Either an ISO 8601 string or a Date - both interpreted as UTC by spec. */
   ts: string | Date | null | undefined;
   /** Rendering variant. Default `datetime`. */
   style?: LocalTimeStyle;
@@ -39,10 +39,10 @@ interface Props {
   fallback?: string;
 }
 
-export function LocalTime({ ts, style = "datetime", title, className, fallback = "—" }: Props) {
+export function LocalTime({ ts, style = "datetime", title, className, fallback = "-" }: Props) {
   // `mounted` flips true after first client paint. Before that we
-  // render a UTC string — identical on server and on the first client
-  // render — so React hydrates cleanly. After mount, the render
+  // render a UTC string - identical on server and on the first client
+  // render - so React hydrates cleanly. After mount, the render
   // switches to the operator's local zone.
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -50,7 +50,7 @@ export function LocalTime({ ts, style = "datetime", title, className, fallback =
   }, []);
 
   // Re-render on the relative-style ticker so "5 seconds ago" doesn't
-  // get stale. Cheap — one setInterval per relative-style instance.
+  // get stale. Cheap - one setInterval per relative-style instance.
   const [, force] = useState(0);
   useEffect(() => {
     if (style !== "relative") return;
@@ -121,7 +121,7 @@ function pad(n: number, w = 2): string {
 
 /**
  * Stable UTC string used for both server render and the first client
- * render. Locale-independent so both sides produce the same bytes —
+ * render. Locale-independent so both sides produce the same bytes -
  * once the client mounts we swap to the locale-aware formatter.
  *
  * The pre-mount text is shown for a single paint only, so the format
@@ -188,5 +188,5 @@ function formatRelative(d: Date): string {
     }
     prev = u;
   }
-  return "—";
+  return "-";
 }

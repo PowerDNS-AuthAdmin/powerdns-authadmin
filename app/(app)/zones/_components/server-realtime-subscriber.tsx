@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Zones-list realtime listener. Pure SSE-driven — no client-side polling. The
+ * Zones-list realtime listener. Pure SSE-driven - no client-side polling. The
  * unified server-side poller chains follow-up polls while replication is in
  * flight, so one router.refresh fires per real change, not per 1 s tick.
  *
@@ -11,7 +11,7 @@
  * when any of them publishes a zone event.
  *
  * Renders nothing visible: the "SYNCED / DESYNCED" chip lives in the shared
- * HeaderStatusChip in the top bar — we push the page's sync state into it via
+ * HeaderStatusChip in the top bar - we push the page's sync state into it via
  * <HeaderStatusMode/>.
  */
 
@@ -21,7 +21,7 @@ import { useRealtimeEvent } from "@/components/realtime/realtime-provider";
 import { HeaderStatusMode } from "@/components/realtime/header-status-chip";
 
 interface Props {
-  /** Channel slugs to listen on — see the file header for what counts as a
+  /** Channel slugs to listen on - see the file header for what counts as a
    *  channel slug for each topology. */
   serverSlugs: string[];
   inSync: boolean;

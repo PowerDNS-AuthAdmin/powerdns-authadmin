@@ -5,7 +5,7 @@
  *
  * Why JSONB and not a separate `webauthn_credentials` table: at the scale
  * we expect (single-digit credentials per user, never thousands), a normal-
- * form table buys nothing — every read is "fetch user + all credentials"
+ * form table buys nothing - every read is "fetch user + all credentials"
  * which is one query either way, and the credential set has no foreign-key
  * relationships that warrant the join overhead. The shape (`WebauthnCredential`
  * in `lib/db/schema/users.ts`) is fixed; mutations go through this module so
@@ -13,7 +13,7 @@
  *
  * All mutations are transactional and run as `read → mutate → write`. There's
  * no row-level lock on the JSONB column, so the LAST writer wins on a
- * concurrent enroll/remove — acceptable trade-off (concurrent enrolment
+ * concurrent enroll/remove - acceptable trade-off (concurrent enrolment
  * attempts by the same user are vanishingly rare; the SELECT-then-UPDATE
  * race window is ~microseconds).
  */

@@ -5,7 +5,7 @@
  * to PowerDNS while handling one request. Used both inside the change-
  * history feed's expanded row and on the audit-log viewer.
  *
- * Rendered as raw HTTP — request line + headers + body, followed by the
+ * Rendered as raw HTTP - request line + headers + body, followed by the
  * response status line. Response body is intentionally omitted (the
  * schema doesn't store it; PDNS responses are large and rarely add
  * diagnostic value over the status code).
@@ -37,8 +37,8 @@ export interface PdnsHttpLogEntry {
 interface Props {
   entries: PdnsHttpLogEntry[];
   /**
-   * When true (default) the log is wrapped in a `<details>` dropdown — used in
-   * the change-history feed. When false it renders flat (no nested dropdown) —
+   * When true (default) the log is wrapped in a `<details>` dropdown - used in
+   * the change-history feed. When false it renders flat (no nested dropdown) -
    * used where the surrounding row is already expanded (the PDNS-requests page).
    */
   collapsible?: boolean;
@@ -52,7 +52,7 @@ export function PdnsHttpLog({ entries, collapsible = true }: Props) {
     (e) => e.error !== null || (e.responseStatus !== null && e.responseStatus >= 400),
   ).length;
 
-  // Flat list — one header line + raw HTTP per entry, no per-entry boxes.
+  // Flat list - one header line + raw HTTP per entry, no per-entry boxes.
   const body = (
     <div className="space-y-4">
       {entries.map((entry) => (
@@ -126,7 +126,7 @@ function renderHttp(entry: PdnsHttpLogEntry): string {
   const u = safeParseUrl(url);
 
   const lines: string[] = [];
-  // Request line — host + path so the operator sees both pieces, not
+  // Request line - host + path so the operator sees both pieces, not
   // just the joined URL string.
   if (u) {
     lines.push(`> ${method} ${u.pathname}${u.search} HTTP/1.1`);

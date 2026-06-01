@@ -4,14 +4,14 @@
  * Zone-deletion "Danger zone" affordance. The web UI gates the delete
  * behind:
  *
- *   1. Download a BIND zonefile backup — the operator has to actually
+ *   1. Download a BIND zonefile backup - the operator has to actually
  *      click the button and let the file land. The confirm input
  *      doesn't unlock until that's done.
  *   2. Type the exact phrase `yes, delete <zone>` into a text input
  *      to prove they meant it.
  *
  * The API itself (`DELETE /api/admin/pdns/zones/[zoneId]`) doesn't
- * enforce either — programmatic clients are trusted to back up on
+ * enforce either - programmatic clients are trusted to back up on
  * their own.
  */
 
@@ -36,7 +36,7 @@ export function ZoneDangerZone({ zoneIdEncoded, serverSlug, zoneName, canDelete 
   const [deleting, setDeleting] = useState(false);
 
   // The exact phrase the operator must type. Strip the trailing dot
-  // from the canonical PDNS zone name so the phrase reads naturally —
+  // from the canonical PDNS zone name so the phrase reads naturally -
   // `yes, delete example.com` rather than `yes, delete example.com.`.
   const cleanName = zoneName.replace(/\.$/, "");
   const requiredPhrase = `yes, delete ${cleanName}`;
@@ -66,7 +66,7 @@ export function ZoneDangerZone({ zoneIdEncoded, serverSlug, zoneName, canDelete 
       a.remove();
       URL.revokeObjectURL(objectUrl);
       setDownloaded(true);
-      toast({ kind: "success", description: "Backup downloaded — you can now confirm deletion." });
+      toast({ kind: "success", description: "Backup downloaded - you can now confirm deletion." });
     } finally {
       setDownloading(false);
     }
@@ -104,7 +104,7 @@ export function ZoneDangerZone({ zoneIdEncoded, serverSlug, zoneName, canDelete 
           Permanently delete this zone from the PowerDNS backend.{" "}
           <strong className="text-[color:var(--color-error)]">This cannot be undone.</strong> Every
           record, every comment, every metadata kind is wiped server-side. Existing DNS resolvers
-          will keep serving cached answers until their TTLs expire — but new queries will fail.
+          will keep serving cached answers until their TTLs expire - but new queries will fail.
         </p>
       </header>
 

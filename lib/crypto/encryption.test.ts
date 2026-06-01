@@ -18,7 +18,7 @@ describe("encrypt / decrypt round-trip", () => {
   });
 
   it("round-trips unicode and long inputs", () => {
-    const s = "🔐 café — " + "x".repeat(10_000);
+    const s = "🔐 café - " + "x".repeat(10_000);
     expect(decrypt(encrypt(s))).toBe(s);
   });
 
@@ -30,14 +30,14 @@ describe("encrypt / decrypt round-trip", () => {
     expect(decrypt(b)).toBe("same");
   });
 
-  it("keeps usages isolated — decrypting with a different usage fails", () => {
+  it("keeps usages isolated - decrypting with a different usage fails", () => {
     const env = encrypt("secret", "session-cookie");
     expect(decrypt(env, "session-cookie")).toBe("secret");
     expect(() => decrypt(env, "db-column")).toThrow();
   });
 });
 
-describe("decrypt — tamper + format rejection", () => {
+describe("decrypt - tamper + format rejection", () => {
   function reencode(part: string, mutate: (b: Buffer) => void): string {
     const buf = Buffer.from(part, "base64url");
     mutate(buf);
@@ -94,13 +94,13 @@ describe("decrypt — tamper + format rejection", () => {
   });
 });
 
-describe("decrypt — GCM tag/IV length validation (GHSA-phv2-wjmm-pqqq)", () => {
+describe("decrypt - GCM tag/IV length validation (GHSA-phv2-wjmm-pqqq)", () => {
   it("round-trips correctly after the fix", () => {
     const plaintext = "ghsa-phv2-wjmm-pqqq regression";
     expect(decrypt(encrypt(plaintext))).toBe(plaintext);
   });
 
-  it("rejects a truncated (4-byte) auth tag — would downgrade to 2^-32 without the fix", () => {
+  it("rejects a truncated (4-byte) auth tag - would downgrade to 2^-32 without the fix", () => {
     const [version, ivB64, ctB64, tagB64] = encrypt("secret").split(":");
     // Decode the real 16-byte tag and slice it to 4 bytes, then re-encode.
     const truncatedTag = Buffer.from(tagB64!, "base64url").subarray(0, 4).toString("base64url");
@@ -110,7 +110,7 @@ describe("decrypt — GCM tag/IV length validation (GHSA-phv2-wjmm-pqqq)", () =>
 
   it("rejects an extended (32-byte) auth tag", () => {
     const [version, ivB64, ctB64, tagB64] = encrypt("secret").split(":");
-    // Extend the tag by appending extra zero bytes — still shouldn't be accepted.
+    // Extend the tag by appending extra zero bytes - still shouldn't be accepted.
     const extendedTag = Buffer.concat([
       Buffer.from(tagB64!, "base64url"),
       Buffer.alloc(16),

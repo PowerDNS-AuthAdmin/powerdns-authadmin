@@ -2,13 +2,13 @@
 
 /**
  * Audit-log filter form. Replaces the legacy `<form method="get">`
- * that triggered a full page navigation on Apply — the navigation
+ * that triggered a full page navigation on Apply - the navigation
  * dropped the app-wide SSE connection, flashing the Live chip
  * through offline → connecting → live every time. This form pushes
  * the filter state into the URL via `router.replace({scroll:false})`
  * which re-runs the server component WITHOUT a full nav.
  *
- * State is controlled — every keystroke is captured locally and
+ * State is controlled - every keystroke is captured locally and
  * only committed to the URL on Apply (so each keystroke doesn't
  * thrash the server with a re-render).
  */
@@ -56,7 +56,7 @@ export function AuditFilterForm({ initial, actionGroups, hasFilters }: Props) {
   // Sync the inputs with the URL: when an outside link populates query params
   // (e.g. clicking a `req:` link on a row, or a quick-filter chip) the page
   // re-renders with a new `initial`, but useState only takes the first value.
-  // Without this the inputs stay blank even though the URL is filtered — the
+  // Without this the inputs stay blank even though the URL is filtered - the
   // operator can't see WHAT they're filtered to.
   const initialKey = JSON.stringify(initial);
   useEffect(() => {

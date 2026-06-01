@@ -1,9 +1,9 @@
 /**
  * app/api/admin/pdns/zones/[zoneId]/cryptokeys/[id]/route.ts
  *
- * PUT    — toggle active / published flags on an existing cryptokey.
+ * PUT    - toggle active / published flags on an existing cryptokey.
  *          Permission: `dnssec.configure` (with zone-grant fallback).
- * DELETE — permanently remove a cryptokey. Permission: same.
+ * DELETE - permanently remove a cryptokey. Permission: same.
  *
  * Both routes pre-fetch the row via `getCryptokey` so the audit
  * snapshot captures meaningful before-state (id, keytype, active flag).
@@ -82,7 +82,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
 
     const client = getBackendGateway(selected);
     // DNSSEC key state lives on the primary; a mirror serves presigned RRSIGs it
-    // received over AXFR, so key management (toggle/delete) is read-only there —
+    // received over AXFR, so key management (toggle/delete) is read-only there -
     // gate by the zone's kind, same as create (ADR-0014).
     let zone;
     try {
@@ -165,7 +165,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
 
     const client = getBackendGateway(selected);
     // DNSSEC key state lives on the primary; a mirror serves presigned RRSIGs it
-    // received over AXFR, so key management (toggle/delete) is read-only there —
+    // received over AXFR, so key management (toggle/delete) is read-only there -
     // gate by the zone's kind, same as create (ADR-0014).
     let zone;
     try {

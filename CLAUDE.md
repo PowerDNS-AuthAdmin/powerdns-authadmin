@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository. This file is read befo
 
 ## What this repository is
 
-**PowerDNS-AuthAdmin** — a self-hosted DNS administration UI for PowerDNS Authoritative. The app
+**PowerDNS-AuthAdmin** - a self-hosted DNS administration UI for PowerDNS Authoritative. The app
 manages one or many PDNS backends (standalone primaries, primary + secondaries groups, multi-
 primary clusters) from a single web app with RBAC, OIDC SSO, audit log, and YAML-driven
 provisioning.
@@ -17,13 +17,13 @@ Licensed under **MIT**.
 
 ## Start here
 
-1. **[`README.md`](./README.md)** — public-facing overview + feature list + quickstart.
-2. **[`docs/FEATURES.md`](./docs/FEATURES.md)** — exhaustive feature catalog with module pointers.
-3. **[`CONTRIBUTING.md`](./CONTRIBUTING.md)** — code standards, testing, security, perf budgets.
+1. **[`README.md`](./README.md)** - public-facing overview + feature list + quickstart.
+2. **[`docs/FEATURES.md`](./docs/FEATURES.md)** - exhaustive feature catalog with module pointers.
+3. **[`CONTRIBUTING.md`](./CONTRIBUTING.md)** - code standards, testing, security, perf budgets.
    Enforced by ESLint + CI; following these rules saves review churn.
-4. **[`docs/adr/`](./docs/adr/)** — Architecture Decision Records. Read the relevant ADR before
+4. **[`docs/adr/`](./docs/adr/)** - Architecture Decision Records. Read the relevant ADR before
    changing anything load-bearing (auth, RBAC, PDNS client, sessions, migrations).
-5. **[`docs/dev-setup.md`](./docs/dev-setup.md)** — local development workflow.
+5. **[`docs/dev-setup.md`](./docs/dev-setup.md)** - local development workflow.
 
 ## How to run things
 
@@ -47,13 +47,13 @@ cp .env.example .env.local       # set APP_SECRET_KEY + APP_ENCRYPTION_KEY; DATA
 docker compose up -d pdns        # a local PowerDNS to develop against (SQLite app runs on host)
 
 npm run dev                      # http://localhost:3000
-npm run validate                 # the CI gate — lint + typecheck + format + test
+npm run validate                 # the CI gate - lint + typecheck + format + test
 npm run test:integration         # integration suite (builds + boots the stack in Docker)
 npm run db:generate              # after a schema change → new migration (also db:generate:sqlite)
 npm run db:migrate               # apply pending migrations
 ```
 
-Pre-push gate: `npm run ci:local` (= `act -j static-checks && act -j test` — [act](https://github.com/nektos/act)
+Pre-push gate: `npm run ci:local` (= `act -j static-checks && act -j test` - [act](https://github.com/nektos/act)
 runs the CI lint/typecheck/format + unit-test jobs locally, incl. `eslint .` without the local OOM;
 the committed `.actrc` pins the runner image + workflow + host-native arch). Run
 `npm run test:integration` natively (act can't nest docker-compose). CodeQL/Docker/Scorecard still need real CI.
@@ -100,7 +100,7 @@ drizzle-sqlite/       generated SQLite migrations
 scripts/              migrate.ts, seed.ts, provision.ts, screenshots.mjs
 tests/                vitest unit + integration (the latter wants a real Postgres on $TEST_DB_URL)
 docs/                 ADRs, FEATURES, dev-setup
-screenshots/          gallery of every page in 4 variants — desktop+light, desktop+dark,
+screenshots/          gallery of every page in 4 variants - desktop+light, desktop+dark,
                       mobile+light, mobile+dark; regen with `npm run screenshots`
                       (Playwright + iPhone-frame CSS, optional pngquant+oxipng post-pass)
 ```
@@ -124,7 +124,7 @@ shows up in CI, fix the boundary; don't suppress the rule.
 ### Audit
 
 Every write goes through `appendAudit({...})` from `lib/audit/log.ts`. Action names come from
-the typed vocabulary in `lib/audit/actions.ts` — adding a new action means appending to that
+the typed vocabulary in `lib/audit/actions.ts` - adding a new action means appending to that
 file. `before`/`after` snapshots are auto-redacted for known secret field names (see
 `lib/audit/redact.ts`); don't bypass.
 
@@ -143,7 +143,7 @@ the code embodies a constraint a future reader would otherwise have to reverse-e
 ### Tests
 
 `npm run test` runs the vitest unit suite (no external deps). Integration tests under
-`tests/integration/` need a Postgres instance — the runner skips them when `TEST_DATABASE_URL`
+`tests/integration/` need a Postgres instance - the runner skips them when `TEST_DATABASE_URL`
 isn't set. CI runs both.
 
 ### Responsive UI (v1.1.4+)
@@ -156,7 +156,7 @@ concentric rings, honours `prefers-reduced-motion`); fleet-wide verdict is
 `globalAnyLagging()` from `lib/pdns/sync.ts`.
 
 When adding a new list view, use `<DataTable>`. When showing replication
-status, use `<SyncIndicator>` — don't roll a new dot/badge. See
+status, use `<SyncIndicator>` - don't roll a new dot/badge. See
 [`docs/FEATURES.md` § 19](./docs/FEATURES.md#19-operator-ux--responsive-design)
 for the full vocabulary.
 
@@ -173,16 +173,16 @@ SKIP_MOBILE=1 node scripts/screenshots.mjs <name> # desktop only
 ```
 
 The runner expects the combined demo stack up + `must_change_password`
-cleared on `admin@example.com` — full prereqs in
+cleared on `admin@example.com` - full prereqs in
 [`docs/dev-setup.md` → Regenerating screenshots](./docs/dev-setup.md#regenerating-screenshots).
 
 ## When working in this repo
 
 - **Read the relevant ADR before touching a load-bearing area.** Auth, RBAC, sessions, CSP,
-  PDNS client, migrations — each has an ADR that explains the why.
+  PDNS client, migrations - each has an ADR that explains the why.
 - **If a decision is wrong, change it.** Open an issue, write a new ADR that supersedes the
   old one (mark the old one `Superseded by NNNN`), update the index in `docs/adr/README.md`.
-- **Standards live in `CONTRIBUTING.md`.** Read it before writing code — the rules are
+- **Standards live in `CONTRIBUTING.md`.** Read it before writing code - the rules are
   enforced and following them from the start saves review iterations.
 - **No new top-level docs without consensus.** ADRs go in `docs/adr/`; runbooks in
   `docs/runbooks/`; everything else is a section in an existing doc.

@@ -6,7 +6,7 @@
  * UI, so we strip it *for display only*.
  *
  * NEVER use this for anything sent back to PDNS, used as an audit/cache key, or
- * passed to an API — those need the canonical name. Display surfaces only.
+ * passed to an API - those need the canonical name. Display surfaces only.
  */
 export function displayZoneName(name: string): string {
   return name.replace(/\.$/, "");

@@ -1,7 +1,7 @@
 /**
  * lib/validators/rr-types/ptr.ts
  *
- * PTR content — RFC 1035 § 3.3.12: a single domain name. The RRset's name
+ * PTR content - RFC 1035 § 3.3.12: a single domain name. The RRset's name
  * lives in `in-addr.arpa.` (IPv4) or `ip6.arpa.` (IPv6); the content is the
  * forward name the IP resolves to.
  */

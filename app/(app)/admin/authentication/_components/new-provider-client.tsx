@@ -76,7 +76,7 @@ export function NewProviderClient({ pickers }: Props) {
             <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
               Configure the directory below. Bind-then-search-then-rebind: we use the service
               account to look up the user, then re-bind as the user with the password they type.
-              Strict TLS by default — see ADR-0020 for the security posture.
+              Strict TLS by default - see ADR-0020 for the security posture.
             </p>
           </header>
           <LdapProviderForm mode="create" pickers={pickers} />

@@ -22,7 +22,7 @@ export const metadata: Metadata = { title: "Users" };
  * URL-driven filter for the users list. Composes with the dashboard
  * "Attention required" widget so a tile-click lands on a
  * pre-filtered list. Each value maps to a predicate evaluated in
- * memory — the list is small enough (rare to exceed a few hundred
+ * memory - the list is small enough (rare to exceed a few hundred
  * users) that adding a WHERE clause per filter isn't worth the
  * extra repo surface.
  */
@@ -72,7 +72,7 @@ export default async function UsersListPage({
           <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
             {users.length} account{users.length === 1 ? "" : "s"}
-            {filter ? ` matching "${FILTER_LABELS[filter]}"` : " — newest first"}.
+            {filter ? ` matching "${FILTER_LABELS[filter]}"` : " - newest first"}.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 [&>*]:w-full sm:[&>*]:w-auto">
@@ -110,7 +110,7 @@ export default async function UsersListPage({
 
 /**
  * Predicate per filter. Excludes disabled accounts from every
- * bucket (matches `userAttentionCounts` semantics — disabled
+ * bucket (matches `userAttentionCounts` semantics - disabled
  * accounts aren't actionable). The `unverified` predicate also
  * skips SSO-only accounts (IdP handles email verification).
  */
@@ -120,7 +120,7 @@ function matchesFilter(u: User, filter: UserFilter): boolean {
     case "locked":
       return u.lockedUntil !== null && u.lockedUntil.getTime() > Date.now();
     case "no-mfa":
-      // SSO-only users (no local password) defer MFA to the IdP —
+      // SSO-only users (no local password) defer MFA to the IdP -
       // skip them so the chip surfaces only the local-password
       // accounts that actually need to enroll TOTP.
       return u.totpSecretEncrypted === null && u.passwordHash !== null;

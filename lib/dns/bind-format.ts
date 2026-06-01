@@ -14,7 +14,7 @@
  *   www.example.com.        3600    IN      A       192.0.2.1
  *
  * Notes / deliberate choices:
- *   - We emit `$ORIGIN .` so names are always absolute — no relative-label
+ *   - We emit `$ORIGIN .` so names are always absolute - no relative-label
  *     ambiguity for diffing. That matches how `pdnsutil list-zone` works.
  *   - Disabled records are prefixed with "; DISABLED " so they're parseable
  *     and visually distinct in the diff.
@@ -22,7 +22,7 @@
  *     against PDNS' arbitrary ordering. Same reason RRsets are sorted by
  *     (name, type) up at the call site.
  *
- * No tokenization here — that's `tokenizeBindLine` below, separate so the
+ * No tokenization here - that's `tokenizeBindLine` below, separate so the
  * formatter stays pure / testable.
  */
 
@@ -38,7 +38,7 @@ export interface BindRRset {
   /**
    * Optional rrset-level comment. Surfaces in the BIND-style diff as a
    * `; comment: …` line keyed by name+type so the operator sees comment
-   * edits — not just record value edits — in the Review-changes dialog.
+   * edits - not just record value edits - in the Review-changes dialog.
    */
   comment?: string;
 }
@@ -46,7 +46,7 @@ export interface BindRRset {
 /**
  * Build the BIND zonefile text for a set of RRsets. Pure: same input always
  * yields the same output (records sorted inside each RRset; RRsets the
- * caller already sorted — we don't re-sort to preserve DNS-hierarchy order).
+ * caller already sorted - we don't re-sort to preserve DNS-hierarchy order).
  */
 export function rrsetsToBindZonefile(rrsets: readonly BindRRset[]): string {
   const lines: string[] = ["$ORIGIN ."];
@@ -96,7 +96,7 @@ const RR_CLASSES = new Set(["IN", "CH", "HS"]);
  * order, including whitespace tokens so the caller can render with `<pre>`-
  * style fidelity.
  *
- * Heuristic — not a full RFC 1035 parser. Good enough for highlighting our
+ * Heuristic - not a full RFC 1035 parser. Good enough for highlighting our
  * own emitted format; pathological hand-written zonefiles (parenthesized
  * multi-line records, $INCLUDE chains) aren't a concern because we render
  * what `rrsetsToBindZonefile` produced.

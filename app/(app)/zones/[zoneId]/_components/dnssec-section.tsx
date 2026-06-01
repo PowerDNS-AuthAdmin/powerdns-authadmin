@@ -1,5 +1,5 @@
 /**
- * DNSSEC tab body — rendered from the main zone page when `?tab=dnssec`.
+ * DNSSEC tab body - rendered from the main zone page when `?tab=dnssec`.
  * Originally lived at `/zones/[id]/dnssec/page.tsx`; collapsed in so
  * every tab is a query-string switch (instant, no route navigation,
  * no loading-shimmer flash).
@@ -20,7 +20,7 @@ interface Props {
   zoneName: string;
   selected: PdnsServer;
   // Per-zone authorization decided by the parent page (global permission OR
-  // a zone_grant for this server+zone) — see app/(app)/zones/[zoneId]/page.tsx.
+  // a zone_grant for this server+zone) - see app/(app)/zones/[zoneId]/page.tsx.
   canRead: boolean;
   canConfigure: boolean;
 }
@@ -76,7 +76,7 @@ export async function DnssecSection({
       <h2 className="text-lg font-semibold">
         DNSSEC keys{" "}
         <span className="text-sm font-normal text-[color:var(--color-fg-muted)]">
-          — DS records below go to your domain registrar to enable DNSSEC validation upstream.
+          - DS records below go to your domain registrar to enable DNSSEC validation upstream.
         </span>
       </h2>
 

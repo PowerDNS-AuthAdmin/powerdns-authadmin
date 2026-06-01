@@ -5,7 +5,7 @@
  * class multi-backend support is the headlinefeature (legacy issues
  * #489, #791, #687).
  *
- * The PDNS API key is "tier-0" sensitive — wrapped in our `encrypt()`
+ * The PDNS API key is "tier-0" sensitive - wrapped in our `encrypt()`
  * envelope at rest, redacted in logs, and never round-tripped to the client.
  * `version_cache` is a JSON snapshot of the last successful `GET /servers/{id}`
  * + parsed feature flags, used so the UI can show server health without
@@ -47,7 +47,7 @@ export const pdnsServers = pgTable(
     /**
      * Operator-facing free-text note. "Dev box in eu-west", "prod
      * cluster, do not edit", etc. Surfaced on the servers list +
-     * detail page; never sent to PDNS. Nullable — operators with a
+     * detail page; never sent to PDNS. Nullable - operators with a
      * single backend rarely need it.
      */
     description: text("description"),
@@ -62,7 +62,7 @@ export const pdnsServers = pgTable(
     baseUrl: text("base_url").notNull(),
 
     /**
-     * Server id within the PDNS API surface — the path segment after
+     * Server id within the PDNS API surface - the path segment after
      * `/servers/`. Almost always `localhost`; configurable so a single PDNS
      * exposing multiple instances is reachable.
      */
@@ -84,7 +84,7 @@ export const pdnsServers = pgTable(
     capabilities: jsonb("capabilities").$type<PdnsDaemonCapabilities | null>(),
 
     /**
-     * Operator-declared DNS addresses this backend serves on — the values
+     * Operator-declared DNS addresses this backend serves on - the values
      * other backends list in a slave zone's `masters[]` (ADR-0014). Used to
      * derive replication edges by matching `masters[]` against this set. NULL
      * means "derive from the API base URL host"; an explicit array overrides
@@ -93,7 +93,7 @@ export const pdnsServers = pgTable(
     advertisedAddresses: jsonb("advertised_addresses").$type<string[] | null>(),
 
     /**
-     * Last time we successfully *reached* this backend — set by the
+     * Last time we successfully *reached* this backend - set by the
      * background poller on every successful zone-list fetch, and by a
      * successful version probe (Test / Refresh all). Distinct from
      * `version_cache.fetchedAt`, which only moves when the *version* is
@@ -108,14 +108,14 @@ export const pdnsServers = pgTable(
 
     /**
      * Default backend used when a request doesn't specify `?server=`. Exactly
-     * zero or one row should be marked default at any time — the application
+     * zero or one row should be marked default at any time - the application
      * layer enforces this transactionally (we'd need a partial unique index
      * to do it in pure SQL and the simpler app-layer guard is fine for now).
      */
     isDefault: boolean("is_default").notNull().default(false),
 
     /**
-     * Group membership (ADR-0014). A group is any set of related backends —
+     * Group membership (ADR-0014). A group is any set of related backends -
      * the writable peers of a multi-primary cluster, OR a primary together
      * with its secondaries. NULL means the backend stands alone. A primary's
      * secondaries are the secondary-capable members of its group; the precise

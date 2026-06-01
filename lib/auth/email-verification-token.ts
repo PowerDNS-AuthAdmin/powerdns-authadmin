@@ -15,12 +15,12 @@
  * edited between mint and redeem.
  *
  * Single-use is enforced by comparing `payload.issuedAt` to the
- * user's current `emailVerifiedAt` at redeem time — once verified,
+ * user's current `emailVerifiedAt` at redeem time - once verified,
  * any stale tokens are useless. A re-verify (operator changed
  * email, wants to re-confirm) would null out the column first, then
  * accept new tokens.
  *
- * Pure module — no DB, no HTTP, no env import.
+ * Pure module - no DB, no HTTP, no env import.
  */
 
 import { createHmac, hkdfSync, randomBytes, timingSafeEqual } from "node:crypto";

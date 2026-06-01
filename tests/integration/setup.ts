@@ -2,7 +2,7 @@
  * tests/integration/setup.ts
  *
  * Vitest setupFiles hook for the integration suite. Verifies the test
- * stack is reachable before any test file is loaded — if it isn't, fail
+ * stack is reachable before any test file is loaded - if it isn't, fail
  * loud and direct the user at `tests/integration/run.sh`.
  *
  * Suite-wide preconditions:

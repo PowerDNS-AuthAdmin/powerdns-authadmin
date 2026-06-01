@@ -6,7 +6,7 @@
  *
  *   - `startAssertion({ config, allowCredentials? })`
  *       → returns `{ options, challenge }`. When `allowCredentials` is
- *         omitted, the request is "discoverable" — the platform picks
+ *         omitted, the request is "discoverable" - the platform picks
  *         a credential from those bound to the RP and the user picker
  *         is shown by the OS. Used by the username-less passkey login
  *         button on `/login`.

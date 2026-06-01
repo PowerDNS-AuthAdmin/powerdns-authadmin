@@ -1,10 +1,10 @@
 /**
  * app/api/admin/users/[id]/route.ts
  *
- * PATCH  — edit name, disable/enable, force-password-change flag.
- * DELETE — hard-delete (cascades sessions, role assignments).
+ * PATCH  - edit name, disable/enable, force-password-change flag.
+ * DELETE - hard-delete (cascades sessions, role assignments).
  *
- * Refuses to disable or delete the actor's own account — losing the only
+ * Refuses to disable or delete the actor's own account - losing the only
  * SuperAdmin is a footgun we don't enable.
  */
 
@@ -14,6 +14,7 @@ import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { assertBootstrapAdminMutable } from "@/lib/auth/bootstrap-admin";
 import { db } from "@/lib/db";
 import { deleteUserById, findUserById, updateUser } from "@/lib/db/repositories/users";
 import {
@@ -38,6 +39,9 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
 
     const existing = await findUserById(id);
     if (!existing) throw new NotFoundError("User not found.");
+    // The bootstrap-admin RO lock freezes the demo login's identity: no
+    // disable, no force-password-change, no MFA-policy flip, no rename.
+    assertBootstrapAdminMutable(existing.email);
 
     let input;
     try {
@@ -55,13 +59,13 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       throw new ValidationError("You cannot disable your own account.");
     }
 
-    // SSO-only users have no way to enroll TOTP from the app — the IdP is the
+    // SSO-only users have no way to enroll TOTP from the app - the IdP is the
     // second-factor authority. Forcing MFA on them would only deadlock the
     // account. Refuse the policy override here as defense-in-depth; the UI
     // already hides the control for SSO-only users.
     if (input.mfaRequired === true && existing.passwordHash === null) {
       throw new ValidationError(
-        "Cannot force MFA on an SSO-only user — they have no way to enroll TOTP in this app. MFA is the responsibility of the identity provider.",
+        "Cannot force MFA on an SSO-only user - they have no way to enroll TOTP in this app. MFA is the responsibility of the identity provider.",
       );
     }
 
@@ -78,7 +82,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       // Last-SuperAdmin guard (GHSA-86v6-w5p9-29r8): disabling the final
       // *enabled* global Super Admin would lock everyone out of user/role/
       // settings management just as surely as deleting their assignment would.
-      // Only relevant when the target is currently enabled — re-disabling an
+      // Only relevant when the target is currently enabled - re-disabling an
       // already-disabled account can't reduce the enabled population. The target
       // is still counted here, so `<= 1` means they're the last one. Checked
       // inside the tx so a concurrent disable/delete can't race past it (mirrors
@@ -98,7 +102,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       if (!u) throw new NotFoundError("User not found.");
 
       // Disabling a user immediately revokes their sessions so the change
-      // takes effect on the next request anywhere — not just when their
+      // takes effect on the next request anywhere - not just when their
       // current cookie expires.
       if (input.disabled === true) {
         await revokeSessionsForUser(id, tx);
@@ -137,12 +141,13 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
 
     const existing = await findUserById(id);
     if (!existing) throw new NotFoundError("User not found.");
+    assertBootstrapAdminMutable(existing.email);
 
     const hdrs = await headers();
     await db.transaction(async (tx) => {
       // Last-SuperAdmin guard (GHSA-86v6-w5p9-29r8): deleting the final enabled
       // global Super Admin locks everyone out of administration. Only relevant
-      // when the target is currently enabled — a disabled account isn't part of
+      // when the target is currently enabled - a disabled account isn't part of
       // the enabled population, so deleting it can't drop the count. The target
       // is still counted here, so `<= 1` means they're the last one. Inside the
       // tx to block a concurrent disable/delete.

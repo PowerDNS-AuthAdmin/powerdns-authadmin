@@ -1,8 +1,8 @@
 /**
  * app/api/admin/teams/[id]/members/[userId]/route.ts
  *
- * PATCH  — change a member's team role (owner/member).
- * DELETE — remove a member from the team.
+ * PATCH  - change a member's team role (owner/member).
+ * DELETE - remove a member from the team.
  */
 
 import { headers } from "next/headers";

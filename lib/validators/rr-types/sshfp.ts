@@ -1,14 +1,14 @@
 /**
  * lib/validators/rr-types/sshfp.ts
  *
- * SSHFP (SSH Public Key Fingerprint) content — RFC 4255 + RFC 6594 +
+ * SSHFP (SSH Public Key Fingerprint) content - RFC 4255 + RFC 6594 +
  * RFC 7479 + RFC 8709:
  *   `<algorithm> <fp-type> <fingerprint-hex>`
  *
- *   - algorithm : uint8 — IANA SSHFP algorithm registry.
+ *   - algorithm : uint8 - IANA SSHFP algorithm registry.
  *                 1=RSA, 2=DSA (deprecated), 3=ECDSA, 4=ED25519, 6=ED448.
  *                 5 is reserved / unused.
- *   - fp-type   : uint8 — IANA SSHFP fingerprint type registry.
+ *   - fp-type   : uint8 - IANA SSHFP fingerprint type registry.
  *                 1=SHA-1 (40 hex chars, deprecated per RFC 6594),
  *                 2=SHA-256 (64 hex chars, current default).
  *   - fingerprint: hex (case-insensitive) of length matching fp-type.
@@ -17,7 +17,7 @@
  *
  * Common operator workflow: copy `IN SSHFP` records from `ssh-keygen
  * -r host.example.com` into a zone. This validator catches the
- * paste mistakes — wrong fingerprint length, algorithm/fp-type swap,
+ * paste mistakes - wrong fingerprint length, algorithm/fp-type swap,
  * leftover formatting.
  */
 
@@ -43,7 +43,7 @@ export const sshfpValidator: RRTypeValidator = {
   type: "SSHFP",
   label: "SSH Public Key Fingerprint",
   description:
-    "algorithm fp-type fingerprint — pasted from `ssh-keygen -r host` output (RFC 4255 + RFC 6594).",
+    "algorithm fp-type fingerprint - pasted from `ssh-keygen -r host` output (RFC 4255 + RFC 6594).",
   placeholder: "4 2 a1b2c3...64hex...",
   rfc: "RFC 4255 + RFC 6594 + RFC 7479 + RFC 8709",
   validate(content: string) {
@@ -147,7 +147,7 @@ export const sshfpValidator: RRTypeValidator = {
       } else {
         issues.push({
           level: "warning",
-          message: `Fingerprint-type ${fpType} is not in {1,2} — the IANA registry defines no others as of RFC 6594.`,
+          message: `Fingerprint-type ${fpType} is not in {1,2} - the IANA registry defines no others as of RFC 6594.`,
         });
       }
     }

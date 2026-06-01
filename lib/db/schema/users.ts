@@ -30,7 +30,7 @@ export const users = pgTable(
     id: pk(),
 
     // Identity. Email is the username. Case-insensitive uniqueness enforced via
-    // the `lower(email)` expression index below — Drizzle has no `citext`
+    // the `lower(email)` expression index below - Drizzle has no `citext`
     // shorthand, so we store as text and constrain uniqueness on the expression.
     email: text("email").notNull(),
     name: text("name"),
@@ -101,7 +101,7 @@ export interface WebauthnCredential {
   id: string;
   /** Public key, base64url-encoded COSE form. */
   publicKey: string;
-  /** Replay counter — rejected if a verification reports a lower value. */
+  /** Replay counter - rejected if a verification reports a lower value. */
   counter: number;
   /**
    * Transports the authenticator supports (e.g. ["usb","nfc"]). Mirrors

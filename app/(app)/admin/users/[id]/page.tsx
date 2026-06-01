@@ -3,12 +3,12 @@
  *
  * Single-user admin view: account basics + tabbed panels for roles,
  * zone grants, sessions, two-factor, API tokens, and the audit feed.
- * Same tab vocabulary as `/profile` — operators get one consistent
+ * Same tab vocabulary as `/profile` - operators get one consistent
  * shape regardless of which surface they manage from.
  *
  * Self-edit: when the actor opens their own row, server-side
  * `redirect()`s to `/profile`. The redirect happens at request time,
- * so the admin user-detail URL never appears in browser history —
+ * so the admin user-detail URL never appears in browser history -
  * clicking "Back" from /profile returns the operator to the admin
  * users list, not back into a redirect loop.
  */
@@ -16,6 +16,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { requireUserForPage } from "@/lib/auth/require-user";
+import { isBootstrapAdminLocked } from "@/lib/auth/bootstrap-admin";
 import { findUserById } from "@/lib/db/repositories/users";
 import { listAssignmentsForUserWithRole, listRoles } from "@/lib/db/repositories/roles";
 import { listAllTeams } from "@/lib/db/repositories/teams";
@@ -48,7 +49,7 @@ export default async function UserDetailPage({ params }: PageProps) {
 
   // Self-edit: bounce to /profile. The 307 from `redirect()` replaces
   // the in-flight nav, so `/admin/users/<self-id>` never lands in the
-  // browser history — Back returns to the users-list page the operator
+  // browser history - Back returns to the users-list page the operator
   // came from.
   if (id === actor.id) {
     redirect("/profile");
@@ -57,10 +58,15 @@ export default async function UserDetailPage({ params }: PageProps) {
   const target = await findUserById(id);
   if (!target) notFound();
 
-  const canUpdate = ability.can("update", "User");
-  const canReset = ability.can("reset-password", "User");
-  const canDelete = ability.can("delete", "User");
+  // The RO demo lock freezes this account's identity (login, roles, MFA
+  // policy). Fold it into the capability flags so the management UI is
+  // view-only for the bootstrap admin - the API routes enforce the same.
+  const readonlyDemo = isBootstrapAdminLocked(target.email);
+  const canUpdate = ability.can("update", "User") && !readonlyDemo;
+  const canReset = ability.can("reset-password", "User") && !readonlyDemo;
+  const canDelete = ability.can("delete", "User") && !readonlyDemo;
   const canAssignRoles = ability.can("assign", "Role");
+  const canManageRoles = canAssignRoles && !readonlyDemo;
   const canReadAudit = ability.can("read", "Audit");
 
   const [assignments, allRoles, allTeams, allServers, grants, sessions, tokens, recentEdits] =
@@ -78,7 +84,7 @@ export default async function UserDetailPage({ params }: PageProps) {
     ]);
 
   // Build the tab list. We surface a tab only when the actor has the
-  // permission relevant to that panel — a read-only operator browsing
+  // permission relevant to that panel - a read-only operator browsing
   // user-detail still sees Account, but won't see (e.g.) Roles unless
   // they hold `role.assign`.
   const tabs: Array<{ id: string; label: string }> = [{ id: "account", label: "Account" }];
@@ -96,7 +102,7 @@ export default async function UserDetailPage({ params }: PageProps) {
         <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">{target.email}</p>
       </header>
 
-      {/* Top-level actions stay outside the tab system — they act on the
+      {/* Top-level actions stay outside the tab system - they act on the
           user identity itself, not on a specific tab's content. */}
       <UserActions
         userId={id}
@@ -108,6 +114,7 @@ export default async function UserDetailPage({ params }: PageProps) {
         canReset={canReset}
         canDelete={canDelete}
         isSelf={false}
+        readonlyDemo={readonlyDemo}
       />
 
       <SectionTabs tabs={tabs} defaultTab="account">
@@ -125,7 +132,7 @@ export default async function UserDetailPage({ params }: PageProps) {
                 label="Last sign-in"
                 value={target.lastLoginAt ? <LocalTime ts={target.lastLoginAt} /> : "Never"}
               />
-              <Row label="Last IP" value={target.lastLoginIp ?? "—"} />
+              <Row label="Last IP" value={target.lastLoginIp ?? "-"} />
               <Row label="Failed attempts" value={String(target.failedLoginCount)} />
             </dl>
           </section>
@@ -135,7 +142,7 @@ export default async function UserDetailPage({ params }: PageProps) {
           <SectionTabPanel id="roles">
             <RoleAssignmentsPanel
               userId={id}
-              canManage={canAssignRoles}
+              canManage={canManageRoles}
               assignments={assignments.map((a) => ({
                 assignmentId: a.assignmentId,
                 roleSlug: a.roleSlug,
@@ -203,10 +210,10 @@ export default async function UserDetailPage({ params }: PageProps) {
               totpEnabled={target.totpSecretEncrypted !== null}
               isSelf={false}
             />
-            {/* SSO-only users can't enroll TOTP in this app — the IdP is the
+            {/* SSO-only users can't enroll TOTP in this app - the IdP is the
                 second-factor authority. Hidden for them: forcing the override
                 would only deadlock the account. See lib/auth/mfa-compliance.ts. */}
-            {target.passwordHash !== null ? (
+            {target.passwordHash !== null && !readonlyDemo ? (
               <div className="mt-4">
                 <MfaRequiredOverride userId={id} initial={target.mfaRequired} />
               </div>

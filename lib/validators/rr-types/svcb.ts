@@ -1,7 +1,7 @@
 /**
  * lib/validators/rr-types/svcb.ts
  *
- * SVCB / HTTPS content — RFC 9460:
+ * SVCB / HTTPS content - RFC 9460:
  *   `<priority> <target> [SvcParams...]`
  *
  *   - priority   : uint16. 0 = AliasMode (target is the canonical
@@ -29,7 +29,7 @@
  *
  * The full RFC 9460 § 2.1 escape grammar (backslash-escaped chars
  * + quoted SvcParam values) isn't implemented in this first-tick
- * sketch — the validator handles simple `key=value` shapes that
+ * sketch - the validator handles simple `key=value` shapes that
  * cover ~all real-world records and warns rather than errors on
  * unrecognized SvcParamKeys.
  */
@@ -95,7 +95,7 @@ function validateImpl(content: string) {
   }
 
   // target: any non-empty token. `.` is legal (means "owner name
-  // itself"). Skip strict hostname validation — PDNS will reject
+  // itself"). Skip strict hostname validation - PDNS will reject
   // truly broken names on save.
   if (target.length === 0) {
     issues.push({
@@ -105,7 +105,7 @@ function validateImpl(content: string) {
   }
 
   // Per-SvcParam checks. Track seen keys to flag duplicates
-  // (RFC 9460 § 2.2 — each key appears at most once).
+  // (RFC 9460 § 2.2 - each key appears at most once).
   const seen = new Set<string>();
   for (const param of params) {
     const eqIdx = param.indexOf("=");
@@ -137,7 +137,7 @@ function validateImpl(content: string) {
       continue;
     }
 
-    // Strip surrounding double-quotes — RFC 9460 § 2.1 allows
+    // Strip surrounding double-quotes - RFC 9460 § 2.1 allows
     // quoting for values with spaces. Crude but covers the
     // common case.
     const unquoted =
@@ -172,7 +172,7 @@ function validateImpl(content: string) {
             message: `"${key}" requires a comma-separated list value.`,
           });
         }
-        // Don't validate individual list items (IP shapes etc.) —
+        // Don't validate individual list items (IP shapes etc.) -
         // covering ALPN strings + IP addresses uniformly would
         // be its own per-key sub-validator. Future tick.
         break;
@@ -205,7 +205,7 @@ export const svcbValidator: RRTypeValidator = {
   type: "SVCB",
   label: "Service Binding (SVCB)",
   description:
-    "priority target [key=value ...] — RFC 9460. Generic service binding; HTTPS is the same wire format with HTTPS-specific defaults.",
+    "priority target [key=value ...] - RFC 9460. Generic service binding; HTTPS is the same wire format with HTTPS-specific defaults.",
   placeholder: "1 . alpn=h2,h3 port=443",
   rfc: "RFC 9460",
   validate: (content) => validateImpl(content),
@@ -215,7 +215,7 @@ export const httpsValidator: RRTypeValidator = {
   type: "HTTPS",
   label: "HTTPS Service Binding",
   description:
-    "priority target [key=value ...] — RFC 9460. HTTPS profile of SVCB; used for HTTP/3 advertisement and Encrypted Client Hello.",
+    "priority target [key=value ...] - RFC 9460. HTTPS profile of SVCB; used for HTTP/3 advertisement and Encrypted Client Hello.",
   placeholder: "1 . alpn=h2,h3 ipv4hint=192.0.2.1",
   rfc: "RFC 9460 § 7",
   validate: (content) => validateImpl(content),

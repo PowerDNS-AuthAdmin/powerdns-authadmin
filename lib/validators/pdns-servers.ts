@@ -20,7 +20,7 @@ import { slugSchema } from "./common";
  *   - "http://pdns:8081/"         → "http://pdns:8081/api/v1"
  *   - "http://pdns:8081/api/v1"   → "http://pdns:8081/api/v1"   (unchanged)
  *   - "http://pdns:8081/api/v1/"  → "http://pdns:8081/api/v1"   (slash stripped)
- *   - "http://pdns:8081/custom"   → "http://pdns:8081/custom"   (left alone — operator
+ *   - "http://pdns:8081/custom"   → "http://pdns:8081/custom"   (left alone - operator
  *      knows what they're doing, e.g. a reverse-proxied prefix)
  *
  * The transform runs after the URL shape + scheme checks, so by the time
@@ -45,7 +45,7 @@ const baseUrlSchema = z
       // `.url()` already validated the shape; stay defensive.
       return true;
     }
-  }, "Base URL must not contain a username or password — put credentials in the API key field.")
+  }, "Base URL must not contain a username or password - put credentials in the API key field.")
   .transform((value) => {
     const stripped = value.replace(/\/+$/, "");
     try {
@@ -57,13 +57,13 @@ const baseUrlSchema = z
       }
       return stripped;
     } catch {
-      // Shouldn't happen — `.url()` already validated, but stay defensive.
+      // Shouldn't happen - `.url()` already validated, but stay defensive.
       return stripped;
     }
   });
 
 /**
- * Free-text operator note. Cap at 500 chars — enough for a couple
+ * Free-text operator note. Cap at 500 chars - enough for a couple
  * sentences ("dev box, do not edit between 09:00-17:00 UTC,
  * primary is X"); short enough to keep the row + audit snapshots
  * bounded. Empty submits as null (clears).
@@ -86,7 +86,7 @@ export const createPdnsServerSchema = z.object({
   // backend's primary/secondary nature is observed from /config, not declared.
   clusterId: z.string().uuid().optional().nullable(),
   // DNS addresses this backend serves on, for masters[]-based topology matching
-  // (ADR-0014). null/omitted = derive from the base URL host. Bounded — a
+  // (ADR-0014). null/omitted = derive from the base URL host. Bounded - a
   // backend advertises a handful of addresses, not an unbounded list.
   advertisedAddresses: z.array(z.string().min(1).max(255)).max(32).optional().nullable(),
 });
@@ -96,7 +96,7 @@ export type CreatePdnsServerInput = z.infer<typeof createPdnsServerSchema>;
 /**
  * Update schema: every field optional. `apiKey` rotates the stored key when
  * provided; omit to leave the existing one in place. `disabledAt` flips the
- * soft-disable state — pass `true` to disable, `false` to re-enable.
+ * soft-disable state - pass `true` to disable, `false` to re-enable.
  */
 export const updatePdnsServerSchema = z.object({
   slug: slugSchema.optional(),

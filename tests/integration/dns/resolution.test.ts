@@ -5,7 +5,7 @@
  * they're actually SERVED over DNS by resolving against the standalone
  * primary's published port (5310). Covers create, change, multiple types, and
  * deletion (→ NXDOMAIN), so a record edit in the UI is verified all the way to
- * the wire — not just to the backend's API.
+ * the wire - not just to the backend's API.
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
@@ -196,7 +196,7 @@ describe("DNS resolution (standalone primary :5310)", () => {
       async () => {
         try {
           await r.resolve4(q(name));
-          return false; // still resolving — keep polling
+          return false; // still resolving - keep polling
         } catch (err) {
           const code = (err as NodeJS.ErrnoException).code;
           return code === "ENOTFOUND" || code === "ENODATA";

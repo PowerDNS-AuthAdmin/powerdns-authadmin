@@ -6,13 +6,13 @@
  * The orchestrator chooses one of three modes based on the current value:
  *
  *   - **No registered editor** (A, AAAA, CNAME, NS, PTR, DNAME, OPENPGPKEY)
- *     — the type's wire format is already a single value; render a plain
- *     input. The caller's `<input>` styling stays — the orchestrator
+ *     - the type's wire format is already a single value; render a plain
+ *     input. The caller's `<input>` styling stays - the orchestrator
  *     returns the same shape.
- *   - **Structured** — the value parses cleanly. Render the per-type
+ *   - **Structured** - the value parses cleanly. Render the per-type
  *     fields plus an always-visible read-only preview of the wire format
  *     that will be serialized on save.
- *   - **Raw fallback** — the value is non-empty but doesn't parse into the
+ *   - **Raw fallback** - the value is non-empty but doesn't parse into the
  *     structured form (legacy or hand-edited record). Render an editable
  *     textarea + a warning banner so the operator can still fix the
  *     record without losing in-place editing. Stays sticky for the
@@ -112,7 +112,7 @@ function StructuredField({
   const [stickyRaw] = useState(() => value !== "" && editor.parse(value) === null);
 
   // Memoize parse() and serialize() against `value`. Parent renders fire on
-  // every keystroke in OTHER fields (name, TTL, comment) — without memo
+  // every keystroke in OTHER fields (name, TTL, comment) - without memo
   // we'd re-parse and re-serialize the value field on each one, which adds
   // up for SVCB/NAPTR/TXT inputs whose parse path runs a regex or walks
   // every code-point. With memo, this work only repeats when `value`

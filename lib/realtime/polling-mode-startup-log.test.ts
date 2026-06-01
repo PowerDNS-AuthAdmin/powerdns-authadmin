@@ -18,7 +18,7 @@ const loggerMocks = {
 
 vi.mock("@/lib/logger", () => ({ logger: loggerMocks }));
 
-// Default DB shape — every test overrides if it needs different topology.
+// Default DB shape - every test overrides if it needs different topology.
 const dbMocks = {
   select: vi.fn(),
 };
@@ -127,7 +127,7 @@ describe("logPollingModeOnce", () => {
   it("silently gives up if the topology probe takes longer than the 3s budget", async () => {
     vi.useFakeTimers();
     const mod = await loadModule(false);
-    // db.select returns a from() whose Promise NEVER resolves — simulates a
+    // db.select returns a from() whose Promise NEVER resolves - simulates a
     // hung Postgres. We expect logPollingModeOnce to resolve cleanly without
     // logging anything (info or warn) once the 3 s timer fires.
     dbMocks.select.mockReturnValue({
@@ -146,7 +146,7 @@ describe("logPollingModeOnce", () => {
     await mod.logPollingModeOnce();
     expect(loggerMocks.info).toHaveBeenCalledTimes(1);
 
-    // Same module instance — second call must not log again.
+    // Same module instance - second call must not log again.
     await mod.logPollingModeOnce();
     expect(loggerMocks.info).toHaveBeenCalledTimes(1);
     expect(loggerMocks.warn).not.toHaveBeenCalled();

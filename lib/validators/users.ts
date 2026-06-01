@@ -23,7 +23,7 @@ export const emailSchema = z
   .max(320, "Email is too long.");
 
 // =============================================================================
-// Profile — change password (self-service)
+// Profile - change password (self-service)
 // =============================================================================
 
 export const changePasswordSchema = z
@@ -93,7 +93,7 @@ export const signupSchema = z.object({
 export type SignupInput = z.infer<typeof signupSchema>;
 
 // =============================================================================
-// Admin — create / update user
+// Admin - create / update user
 // =============================================================================
 
 export const createUserSchema = z.object({
@@ -111,7 +111,7 @@ export const createUserSchema = z.object({
    * the create route additionally checks the actor has `role.assign`
    * permission (creating a user doesn't itself imply you can grant
    * roles) and creates a global-scope role assignment in the same
-   * audited transaction. Omit to create the user with no roles —
+   * audited transaction. Omit to create the user with no roles -
    * matches the pre-Tick-57 behavior where roles were a separate
    * follow-up action.
    */
@@ -132,7 +132,7 @@ export const updateUserSchema = z.object({
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
 // =============================================================================
-// Admin — assign a role to a user
+// Admin - assign a role to a user
 // =============================================================================
 
 export const roleAssignmentSchema = z

@@ -14,7 +14,7 @@
  *   - row shapes are trusted (the export was produced by this app);
  *     a malformed row fails the per-table insert and audit reports it.
  *
- * Encrypted columns ride through as-is — the restore target MUST
+ * Encrypted columns ride through as-is - the restore target MUST
  * share the source `APP_ENCRYPTION_KEY`, or operator-issued secrets
  * (OIDC client secret, SAML SP private key, LDAP bind password,
  * refresh tokens) end up un-decryptable.
@@ -56,7 +56,7 @@ interface BackupBundle {
 }
 
 /**
- * Forward-dependency order — parents first, children last. Inserts run in
+ * Forward-dependency order - parents first, children last. Inserts run in
  * this order so the per-row FK references already exist by the time the
  * child table runs. Tables not in the export are silently skipped.
  */
@@ -102,7 +102,7 @@ export async function POST(request: Request): Promise<Response> {
       typeof bundle.tables !== "object"
     ) {
       throw new ValidationError(
-        "Invalid backup bundle — expected { meta: { schema_version: 1 }, tables: {...} }.",
+        "Invalid backup bundle - expected { meta: { schema_version: 1 }, tables: {...} }.",
       );
     }
 
@@ -116,10 +116,10 @@ export async function POST(request: Request): Promise<Response> {
         // Date columns ride through as ISO strings in the JSON; Drizzle
         // converts them on insert when the column type expects a Date.
         // Postgres-side timestamp columns accept ISO strings verbatim.
-        // SQLite stores timestamps as integers — Drizzle parses the ISO
+        // SQLite stores timestamps as integers - Drizzle parses the ISO
         // string back to a Date via its `mode: "timestamp_ms"` mapping.
         //
-        // The allowlist is the table's real column names — keys in the
+        // The allowlist is the table's real column names - keys in the
         // uploaded JSON that aren't columns (including prototype-polluting
         // `__proto__` / `constructor`) are dropped before we ever write to
         // a property named after user input.
@@ -152,7 +152,7 @@ export async function POST(request: Request): Promise<Response> {
           // Without per-row insert telemetry we surface attempted vs
           // failed; "inserted" here means "successfully sent to DB",
           // which conflates real inserts with no-op conflicts. Good enough
-          // for an audit row — operators wanting exact deltas should
+          // for an audit row - operators wanting exact deltas should
           // diff the export against a fresh export post-restore.
           inserted,
           skipped: prepared.length - inserted,
@@ -183,7 +183,7 @@ export async function POST(request: Request): Promise<Response> {
  * any ISO-string `*_at` field back to a Date instance.
  *
  * Keys are checked against `validColumns` (the table's actual column
- * names) before any write — so a key derived from the uploaded JSON can
+ * names) before any write - so a key derived from the uploaded JSON can
  * never name a property outside that fixed allowlist. This closes the
  * remote-property-injection / prototype-pollution vector (a malicious
  * bundle with a `__proto__` or `constructor` key is simply ignored,

@@ -3,7 +3,7 @@
 /**
  * app/(app)/zones/[zoneId]/_components/soa-panel.tsx
  *
- * Structured SOA editor. Replaces "edit SOA as a record" — the operator
+ * Structured SOA editor. Replaces "edit SOA as a record" - the operator
  * never types raw SOA RDATA. They see the fields that actually matter
  * (primary NS, responsible mailbox, the four timers) and serial is
  * displayed read-only because PowerDNS owns it.
@@ -73,7 +73,7 @@ export function SoaPanel(props: SoaPanelProps) {
       expire: SOA_DEFAULTS.expire,
       minimum: SOA_DEFAULTS.minimum,
     };
-    // `props.current` is a prop (the current SOA record), not a React ref —
+    // `props.current` is a prop (the current SOA record), not a React ref -
     // the rule's `.current`-is-a-ref heuristic is a false positive here.
     // Recomputing when it changes is exactly the intent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -154,7 +154,7 @@ export function SoaPanel(props: SoaPanelProps) {
     <section className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-5">
       <header className="mb-4">
         <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-          SOA — zone timers
+          SOA - zone timers
         </h2>
         <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
           Start-of-authority record. PowerDNS manages the serial automatically; adjust the four
@@ -224,7 +224,7 @@ export function SoaPanel(props: SoaPanelProps) {
 
         <div className="rounded-md border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-3 py-2 text-xs">
           <span className="font-medium text-[color:var(--color-fg-muted)]">Serial:</span>{" "}
-          <span className="font-mono">{props.current?.serial ?? "—"}</span>
+          <span className="font-mono">{props.current?.serial ?? "-"}</span>
           <span className="ml-3 text-[color:var(--color-fg-subtle)]">
             (PowerDNS auto-increments on any zone change)
           </span>
@@ -264,7 +264,7 @@ export function SoaPanel(props: SoaPanelProps) {
           </div>
         ) : (
           <p className="text-xs text-[color:var(--color-fg-muted)]">
-            Read-only — the record.update permission is required to edit SOA.
+            Read-only - the record.update permission is required to edit SOA.
           </p>
         )}
       </form>

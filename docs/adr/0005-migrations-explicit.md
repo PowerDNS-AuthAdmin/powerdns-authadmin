@@ -1,4 +1,4 @@
-# ADR 0005 — Migrations are never auto-applied on app boot
+# ADR 0005 - Migrations are never auto-applied on app boot
 
 - **Status:** Superseded by [ADR 0011](./0011-migrate-on-app-boot.md)
 - **Date:** 2026-05-16
@@ -19,7 +19,7 @@ version doesn't match what the code expects.
 
 ## Rationale
 
-- **Operator control.** Production deploys plan migrations the way they plan everything else —
+- **Operator control.** Production deploys plan migrations the way they plan everything else -
   with maintenance windows, rollback plans, and pre-flight checks. Auto-apply bypasses all of that.
 - **Failure isolation.** A failing migration is a known event the operator can react to. A
   silent partial migration that fails halfway through, then the app boots anyway and serves
@@ -38,7 +38,7 @@ version doesn't match what the code expects.
 
 ## Alternatives considered
 
-- **Auto-apply on startup.** Standard Django / Rails pattern. Rejected — see Rationale.
+- **Auto-apply on startup.** Standard Django / Rails pattern. Rejected - see Rationale.
 - **Auto-apply with a lock.** Apply on first pod start, others wait. Reduces concurrency risk but
   still bypasses operator control during the wrong kind of failure. Rejected as a half-measure.
 - **Manual SQL, no migration tool.** Drizzle Kit gives us reproducible diffs from schema changes;

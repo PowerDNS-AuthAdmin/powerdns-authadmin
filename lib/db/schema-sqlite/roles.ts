@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/roles.ts — SQLite mirror of `../schema/roles.ts`.
+ * lib/db/schema-sqlite/roles.ts - SQLite mirror of `../schema/roles.ts`.
  */
 
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";

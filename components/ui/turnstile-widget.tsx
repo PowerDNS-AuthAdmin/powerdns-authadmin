@@ -21,7 +21,7 @@
  * single-use against Cloudflare), bump `resetKey`. The widget will
  * call `onToken(null)` and re-render fresh.
  *
- * Renders nothing when `siteKey` is undefined — keeps the calling
+ * Renders nothing when `siteKey` is undefined - keeps the calling
  * form's JSX clean ("captcha-or-nothing" branches stay at the
  * parent level).
  */
@@ -73,7 +73,7 @@ export function TurnstileWidget({ siteKey, onToken, resetKey = 0 }: Props) {
   // Cache the onToken in a ref so the render effect doesn't tear down
   // and re-render the widget every time the parent re-creates the
   // callback (which would burn a Cloudflare token mint on every parent
-  // render — wasteful and visible to the user as a flicker).
+  // render - wasteful and visible to the user as a flicker).
   const onTokenRef = useRef(onToken);
   useEffect(() => {
     onTokenRef.current = onToken;

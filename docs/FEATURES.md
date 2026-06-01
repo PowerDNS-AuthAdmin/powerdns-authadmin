@@ -23,13 +23,13 @@ can jump straight into the code that owns each feature.
   `app/(auth)/login/`.
 - **How.**
   - Bootstrap the first admin via `BOOTSTRAP_ADMIN_EMAIL` + `BOOTSTRAP_ADMIN_PASSWORD` env (see
-    `.env.example`). The seed is idempotent — keyed on the email, it ensures that account exists
+    `.env.example`). The seed is idempotent - keyed on the email, it ensures that account exists
     and never clobbers an existing one.
   - Add more users from `/admin/users` (gated on `user.create`). The admin can issue a
     one-time temporary password that forces the user to change on first login.
   - Lockout policy is operator-tunable: `login_lockout_threshold` (1–100 attempts) and
     `login_lockout_seconds` (60–86400) on the admin Settings page.
-  - The login path is constant-time even when the user doesn't exist — defends against email
+  - The login path is constant-time even when the user doesn't exist - defends against email
     enumeration.
 
 ### 1.2 OIDC SSO
@@ -49,15 +49,15 @@ can jump straight into the code that owns each feature.
     `/admin/oidc-providers/<id>`.
   - The redirect URI to register with the IdP is `${APP_URL}/api/auth/oidc/<slug>/callback`.
   - Slugs are **globally unique across every authentication provider** (OIDC,
-    SAML, LDAP) — the `auth_provider_slugs` table enforces this at the DB
+    SAML, LDAP) - the `auth_provider_slugs` table enforces this at the DB
     level, so the same slug can't be reused across protocol types.
   - Per-provider toggles:
-    - `enabled` — hides the provider from the login page when off.
-    - `require_email_verified` — default on; sign-in is blocked unless the IdP attests
+    - `enabled` - hides the provider from the login page when off.
+    - `require_email_verified` - default on; sign-in is blocked unless the IdP attests
       `email_verified: true`. Defends against account-takeover when the same email exists
       locally and the IdP lets users set arbitrary unverified emails. Relax it only for IdPs
       that never emit the claim.
-    - `allowed_email_domains` — per-provider override of the env-level allow-list.
+    - `allowed_email_domains` - per-provider override of the env-level allow-list.
   - **Default sign-in method** lives on the unified Authentication page, not
     on individual providers. Pick "Local Auth" or one of the configured
     providers from the dropdown; `/login` auto-redirects on a fresh visit
@@ -67,7 +67,7 @@ can jump straight into the code that owns each feature.
   - **RP-initiated logout.** When the IdP advertises an `end_session_endpoint`, sign-in
     captures it + the raw id_token on the session row. Logout navigates the browser to
     `<end_session_endpoint>?id_token_hint=…&client_id=…` so the IdP ends its own session and
-    renders its signed-out screen. No `post_logout_redirect_uri` is sent — most IdPs require
+    renders its signed-out screen. No `post_logout_redirect_uri` is sent - most IdPs require
     it pre-registered and silently strip it otherwise.
 
 <picture>
@@ -85,7 +85,7 @@ can jump straight into the code that owns each feature.
 - **How.** From a provider's edit page, add rows under **Group → role mappings**: each row pairs
   an IdP group name with a role + scope. Scope syntax is `global`, `team:<slug>`,
   `zone:<fqdn>`, or `server:<slug>`. Mappings whose role/team/server can't be resolved at
-  sign-in are logged + audited (`auth.oidc.group_sync.mapping_unresolved`) and skipped — the
+  sign-in are logged + audited (`auth.oidc.group_sync.mapping_unresolved`) and skipped - the
   sign-in still succeeds.
 
 ### 1.4 TOTP (multi-factor)
@@ -101,7 +101,7 @@ can jump straight into the code that owns each feature.
   confirm the 6-digit code. Per-role `requires_mfa` enforcement (set on the role edit page)
   redirects non-enrolled users to `/profile?mfa-required=1` until they finish enrolment.
   **SSO-only users** (no local password) see a read-only "Managed by your identity provider"
-  panel and are exempt from the `requires_mfa` gate — the IdP is their second-factor authority.
+  panel and are exempt from the `requires_mfa` gate - the IdP is their second-factor authority.
 
 ### 1.5 API tokens
 
@@ -184,10 +184,10 @@ can jump straight into the code that owns each feature.
 
 - **What.** The app fronts one or many PDNS Authoritative servers. Three topologies are
   supported and visible side-by-side:
-  - **Standalone primary** — single instance, no replication.
-  - **Primary + secondaries** — one writable, N read-only mirrors auto-bootstrapped via
+  - **Standalone primary** - single instance, no replication.
+  - **Primary + secondaries** - one writable, N read-only mirrors auto-bootstrapped via
     PDNS supermaster + NOTIFY/AXFR.
-  - **Multi-primary cluster** — N writable peers sharing a replicated backend (e.g. Galera
+  - **Multi-primary cluster** - N writable peers sharing a replicated backend (e.g. Galera
     MariaDB). Cluster appears as ONE entry in every selector.
 - **Where.** `lib/db/schema/pdns-servers.ts`, `lib/db/schema/pdns-clusters.ts`,
   `lib/db/repositories/{pdns-servers,pdns-clusters,selectable-backends}.ts`,
@@ -202,11 +202,11 @@ can jump straight into the code that owns each feature.
 
 - **What.** When operating on a cluster, both reads AND writes route to a peer chosen by the
   cluster's strategy:
-  - `round_robin` — spread requests in order.
-  - `random` — uniform random.
-  - `lowest_latency` — peer with the lowest p50 from the sampler (falls back to round-robin
+  - `round_robin` - spread requests in order.
+  - `random` - uniform random.
+  - `lowest_latency` - peer with the lowest p50 from the sampler (falls back to round-robin
     until samples exist).
-  - `least_load` — peer with the fewest zones from the sampler.
+  - `least_load` - peer with the fewest zones from the sampler.
 - **Where.** `lib/pdns/cluster-picker.ts`, `lib/pdns/cluster-picker-pure.ts`.
 - **How.** Picked from the cluster edit page under **Peer selection strategy**. The column
   in the DB is `write_strategy` (legacy name preserved); the UI label is "Peer selection
@@ -227,7 +227,7 @@ can jump straight into the code that owns each feature.
 
 - **What.** Every code path that creates a zone goes through `createZoneAndNotify()` which
   fires NOTIFY to all secondaries after the create. The provisioning loop additionally runs
-  a convergence sweep after all demo zones are created — re-NOTIFYs every Master/Primary
+  a convergence sweep after all demo zones are created - re-NOTIFYs every Master/Primary
   zone on each touched backend. This catches the docker-compose race where the first zones
   get created before secondaries have registered themselves as supermasters and miss the
   initial NOTIFY.
@@ -266,7 +266,7 @@ can jump straight into the code that owns each feature.
   keys missing on a secondary, mirror zones without `masters`, daemon-config drift between
   peers. Acknowledged advisories disappear automatically when the underlying condition
   resolves. Same signal feeds the per-row red/warn tints on
-  [PowerDNS servers](#31-multi-backend-management) — bell and table never disagree.
+  [PowerDNS servers](#31-multi-backend-management) - bell and table never disagree.
 - **Where.** `lib/health/evaluator.ts`, `components/domain/health-bell.tsx`,
   `lib/db/repositories/backend-advisories.ts`. Decision record:
   [ADR-0015](./adr/0015-backend-health-advisories.md).
@@ -294,7 +294,7 @@ can jump straight into the code that owns each feature.
 ### 4.1 Amalgamated zones list
 
 - **What.** Every zone across every backend in one list. Per-row "Backend" column. Per-row
-  Sync chip: "—" for standalones, "synced/desynced (N)" for primaries with secondaries and
+  Sync chip: "-" for standalones, "synced/desynced (N)" for primaries with secondaries and
   for clusters.
 - **Where.** `app/(app)/zones/page.tsx`, `app/(app)/zones/_components/zones-table.tsx`.
 
@@ -307,7 +307,7 @@ can jump straight into the code that owns each feature.
 
 - **What.** Edit records inline; the editor batches changes into a single transactional PATCH
   to PDNS with an audit row carrying full before/after JSONB snapshots. Every change runs
-  through a **Review changes** modal that previews the BIND-style before/after diff — Save is
+  through a **Review changes** modal that previews the BIND-style before/after diff - Save is
   the second click, never the first.
 - **Where.** `app/(app)/zones/[zoneId]/_components/editable-record-table.tsx`,
   `app/api/admin/pdns/zones/[zoneId]/rrsets/route.ts`.
@@ -323,14 +323,14 @@ can jump straight into the code that owns each feature.
         <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/zone-edit.png" />
         <img src="../screenshots/light/zone-edit.png" alt="Edit record dialog" />
       </picture>
-      <br /><sub>Edit dialog — Name / Type / TTL / Value with per-type structured editors.</sub>
+      <br /><sub>Edit dialog - Name / Type / TTL / Value with per-type structured editors.</sub>
     </td>
     <td>
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/zone-edit-diff.png" />
         <img src="../screenshots/light/zone-edit-diff.png" alt="Review changes diff" />
       </picture>
-      <br /><sub>Review changes — every save previewed as a before/after diff.</sub>
+      <br /><sub>Review changes - every save previewed as a before/after diff.</sub>
     </td>
   </tr>
 </table>
@@ -385,7 +385,7 @@ can jump straight into the code that owns each feature.
 ## 7. TSIG keys
 
 - **What.** Manage shared-secret keys for AXFR + DDNS. Permission model splits `tsig.read`
-  (list-only — name + algorithm) from `tsig.manage` (create / regenerate / reveal / delete)
+  (list-only - name + algorithm) from `tsig.manage` (create / regenerate / reveal / delete)
   so an operator can audit the inventory without ever seeing the secret material.
 - **Where.** `lib/pdns/tsigkeys.ts`, `app/(app)/admin/tsig-keys/`.
 
@@ -447,9 +447,9 @@ can jump straight into the code that owns each feature.
 ## 11. Dashboard
 
 - **What.** At-a-glance widgets for operator attention surfaces:
-  - **Users** — locked-out, no-MFA, unverified, must-change-password counts.
-  - **PDNS backends** — never probed, stale > 24h.
-  - **OIDC providers** — never probed, failing.
+  - **Users** - locked-out, no-MFA, unverified, must-change-password counts.
+  - **PDNS backends** - never probed, stale > 24h.
+  - **OIDC providers** - never probed, failing.
 
   Widgets are hidden when zero, so the dashboard stays quiet during steady-state.
 
@@ -482,7 +482,7 @@ can jump straight into the code that owns each feature.
 - **What.** Optional transactional mail. With `SMTP_HOST` unset, `sendEmail()` no-ops with
   `{ ok: true, skipped: true }`. With it set, three encryption shapes are supported:
   implicit TLS (`SMTP_SECURE=true`), STARTTLS required, STARTTLS opportunistic (default), or
-  plaintext-only for local fakemail. AUTH is optional — omit `SMTP_USERNAME` + `SMTP_PASSWORD`
+  plaintext-only for local fakemail. AUTH is optional - omit `SMTP_USERNAME` + `SMTP_PASSWORD`
   for a relay that allow-lists this app's source IP.
 - **Where.** `lib/email/transport.ts`, `lib/email/send.ts`, env validation in `lib/env.ts`.
 
@@ -503,7 +503,7 @@ can jump straight into the code that owns each feature.
 - **What.**
   - **Logs.** Pino structured JSON; secret-field redaction via `lib/errors/redact.ts`.
   - **Metrics.** Prometheus `/metrics` (optional bearer-token gate via `METRICS_TOKEN`).
-  - **Health.** `/healthz` (liveness) + `/readyz` (readiness — fails on DB unreachable or
+  - **Health.** `/healthz` (liveness) + `/readyz` (readiness - fails on DB unreachable or
     pending migrations).
 - **Where.** `lib/logger.ts`, `app/metrics/`, `app/healthz/`, `app/readyz/`.
 
@@ -520,15 +520,15 @@ can jump straight into the code that owns each feature.
 
 ### 16.2 Compose stacks
 
-All stacks use the official `powerdns/pdns-auth` image — there is no custom PowerDNS build.
+All stacks use the official `powerdns/pdns-auth` image - there is no custom PowerDNS build.
 
-- `docker-compose.yml` — the **minimal-demo stack**: SQLite app (published
+- `docker-compose.yml` - the **minimal-demo stack**: SQLite app (published
   `ghcr.io/powerdns-authadmin/powerdns-authadmin` image) + a bundled standalone PowerDNS, pre-seeded with 10 demo
   zones (via `provisioning.minimal-demo.yaml`). The fastest way to try it.
-- `docker-compose-primary-secondaries.yml` — primary + three secondaries with supermaster
+- `docker-compose-primary-secondaries.yml` - primary + three secondaries with supermaster
   auto-bootstrap.
-- `docker-compose-multi-primary.yml` — three writable peers sharing MariaDB.
-- `docker-compose-combined.yml` — all three topologies in one stack with seeded demo zones.
+- `docker-compose-multi-primary.yml` - three writable peers sharing MariaDB.
+- `docker-compose-combined.yml` - all three topologies in one stack with seeded demo zones.
 
 ### 16.3 Storage
 
@@ -544,7 +544,7 @@ folder (`drizzle/`, `drizzle-sqlite/`); the boot entrypoint picks one based on
 - **Per-request CSP nonce** (ADR 0006) so injected `<script>` tags don't execute.
 - **CSRF double-submit** on every mutating route via `requireCsrf(request)`.
 - **SSRF guard** on PDNS base URLs (§ 3.8).
-- **Encryption envelope** for at-rest secrets — versioned AES-256-GCM via HKDF-SHA-256
+- **Encryption envelope** for at-rest secrets - versioned AES-256-GCM via HKDF-SHA-256
   subkeys per usage (`lib/crypto/encryption.ts`).
 - **Secret-field redaction** in audit `before`/`after` snapshots and free-form log strings.
 - **Argon2id** with OWASP 2024 parameters for passwords and API tokens.
@@ -561,14 +561,14 @@ folder (`drizzle/`, `drizzle-sqlite/`); the boot entrypoint picks one based on
 - Mutating routes require `x-csrf-token`. The client wrapper `lib/client/api-fetch.ts` adds
   it automatically; programmatic clients omit it when authenticating via a PAT (the PAT itself
   proves the request is intentional).
-- The full route surface mirrors the admin UI — see `app/api/admin/` and `app/api/profile/`.
+- The full route surface mirrors the admin UI - see `app/api/admin/` and `app/api/profile/`.
 
 ---
 
 ## 19. Operator UX & responsive design
 
 Landed in v1.1.4 ([#51](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/51) /
-[PR #52](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pull/52)) — a top-to-bottom
+[PR #52](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pull/52)) - a top-to-bottom
 pass to make the operator surface usable on phones without giving up the dense desktop
 information density. Every screenshot in [`screenshots/`](../screenshots/README.md) is from
 this baseline.
@@ -602,7 +602,7 @@ this baseline.
   servers, dashboard sub-tables, role assignments, team members, zone change history) uses
   the same `<DataTable>` recipe. Desktop: `bg-bg-muted` thead, `even:bg-bg-subtle` striping,
   accent-tinted hover wash, sticky search + sort + per-column meta widths. Mobile (< md):
-  each row reflows to a labelled card automatically — no horizontal scroll, no truncated
+  each row reflows to a labelled card automatically - no horizontal scroll, no truncated
   cells.
 - **Where.** `components/ui/data-table.tsx`. The Audit Log + Profile Sessions + OIDC
   Providers + TSIG Keys + Autoprimaries were the final hold-outs converted in v1.1.4.
@@ -622,7 +622,7 @@ this baseline.
 
 - **What.** Concentric-ring SVG glyph used everywhere a sync verdict is displayed (header
   chip, zones list per-row chip, servers table). **Synced** = solid centre + two
-  outward-pulsing rings via staggered CSS keyframes — a continuous radar/sonar ping.
+  outward-pulsing rings via staggered CSS keyframes - a continuous radar/sonar ping.
   **Desynced** = hollow centre + two dashed concentric rings that counter-rotate via
   `stroke-dashoffset` so the icon reads as _actively trying_ rather than as a frozen error.
   Honours `prefers-reduced-motion`.
@@ -648,13 +648,13 @@ this baseline.
 ### 19.7 Diff-before-apply (record edits)
 
 The per-RRset editor now insists on a **Review changes** modal between Save and the actual
-PATCH — see [§ 4.2](#42-per-rrset-editor-with-diff-before-apply) for the full story. Validation
+PATCH - see [§ 4.2](#42-per-rrset-editor-with-diff-before-apply) for the full story. Validation
 errors are gated behind an explicit "Save anyway" checkbox so an override is never accidental.
 
 ### 19.8 Compliance hard-stops
 
 - **What.** Operators with `must_change_password = true` or unmet MFA-per-role requirements
-  are pinned to `/profile` (or an allow-list of self-service routes) on every navigation —
+  are pinned to `/profile` (or an allow-list of self-service routes) on every navigation -
   not just the initial render. The header status chip is suppressed in that state because
   the SSE endpoint would 403 the request, which would otherwise leave the chip stuck on
   `CONNECTING`.

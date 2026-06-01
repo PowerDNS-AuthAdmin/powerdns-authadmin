@@ -4,7 +4,7 @@
  * Create-zone landing. Permission: `zone.create`. Pulls the available
  * backends and templates server-side and hands them to the client form.
  * Most logic (validation, kind-conditional fields) lives in the form
- * component below — this page only orchestrates.
+ * component below - this page only orchestrates.
  */
 
 import { requireUserForPage } from "@/lib/auth/require-user";
@@ -32,7 +32,7 @@ export default async function NewZonePage({
   ]);
 
   // Collapse SelectableBackend[] into the form's option shape. A cluster
-  // is ONE option (not its peers) — the write_strategy picks the peer at
+  // is ONE option (not its peers) - the write_strategy picks the peer at
   // submit time on the server. Standalone-primary entries also carry the
   // primary's id (so the form can match against template
   // `defaultForPrimaryIds`) and its active secondaries (so the BACKEND
@@ -57,7 +57,7 @@ export default async function NewZonePage({
   );
 
   // Translate ?server=<slug> | ?cluster=<slug> into the form's initial
-  // selection — used by "Create zone" links coming off the zone list.
+  // selection - used by "Create zone" links coming off the zone list.
   let initialSelection: { kind: "server" | "cluster"; slug: string } | undefined;
   if (requestedClusterSlug) {
     initialSelection = { kind: "cluster", slug: requestedClusterSlug };

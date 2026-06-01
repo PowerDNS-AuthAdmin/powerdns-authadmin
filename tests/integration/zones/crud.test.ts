@@ -1,7 +1,7 @@
 /**
  * tests/integration/zones/crud.test.ts
  *
- * POST/DELETE /api/admin/pdns/zones — create + delete zones across all
+ * POST/DELETE /api/admin/pdns/zones - create + delete zones across all
  * three topologies (standalone, primary+secondaries, multi-primary
  * cluster). Each happy-path test creates a real zone on a real PDNS
  * backend and verifies the change landed by hitting the PDNS API
@@ -92,7 +92,7 @@ describe("zones CRUD across topologies", () => {
     );
     const owning = hits.filter((h) => h.has);
     expect(owning.length).toBeGreaterThanOrEqual(1);
-    // Peers share a single MariaDB; either all see it or none — the
+    // Peers share a single MariaDB; either all see it or none - the
     // important property is that creation didn't 500 and the zone is
     // visible from at least one peer.
   }, 20_000);
@@ -112,7 +112,7 @@ describe("zones CRUD across topologies", () => {
     // when ALLOW-AXFR-FROM + ALSO-NOTIFY are set on the zone (via the
     // template prelude in production) PDNS replicates via supermaster.
     // The bare-create path here doesn't add that metadata, so we don't
-    // hard-assert downstream — but we still exercise the poll to surface
+    // hard-assert downstream - but we still exercise the poll to surface
     // a real replication regression should one slip in.
     void (await Promise.all(
       PDNS_BY_TOPOLOGY.psSecondaries.map((s) => pollForZone(s, zone, 2_000)),
@@ -156,7 +156,7 @@ describe("zones CRUD across topologies", () => {
     expect(res.status).toBe(403);
   });
 
-  it("zone-editor cannot create a zone (403 — needs zone.create)", async () => {
+  it("zone-editor cannot create a zone (403 - needs zone.create)", async () => {
     const admin = await loginAsBootstrap();
     const { client } = await createAndLogin(admin, {
       email: uniqueEmail("ze"),

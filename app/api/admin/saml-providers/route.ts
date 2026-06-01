@@ -1,9 +1,9 @@
 /**
  * app/api/admin/saml-providers/route.ts
  *
- * GET  — list every SAML provider (oidc.read; SAML reuses the OIDC perm pair
+ * GET  - list every SAML provider (oidc.read; SAML reuses the OIDC perm pair
  *        per ADR-0021 since both are "configure SSO" verbs).
- * POST — create a new SAML provider (oidc.manage). The SP signing key + the
+ * POST - create a new SAML provider (oidc.manage). The SP signing key + the
  *        optional encryption key are encrypted before insert.
  */
 
@@ -78,7 +78,7 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    // Privilege ceiling: same as OIDC — group→role mappings can't carry
+    // Privilege ceiling: same as OIDC - group→role mappings can't carry
     // permissions the actor lacks globally (defends against IdP-launder
     // privilege escalation).
     await assertGroupMappingsWithinCeiling(user.id, input.groupMappings ?? null);

@@ -7,7 +7,7 @@
  * at the live CONFIGURATION doc so an operator can flip it deliberately.
  *
  * Pairs with the `flash=polling-required` toast surfaced by direct ?tab=sync
- * / ?tab=statistics / ?tab=pdns hits — the redirect handles the loud "you
+ * / ?tab=statistics / ?tab=pdns hits - the redirect handles the loud "you
  * landed on a feature gated by this flag" path, while this hint is the
  * always-visible quiet nudge hanging off the dashboard heading.
  *
@@ -33,7 +33,7 @@ export function PollingDisabledHint({ className }: { className?: string }) {
       target="_blank"
       rel="noreferrer"
       title={TOOLTIP}
-      aria-label="Background polling is disabled — click to see how to enable PDNS_BACKGROUND_POLLING"
+      aria-label="Background polling is disabled - click to see how to enable PDNS_BACKGROUND_POLLING"
       className={
         "inline-flex h-5 w-5 items-center justify-center rounded-full text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-muted)] hover:text-[color:var(--color-fg)] " +
         (className ?? "")

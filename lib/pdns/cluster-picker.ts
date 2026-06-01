@@ -6,11 +6,11 @@
  * `metric_samples` when the strategy needs them, then delegates.
  *
  * Callers: every cluster-aware operation that needs a single peer to
- * read FROM or write TO — zone create, RRset PATCH, the zone-detail
+ * read FROM or write TO - zone create, RRset PATCH, the zone-detail
  * page, the zones-list amalgamator. The cluster's peer-selection
  * strategy ("Write strategy" in the DB; surfaced as "Peer selection
  * strategy" in the UI per T-112) governs the choice in both directions
- * — the operator's intent is "use one peer per the strategy," not
+ * - the operator's intent is "use one peer per the strategy," not
  * "writes go through the strategy but reads pick alphabetically."
  */
 
@@ -27,7 +27,7 @@ import { pickPeer, type PeerSamples } from "./cluster-picker-pure";
 export { pickPeer, type PickablePeer, type PeerSamples } from "./cluster-picker-pure";
 
 /**
- * Pick which peer the next operation on `cluster` should target —
+ * Pick which peer the next operation on `cluster` should target -
  * applies to BOTH reads and writes per the cluster's peer-selection
  * strategy. Caller has already filtered `peers` to the active members.
  * Returns null only when `peers` is empty.

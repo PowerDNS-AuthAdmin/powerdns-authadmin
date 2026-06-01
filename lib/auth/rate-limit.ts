@@ -4,7 +4,7 @@
  * Token-bucket rate limiter. `take()` is the per-process in-memory path;
  * `takeShared()` is the same bucket coordinated across replicas via Redis when
  * `REDIS_URL` is set (ADR-0016), falling back to in-process when Redis is unset
- * OR a command fails — so login throttling can't be multiplied by spreading
+ * OR a command fails - so login throttling can't be multiplied by spreading
  * attempts across replicas, yet a Redis blip never blocks sign-in. The
  * per-account DB lockout (`recordFailedLogin`) is the second line for
  * distributed attacks.
@@ -70,7 +70,7 @@ export class TokenBucketLimiter {
   private readonly buckets = new Map<string, Bucket>();
   private readonly opts: LimiterOptions;
 
-  /** Hard cap on the in-memory map size — prevents memory exhaustion. */
+  /** Hard cap on the in-memory map size - prevents memory exhaustion. */
   private readonly MAX_KEYS = 50_000;
 
   constructor(opts: LimiterOptions) {
@@ -111,7 +111,7 @@ export class TokenBucketLimiter {
 
   /**
    * Take one token from the bucket SHARED across replicas via Redis (when
-   * configured) — the cross-replica limit. Falls back to the per-process `take`
+   * configured) - the cross-replica limit. Falls back to the per-process `take`
    * when Redis is unset or a command fails (degraded but never blocking).
    */
   async takeShared(key: string): Promise<RateLimitResult> {

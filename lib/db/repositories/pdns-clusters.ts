@@ -2,7 +2,7 @@
  * lib/db/repositories/pdns-clusters.ts
  *
  * CRUD over `pdns_clusters` + a join helper to list every peer in a
- * cluster. Pure data access — auth + audit are caller concerns.
+ * cluster. Pure data access - auth + audit are caller concerns.
  */
 
 import "server-only";
@@ -58,7 +58,7 @@ export async function deleteCluster(id: string, executor: DbExecutor = db): Prom
 }
 
 /**
- * Active WRITABLE peers in a group — primaries with this cluster_id, not
+ * Active WRITABLE peers in a group - primaries with this cluster_id, not
  * disabled. Feeds the write-strategy picker (choosePeer), so it must exclude
  * secondaries (ADR-0014): a group may now contain a primary's secondaries, and
  * a write must never be routed to a read-only mirror.

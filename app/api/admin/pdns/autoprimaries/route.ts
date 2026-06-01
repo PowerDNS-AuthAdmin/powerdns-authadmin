@@ -1,9 +1,9 @@
 /**
  * app/api/admin/pdns/autoprimaries/route.ts
  *
- * POST   — register a (ip, nameserver, account?) tuple.
+ * POST   - register a (ip, nameserver, account?) tuple.
  *          Permission: `autoprimary.manage`.
- * DELETE — remove a tuple by (ip, nameserver) — passed as query
+ * DELETE - remove a tuple by (ip, nameserver) - passed as query
  *          params because they're the compound key.
  *          Permission: `autoprimary.manage`.
  *

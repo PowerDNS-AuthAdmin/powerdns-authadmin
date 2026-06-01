@@ -1,10 +1,10 @@
 /**
  * app/api/admin/saml-providers/[id]/route.ts
  *
- * PATCH  — update a SAML provider (oidc.manage). Both halves of the SP
+ * PATCH  - update a SAML provider (oidc.manage). Both halves of the SP
  *          signing keypair rotate together; encryption keypair is three-
  *          state (omit / null / set).
- * DELETE — remove a SAML provider (oidc.manage). Hard-delete; the audit log
+ * DELETE - remove a SAML provider (oidc.manage). Hard-delete; the audit log
  *          carries the historical record.
  *
  * Cache invalidation runs on success so the next sign-in re-discovers
@@ -60,7 +60,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       await assertGroupMappingsWithinCeiling(user.id, input.groupMappings);
     }
 
-    // Signing keypair: both halves rotate together — sending one without the
+    // Signing keypair: both halves rotate together - sending one without the
     // other would orphan the cert against a mismatched key.
     if (
       (input.spSigningKey !== undefined && input.spSigningCert === undefined) ||

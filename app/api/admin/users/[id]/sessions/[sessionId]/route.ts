@@ -1,7 +1,7 @@
 /**
  * app/api/admin/users/[id]/sessions/[sessionId]/route.ts
  *
- * DELETE — revoke a single session belonging to the named user.
+ * DELETE - revoke a single session belonging to the named user.
  * Useful when an operator wants to kick a specific device (e.g. "I
  * see a stale browser from a hotel network in the user's session
  * list") without forcing a global re-login.

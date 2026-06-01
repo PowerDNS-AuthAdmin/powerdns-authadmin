@@ -3,7 +3,7 @@
 /**
  * app/(app)/zones/[zoneId]/_components/editable-record-table.tsx
  *
- * Interactive zone editor. Each (name, type, value) is its own row — a
+ * Interactive zone editor. Each (name, type, value) is its own row - a
  * single `www A` RRset with three IPs renders as three rows, edited /
  * deleted independently. On save the editor groups rows back into RRsets
  * (PDNS's atomic unit) and emits one REPLACE per (name, type).
@@ -15,7 +15,7 @@
  * Validation: each record's content runs through the per-RR-type validator
  * in `lib/validators/rr-types/`. Errors block save by default; the operator
  * can tick "Save anyway" to override (RFC-borderline content with a known-
- * good intent gets through). Warnings never block — they just inform.
+ * good intent gets through). Warnings never block - they just inform.
  */
 
 import { useRouter } from "next/navigation";
@@ -52,7 +52,7 @@ interface RRsetView {
   comment: string;
 }
 
-/** Flattened single-value row — what the table renders. */
+/** Flattened single-value row - what the table renders. */
 interface RecordRow {
   name: string;
   type: string;
@@ -96,7 +96,7 @@ interface EditorState {
   disabled: boolean;
   comment: string;
   /**
-   * Validation visibility gate — see the inline comment near the value input
+   * Validation visibility gate - see the inline comment near the value input
    * below. False while the user is mid-keystroke on a fresh field; flips
    * true on first blur and stays true thereafter. Edit mode starts true
    * because the row arrives with content the user can already act on.
@@ -122,7 +122,7 @@ interface PatchChange {
   /**
    * When defined, the route uses this exact comment string (empty
    * string clears the rrset's comments). When undefined, the route
-   * preserves whatever PDNS already has — important for record edits
+   * preserves whatever PDNS already has - important for record edits
    * that don't touch the comment.
    */
   comment?: string;
@@ -134,16 +134,16 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
   const router = useRouter();
   const { confirm, toast } = useDialog();
 
-  // SOA never appears in the records UI — it's owned by <SoaPanel>.
+  // SOA never appears in the records UI - it's owned by <SoaPanel>.
   const nonSoa = useMemo(() => props.rrsets.filter((rr) => rr.type !== "SOA"), [props.rrsets]);
 
   // Mirror the latest snapshot into a ref so closures inside the
-  // memoized columns (which don't include `nonSoa` in their deps —
+  // memoized columns (which don't include `nonSoa` in their deps -
   // re-memoizing on every prop change would thrash TanStack's
   // internal table instance) can still read the freshest data.
   // Without this ref, the Delete button's cached closure would call
   // buildDeleteChange against a STALE nonSoa, missing records that
-  // were created earlier in the same page lifecycle — that's the
+  // were created earlier in the same page lifecycle - that's the
   // "delete a freshly-created record silently no-ops" bug.
   const nonSoaRef = useRef(nonSoa);
   nonSoaRef.current = nonSoa;
@@ -210,7 +210,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
           return text ? (
             <span className="text-xs text-[color:var(--color-fg-muted)] italic">{text}</span>
           ) : (
-            <span className="text-xs text-[color:var(--color-fg-subtle)]">—</span>
+            <span className="text-xs text-[color:var(--color-fg-subtle)]">-</span>
           );
         },
         meta: { className: "w-[18%]" },
@@ -308,7 +308,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
       variant: "danger",
     });
     if (!ok) return;
-    // Always read through the ref — the memoized cell closure may be
+    // Always read through the ref - the memoized cell closure may be
     // older than the current props.rrsets, so the closure-captured
     // `nonSoa` could miss records created earlier this session.
     const currentNonSoa = nonSoaRef.current;
@@ -325,7 +325,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
         kind: "error",
         title: "Could not delete",
         description:
-          "The record isn't in the current view — it may have been removed in another session. Try reloading.",
+          "The record isn't in the current view - it may have been removed in another session. Try reloading.",
       });
       router.refresh();
       return;
@@ -367,7 +367,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
 
     const validation = getRRTypeValidator(editor.type).validate(editor.value);
     if (hasErrors(validation) && !overrideErrors) {
-      // Surface errors inline — the form already shows the list; this is the
+      // Surface errors inline - the form already shows the list; this is the
       // generic catch-all message under the save button.
       setEditorError(
         "The value has validation errors. Fix them or tick 'Save anyway' to override.",
@@ -412,7 +412,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
       return;
     }
 
-    // Block no-op submits — Edit → Review → Apply with no actual change
+    // Block no-op submits - Edit → Review → Apply with no actual change
     // would burn an audit row and a PDNS PATCH for nothing. Compare the
     // post-change RRset state against the pre-change state; on equality,
     // refuse with an inline message.
@@ -420,7 +420,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
     if (rrsetsEqual(nonSoa, rrsetsAfter)) {
       setEditorError(
         editor.mode === "edit"
-          ? "No changes to apply — the new values match the current record."
+          ? "No changes to apply - the new values match the current record."
           : "Nothing to change.",
       );
       return;
@@ -624,7 +624,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
               </Field>
             </div>
 
-            {/* Rename hint — only shows when (name, type) diverges from the
+            {/* Rename hint - only shows when (name, type) diverges from the
                 edited row's original key. */}
             {editor.mode === "edit" && editor.originalRow
               ? renderRenameHint(editor, editor.originalRow, props.zoneName)
@@ -634,7 +634,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
               label="TTL (seconds)"
               hint={
                 editor.mode === "edit"
-                  ? "Applies to the whole RRset — changing it here changes the TTL for every value with this name+type."
+                  ? "Applies to the whole RRset - changing it here changes the TTL for every value with this name+type."
                   : undefined
               }
             >
@@ -692,7 +692,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                   className="mt-0.5"
                 />
                 <span>
-                  Save anyway — I&apos;ve reviewed the validation errors and want to publish this
+                  Save anyway - I&apos;ve reviewed the validation errors and want to publish this
                   content. The audit log captures the saved value verbatim.
                 </span>
               </label>
@@ -759,12 +759,12 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                 onClick={() => {
                   // Defensive: surface diagnostics if anything would
                   // make this click a no-op. Previously this swallowed
-                  // a `pending=null` race silently — the user saw no
+                  // a `pending=null` race silently - the user saw no
                   // request fire and no error.
                   if (saving) {
                     toast({
                       kind: "warn",
-                      description: "A save is already in progress — please wait.",
+                      description: "A save is already in progress - please wait.",
                     });
                     return;
                   }
@@ -889,7 +889,7 @@ function buildDeleteChange(current: RRsetView[], row: RecordRow): PatchChange | 
  *     new record appends to that RRset (deduped on (content, disabled)).
  *   - Edit, same (name, type): emit one upsert that replaces the value at
  *     the row's `recordIdx` within the existing RRset.
- *   - Edit, renamed (name, type): emit *two* operations in one patch — one
+ *   - Edit, renamed (name, type): emit *two* operations in one patch - one
  *     to shrink (or delete) the original RRset, one to append-or-create
  *     the new RRset.
  *   - No-op: returns [].
@@ -972,7 +972,7 @@ function buildRecordChanges(args: {
       type: original.type,
       ttl: originalRrset.ttl,
       records: remaining,
-      // Preserve the original rrset's comment when shrinking — the
+      // Preserve the original rrset's comment when shrinking - the
       // operator didn't intend to clear it just by moving one record out.
       comment: originalRrset.comment,
     });
@@ -1002,7 +1002,7 @@ function dedupeAppend(existing: RecordValue[], next: RecordValue): RecordValue[]
 }
 
 /** Banner shown in the editor when an edit's (name, type) diverges from
- *  the original row's key — makes "this is a move, not an in-place edit"
+ *  the original row's key - makes "this is a move, not an in-place edit"
  *  unmistakable to the operator before they click Review. */
 function renderRenameHint(
   editor: EditorState,

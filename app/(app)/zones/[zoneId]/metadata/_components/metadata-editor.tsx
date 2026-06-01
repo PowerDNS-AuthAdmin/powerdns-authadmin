@@ -2,7 +2,7 @@
 
 /**
  * Per-metadata-kind edit affordance. The input control is picked
- * by `MetadataValuesInput` based on the kind — bool kinds get a
+ * by `MetadataValuesInput` based on the kind - bool kinds get a
  * toggle, enum kinds a dropdown, list kinds a textarea, etc.
  * Hidden unless the operator has `metadata.write`.
  */

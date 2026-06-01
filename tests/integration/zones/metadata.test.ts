@@ -1,7 +1,7 @@
 /**
  * tests/integration/zones/metadata.test.ts
  *
- * PUT/DELETE /api/admin/pdns/zones/[zoneId]/metadata/[kind] — per-kind
+ * PUT/DELETE /api/admin/pdns/zones/[zoneId]/metadata/[kind] - per-kind
  * zone metadata. The route accepts PUT for upsert and DELETE for
  * removal; the app has no GET on this path, so we verify with the
  * PowerDNS Authoritative API directly.

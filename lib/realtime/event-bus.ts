@@ -10,7 +10,7 @@
  * Each event carries the publishing instance's id; the Redis subscriber skips
  * its own messages, so the origin replica keeps an immediate in-process
  * fast-path (no Redis round-trip for its own clients) and remote replicas
- * deliver exactly once — no duplicates. Without Redis (single instance) it's
+ * deliver exactly once - no duplicates. Without Redis (single instance) it's
  * pure in-process; a Redis outage degrades to in-process (origin clients still
  * get events, cross-replica fan-out pauses until Redis returns).
  *
@@ -50,7 +50,7 @@ export type RealtimeEvent =
       at: string;
     }
   | {
-      // Backend-health advisory set changed (ADR-0015). Carries no detail — it's
+      // Backend-health advisory set changed (ADR-0015). Carries no detail - it's
       // a nudge for the health bell to re-render against the freshly-computed,
       // permission-scoped set. Published only when the visible set actually moved.
       type: "health.updated";
@@ -145,10 +145,10 @@ function ensureRedisSubscription(): void {
       if (channel !== REDIS_CHANNEL) return;
       try {
         const parsed = JSON.parse(message) as { instanceId: string; event: RealtimeEvent };
-        if (parsed.instanceId === bus.instanceId) return; // our own publish — already delivered
+        if (parsed.instanceId === bus.instanceId) return; // our own publish - already delivered
         deliver(parsed.event);
       } catch {
-        // Malformed payload on the channel — ignore.
+        // Malformed payload on the channel - ignore.
       }
     });
   }

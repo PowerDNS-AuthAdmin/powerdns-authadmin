@@ -9,11 +9,11 @@
  *     string),
  *   - `parse(wire)` to round-trip an existing record's content back into
  *     that shape, returning `null` if the input is malformed (legacy /
- *     non-conformant — the orchestrator falls back to raw editing),
+ *     non-conformant - the orchestrator falls back to raw editing),
  *   - `serialize(struct)` that builds the canonical wire-format string
  *     PDNS expects,
  *   - `empty()` for a fresh record,
- *   - `Editor` — the React component that renders the structured inputs.
+ *   - `Editor` - the React component that renders the structured inputs.
  *
  * Pure logic is JSON-safe and unit-testable; the React component is
  * presentation only.

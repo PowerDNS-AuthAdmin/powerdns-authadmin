@@ -9,14 +9,14 @@
  *
  * SINGLE SOURCE OF TRUTH: this page does NOT call PowerDNS itself. It asks the
  * app-wide broker to ensure a recent observation (`ensureBackendsObserved`) and
- * then reads the shared store — the zone-state cache for zones, the live
+ * then reads the shared store - the zone-state cache for zones, the live
  * reachability store for up/down, the (cache-backed) sync helper for sync state.
  * So this page and the servers list + bell always agree, and a backend the
  * broker can't reach surfaces here exactly as it does there (no per-page probe,
  * no raw connection error leaked to the UI).
  *
  * Per-row Sync state:
- *   • Standalone primary (no Secondaries)  → "—"
+ *   • Standalone primary (no Secondaries)  → "-"
  *   • Primary + Secondaries                → all Secondaries' serials vs primary
  *   • Cluster                              → all peers' serials vs the
  *                                            representative peer's
@@ -54,7 +54,7 @@ export default async function ZonesPage() {
   // Authenticate, then decide zone visibility. A user with GLOBAL zone.read
   // sees every backend's zones; a non-global user (zone_grants only) sees
   // only the zones they're granted. A type-level CASL check would leak every
-  // zone name to a team-scoped role — see lib/rbac/ability.ts:globalPermissionsOf.
+  // zone name to a team-scoped role - see lib/rbac/ability.ts:globalPermissionsOf.
   const { globalPermissions, zoneGrants } = await requireUserForPage();
   const globalZoneRead = globalPermissions.has("zone.read");
   if (!globalZoneRead && zoneGrants.length === 0) {
@@ -80,7 +80,7 @@ export default async function ZonesPage() {
     return <NoServersState canCreateServer={canCreateServer} />;
   }
 
-  // Build the amalgamated list from the broker store — no PDNS calls here.
+  // Build the amalgamated list from the broker store - no PDNS calls here.
   const fetched = await Promise.all(backends.map((b) => rowsFromBackend(b)));
 
   const errors: Array<{ backendName: string; message: string }> = [];
@@ -94,7 +94,7 @@ export default async function ZonesPage() {
   }
 
   // Audit-derived "last edit" enrichment. Per-backend batched lookup
-  // keyed on the representative server's slug — for cluster zones whose
+  // keyed on the representative server's slug - for cluster zones whose
   // writes route across multiple peers, audit timestamps may be
   // partially observable; the serial-derived fallback covers the gap.
   if (canReadAudit) {
@@ -128,12 +128,12 @@ export default async function ZonesPage() {
     for (const row of r.rows) allRows.push(row);
   }
 
-  // De-dup by zone name. The SAME zone surfaces from multiple backends — a
+  // De-dup by zone name. The SAME zone surfaces from multiple backends - a
   // primary plus its mirrors, two primaries seeded with the same name, or two
   // secondaries of one external primary. Keep ONE row per name: an authoritative
   // (writable) row always wins over a read-only mirror; within the same tier the
   // first wins (backends arrive name-ordered). So a zone always resolves to its
-  // primary, or — if none is managed — to the first secondary that serves it.
+  // primary, or - if none is managed - to the first secondary that serves it.
   const { kept: dedupedRows, hidden: hiddenRows } = dedupeZonesByName(allRows);
 
   // Restrict the amalgamated list to zones the viewer may actually read.
@@ -145,22 +145,22 @@ export default async function ZonesPage() {
     : dedupedRows.filter((r) => grantedZoneNames.has(r.name));
 
   // Surface what de-dup collapsed (scoped to zones the viewer can see), so an
-  // operator knows the same zone is served by a backend that ISN'T shown — but
+  // operator knows the same zone is served by a backend that ISN'T shown - but
   // ONLY when that's surprising. A read-only secondary that mirrors a managed
   // primary is normal replication, not a duplicate worth flagging. The app knows
   // a secondary belongs to a primary two ways (ADR-0014), and BOTH must silence:
-  //   • grouped — these never reach `hiddenRows` at all (folded into the group's
+  //   • grouped - these never reach `hiddenRows` at all (folded into the group's
   //     single primary row, so they don't produce a separate row here); and
-  //   • derived — ungrouped, but the poller resolved its masters[] to a managed
+  //   • derived - ungrouped, but the poller resolved its masters[] to a managed
   //     primary, so the servers page nests it under that primary. `hiddenRows`
   //     DOES contain these (they come in via `readOnlySecondaryRows`), so we
   //     filter them out by the same signal the servers page uses for nesting:
   //     `derivedParentOf` must resolve to a primary that is STILL PRESENT. (A
   //     parent that's been deleted leaves a stale mapping; the servers page drops
-  //     it to "Standalone secondaries", and so must we — otherwise an orphaned
+  //     it to "Standalone secondaries", and so must we - otherwise an orphaned
   //     secondary would silently stop warning.)
-  // What remains — truly orphaned secondaries (no managed primary, grouped or
-  // derived) and authoritative name-collisions (the same zone on two primaries) —
+  // What remains - truly orphaned secondaries (no managed primary, grouped or
+  // derived) and authoritative name-collisions (the same zone on two primaries) -
   // is exactly what should warn.
   const managedPrimaryIds = new Set<string>();
   for (const b of backends) {
@@ -204,7 +204,7 @@ export default async function ZonesPage() {
   }
   for (const s of readOnlySecondaries) channelSlugs.push(s.slug);
 
-  // "anyLagging" drives the chip's fast-mode color — true when ANY row
+  // "anyLagging" drives the chip's fast-mode color - true when ANY row
   // on the amalgamated list isn't fully in-sync. Standalone primaries
   // have null syncWorst and don't contribute. With background polling
   // disabled, the verdict is always "in-sync" (we don't show a sync
@@ -240,7 +240,7 @@ export default async function ZonesPage() {
           <ul className="mt-2 list-disc pl-5 text-xs">
             {errors.map((e) => (
               <li key={e.backendName}>
-                <code className="font-mono">{e.backendName}</code> — {e.message}
+                <code className="font-mono">{e.backendName}</code> - {e.message}
               </li>
             ))}
           </ul>
@@ -253,7 +253,7 @@ export default async function ZonesPage() {
             {hiddenSummary.count} duplicate zone{hiddenSummary.count === 1 ? "" : "s"} hidden.
           </strong>{" "}
           Each zone is listed once (resolved to its primary, or the first secondary when no primary
-          is managed). These copies are on backends with no managed primary — standalone secondaries
+          is managed). These copies are on backends with no managed primary - standalone secondaries
           mirroring an unmanaged primary, or the same name on another primary. Also served by:{" "}
           {hiddenSummary.backends.map((b, i) => (
             <span key={`${b.name} ${b.type}`}>
@@ -281,11 +281,11 @@ interface FetchResult {
   error: string | null;
 }
 
-/** Generic, non-leaky reachability message (no raw connect error — S-12). */
+/** Generic, non-leaky reachability message (no raw connect error - S-12). */
 function unreachableMessage(kind: "down" | "auth"): string {
   return kind === "auth"
     ? "API rejected the configured key (401/403)."
-    : "Backend unreachable — the app hasn't reached its API recently.";
+    : "Backend unreachable - the app hasn't reached its API recently.";
 }
 
 /**
@@ -318,9 +318,9 @@ async function rowsFromBackend(backend: SelectableBackend): Promise<FetchResult>
   }
   const zones = [...cached.zones.values()];
 
-  // Sync state — branches on the group's composition (ADR-0014). All variants
+  // Sync state - branches on the group's composition (ADR-0014). All variants
   // read serials from the cache (poller-maintained), never live. With
-  // `PDNS_BACKGROUND_POLLING=false` we skip the computation entirely — the
+  // `PDNS_BACKGROUND_POLLING=false` we skip the computation entirely - the
   // Sync column is hidden so nothing reads `syncByZone`.
   let syncByZone: Map<string, SecondarySyncStatus[]>;
   if (!pdnsBackgroundPollingEnabled) {
@@ -334,7 +334,7 @@ async function rowsFromBackend(backend: SelectableBackend): Promise<FetchResult>
         zoneSerials,
       );
     } else {
-      // True multi-primary cluster — compare every peer's cached serials.
+      // True multi-primary cluster - compare every peer's cached serials.
       syncByZone = clusterSyncFromCache(backend, readPeer, zones);
     }
   }
@@ -380,8 +380,8 @@ function dedupeZonesByName(rows: readonly ZoneRow[]): { kept: ZoneRow[]; hidden:
 }
 
 /**
- * Read-only rows for an unpinned secondary — a mirror of a primary the app
- * doesn't manage — from the broker store. Every cached zone is emitted; the
+ * Read-only rows for an unpinned secondary - a mirror of a primary the app
+ * doesn't manage - from the broker store. Every cached zone is emitted; the
  * caller's `dedupeZonesByName` drops any a primary (or an earlier secondary)
  * already covers. An unreachable mirror reports an error envelope. No sync
  * column (no app-side primary to compare); "last edit" falls back to the
@@ -419,7 +419,7 @@ function readOnlySecondaryRows(secondary: PdnsServer): {
 }
 
 /**
- * Multi-primary cluster sync from the zone-state cache — the representative
+ * Multi-primary cluster sync from the zone-state cache - the representative
  * peer's serial is the per-zone source of truth; every other peer's cached
  * serial is compared against it. No PDNS calls (mirrors `checkZonesSyncBatch`).
  */
@@ -497,7 +497,7 @@ function toZoneRow(
     kind: zone.kind,
     serial: zone.serial,
     dnssec: zone.dnssec,
-    // Read-only by zone kind — a Slave/Secondary/Consumer zone is an AXFR
+    // Read-only by zone kind - a Slave/Secondary/Consumer zone is an AXFR
     // mirror even when it lives on an otherwise-writable (primary) backend.
     readOnly: isReadOnlyZoneKind(zone.kind),
     backend,
@@ -518,7 +518,7 @@ function toZoneRow(
  * single "Last edit" value. Precedence:
  *   • Audit when at least as recent (UTC-day grain) as the serial.
  *   • Serial when strictly newer (caught a write outside our audit
- *     surface — older systems, pdnsutil, direct backend poke).
+ *     surface - older systems, pdnsutil, direct backend poke).
  *   • Either alone fills in for the missing other.
  */
 function foldLastEdit(

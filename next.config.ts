@@ -1,7 +1,7 @@
 /**
  * next.config.ts
  *
- * Next.js framework configuration. Kept minimal on purpose — security headers live in
+ * Next.js framework configuration. Kept minimal on purpose - security headers live in
  * `middleware.ts` so they apply per-request with a per-request CSP nonce, not as
  * statically-baked `headers()` entries.
  *
@@ -15,7 +15,7 @@ import type { NextConfig } from "next";
 
 const config: NextConfig = {
   // Next 16 removed the built-in ESLint integration (`next lint`), so there's
-  // no `eslint` config key anymore — linting runs only via `npm run lint`.
+  // no `eslint` config key anymore - linting runs only via `npm run lint`.
 
   // `npm run typecheck` runs as a separate CI step.
   // We pay for one type-check pass, not two.
@@ -24,18 +24,18 @@ const config: NextConfig = {
   // React strict mode catches double-renders and effect lifecycle bugs in development.
   reactStrictMode: true,
 
-  // Disable the `X-Powered-By: Next.js` header — no fingerprinting our stack to attackers.
+  // Disable the `X-Powered-By: Next.js` header - no fingerprinting our stack to attackers.
   poweredByHeader: false,
 
-  // Use the standalone output for the Docker image — produces a minimal `server.js`
+  // Use the standalone output for the Docker image - produces a minimal `server.js`
   // and a focused `node_modules` tree, ~80% smaller than full output.
   output: "standalone",
 
   // Disable Next's built-in image optimizer at runtime: the wordmark PNGs in
   // /public are tiny pre-sized assets (no resizing or format conversion
   // needed), and operator-uploaded brand logos render via a plain <img> in
-  // BrandMark. With this on, `<Image>` tags still work — they just serve
-  // the file at its intrinsic size — and the outputFileTracingExcludes
+  // BrandMark. With this on, `<Image>` tags still work - they just serve
+  // the file at its intrinsic size - and the outputFileTracingExcludes
   // below keeps the ~16 MB of @img/sharp prebuilt binaries out of the
   // standalone bundle entirely.
   images: { unoptimized: true },
@@ -44,7 +44,7 @@ const config: NextConfig = {
   // into the standalone bundle but that we don't actually invoke at
   // runtime in production:
   //
-  //   • @img/sharp* (16 MB) — optionalDep of `next`, only used by
+  //   • @img/sharp* (16 MB) - optionalDep of `next`, only used by
   //     `images.unoptimized: false`. Disabled above; this drops the
   //     binaries from the runner.
   //
@@ -65,7 +65,7 @@ const config: NextConfig = {
   // Leaving them external keeps webpack out of their internals and lets the runtime
   // `require` them as plain Node modules from `./node_modules`.
   //
-  // Note: this list does NOT apply to `instrumentation.ts` (Next 15 limitation —
+  // Note: this list does NOT apply to `instrumentation.ts` (Next 15 limitation -
   // tracked at vercel/next.js#53523), which is why we don't put runtime DB checks in
   // that file. The migrate script's own incomplete-migrations guard is the equivalent
   // safety net.
@@ -89,7 +89,7 @@ const config: NextConfig = {
 
     // Disable Next's client-side router cache for dynamic RSC payloads.
     // Without this, navigating between tabs (zone Records → Change history → back)
-    // serves a cached RSC payload for up to 30 s — making the page look frozen and
+    // serves a cached RSC payload for up to 30 s - making the page look frozen and
     // hiding the loading shimmer. PDNS state can change between tab switches; we
     // want a live fetch every time.
     //

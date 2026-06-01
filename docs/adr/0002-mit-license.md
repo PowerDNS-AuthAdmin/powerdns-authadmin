@@ -1,4 +1,4 @@
-# ADR 0002 — License under MIT
+# ADR 0002 - License under MIT
 
 - **Status:** Accepted
 - **Date:** 2026-05-16
@@ -25,7 +25,7 @@ PowerDNS-AuthAdmin is licensed under the **MIT License**.
 ## Alternatives considered
 
 - **AGPL-3.0.** Strongly protects against a closed commercial fork at the cost of accessibility
-  for downstream integrators. Rejected — the goal is broad accessibility, not protection against
+  for downstream integrators. Rejected - the goal is broad accessibility, not protection against
   forking.
 - **Apache-2.0.** Stronger explicit patent grant than MIT. Reasonable alternative; rejected to
   keep the licensing story as simple as possible. We can upgrade to Apache-2.0 later if the

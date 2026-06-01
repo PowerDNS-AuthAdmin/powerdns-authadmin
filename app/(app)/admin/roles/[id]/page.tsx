@@ -141,7 +141,7 @@ export default async function RoleDetailPage({ params }: PageProps) {
           </h2>
           <div className="mt-3 flex items-start justify-between gap-4 rounded-md border border-[color:var(--color-error)]/40 bg-[color:var(--color-error)]/5 p-4">
             <p className="flex-1 text-sm text-[color:var(--color-fg-muted)]">
-              Delete this role. The action is refused while any user still holds it — revoke the
+              Delete this role. The action is refused while any user still holds it - revoke the
               assignments first. OIDC group mappings that reference this slug will become unresolved
               on the next sign-in.
             </p>

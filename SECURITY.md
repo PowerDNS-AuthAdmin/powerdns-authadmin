@@ -1,5 +1,5 @@
 <!--
-SECURITY.md — public security policy.
+SECURITY.md - public security policy.
 
 The goal of this file is to give a security researcher a clear, fast path to report a vulnerability
 without it leaking to the public issue tracker, and to set expectations on response time and
@@ -12,8 +12,8 @@ disclosure.
 
 `v1.0.0` is the first production release. Supported versions:
 
-- The latest stable major (`v1.x`) — all security fixes.
-- The previous stable major — security fixes only, for 6 months after a new major ships.
+- The latest stable major (`v1.x`) - all security fixes.
+- The previous stable major - security fixes only, for 6 months after a new major ships.
 
 Run a current `v1.x` release in production; older tags receive best-effort fixes only.
 

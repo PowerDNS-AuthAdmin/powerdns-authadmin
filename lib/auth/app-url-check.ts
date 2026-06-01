@@ -3,12 +3,12 @@
  *
  * Compare the configured `APP_URL` against the request's actual host/scheme.
  * A mismatch means the browser-set Session + CSRF cookies (scoped to the
- * `APP_URL` host) get silently rejected by every browser — sign-in just looks
+ * `APP_URL` host) get silently rejected by every browser - sign-in just looks
  * "broken" with no useful console message unless DevTools is open. The login
  * page surfaces a banner when this returns `mismatch=true` so operators don't
  * have to dig.
  *
- * Not a security control — the cookies stay correctly scoped to the configured
+ * Not a security control - the cookies stay correctly scoped to the configured
  * host either way. This is a usability + diagnostic check.
  *
  * Pure helper (no DB, no env import) so it's unit-testable. The login page is
@@ -26,7 +26,7 @@ export interface AppUrlMismatch {
 /**
  * Reconstruct the browser-visible origin from request headers, honouring the
  * common reverse-proxy headers (`X-Forwarded-Host`, `X-Forwarded-Proto`).
- * Returns `null` when we can't determine a host header — that's not a
+ * Returns `null` when we can't determine a host header - that's not a
  * mismatch, it's "no signal" (avoid false-positive banners).
  *
  * @param requestHeaders the incoming request's `Headers` (Next.js `headers()`)
@@ -55,7 +55,7 @@ export function detectAppUrlMismatch(
     expectedOrigin = new URL(appUrl).origin;
   } catch {
     // env.ts already rejects a malformed APP_URL at boot, so we shouldn't get
-    // here — but if we do, no banner beats a crash.
+    // here - but if we do, no banner beats a crash.
     return null;
   }
 

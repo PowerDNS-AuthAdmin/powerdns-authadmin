@@ -11,7 +11,7 @@
  * subscriber. With per-component subscribers we were opening 3–5
  * streams per page (zone indicator, server indicator, audit indicator,
  * pdns-requests indicator, dashboard live feed). One stream is enough
- * — every event we publish goes onto the same bus.
+ * - every event we publish goes onto the same bus.
  *
  * Client-side filtering: subscribers pass a predicate that scopes
  * which events trigger their callback. The predicate is recomputed
@@ -39,7 +39,7 @@ export type RealtimeEvent = RealtimeEventBase & Record<string, unknown>;
 type Listener = (event: RealtimeEvent) => void;
 type Predicate = (event: RealtimeEvent) => boolean;
 
-/** Public connection status — "offline" only fires after a 5s grace so a fresh
+/** Public connection status - "offline" only fires after a 5s grace so a fresh
  *  page load (or a transient blip) doesn't flash "offline" before the SSE
  *  stream has even had a chance to open. */
 export type RealtimeStatus = "connecting" | "live" | "paused" | "offline";
@@ -64,7 +64,7 @@ interface ListenerEntry {
 export function RealtimeProvider({ children }: { children: ReactNode }) {
   const [enabled, setEnabled] = useState(true);
   // `raw` is the immediate EventSource state; `status` is the public view that
-  // applies a 5 s grace before reporting "offline" — so a Ctrl-R never flashes
+  // applies a 5 s grace before reporting "offline" - so a Ctrl-R never flashes
   // offline → connecting → live, only connecting → live.
   const [raw, setRaw] = useState<RawStatus>("connecting");
   const [status, setStatus] = useState<RealtimeStatus>("connecting");
@@ -177,7 +177,7 @@ export function useRealtimeStatus(): {
 /**
  * Register a filtered listener. The predicate runs on every event;
  * matching events call `onEvent`. Both are captured via refs that
- * update every render so closures see the latest props — but the
+ * update every render so closures see the latest props - but the
  * subscription itself is registered exactly ONCE per mount (the
  * effect's only dep is `on`, which is stable across renders via
  * useCallback in the provider). Without that stability, every

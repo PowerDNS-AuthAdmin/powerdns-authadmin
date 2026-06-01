@@ -13,7 +13,7 @@
  *           part's "@" is replaced with a "."; literal dots in the local
  *           part are escaped with `\`).
  *   serial  32-bit unsigned, monotonically increasing per RFC 1982 (PDNS
- *           manages this for us — we present it read-only).
+ *           manages this for us - we present it read-only).
  *   refresh how often a secondary checks the primary for changes (sec)
  *   retry   how long a secondary waits before retrying a failed refresh
  *   expire  how long a secondary serves the zone while unreachable
@@ -49,7 +49,7 @@ export interface SoaFields {
 /**
  * Parse a SOA RDATA string. PowerDNS hands us the canonical form (single
  * spaces, no comments) so we keep the parser simple. Throws on malformed
- * input — callers fall back to defaults in that case.
+ * input - callers fall back to defaults in that case.
  */
 export function parseSoaContent(content: string): SoaFields {
   const parts = content.trim().split(/\s+/);
@@ -86,7 +86,7 @@ export function parseSoaContent(content: string): SoaFields {
 }
 
 /**
- * Build SOA RDATA from a struct. Output uses single-space separators —
+ * Build SOA RDATA from a struct. Output uses single-space separators -
  * matches PDNS's canonical form so the diff between current and new is
  * minimal (no whitespace noise).
  */
@@ -104,11 +104,11 @@ export function serializeSoaContent(fields: SoaFields): string {
 
 /**
  * Default SOA when a zone doesn't have one yet. Values are commonly-used
- * conservative defaults — operators tune them as needed.
- *   refresh   1h   — frequent enough for active zones
- *   retry    15m   — quick recovery without hammering
- *   expire    7d   — secondaries stop serving after a week of unreach
- *   minimum   1h   — negative-cache for an hour
+ * conservative defaults - operators tune them as needed.
+ *   refresh   1h   - frequent enough for active zones
+ *   retry    15m   - quick recovery without hammering
+ *   expire    7d   - secondaries stop serving after a week of unreach
+ *   minimum   1h   - negative-cache for an hour
  */
 export const SOA_DEFAULTS = {
   refresh: 3600,
@@ -131,7 +131,7 @@ export function soaSanityWarnings(fields: SoaFields): string[] {
   const warnings: string[] = [];
   if (fields.retry >= fields.refresh) {
     warnings.push(
-      "Retry should be less than refresh — otherwise secondaries hammer the primary after a failure (RFC 1912 § 2.2).",
+      "Retry should be less than refresh - otherwise secondaries hammer the primary after a failure (RFC 1912 § 2.2).",
     );
   }
   if (fields.expire <= fields.refresh + fields.retry) {
@@ -141,17 +141,17 @@ export function soaSanityWarnings(fields: SoaFields): string[] {
   }
   if (fields.refresh < 1200) {
     warnings.push(
-      "Refresh below 20 min — primaries can get hammered. RFC 1912 § 2.2 suggests ≥ 1200 for most zones.",
+      "Refresh below 20 min - primaries can get hammered. RFC 1912 § 2.2 suggests ≥ 1200 for most zones.",
     );
   }
   if (fields.minimum < 60) {
     warnings.push(
-      "Minimum (negative-cache TTL) below 60s — most resolvers ignore this floor anyway (RFC 2308 § 5).",
+      "Minimum (negative-cache TTL) below 60s - most resolvers ignore this floor anyway (RFC 2308 § 5).",
     );
   }
   if (fields.minimum > 86400) {
     warnings.push(
-      "Minimum above 24 h — negative answers will be cached for a long time; fixing typos becomes slow to propagate.",
+      "Minimum above 24 h - negative answers will be cached for a long time; fixing typos becomes slow to propagate.",
     );
   }
   return warnings;

@@ -2,7 +2,7 @@
  * lib/email/templates.ts
  *
  * Transactional email bodies (subject + plain-text + minimal HTML). Pure
- * functions — no I/O — so they're trivial to unit-test. Each takes the
+ * functions - no I/O - so they're trivial to unit-test. Each takes the
  * action URL (which already carries its single-use token) and returns the
  * shape `sendEmail` expects. Plain text is always provided; HTML is a
  * progressive enhancement.
@@ -43,7 +43,7 @@ export interface EmailBody {
 
 export function verifyEmailMessage(url: string): EmailBody {
   return {
-    subject: `Verify your email — ${PRODUCT}`,
+    subject: `Verify your email - ${PRODUCT}`,
     text: `Confirm your email address to finish setting up your ${PRODUCT} account:\n\n${url}\n\nThis link expires for security. If you didn't request this, you can ignore this email.`,
     html: layout(
       `<h2 style="margin-top:0">Verify your email</h2><p>Confirm your email address to finish setting up your ${PRODUCT} account.</p>` +
@@ -55,19 +55,19 @@ export function verifyEmailMessage(url: string): EmailBody {
 
 export function passwordResetMessage(url: string): EmailBody {
   return {
-    subject: `Reset your password — ${PRODUCT}`,
-    text: `A password reset was requested for your ${PRODUCT} account:\n\n${url}\n\nThis link expires for security. If you didn't request this, ignore this email — your password is unchanged.`,
+    subject: `Reset your password - ${PRODUCT}`,
+    text: `A password reset was requested for your ${PRODUCT} account:\n\n${url}\n\nThis link expires for security. If you didn't request this, ignore this email - your password is unchanged.`,
     html: layout(
       `<h2 style="margin-top:0">Reset your password</h2><p>A password reset was requested for your ${PRODUCT} account.</p>` +
         button(url, "Reset password") +
-        `<p style="color:#6b7280;font-size:13px">If you didn't request this, ignore this email — your password is unchanged.</p>`,
+        `<p style="color:#6b7280;font-size:13px">If you didn't request this, ignore this email - your password is unchanged.</p>`,
     ),
   };
 }
 
 export function emailChangeMessage(url: string): EmailBody {
   return {
-    subject: `Confirm your new email — ${PRODUCT}`,
+    subject: `Confirm your new email - ${PRODUCT}`,
     text: `Confirm this address to make it your new ${PRODUCT} sign-in email:\n\n${url}\n\nThis link expires for security. If you didn't request this, you can ignore this email.`,
     html: layout(
       `<h2 style="margin-top:0">Confirm your new email</h2><p>Confirm this address to make it your new ${PRODUCT} sign-in email.</p>` +

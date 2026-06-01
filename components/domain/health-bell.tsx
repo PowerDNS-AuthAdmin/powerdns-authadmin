@@ -8,7 +8,7 @@
  * scoped); this renders the count badge + a dropdown. Acknowledging POSTs to
  * the ack route then refreshes so the list reflects the new state.
  *
- * Presentational only — no lib/db / lib/pdns imports (three-layer boundary).
+ * Presentational only - no lib/db / lib/pdns imports (three-layer boundary).
  */
 
 import { useRef, useState } from "react";

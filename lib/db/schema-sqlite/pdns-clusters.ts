@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/pdns-clusters.ts — SQLite mirror of
+ * lib/db/schema-sqlite/pdns-clusters.ts - SQLite mirror of
  * `../schema/pdns-clusters.ts`. See that file for the design + semantics.
  */
 

@@ -4,7 +4,7 @@
  * OIDC provider dispatcher. Providers are stored in the `oidc_providers`
  * table and managed from `/admin/authentication/oidc`. The env-driven config
  * (`OIDC_*`) is surfaced as a single, READ-ONLY provider ("Configured by
- * ENV") that is always offered alongside DB providers — both the login page
+ * ENV") that is always offered alongside DB providers - both the login page
  * and the admin list show it. A DB provider with the same slug takes
  * precedence (shadows the env one). The env provider is edited by changing
  * environment variables, not through the UI, and can't carry group→role
@@ -53,7 +53,7 @@ import type { VerifiedIdentity } from "./types";
 // `makeGuardedFetch` returns the standard Fetch surface; openid-client's
 // `CustomFetch` types `body` more narrowly (its `FetchBody`) and requires the
 // options arg. The wrapper accepts any `RequestInit` and forwards it to undici
-// unchanged, so it satisfies the contract at runtime — bridge the nominal gap.
+// unchanged, so it satisfies the contract at runtime - bridge the nominal gap.
 const guardedOidcFetch = makeGuardedFetch(checkOidcIssuerUrlSafe) as unknown as oidc.CustomFetch;
 
 /**
@@ -67,7 +67,7 @@ function attachGuardedFetch(config: oidc.Configuration): oidc.Configuration {
 }
 
 /**
- * Resolved provider config — uniform shape whether the row came from the DB
+ * Resolved provider config - uniform shape whether the row came from the DB
  * or the env fallback.
  */
 export interface ResolvedOidcProvider {
@@ -92,7 +92,7 @@ export interface ResolvedOidcProvider {
    * Per-provider email-domain override (S-7 follow-up). `null` means
    * "inherit the env default"; an array (possibly empty) means "use
    * this list verbatim for this provider, ignoring env." Env-source
-   * providers always have `null` here — env has no per-provider
+   * providers always have `null` here - env has no per-provider
    * override mechanism; env IS the env-level default.
    */
   allowedEmailDomains: string[] | null;
@@ -100,7 +100,7 @@ export interface ResolvedOidcProvider {
   groupMappings: OidcGroupMapping[] | null;
   /**
    * When false, the callback handler accepts a sign-in even if the
-   * IdP didn't emit `email_verified: true`. Default `true` — the
+   * IdP didn't emit `email_verified: true`. Default `true` - the
    * account-takeover guard is on. Operators relax this only for IdPs
    * that don't emit the claim at all (custom OIDC bridges, some
    * SAML→OIDC translators).
@@ -117,7 +117,7 @@ const configCache = new Map<string, oidc.Configuration>();
 
 function cacheKey(p: ResolvedOidcProvider): string {
   // The clientSecret is the high-entropy bit; including it (not its hash) is
-  // fine because the cache lives only in-process — but conceptually it's a
+  // fine because the cache lives only in-process - but conceptually it's a
   // cache key, so we slice it down for shorter map keys.
   return `${p.slug}|${p.issuerUrl}|${p.clientId}|${p.clientSecret.slice(0, 16)}`;
 }
@@ -143,7 +143,7 @@ function fromDbRow(row: OidcProvider): ResolvedOidcProvider {
 
 /**
  * Decrypt the stored client secret. Defensive against double-encryption
- * — observed in the wild when an earlier admin path encrypted an already-
+ * - observed in the wild when an earlier admin path encrypted an already-
  * encrypted envelope, leaving `decrypt()` returning a value that itself
  * still looks like an envelope. Unwrap recursively (bounded depth so a
  * pathological row can't loop) and log a warning the first time it
@@ -163,7 +163,7 @@ function unwrapClientSecret(envelope: string, providerSlug: string): string {
       value = next;
       depth += 1;
     } catch {
-      // Inner decrypt failed — the value happens to look like an
+      // Inner decrypt failed - the value happens to look like an
       // envelope but isn't one of ours. Stop and use what we have;
       // authentik will return invalid_client if it's wrong, which
       // surfaces in the callback failure log.
@@ -196,7 +196,7 @@ function fromEnv(): ResolvedOidcProvider | null {
     claimName: env.OIDC_CLAIM_NAME,
     claimGroups: "groups",
     source: "env",
-    // Env providers don't carry a per-provider override — env IS the
+    // Env providers don't carry a per-provider override - env IS the
     // env-level default for itself. The resolver returns env's
     // allow-list directly in this case (via `resolveAllowedDomains(null,
     // envDefault)`).
@@ -205,7 +205,7 @@ function fromEnv(): ResolvedOidcProvider | null {
     // structured slot for them). Operators wanting group→role
     // materialisation must use a DB-source provider.
     groupMappings: null,
-    // Env providers don't expose this knob today — env-deployed
+    // Env providers don't expose this knob today - env-deployed
     // setups predate per-provider relaxation. Inherit the secure
     // default; operators wanting to relax should move to a DB
     // provider where the toggle lives.
@@ -216,7 +216,7 @@ function fromEnv(): ResolvedOidcProvider | null {
 /**
  * Safe, secret-free descriptor of the env-configured provider for UI
  * surfaces (the login button + the admin list row). Null when the env
- * provider isn't configured. Unlike a DB provider it is READ-ONLY — edited
+ * provider isn't configured. Unlike a DB provider it is READ-ONLY - edited
  * by changing environment variables, not through the admin UI.
  */
 export interface EnvOidcProviderSummary {
@@ -244,7 +244,7 @@ export function envOidcProviderSummary(): EnvOidcProviderSummary | null {
  * Resolve a provider config by slug. Looks up the DB first; if there's no
  * enabled DB row with that slug and the env provider's slug matches, returns
  * the env-synthesised provider. So a DB provider always shadows the env one
- * on a slug collision. Returns null when nothing matches — caller decides the
+ * on a slug collision. Returns null when nothing matches - caller decides the
  * error (typically 404).
  *
  * The DB row must be `enabled=true` to be returned.
@@ -260,7 +260,7 @@ export async function resolveOidcProvider(slug: string): Promise<ResolvedOidcPro
 }
 
 /**
- * 8-char SHA-256 fingerprint of a secret. Safe to log — the
+ * 8-char SHA-256 fingerprint of a secret. Safe to log - the
  * full secret can't be reversed from 8 hex chars (2^32 search space
  * + the strings we care about are 60+ chars of entropy), and the
  * operator can compare it locally:
@@ -279,7 +279,7 @@ function secretFingerprint(secret: string): string {
 /**
  * Sidecar map keyed on the same cache key as `configCache`. Tracks
  * the chosen ClientAuth method and the IdP's advertised set so the
- * callback failure log can surface BOTH in one line — debugging
+ * callback failure log can surface BOTH in one line - debugging
  * invalid_client without that pair is guess-and-check.
  */
 const authMethodCache = new Map<
@@ -304,12 +304,12 @@ async function loadConfig(provider: ResolvedOidcProvider): Promise<oidc.Configur
   const cached = configCache.get(key);
   if (cached) return cached;
 
-  // SSRF re-check before fetching the (admin-configured) issuer — DNS-rebind
+  // SSRF re-check before fetching the (admin-configured) issuer - DNS-rebind
   // defense, mirroring the PDNS request-time guard. Bounded: discovery only runs
   // on a config-cache miss, not every sign-in.
   await assertSafeOidcIssuerUrl(provider.issuerUrl);
 
-  // First-pass discovery — gets the AS metadata. openid-client picks
+  // First-pass discovery - gets the AS metadata. openid-client picks
   // ClientSecretPost by default whenever a client_secret is present,
   // but many IdPs (notably authentik in non-default configurations,
   // some Keycloak realms, and certain ADFS setups) accept ONLY
@@ -357,7 +357,7 @@ async function loadConfig(provider: ResolvedOidcProvider): Promise<oidc.Configur
       //
       //   • none is a last resort: the AS advertises neither secret
       //     method even though we hold a secret. Most likely the
-      //     operator set the client type to Public in the IdP — strip
+      //     operator set the client type to Public in the IdP - strip
       //     the secret and try None.
       if (supportsBasic) {
         chosenMethod = "client_secret_basic";
@@ -374,7 +374,7 @@ async function loadConfig(provider: ResolvedOidcProvider): Promise<oidc.Configur
       } else if (supportsNone) {
         // The AS says it doesn't accept either secret method. Most
         // likely the operator set the client type to Public in the IdP
-        // — strip the secret and try None.
+        // - strip the secret and try None.
         chosenMethod = "none";
         config = attachGuardedFetch(
           new oidc.Configuration(
@@ -394,7 +394,7 @@ async function loadConfig(provider: ResolvedOidcProvider): Promise<oidc.Configur
       }
     } else if (!supportsNone) {
       // We have no secret but the IdP wants one. Same outcome as
-      // before — leave default — but flag it so operators notice.
+      // before - leave default - but flag it so operators notice.
       logger.warn(
         {
           provider: provider.slug,
@@ -429,7 +429,7 @@ async function loadConfig(provider: ResolvedOidcProvider): Promise<oidc.Configur
 }
 
 /**
- * Invalidate the cached discovery config for a provider — call after a row
+ * Invalidate the cached discovery config for a provider - call after a row
  * update so the next request re-discovers against the new credentials.
  */
 export function invalidateOidcConfigCache(provider?: ResolvedOidcProvider): void {
@@ -449,7 +449,7 @@ export function invalidateOidcConfigCache(provider?: ResolvedOidcProvider): void
  *
  * The `nonce` is bound into the authorization request and echoed by the IdP
  * as a claim in the ID token; verifying it on callback (via `expectedNonce`)
- * defeats ID-token replay — a token minted for one login attempt can't be
+ * defeats ID-token replay - a token minted for one login attempt can't be
  * injected into another, since each attempt carries its own random nonce.
  */
 export async function buildAuthorizationUrl(
@@ -496,7 +496,7 @@ export async function completeAuthorization(input: {
       expectedNonce: input.nonce,
     });
   } catch (cause) {
-    // The autorization code is single-use — once the token endpoint
+    // The autorization code is single-use - once the token endpoint
     // rejects the request the code is dead. So we can't blindly retry
     // with a different ClientAuth and hope it works.
     //
@@ -506,7 +506,7 @@ export async function completeAuthorization(input: {
     // the per-client `token_endpoint_auth_method` value: if it's set to
     // basic but we sent post, authentik 400s with invalid_client
     // BEFORE consuming the code. The code is still valid on first
-    // request only — authentik tracks consumption on success, not on
+    // request only - authentik tracks consumption on success, not on
     // auth-method-mismatch failure. We rely on that to retry exactly
     // once with the other supported method.
     if (shouldRetryWithOtherAuthMethod(cause, input.provider)) {
@@ -548,7 +548,7 @@ export async function completeAuthorization(input: {
   // optional OIDC Session Management field; not every IdP advertises
   // it. When absent, logout falls back to the plain local cookie-
   // clear path. `id_token` is the raw compact JWS we just got from
-  // the token endpoint — needed by the IdP as `id_token_hint` on
+  // the token endpoint - needed by the IdP as `id_token_hint` on
   // the logout redirect so it can identify which session to end.
   const asMeta = config.serverMetadata() as unknown as {
     end_session_endpoint?: unknown;
@@ -559,10 +559,10 @@ export async function completeAuthorization(input: {
     typeof (tokens as unknown as { id_token?: unknown }).id_token === "string"
       ? (tokens as unknown as { id_token: string }).id_token
       : null;
-  // Refresh token — captured when the IdP issued one (i.e. the configured
+  // Refresh token - captured when the IdP issued one (i.e. the configured
   // scopes included `offline_access` and the IdP honoured it). Stored
   // encrypted on the session so the token-auth path can refresh the groups
-  // claim at API-token use time. Null when absent — token use falls back
+  // claim at API-token use time. Null when absent - token use falls back
   // to the latest session snapshot instead.
   const refreshToken =
     typeof (tokens as unknown as { refresh_token?: unknown }).refresh_token === "string"
@@ -602,7 +602,7 @@ function readClaimString(claims: Record<string, unknown>, key: string): string |
  * Decide whether the auth-method mismatch retry path is worth taking.
  * Yes when:
  *   • The error came from the IdP as `invalid_client` (auth method
- *     rejection — never a code-related failure).
+ *     rejection - never a code-related failure).
  *   • The AS advertised BOTH secret methods. If it only advertised
  *     one, retrying with the other is guaranteed to fail too.
  *   • We have a secret to send (no-secret clients use `none` only).
@@ -672,19 +672,19 @@ function rebuildWithOtherAuthMethod(
  *
  * The errors surface like this in practice:
  *
- *   ResponseBodyError              — token endpoint returned a JSON
+ *   ResponseBodyError              - token endpoint returned a JSON
  *                                    OAuth error (invalid_grant,
  *                                    invalid_client, etc.). Most
  *                                    common; carries `error`,
  *                                    `error_description`, `status`,
  *                                    `cause` (full parsed body).
- *   AuthorizationResponseError     — the redirect carried `error=` in
+ *   AuthorizationResponseError     - the redirect carried `error=` in
  *                                    its query string (user denied
  *                                    consent, access_denied, etc.).
  *                                    `cause` is the URLSearchParams.
- *   WWWAuthenticateChallengeError  — UserInfo / introspection
+ *   WWWAuthenticateChallengeError  - UserInfo / introspection
  *                                    challenge; not used in our flow.
- *   Plain Error                    — discovery / JOSE failures.
+ *   Plain Error                    - discovery / JOSE failures.
  *
  * Field-name match is duck-typed so a major-version bump of
  * openid-client doesn't break logging (the structured fields are
@@ -730,7 +730,7 @@ export function describeOidcError(err: unknown): OidcErrorDetail {
     try {
       detail.body = JSON.stringify(cause).slice(0, 500);
     } catch {
-      // unstringifiable cause — fall through.
+      // unstringifiable cause - fall through.
     }
   }
   return detail;
@@ -780,7 +780,7 @@ export async function fetchOidcGroupsForUser(slug: string, refreshToken: string)
   }
 
   // Exchange refresh → access token. If the IdP rotated or revoked the
-  // refresh token, this fails — the caller's fallback path handles it.
+  // refresh token, this fails - the caller's fallback path handles it.
   let tokens;
   try {
     tokens = await oidc.refreshTokenGrant(config, refreshToken);
@@ -801,7 +801,7 @@ export async function fetchOidcGroupsForUser(slug: string, refreshToken: string)
   // Fetch userinfo for the latest groups claim. `sub` is required by
   // openid-client v6's `fetchUserInfo`; we read it from the new tokens'
   // claims (or from the refresh response). Falling back to an empty
-  // string when missing is safe — openid-client will still send the
+  // string when missing is safe - openid-client will still send the
   // bearer + parse the response.
   const claims = (tokens as unknown as { claims?: () => Record<string, unknown> }).claims?.() ?? {};
   const sub = typeof claims["sub"] === "string" ? claims["sub"] : "";

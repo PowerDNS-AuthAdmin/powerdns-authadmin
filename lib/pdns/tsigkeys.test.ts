@@ -46,7 +46,7 @@ describe("pdnsTsigKeySummarySchema", () => {
 
   it("silently drops a `key` field on the summary shape", () => {
     // If a future PDNS started returning the secret on the list
-    // endpoint, the summary type shouldn't expose it — the detail
+    // endpoint, the summary type shouldn't expose it - the detail
     // endpoint is the only sanctioned path. Zod's default behavior
     // is to drop unknown fields on `.parse()`, which is what we want.
     const parsed = pdnsTsigKeySummarySchema.parse(DETAIL);

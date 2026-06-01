@@ -3,7 +3,7 @@
  *
  * Bounded-window retention for the two time-series tables the zone-poller
  * writes (`metric_samples`, `pdns_server_stats`). Anything older than the
- * matching window is dead weight — never queried, never displayed — so we
+ * matching window is dead weight - never queried, never displayed - so we
  * drop it during the poll cycle that follows.
  *
  * **The windows track the dashboard's display windows 1:1**, sourced from
@@ -14,7 +14,7 @@
  * timestamp. The sampler ticks every ~60s; running the deletes every tick
  * would be noise. 5 minutes is more than fast enough to keep the tables
  * from unbounded growth (the worst case is one cycle's writes survive an
- * extra 5 minutes — sub-percent of either window).
+ * extra 5 minutes - sub-percent of either window).
  */
 
 import "server-only";
@@ -41,7 +41,7 @@ let lastPruneAtMs = 0;
 /**
  * Best-effort retention sweep. Idempotent (running it twice in a row deletes
  * 0 rows on the second call). Caller should `void`-await: failures are
- * logged but never propagated — write-path latency must not depend on this.
+ * logged but never propagated - write-path latency must not depend on this.
  *
  * Returns true when a prune ran (used by tests; production callers ignore).
  */

@@ -2,7 +2,7 @@
  * lib/pdns/sync.ts
  *
  * Helpers to compare a zone's state across a primary and its secondaries
- * — used by the zones list (compact "in-sync / lagging" column) and the
+ * - used by the zones list (compact "in-sync / lagging" column) and the
  * zone detail page (rrset diff panel).
  *
  * All probes run concurrently; per-secondary errors are caught and
@@ -11,7 +11,7 @@
  */
 
 /* eslint-disable no-restricted-imports -- Sanctioned lib/pdns→lib/db bridge:
-   this module is cross-server zone-state coordination — it enumerates a
+   this module is cross-server zone-state coordination - it enumerates a
    primary's active secondaries (a DB read) and fans probes across them. See
    ADR-0013. Future work: relocate above lib/pdns (e.g. a lib/cluster/ module). */
 import "server-only";
@@ -47,7 +47,7 @@ export interface SecondarySyncStatus {
 
 interface MirrorBackend {
   server: PdnsServer;
-  /** A member of the primary's group — the explicit-grouping fallback. */
+  /** A member of the primary's group - the explicit-grouping fallback. */
   inGroup: boolean;
   /** Zone names this backend mirrors of `primary` (derived, from the cache). */
   derivedZones: Set<string>;
@@ -57,7 +57,7 @@ interface MirrorBackend {
  * The backends that mirror `primary`, read from caches (ADR-0014). The masters[]
  * derive is computed site-wide by the poller (lib/pdns/topology-cache); here we
  * just read it, union it with the primary's group members, and compare serials
- * from the zone-state cache — NO per-call PDNS fetch or DNS. A backend mirrors a
+ * from the zone-state cache - NO per-call PDNS fetch or DNS. A backend mirrors a
  * given zone if it's a group member OR the cached topology says its copy of that
  * zone points at this primary (so one secondary can mirror different primaries
  * per zone).
@@ -117,8 +117,8 @@ function statusFromCache(
 
 /**
  * Compare a zone's serial on a primary vs. each backend that mirrors it. Reads
- * mirror serials from the zone-state cache (poller-maintained) — the same source
- * the zones list uses, so the two never disagree. Doesn't fetch full rrsets —
+ * mirror serials from the zone-state cache (poller-maintained) - the same source
+ * the zones list uses, so the two never disagree. Doesn't fetch full rrsets -
  * that's `compareZoneRecords` below.
  */
 export async function checkZoneSync(
@@ -133,7 +133,7 @@ export async function checkZoneSync(
 }
 
 /**
- * Site-wide rollup of mirror sync state — true when ANY group or derived mirror
+ * Site-wide rollup of mirror sync state - true when ANY group or derived mirror
  * of ANY managed primary isn't fully caught up to its primary's serial for at
  * least one zone. Reads exclusively from the in-process caches the poller
  * maintains (no PDNS calls, no DB write), so it's cheap enough to call from
@@ -142,7 +142,7 @@ export async function checkZoneSync(
  * Used as the default mode for the header sync chip: pages that don't mount
  * their own `<HeaderStatusMode/>` (i.e. most non-zone pages) inherit this
  * single fleet-wide verdict. A return value of `false` covers both "every
- * mirror is in-sync" and "there are no mirrors to compare" — the chip stays
+ * mirror is in-sync" and "there are no mirrors to compare" - the chip stays
  * green in either case.
  *
  * Note on staleness: the chip is server-rendered, so the verdict only
@@ -151,13 +151,13 @@ export async function checkZoneSync(
  * `HeaderStatusMode` and a `useRealtimeEvent` listener.
  */
 /**
- * True iff the fleet contains at least one cluster of ≥2 peers sharing zones —
+ * True iff the fleet contains at least one cluster of ≥2 peers sharing zones -
  * a derived primary+secondaries group OR a configured multi-primary cluster.
  * Standalone servers and single primaries with zero secondaries do NOT
  * qualify; there's nothing to be "in sync" against.
  *
  * The app shell uses this to decide whether the header chip surfaces a
- * SYNCED/DESYNCED verdict at all — a fleet of standalones or single primaries
+ * SYNCED/DESYNCED verdict at all - a fleet of standalones or single primaries
  * sees only the plain "Live" connectivity label, which is the truthful read
  * for that topology (issue #57 widened "no replication" to the common case).
  */
@@ -193,8 +193,8 @@ export async function globalAnyLagging(): Promise<boolean> {
 
 /**
  * Batched variant for the zones-list page. Reads the mirror set + serials from
- * the caches (poller-maintained) — no per-zone PDNS calls. Returns a Map keyed
- * by zone name; zones absent from the map have no mirror (render "—").
+ * the caches (poller-maintained) - no per-zone PDNS calls. Returns a Map keyed
+ * by zone name; zones absent from the map have no mirror (render "-").
  */
 export async function checkZonesSyncBatch(
   primary: PdnsServer,
@@ -217,7 +217,7 @@ export async function checkZonesSyncBatch(
 
 /**
  * Detail-level rrset diff between primary's zone and each secondary's.
- * Pulls full zones in parallel. Use sparingly — full-zone GETs are the
+ * Pulls full zones in parallel. Use sparingly - full-zone GETs are the
  * most expensive PDNS call we make.
  */
 export interface SecondaryRrsetDiff {
@@ -315,14 +315,14 @@ function canonicalContentForCompare(type: string, content: string): string {
 
 /**
  * Cluster-flavored equivalent of `compareZoneRecords`. For a multi-
- * primary cluster the operator-facing question is the same — "are all
- * peers serving identical content?" — so the diff shape is identical
+ * primary cluster the operator-facing question is the same - "are all
+ * peers serving identical content?" - so the diff shape is identical
  * (`SecondaryRrsetDiff`), but the "primary" anchor is the peer with
  * the highest serial. That's the closest we can get to a deterministic
  * source-of-truth without explicit conflict resolution: any peer with
  * a lower serial (or content drift) is highlighted as out-of-sync.
  *
- * The anchor peer itself is omitted from the returned list — the
+ * The anchor peer itself is omitted from the returned list - the
  * comparison is N–1 entries deep, one per non-anchor peer, mirroring
  * how the primary+secondaries flow shows one entry per secondary.
  */
@@ -357,7 +357,7 @@ export async function compareClusterPeerRecords(
   // zone never become the anchor (we'd have nothing to compare against).
   const candidates = fetched.filter((f) => f.zone !== null);
   if (candidates.length === 0) {
-    // Every peer errored — no anchor possible. Surface as an entry per
+    // Every peer errored - no anchor possible. Surface as an entry per
     // peer (excluding the first one to keep the shape) with their
     // error.
     const anchor = peers[0]!;

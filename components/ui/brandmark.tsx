@@ -5,7 +5,7 @@
  * set a `brand_logo_url` in /admin/settings, in which case the custom logo
  * is shown instead. The custom URL is treated as user-controlled; we use a
  * plain <img> (not next/image) because we don't want to invoke Next's image
- * optimizer for a third-party URL — and the URL has already been validated
+ * optimizer for a third-party URL - and the URL has already been validated
  * by Zod as an absolute http(s) URL.
  *
  * `siteName` is used as the alt text so screen readers still get the brand
@@ -19,7 +19,7 @@ interface BrandMarkProps {
   brandLogoUrl: string | null;
   /**
    * Maximum width for the rendered mark. Accepts a number (px) or any CSS
-   * length string — pass `"min(100%, 350px)"` from the auth layout so the
+   * length string - pass `"min(100%, 350px)"` from the auth layout so the
    * wordmark shrinks to fit narrow viewports instead of overflowing the form.
    */
   width: number | string;

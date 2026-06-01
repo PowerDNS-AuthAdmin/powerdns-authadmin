@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/backend-advisories.ts — SQLite mirror of
+ * lib/db/schema-sqlite/backend-advisories.ts - SQLite mirror of
  * `../schema/backend-advisories.ts`.
  */
 

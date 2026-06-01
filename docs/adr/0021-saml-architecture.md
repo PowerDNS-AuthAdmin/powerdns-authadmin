@@ -12,7 +12,7 @@ sign-in protocol. SAML 2.0 is the mature, widely-deployed standard there.
 ## Decision
 
 Add SAML 2.0 SP support as a sibling of OIDC. Implementation is structurally
-parallel — same admin admin UX (unified Authentication page), same group →
+parallel - same admin admin UX (unified Authentication page), same group →
 role mapping (the materialiser is protocol-agnostic), same cross-type slug
 uniqueness via `auth_provider_slugs`.
 
@@ -32,25 +32,25 @@ optional encryption keypair) + claim attribute names + same `allowedEmailDomains
 - `groupMappings` JSON columns.
 
 Slug is reserved in `auth_provider_slugs(provider_type='saml')` at create
-time — same transactional pattern OIDC uses. The cross-type PK constraint
+time - same transactional pattern OIDC uses. The cross-type PK constraint
 prevents an SP and an OP from sharing a slug.
 
 ### Routes
 
-- `GET  /api/auth/saml/<slug>/login` — builds AuthnRequest + redirects.
-- `POST /api/auth/saml/<slug>/acs` — Assertion Consumer Service.
-- `GET  /api/auth/saml/<slug>/metadata` — SP metadata XML.
-- `GET  /api/auth/saml/<slug>/slo` — SP-initiated single logout.
+- `GET  /api/auth/saml/<slug>/login` - builds AuthnRequest + redirects.
+- `POST /api/auth/saml/<slug>/acs` - Assertion Consumer Service.
+- `GET  /api/auth/saml/<slug>/metadata` - SP metadata XML.
+- `GET  /api/auth/saml/<slug>/slo` - SP-initiated single logout.
 
 The RequestID is stashed in a 10-minute HttpOnly cookie (`pda_saml_state`)
 so the ACS can verify the inbound Response's `InResponseTo`.
 
 ### Secure defaults
 
-- `wantAssertionsSigned: true` — non-negotiable.
-- `wantAuthnResponseSigned: true` — operator can relax per-provider.
-- `signatureAlgorithm: "sha256"` — `sha1` left selectable for legacy IdPs.
-- `validateInResponseTo: always` — replay defense.
+- `wantAssertionsSigned: true` - non-negotiable.
+- `wantAuthnResponseSigned: true` - operator can relax per-provider.
+- `signatureAlgorithm: "sha256"` - `sha1` left selectable for legacy IdPs.
+- `validateInResponseTo: always` - replay defense.
 - The SP signing keypair is mandatory; encryption keypair is opt-in.
 
 ### Session storage
@@ -65,7 +65,7 @@ misleading column names; documented in
 
 ### Group → role mapping
 
-The same `applyGroupSync` function is reused — it takes a provider id +
+The same `applyGroupSync` function is reused - it takes a provider id +
 mappings array, doesn't care whether the provider is OIDC or SAML.
 
 ## Consequences

@@ -1,7 +1,7 @@
 /**
  * app/api/admin/oidc-providers/refresh-all/route.ts
  *
- * POST — operator forces a discovery re-probe of every enabled OIDC
+ * POST - operator forces a discovery re-probe of every enabled OIDC
  * provider, bypassing the T-103 sampler's 15-minute staleness gate.
  * Useful after a bulk config change (DNS migration, IdP version
  * upgrade) when the operator wants immediate confirmation that
@@ -33,7 +33,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const probed = await sampleAllOidcDiscoveryNow();
 
-    // Audit at the fleet level — per-provider cache writes carry
+    // Audit at the fleet level - per-provider cache writes carry
     // their own record via the sampler's setOidcDiscoveryCache call,
     // and the audit row noise from N writers would dwarf the signal.
     // One "operator ran refresh-all, N providers covered" entry.

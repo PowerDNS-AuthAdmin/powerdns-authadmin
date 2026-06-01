@@ -3,14 +3,14 @@
  *
  * Thin `fetch` wrapper for client components. On state-changing methods
  * (POST/PATCH/PUT/DELETE) it reads the `pda_csrf` cookie and copies it into
- * the `x-csrf-token` header — the client half of the double-submit CSRF
+ * the `x-csrf-token` header - the client half of the double-submit CSRF
  * protection that `lib/auth/csrf.ts#requireCsrf` validates on the server.
  *
  * Use this for every mutation from a client component. GET-style calls
  * don't need it but going through the wrapper anyway is fine; it short-
  * circuits the header injection on safe methods.
  *
- * This module is browser-only — it touches `document.cookie`. The
+ * This module is browser-only - it touches `document.cookie`. The
  * `client-only` import causes any accidental server import to fail loudly
  * at build time.
  */
@@ -35,7 +35,7 @@ function readCsrfCookie(): string | null {
  * `fetch` for the in-app client. Adds `x-csrf-token` on mutating methods.
  *
  * Falls back to a plain `fetch` if the CSRF cookie is missing (e.g. before
- * sign-in or after sign-out) — the server will reject the request anyway
+ * sign-in or after sign-out) - the server will reject the request anyway
  * if a session cookie is present.
  */
 export async function apiFetch(

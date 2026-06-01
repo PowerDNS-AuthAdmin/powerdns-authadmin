@@ -40,7 +40,7 @@ export function MfaPanel({ userId, canManage, totpEnabled, isSelf }: Props) {
     const ok = await confirm({
       title: isSelf ? "Reset YOUR MFA?" : "Reset this user's MFA?",
       description: isSelf
-        ? "Your TOTP enrollment will be removed. If any of your roles require MFA you'll be sent straight to re-enrollment on your next request — you won't be locked out, but you'll need an authenticator app handy."
+        ? "Your TOTP enrollment will be removed. If any of your roles require MFA you'll be sent straight to re-enrollment on your next request - you won't be locked out, but you'll need an authenticator app handy."
         : "Their TOTP enrollment will be removed. If any of their roles require MFA, they'll be forced to re-enroll on their next visit. Use this when the user has lost their authenticator device.",
       confirmLabel: "Reset MFA",
       variant: "danger",

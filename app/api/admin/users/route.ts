@@ -1,8 +1,8 @@
 /**
  * app/api/admin/users/route.ts
  *
- * GET  — list users (user.read).
- * POST — create a user (user.create). When `password` is omitted, the user
+ * GET  - list users (user.read).
+ * POST - create a user (user.create). When `password` is omitted, the user
  *        is SSO-only. When present, `mustChangePassword` is set so the
  *        operator's choice is a one-time bootstrap.
  */
@@ -102,7 +102,7 @@ export async function POST(request: Request): Promise<Response> {
     const hdrs = await headers();
 
     // The user insert, its audit row, and (when an initial role is set) the
-    // assignment insert + its audit row all commit together or not at all — a
+    // assignment insert + its audit row all commit together or not at all - a
     // crash mid-sequence can't leave a created user with no audit trail, or an
     // unaudited role grant.
     const created = await db.transaction(async (tx) => {
@@ -113,7 +113,7 @@ export async function POST(request: Request): Promise<Response> {
           passwordHash,
           mustChangePassword: input.password !== undefined,
           // Local (password) accounts must verify their email like any other
-          // self-service user — do NOT auto-verify on admin-set-password.
+          // self-service user - do NOT auto-verify on admin-set-password.
           // Password-less accounts are OIDC-bound and exempt from the
           // verification flow anyway (see the dashboard banner).
           emailVerifiedAt: null,

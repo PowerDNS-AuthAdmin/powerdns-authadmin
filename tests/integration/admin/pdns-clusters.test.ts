@@ -1,10 +1,10 @@
 /**
  * tests/integration/admin/clusters.test.ts
  *
- * /api/admin/pdns/clusters — CRUD over multi-primary peer groups.
+ * /api/admin/pdns/clusters - CRUD over multi-primary peer groups.
  * Cluster membership is set on the server side (server.clusterId), so
  * cluster create only carries slug/name/description/writeStrategy. Only
- * true multi-primary peer groups become cluster rows — the seeded
+ * true multi-primary peer groups become cluster rows - the seeded
  * standalone primary + primary/secondary topologies are servers, not
  * clusters. The current seed includes a single multi-primary cluster
  * (prod-cluster, 3 peers).
@@ -131,7 +131,7 @@ describe("/api/admin/pdns/clusters", () => {
     );
     expect(audit.length).toBeGreaterThan(0);
 
-    // Cleanup — deleting the cluster NULLs the member's cluster_id (FK SET NULL).
+    // Cleanup - deleting the cluster NULLs the member's cluster_id (FK SET NULL).
     await admin.sendJson("DELETE", `/api/admin/pdns/clusters/${cluster.id}`);
   });
 

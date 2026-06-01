@@ -1,8 +1,8 @@
 /**
- * lib/db/schema-sqlite/zone-templates.ts — SQLite mirror of `../schema/zone-templates.ts`.
+ * lib/db/schema-sqlite/zone-templates.ts - SQLite mirror of `../schema/zone-templates.ts`.
  *
  * Postgres' `text[]` for default_for_primary_ids becomes a JSON array in SQLite
- * — same JS shape, just a different storage encoding.
+ * - same JS shape, just a different storage encoding.
  */
 
 import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";

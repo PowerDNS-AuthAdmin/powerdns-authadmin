@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { evaluateClusterSync } from "./cluster-sync";
 
-describe("evaluateClusterSync — with expected serial", () => {
+describe("evaluateClusterSync - with expected serial", () => {
   it("in-sync when every peer >= expected", () => {
     const r = evaluateClusterSync(
       42,
@@ -38,7 +38,7 @@ describe("evaluateClusterSync — with expected serial", () => {
   });
 });
 
-describe("evaluateClusterSync — no expected (steady state)", () => {
+describe("evaluateClusterSync - no expected (steady state)", () => {
   it("in-sync when every peer has the same serial", () => {
     const r = evaluateClusterSync(
       null,

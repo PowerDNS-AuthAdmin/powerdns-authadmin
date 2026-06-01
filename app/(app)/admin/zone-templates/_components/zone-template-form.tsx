@@ -13,7 +13,7 @@
  *
  * Per-record type-aware validation reuses the same `RRTypeValidator`
  * registry the zone-detail editor uses. Records use *relative* names
- * here ("@" for apex, "www" for www) — the create-zone path expands
+ * here ("@" for apex, "www" for www) - the create-zone path expands
  * them against the concrete zone at apply time.
  */
 
@@ -96,9 +96,9 @@ const DEFAULTS: InitialState = {
 };
 
 const ZONE_KIND_OPTIONS = [
-  { value: "Native", label: "Native — no replication" },
-  { value: "Master", label: "Primary (Master) — sends AXFR" },
-  { value: "Slave", label: "Secondary (Slave) — pulls AXFR" },
+  { value: "Native", label: "Native - no replication" },
+  { value: "Master", label: "Primary (Master) - sends AXFR" },
+  { value: "Slave", label: "Secondary (Slave) - pulls AXFR" },
 ];
 
 const SOA_EDIT_OPTIONS = [
@@ -340,7 +340,7 @@ export function ZoneTemplateForm(props: Props) {
 
       <Section
         title="Zone settings"
-        subtitle="Defaults applied to the zone object — kind, SOA-EDIT, SOA-EDIT-API, API-RECTIFY. Mirror the per-zone Zone settings tab."
+        subtitle="Defaults applied to the zone object - kind, SOA-EDIT, SOA-EDIT-API, API-RECTIFY. Mirror the per-zone Zone settings tab."
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Zone Type">
@@ -458,7 +458,7 @@ export function ZoneTemplateForm(props: Props) {
         <div className="space-y-3">
           {records.length === 0 ? (
             <p className="text-xs text-[color:var(--color-fg-muted)]">
-              No prelude records — the zone will start with just SOA + NS.
+              No prelude records - the zone will start with just SOA + NS.
             </p>
           ) : null}
           {records.map((r, i) => {
@@ -566,7 +566,7 @@ export function ZoneTemplateForm(props: Props) {
         </div>
       ) : (
         <p className="text-xs text-[color:var(--color-fg-muted)]">
-          Read-only — the template.manage permission is required to edit.
+          Read-only - the template.manage permission is required to edit.
         </p>
       )}
     </form>

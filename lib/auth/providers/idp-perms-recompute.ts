@@ -5,14 +5,14 @@
  * IdP-derived permissions at API token use time.
  *
  * Strategy per protocol:
- *   - **LDAP** — service-account bind + search via
+ *   - **LDAP** - service-account bind + search via
  *     `fetchLdapGroupsForUser`. The user's username is their email
  *     (the same value the sign-in route searches by); the email lives
  *     on `users.email`.
- *   - **OIDC** — refresh-token → userinfo via
+ *   - **OIDC** - refresh-token → userinfo via
  *     `fetchOidcGroupsForUser`. Refresh token lives encrypted on the
  *     session row (the user's most recent OIDC sign-in).
- *   - **SAML** — no back-channel; caller stays on the session
+ *   - **SAML** - no back-channel; caller stays on the session
  *     snapshot per `TOKEN_IDP_FALLBACK_TTL_SECONDS`. This module
  *     doesn't handle SAML.
  *
@@ -42,7 +42,7 @@ import { getIdpPerms, putIdpPerms } from "./idp-perms-cache";
 
 interface RecomputeInput {
   userId: string;
-  /** User's email — the username we search for in LDAP. */
+  /** User's email - the username we search for in LDAP. */
   userEmail: string;
   providerType: "oidc" | "saml" | "ldap";
   providerSlug: string;
@@ -54,13 +54,13 @@ interface RecomputeInput {
  * Compute live IdP-derived `AbilitySource[]`. Returns `null` to signal
  * "couldn't recompute; fall back to the session snapshot." Returns an
  * empty array (NOT null) when the recompute succeeded but no group
- * mappings matched — that's a valid "you have no IdP-derived perms
+ * mappings matched - that's a valid "you have no IdP-derived perms
  * right now" answer, not a failure.
  */
 export async function recomputeIdpPermissions(
   input: RecomputeInput,
 ): Promise<readonly AbilitySource[] | null> {
-  // SAML has no back-channel — fall back to the session-snapshot path.
+  // SAML has no back-channel - fall back to the session-snapshot path.
   if (input.providerType === "saml") return null;
 
   const cached = getIdpPerms(input.userId, input.providerType, input.providerSlug);
@@ -113,7 +113,7 @@ export async function recomputeIdpPermissions(
 
   putIdpPerms(input.userId, input.providerType, input.providerSlug, derived);
 
-  // Audit one row per cache window (throttling lives in the cache —
+  // Audit one row per cache window (throttling lives in the cache -
   // every cache miss writes one row; cache hits don't).
   void appendAudit({
     actor: { type: "system", id: null },

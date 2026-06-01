@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/teams.ts — SQLite mirror of `../schema/teams.ts`.
+ * lib/db/schema-sqlite/teams.ts - SQLite mirror of `../schema/teams.ts`.
  */
 
 import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";

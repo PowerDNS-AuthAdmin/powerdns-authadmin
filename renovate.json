@@ -19,7 +19,7 @@
   },
   "packageRules": [
     {
-      "description": "Auto-merge patch updates if CI passes — they are typically bug/security fixes within a known-stable line.",
+      "description": "Auto-merge patch updates if CI passes - they are typically bug/security fixes within a known-stable line.",
       "matchUpdateTypes": ["patch", "pin", "digest"],
       "automerge": true,
       "automergeType": "branch"
@@ -45,7 +45,7 @@
       "groupName": "typescript-eslint"
     },
     {
-      "description": "Security advisories never wait — open a PR immediately, any time.",
+      "description": "Security advisories never wait - open a PR immediately, any time.",
       "matchDatasources": ["npm"],
       "vulnerabilityAlerts": true,
       "schedule": ["at any time"]

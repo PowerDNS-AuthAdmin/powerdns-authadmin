@@ -5,7 +5,7 @@
  * (`foo.ts` + `foo.test.ts`) per CONTRIBUTING.md § Testing.
  *
  * Integration tests (which require a live Postgres and a fake PDNS) use a separate
- * config — `vitest.config.integration.ts` — that adds globalSetup hooks for Docker
+ * config - `vitest.config.integration.ts` - that adds globalSetup hooks for Docker
  * Compose. That file lands when the first integration test does.
  */
 
@@ -19,7 +19,7 @@ export default defineConfig({
   plugins: [react()],
   // `react-server` condition makes the `server-only` package resolve to its
   // no-op server build instead of the throwing client guard. Mirrors what the
-  // `db:seed` npm script does at the process level — keeps `npm test` green
+  // `db:seed` npm script does at the process level - keeps `npm test` green
   // without operators having to remember the NODE_OPTIONS dance.
   resolve: {
     alias: {
@@ -55,7 +55,7 @@ export default defineConfig({
     // Reasonable defaults; tune per CI behavior later.
     testTimeout: 10_000,
     hookTimeout: 10_000,
-    // We don't gate global coverage — it's dominated by UI + repository code
+    // We don't gate global coverage - it's dominated by UI + repository code
     // that's exercised by the Postgres integration suite, not the unit suite.
     // Instead we floor the security-critical, DB-free modules that MUST stay
     // unit-tested: auth primitives, crypto, RBAC. CI runs `npm run test`
@@ -70,7 +70,7 @@ export default defineConfig({
         "lib/rbac/**": { statements: 70, branches: 60, functions: 85, lines: 70 },
         // lib/auth/** spans the unit-tested primitives (password, totp, csrf,
         // rate-limit) AND the DB/network-backed providers (OIDC) covered by the
-        // integration suite — so this floor sits below the others and just
+        // integration suite - so this floor sits below the others and just
         // guards against a sharp unit-coverage regression.
         "lib/auth/**": { statements: 40, branches: 40, functions: 45, lines: 40 },
       },

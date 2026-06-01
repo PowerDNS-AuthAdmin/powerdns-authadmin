@@ -1,12 +1,12 @@
 /**
  * app/api/auth/email/verify/route.ts
  *
- * POST { token } — consume an email-verification token and set
+ * POST { token } - consume an email-verification token and set
  * `email_verified_at` on the user row.
  *
  * UNAUTHENTICATED by design: the signed token itself proves email
  * ownership, so requiring a session would make the flow unreachable
- * for signup users — they're blocked from logging in until verified
+ * for signup users - they're blocked from logging in until verified
  * (login returns 403 for unverified local accounts when
  * SIGNUP_ENABLED), so they never have a session to satisfy a
  * `requireUser()` gate. This mirrors the password-reset route, which
@@ -15,7 +15,7 @@
  *
  * Guards beyond signature + expiry:
  *   1. The user the token names must exist and not be disabled.
- *   2. The token's `email` must match the user's current email — if
+ *   2. The token's `email` must match the user's current email - if
  *      the email was edited between mint and redeem, the token is
  *      invalid (it was attesting the OLD address).
  *   3. The user must not already be verified by a token at least as
@@ -69,7 +69,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     await requireCsrf(request);
   } catch {
-    // CSRF rejection still gets the generic message — don't leak that
+    // CSRF rejection still gets the generic message - don't leak that
     // the token itself was valid.
     return Response.json({ error: GENERIC_REJECT }, { status: 400 });
   }
@@ -128,7 +128,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     // Guard 3: not already verified. Single-use via timestamp
-    // comparison — once verified, any earlier-minted token is stale.
+    // comparison - once verified, any earlier-minted token is stale.
     if (user.emailVerifiedAt && user.emailVerifiedAt.getTime() > verify.payload.issuedAt) {
       await appendAudit({
         actor: { type: "user", id: user.id },

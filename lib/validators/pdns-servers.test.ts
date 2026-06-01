@@ -4,10 +4,10 @@
  * Boundary coverage for the PDNS server create/update schemas. Two things
  * carry real risk and so are tested explicitly:
  *
- *   1. The credential-leak guard — a `https://user:pass@host` base URL must be
+ *   1. The credential-leak guard - a `https://user:pass@host` base URL must be
  *      REJECTED so secrets never land in the URL (where they'd leak into logs,
  *      audit snapshots, and bypass the encrypted apiKey field).
- *   2. The `/api/v1` normalization — operators type bare host:port; the schema
+ *   2. The `/api/v1` normalization - operators type bare host:port; the schema
  *      appends the API path. A reverse-proxied custom prefix must pass through
  *      untouched. A regression here points the PDNS client at the wrong path.
  */

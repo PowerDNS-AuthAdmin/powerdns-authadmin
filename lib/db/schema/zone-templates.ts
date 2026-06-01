@@ -5,17 +5,17 @@
  * the operational defaults a new zone almost always needs:
  *
  *   - SOA timers (refresh / retry / expire / minimum / TTL)
- *   - Default NS records — best-practice DNS publishes at least two
+ *   - Default NS records - best-practice DNS publishes at least two
  *     authoritative servers (RFC 2182 § 5).
  *   - Optional "prelude" records the operator wants on every zone of this
- *     kind — common SPF/DMARC TXT, MX, CAA, etc.
+ *     kind - common SPF/DMARC TXT, MX, CAA, etc.
  *
  * Records live in a `jsonb` array. Each entry is `{ name, type, ttl,
- * content }` — `name` is RELATIVE to the zone ("@" for apex, "www" for the
+ * content }` - `name` is RELATIVE to the zone ("@" for apex, "www" for the
  * www subdomain). At apply time the editor expands them against the
  * concrete zone name.
  *
- * SOA primary NS (`mname`) and rname aren't stored on the template — they
+ * SOA primary NS (`mname`) and rname aren't stored on the template - they
  * derive from the operator's NS list + a zone-aware default mailbox when
  * the zone is created. That keeps the template generic across operators.
  */
@@ -43,7 +43,7 @@ export const zoneTemplates = pgTable(
   {
     id: pk(),
 
-    /** URL-safe identifier — appears in `/admin/zone-templates/<slug>`. */
+    /** URL-safe identifier - appears in `/admin/zone-templates/<slug>`. */
     slug: text("slug").notNull(),
 
     /** Display name for the picker on the create-zone page. */
@@ -59,13 +59,13 @@ export const zoneTemplates = pgTable(
     soaMinimum: integer("soa_minimum").notNull().default(3600),
 
     /**
-     * Default authoritative name servers — fully-qualified hostnames. The
+     * Default authoritative name servers - fully-qualified hostnames. The
      * NS records on a newly-created zone are seeded from this list when no
      * operator override is supplied at create time.
      */
     nameservers: jsonb("nameservers").$type<string[]>().notNull().default([]),
 
-    /** Prelude record list — applied on top of NS + SOA at create time. */
+    /** Prelude record list - applied on top of NS + SOA at create time. */
     records: jsonb("records").$type<TemplateRecord[]>().notNull().default([]),
 
     // --- Zone-object defaults ------------------------------------------------
@@ -86,7 +86,7 @@ export const zoneTemplates = pgTable(
     /**
      * Default metadata bag. Each key is a PDNS metadata kind, each value
      * the list of strings to seed. Applied via per-kind PUTs after the
-     * zone is created — bypasses the metadata-API allowlist quirks (the
+     * zone is created - bypasses the metadata-API allowlist quirks (the
      * zone-create path already reaches into the backend directly anyway).
      */
     metadata: jsonb("metadata").$type<Record<string, string[]>>().notNull().default({}),

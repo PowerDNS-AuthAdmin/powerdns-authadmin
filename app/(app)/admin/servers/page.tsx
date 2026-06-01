@@ -2,7 +2,7 @@
  * app/(app)/admin/servers/page.tsx
  *
  * Lists every PowerDNS backend the operator has configured, with a quick
- * health badge per row driven by `last_seen_at` — the last time the
+ * health badge per row driven by `last_seen_at` - the last time the
  * background poller (or a manual probe) successfully reached the backend.
  *
  * Permission: `server.read`. The "Add server" / row delete / row test
@@ -39,7 +39,7 @@ export default async function PdnsServersListPage() {
   const { ability } = await requireUserForPage({ can: "server.read" });
   const canCreate = ability.can("create", "Server");
   const canReadAudit = ability.can("read", "Audit");
-  // Ask the broker to ensure a recent observation, then read its store — same
+  // Ask the broker to ensure a recent observation, then read its store - same
   // source the zones list + bell read, so the three never disagree.
   await ensureBackendsObserved();
   const servers = await listAllPdnsServers();
@@ -57,12 +57,12 @@ export default async function PdnsServersListPage() {
 
   // Build a primary→secondaries tree (ADR-0014). A secondary nests under its
   // primary via EITHER explicit group membership OR the site-wide derived
-  // topology (poller-computed from masters[]) — so an ungrouped secondary that
+  // topology (poller-computed from masters[]) - so an ungrouped secondary that
   // mirrors a managed primary still renders as its child, exactly as if grouped.
   // Two kinds of "loose" secondary sort to the bottom as their own sections so
   // they stay visible + editable:
-  //   - standalone — mirrors an external/unmanaged primary, NOT an error;
-  //   - orphaned — grouped but the group has no resolvable primary.
+  //   - standalone - mirrors an external/unmanaged primary, NOT an error;
+  //   - orphaned - grouped but the group has no resolvable primary.
   const primaries = servers.filter((s) => !isReadOnlyMirror(s.capabilities));
   const primaryById = new Map(primaries.map((p) => [p.id, p]));
   // First write target of each group represents it in the tree (multi-primary
@@ -99,10 +99,10 @@ export default async function PdnsServersListPage() {
     else standaloneSecondaries.push(s);
   }
 
-  // Precompute sync chips for secondaries off the zone-state cache —
+  // Precompute sync chips for secondaries off the zone-state cache -
   // never hits PDNS itself. "in sync" means every cached zone serial on
   // the secondary matches its primary's cached serial. Skipped entirely
-  // when `PDNS_BACKGROUND_POLLING=false` — the Sync column is hidden, no
+  // when `PDNS_BACKGROUND_POLLING=false` - the Sync column is hidden, no
   // verdict to compute.
   const syncBySecondary = pdnsBackgroundPollingEnabled
     ? computeSecondarySync(primaries, secondariesByPrimary)
@@ -354,7 +354,7 @@ function HealthBadge({
 }: {
   disabledAt: Date | null;
   lastSeenAt: Date | null;
-  /** Live reachability from the advisory signal — same source as the bell. */
+  /** Live reachability from the advisory signal - same source as the bell. */
   reachability: "down" | "auth" | undefined;
 }) {
   if (disabledAt) {
@@ -366,7 +366,7 @@ function HealthBadge({
     );
   }
   // Live unreachable/auth state from the (debounced) advisory signal takes
-  // precedence over the last-contact label — a backend the poller can no longer
+  // precedence over the last-contact label - a backend the poller can no longer
   // reach must read red here exactly as it does in the bell, never a stale
   // "Reachable". Cleared the moment the poll reaches it again.
   if (reachability) {
@@ -424,7 +424,7 @@ function ServerRow({
 }: ServerRowProps) {
   // Mirror DataTable's row styling exactly. The attention tint (warn/error
   // backgrounds for not-yet-reached / unreachable rows) replaces the
-  // even-stripe on those rows — they're already noisier than a stripe, and
+  // even-stripe on those rows - they're already noisier than a stripe, and
   // letting both render would mean the same status renders differently
   // depending on row parity.
   const attentionClass = serverRowAttentionClass(row.disabledAt, row.lastSeenAt, reachability);
@@ -466,7 +466,7 @@ function ServerRow({
           reachability={reachability}
         />
       </td>
-      <td className="px-4 py-3 align-top text-xs">{row.versionCache?.version ?? "—"}</td>
+      <td className="px-4 py-3 align-top text-xs">{row.versionCache?.version ?? "-"}</td>
       {pdnsBackgroundPollingEnabled ? (
         <td className="px-4 py-3 align-top text-xs">
           <SyncChip verdict={syncChip} isMirror={isReadOnlyMirror(row.capabilities)} />
@@ -479,7 +479,7 @@ function ServerRow({
               {freshnessOf(lastEdits.get(row.id)!.toISOString()).label}
             </span>
           ) : (
-            "—"
+            "-"
           )}
         </td>
       ) : null}
@@ -498,7 +498,7 @@ function ServerRow({
   );
 }
 
-/** Mobile (< md) card rendering of a server row — same data as ServerRow. */
+/** Mobile (< md) card rendering of a server row - same data as ServerRow. */
 function ServerCard({ row, canReadAudit, lastEdits, syncChip, reachability }: ServerRowProps) {
   const isMirror = isReadOnlyMirror(row.capabilities);
   return (
@@ -538,7 +538,7 @@ function ServerCard({ row, canReadAudit, lastEdits, syncChip, reachability }: Se
           />
         </Field>
         <Field label="Version">
-          <span className="text-xs">{row.versionCache?.version ?? "—"}</span>
+          <span className="text-xs">{row.versionCache?.version ?? "-"}</span>
         </Field>
         {pdnsBackgroundPollingEnabled ? (
           <Field label="Sync">
@@ -550,7 +550,7 @@ function ServerCard({ row, canReadAudit, lastEdits, syncChip, reachability }: Se
             <span className="text-xs text-[color:var(--color-fg-muted)]">
               {lastEdits.has(row.id)
                 ? freshnessOf(lastEdits.get(row.id)!.toISOString()).label
-                : "—"}
+                : "-"}
             </span>
           </Field>
         ) : null}
@@ -587,7 +587,7 @@ function ServersGroupHeading({ children }: { children: React.ReactNode }) {
 }
 
 function SyncChip({ verdict, isMirror }: { verdict: SyncVerdict | null; isMirror: boolean }) {
-  if (!isMirror) return <span className="text-[color:var(--color-fg-subtle)]">—</span>;
+  if (!isMirror) return <span className="text-[color:var(--color-fg-subtle)]">-</span>;
   if (verdict === null || verdict === "unknown") {
     return <span className="text-[color:var(--color-fg-muted)]">unknown</span>;
   }
@@ -613,7 +613,7 @@ function SyncChip({ verdict, isMirror }: { verdict: SyncVerdict | null; isMirror
  * secondary against the same zone on its primary.
  *
  * Only Master/Primary zones on the primary are expected to appear on
- * the secondary — Native (not replicated), Producer/Consumer (catalog
+ * the secondary - Native (not replicated), Producer/Consumer (catalog
  * mechanism, not AXFR), and Slave/Secondary (which a primary
  * shouldn't have anyway) are skipped. Otherwise a Native zone would
  * always make the chip read "desynced" because it legitimately isn't
@@ -658,7 +658,7 @@ function computeSecondarySync(
 /**
  * Zones that PDNS replicates via AXFR. Everything else (Native,
  * Producer/Consumer catalogs, anything mistakenly tagged Slave on a
- * primary) is skipped by the sync check — those legitimately don't
+ * primary) is skipped by the sync check - those legitimately don't
  * mirror onto the secondary.
  */
 function isReplicatedKind(kind: string): boolean {

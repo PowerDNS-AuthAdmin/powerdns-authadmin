@@ -2,7 +2,7 @@
  * lib/auth/providers/ldap.test.ts
  *
  * Unit coverage for the pure helpers exposed from `lib/auth/providers/ldap.ts`.
- * No real LDAP server is contacted here — those paths land in the
+ * No real LDAP server is contacted here - those paths land in the
  * integration suite once we add the OpenLDAP container. The cases below
  * pin the security-critical bits:
  *
@@ -46,7 +46,7 @@ afterEach(() => {
   process.env = env;
 });
 
-describe("escapeLdapFilterValue — RFC 4515 §4 test vectors", () => {
+describe("escapeLdapFilterValue - RFC 4515 §4 test vectors", () => {
   it("escapes the five reserved characters", () => {
     expect(escapeLdapFilterValue("*")).toBe("\\2a");
     expect(escapeLdapFilterValue("(")).toBe("\\28");
@@ -75,7 +75,7 @@ describe("escapeLdapFilterValue — RFC 4515 §4 test vectors", () => {
 
   it("blunts a filter-injection attempt", () => {
     // An attacker types `*)(uid=*` hoping to widen the OR. After escaping,
-    // the parens and asterisks are literal — the filter searches for the
+    // the parens and asterisks are literal - the filter searches for the
     // verbatim string in `uid`.
     const evil = "*)(uid=*";
     expect(escapeLdapFilterValue(evil)).toBe("\\2a\\29\\28uid=\\2a");

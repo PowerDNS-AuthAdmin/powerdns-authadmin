@@ -4,14 +4,14 @@
  * Pure helper for cloning a PDNS zone: rewrites each rrset's `name`
  * to substitute the source zone's apex with a target zone's apex.
  * Strips the SOA rrset (PDNS regenerates one on zone create with
- * sensible defaults — keeping the source's SOA would leak its serial
+ * sensible defaults - keeping the source's SOA would leak its serial
  * and timers, which is rarely what an operator wants from a clone).
  *
  * Lives in its own module so the rewrite logic can be unit-tested
  * without standing up the HTTP client, audit, or routing layers.
  *
  * Input/output shape mirrors `rrsets[number]` from
- * `pdnsZoneDetailSchema` (in `types.ts`) — kept as a local interface
+ * `pdnsZoneDetailSchema` (in `types.ts`) - kept as a local interface
  * rather than imported so this module stays pure of Zod runtime.
  */
 
@@ -25,7 +25,7 @@ export interface CloneRRset {
 /**
  * Rewrite an array of rrsets to belong to `targetZone` instead of
  * `sourceZone`. Both zone names must be canonical (lowercase + trailing
- * dot) — call `normalizeZoneId` first. Returns a fresh array; does not
+ * dot) - call `normalizeZoneId` first. Returns a fresh array; does not
  * mutate the input.
  *
  * SOA rrsets are dropped so PDNS regenerates them on the target.

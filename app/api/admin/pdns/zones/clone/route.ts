@@ -1,7 +1,7 @@
 /**
  * app/api/admin/pdns/zones/clone/route.ts
  *
- * POST — clone an existing zone into a new zone name. Implementation
+ * POST - clone an existing zone into a new zone name. Implementation
  * is fetch source → rewrite rrset names → POST as a new zone. PDNS
  * has no native clone endpoint; this route packages the two-step
  * sequence into a single audited operation so reviewers see one
@@ -11,7 +11,7 @@
  * Permission: `zone.create`.
  *
  * The source's SOA is dropped (PDNS regenerates one on create with
- * sensible defaults). The kind of the new zone matches the source —
+ * sensible defaults). The kind of the new zone matches the source -
  * cloning a Slave into a Master would be a weirder operation than a
  * clone, surfaced as a separate feature if anyone asks.
  */

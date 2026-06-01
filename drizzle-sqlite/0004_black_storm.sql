@@ -104,7 +104,7 @@ CREATE TABLE `__new_zone_grants` (
 	CONSTRAINT "zone_grants_principal_check" CHECK(("__new_zone_grants"."user_id" IS NULL) <> ("__new_zone_grants"."team_id" IS NULL))
 );
 --> statement-breakpoint
--- team_id didn't exist on the source `zone_grants` table — null it in the
+-- team_id didn't exist on the source `zone_grants` table - null it in the
 -- copy. (drizzle-kit's auto-emit assumed the source column already existed.)
 INSERT INTO `__new_zone_grants`("id", "user_id", "team_id", "server_id", "zone_name", "permissions", "created_by", "created_at", "updated_at") SELECT "id", "user_id", NULL, "server_id", "zone_name", "permissions", "created_by", "created_at", "updated_at" FROM `zone_grants`;--> statement-breakpoint
 DROP TABLE `zone_grants`;--> statement-breakpoint
@@ -122,7 +122,7 @@ ALTER TABLE `oidc_providers` DROP COLUMN `force_default`;--> statement-breakpoin
 
 -- Rewrite `oidc.read` / `oidc.manage` permission strings inside existing
 -- `roles.permissions` JSON arrays to `auth.read` / `auth.manage`. SQLite
--- stores the JSON as text — do the substitution at the string level (no
+-- stores the JSON as text - do the substitution at the string level (no
 -- jsonb_agg available). The replace is scoped to the exact quoted tokens
 -- so adjacent permissions can't be mangled.
 UPDATE `roles`

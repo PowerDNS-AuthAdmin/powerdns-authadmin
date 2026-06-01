@@ -41,7 +41,7 @@ export function verifyCsrf(headerValue: string | null, sessionSecret: string): b
   const a = Buffer.from(headerValue);
   const b = Buffer.from(sessionSecret);
   if (a.length !== b.length) {
-    // timingSafeEqual throws on length mismatch — pad to avoid the throw
+    // timingSafeEqual throws on length mismatch - pad to avoid the throw
     // while still failing the check.
     const max = Math.max(a.length, b.length);
     const padA = Buffer.concat([a, Buffer.alloc(max - a.length)]);
@@ -54,7 +54,7 @@ export function verifyCsrf(headerValue: string | null, sessionSecret: string): b
 
 /**
  * Methods that don't change state and therefore don't need CSRF protection.
- * Aligned with RFC 9110 § 9.2.1 — these are required to be safe.
+ * Aligned with RFC 9110 § 9.2.1 - these are required to be safe.
  */
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -63,8 +63,8 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
  * of every POST/PATCH/PUT/DELETE handler, after `requireUser()`.
  *
  * Skipped when:
- *   - the method is safe (GET/HEAD/OPTIONS) — no protection needed;
- *   - no session cookie is present — Bearer / X-API-Key auth is CSRF-exempt
+ *   - the method is safe (GET/HEAD/OPTIONS) - no protection needed;
+ *   - no session cookie is present - Bearer / X-API-Key auth is CSRF-exempt
  *     by construction (an attacker on a third-party origin cannot forge the
  *     token header).
  *

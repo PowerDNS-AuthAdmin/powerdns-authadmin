@@ -2,7 +2,7 @@
  * app/api/admin/pdns/zones/import/route.ts
  *
  * Import one or more BIND zonefiles. The body's `zoneText` may contain
- * multiple zones separated by `$ORIGIN <fqdn>.` directives — the parser
+ * multiple zones separated by `$ORIGIN <fqdn>.` directives - the parser
  * splits them. Each parsed zone becomes one `createZone` call against
  * the chosen backend; rrsets ride along inside that single call so
  * there's no separate PATCH pass.
@@ -35,7 +35,7 @@ const importSchema = z.object({
   zoneText: z
     .string()
     .min(1)
-    .max(2 * 1024 * 1024), // 2 MiB cap — enough for a Fortune-500 worth of records
+    .max(2 * 1024 * 1024), // 2 MiB cap - enough for a Fortune-500 worth of records
   kind: z.enum(["Master", "Primary", "Native"]).default("Master"),
 });
 
@@ -83,7 +83,7 @@ export async function POST(request: Request): Promise<Response> {
     if (errorDiagnostics.length > 0) {
       return Response.json({
         ok: false,
-        error: "Parse errors — fix and retry.",
+        error: "Parse errors - fix and retry.",
         results: [],
         diagnostics: parsed.diagnostics,
       });

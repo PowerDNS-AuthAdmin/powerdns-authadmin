@@ -10,7 +10,7 @@
  * State lives on `globalThis` (same survives-bundle-duplication reason as the
  * zone-state + topology + drift caches), and lives HERE rather than inside the
  * poller so the central single-backend health op can read the same count without
- * importing the poller (which would be a cycle) — otherwise an explicit
+ * importing the poller (which would be a cycle) - otherwise an explicit
  * Test/Refresh would prune a missing-key advisory the poll had set.
  */
 
@@ -25,7 +25,7 @@ const current = (): Map<string, number> =>
 /**
  * Replace the missing-key counts from a fresh cross-backend computation. Only
  * the daemon-refresh cadence recomputes (a `GET /tsigkeys` per backend), so the
- * map persists between recomputes — non-refresh cycles keep the last counts so
+ * map persists between recomputes - non-refresh cycles keep the last counts so
  * the advisory doesn't flap.
  */
 export function setTsigMissingCounts(counts: ReadonlyMap<string, number>): void {

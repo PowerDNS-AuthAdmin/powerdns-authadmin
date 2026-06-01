@@ -2,11 +2,11 @@
  * lib/realtime/backend-gateway.ts
  *
  * THE common entry point for talking to a PowerDNS backend. Every read AND write
- * — pages, API routes, cross-server coordination — gets its client from here
+ * - pages, API routes, cross-server coordination - gets its client from here
  * instead of calling `getPdnsClientForRow` directly, so:
  *
  *   • the live reachability store (`backend-status`) is updated from EVERY
- *     interaction, not just the background poll — a failed write or a config
+ *     interaction, not just the background poll - a failed write or a config
  *     read on a dead backend immediately moves the single source of truth; and
  *   • there is exactly one place that turns a backend row into a client.
  *
@@ -15,14 +15,14 @@
  * unchanged (HTTP routes still map it via `errorResponse`). Sync members
  * (`serverSlug`, `supports`, …) pass through untouched.
  *
- * Reachability classification: a RESPONSE — even a 4xx semantic rejection
- * (404/409/422 on a write) — proves the backend is reachable; only a
+ * Reachability classification: a RESPONSE - even a 4xx semantic rejection
+ * (404/409/422 on a write) - proves the backend is reachable; only a
  * transport/5xx failure (`PdnsUpstreamError`) is "unreachable", and a 401/403
  * (`PdnsAuthError`) is "auth". An unexpected non-PDNS error leaves the status
  * untouched (cause unknown).
  *
- * The broker internals (the poll + `backend-health`) record status directly —
- * they need the auth flag inline for the advisory eval — so they stay below this
+ * The broker internals (the poll + `backend-health`) record status directly -
+ * they need the auth flag inline for the advisory eval - so they stay below this
  * facade rather than calling it.
  */
 
@@ -60,7 +60,7 @@ export function getBackendGateway(backend: PdnsServer): PdnsClient {
             },
           );
         }
-        return out; // sync member (getter / supports()) — untouched
+        return out; // sync member (getter / supports()) - untouched
       };
     },
   });

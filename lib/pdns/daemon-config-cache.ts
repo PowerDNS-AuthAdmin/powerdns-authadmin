@@ -3,13 +3,13 @@
  *
  * Short-lived cache of each backend's display-safe `/config` rows. Written by
  * the broker's daemon-meta probe (`probeDaemonMeta`, every 60 s poll + explicit
- * refresh) and read by the server-detail page — so that page renders the daemon
+ * refresh) and read by the server-detail page - so that page renders the daemon
  * settings from the shared store instead of making its own live PDNS call. Same
  * single-source-of-truth + survives-bundle-duplication pattern as the zone-state
  * cache.
  *
  * Only ever holds the allowlisted, secret-stripped rows from `safeConfigSettings`
- * — never the raw config — so nothing secret-shaped lands in this store.
+ * - never the raw config - so nothing secret-shaped lands in this store.
  */
 
 import "server-only";

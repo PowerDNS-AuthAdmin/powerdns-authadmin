@@ -2,7 +2,7 @@
  * app/(auth)/layout.tsx
  *
  * Layout for the unauthenticated routes: /login, /reset-password, etc.
- * Centered form on the page background — no card chrome, just the brand
+ * Centered form on the page background - no card chrome, just the brand
  * mark above and the content below. Theme toggle is top-right so users
  * can flip light/dark before signing in.
  */
@@ -21,7 +21,7 @@ export default async function AuthLayout({ children }: Readonly<{ children: Reac
         <div className="absolute top-4 right-4">
           <ThemeToggle />
         </div>
-        {/* Wordmark wrapper caps width responsively — 350 px on phones (where
+        {/* Wordmark wrapper caps width responsively - 350 px on phones (where
             the 500 px desktop size overflowed and clipped the trailing "Admin"),
             500 px from sm+. The brandmark itself fills the wrapper. */}
         <div className="mb-8 flex w-full justify-center px-4">
@@ -43,7 +43,7 @@ export default async function AuthLayout({ children }: Readonly<{ children: Reac
 /**
  * The setting accepts arbitrary text; render it as a link when it parses as
  * a URL or an email, otherwise as plain text. Defends against accidental
- * markup injection — values are interpolated, never `dangerouslySetInnerHTML`.
+ * markup injection - values are interpolated, never `dangerouslySetInnerHTML`.
  */
 function renderSupportContact(value: string): React.ReactNode {
   const trimmed = value.trim();

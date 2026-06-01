@@ -7,7 +7,7 @@
  * calls this.
  *
  * The "replicated set" for a group = keys present on the primary AND on at least
- * one of its secondaries — i.e. keys the operator actually pushed to the group
+ * one of its secondaries - i.e. keys the operator actually pushed to the group
  * (the install flow pushes to all). A secondary missing any of those has drifted
  * (the canonical case: a replicated key deleted off one secondary). Primary-only
  * keys (never replicated) are deliberately NOT flagged, so a key kept solely on
@@ -17,7 +17,7 @@
 export interface SecondaryKeyListing {
   id: string;
   /** Enumerated key names, or null when not enumerated (unreachable / old
-   *  version / listing failed) — a null secondary is skipped, never flagged. */
+   *  version / listing failed) - a null secondary is skipped, never flagged. */
   names: readonly string[] | null;
 }
 

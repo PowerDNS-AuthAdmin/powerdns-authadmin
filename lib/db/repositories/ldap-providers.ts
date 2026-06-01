@@ -2,7 +2,7 @@
  * lib/db/repositories/ldap-providers.ts
  *
  * CRUD for the LDAP providers table (ADR-0020). Same pattern as the OIDC
- * repository — the `bind_password_encrypted` column is the AES-256-GCM
+ * repository - the `bind_password_encrypted` column is the AES-256-GCM
  * envelope; callers encrypt at the route boundary via `lib/crypto/encryption.ts`.
  */
 

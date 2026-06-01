@@ -1,18 +1,18 @@
 /**
  * lib/validators/rr-types/ds.ts
  *
- * DS (Delegation Signer) content — RFC 4034 § 5.3:
+ * DS (Delegation Signer) content - RFC 4034 § 5.3:
  *   `<key-tag> <algorithm> <digest-type> <digest>`
  *
- *   - key-tag    : uint16 (0–65535) — RFC 4034 § 5.3, computed from the
+ *   - key-tag    : uint16 (0–65535) - RFC 4034 § 5.3, computed from the
  *                  parent DNSKEY's RDATA.
- *   - algorithm  : uint8 (1–255) — IANA DNSSEC Algorithm Numbers registry.
+ *   - algorithm  : uint8 (1–255) - IANA DNSSEC Algorithm Numbers registry.
  *                  Common values in deployment: 8 (RSASHA256), 13 (ECDSAP256),
  *                  14 (ECDSAP384), 15 (ED25519), 16 (ED448).
- *   - digest-type: uint8 (1–255) — IANA DS RR Digest Types.
+ *   - digest-type: uint8 (1–255) - IANA DS RR Digest Types.
  *                  1=SHA-1 (40 hex chars, deprecated for new), 2=SHA-256
  *                  (64 hex chars, REQUIRED per RFC 4509), 3=GOST R 34.11-94
- *                  (64 hex chars, RFC 5933 — niche/regional), 4=SHA-384
+ *                  (64 hex chars, RFC 5933 - niche/regional), 4=SHA-384
  *                  (96 hex chars, RFC 6605).
  *   - digest     : hex (case-insensitive) of exact length per digest-type.
  *                  PDNS accepts whitespace between groups; we normalize to
@@ -35,7 +35,7 @@ const DIGEST_HEX_LENGTH: Record<number, { name: string; length: number; rfc: str
 };
 
 /** IANA DNSSEC algorithm numbers in active deployment use. Outside this set
- * we warn (legacy / experimental) but don't error — operators occasionally
+ * we warn (legacy / experimental) but don't error - operators occasionally
  * need to enter DS for an algorithm that's IANA-reserved but not widely
  * deployed. */
 const COMMON_ALGORITHMS = new Set([
@@ -48,7 +48,7 @@ export const dsValidator: RRTypeValidator = {
   type: "DS",
   label: "Delegation Signer",
   description:
-    "key-tag algorithm digest-type digest — pasted from your registrar or `dnssec-dsfromkey` output (RFC 4034 § 5.3).",
+    "key-tag algorithm digest-type digest - pasted from your registrar or `dnssec-dsfromkey` output (RFC 4034 § 5.3).",
   placeholder: "12345 13 2 a1b2c3...64hex...",
   rfc: "RFC 4034 + RFC 4509",
   validate(content: string) {
@@ -164,13 +164,13 @@ export const dsValidator: RRTypeValidator = {
           issues.push({
             level: "warning",
             message:
-              "Digest-type 1 (SHA-1) is deprecated for new DS records — registrars increasingly reject it. Prefer digest-type 2 (SHA-256).",
+              "Digest-type 1 (SHA-1) is deprecated for new DS records - registrars increasingly reject it. Prefer digest-type 2 (SHA-256).",
           });
         }
       } else {
         issues.push({
           level: "warning",
-          message: `Digest-type ${digestType} is not in {1,2,3,4} — IANA-reserved but rarely deployed. Verify the registrar accepts it.`,
+          message: `Digest-type ${digestType} is not in {1,2,3,4} - IANA-reserved but rarely deployed. Verify the registrar accepts it.`,
         });
       }
     }

@@ -15,7 +15,7 @@
  *     mapping. `formatExposition` does not guard against this.
  *   - Trailing newline at end of output (per spec).
  *
- * No DB / runtime imports here — this is a pure data → string
+ * No DB / runtime imports here - this is a pure data → string
  * transform so the unit test runs in isolation.
  */
 
@@ -40,7 +40,7 @@ export interface MetricFamily {
  * one HELP + TYPE header followed by every sample. Output ends with a
  * trailing newline as required by the format spec.
  *
- * Families with zero samples produce only the headers — operators see the
+ * Families with zero samples produce only the headers - operators see the
  * metric is exposed but currently has no data, which is more useful than
  * silently dropping it.
  */
@@ -60,7 +60,7 @@ function formatSample(name: string, sample: MetricSample): string {
   const labels = formatLabels(sample.labels);
   // Prometheus accepts NaN / +Inf / -Inf literally as text in the value
   // column. Plain Number.toString gives `Infinity`, which Prometheus
-  // rejects — normalize to `+Inf` etc.
+  // rejects - normalize to `+Inf` etc.
   const value = formatValue(sample.value);
   return labels ? `${name}{${labels}} ${value}` : `${name} ${value}`;
 }
@@ -74,7 +74,7 @@ function formatLabels(labels: Record<string, string>): string {
 function escapeLabelValue(value: string): string {
   // Per the spec: escape `\`, `"`, and `\n`. Tabs and other control
   // characters pass through (they're rare in practice and Prometheus
-  // tolerates them — over-escaping risks ambiguity).
+  // tolerates them - over-escaping risks ambiguity).
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
 }
 

@@ -4,7 +4,7 @@
  * The audit query scans a potentially large table (one row per state-
  * changing action across the entire app) with filters + pagination. On a
  * fresh install this resolves instantly, but on a long-running deployment
- * with millions of rows it can take a second or two — well past the point
+ * with millions of rows it can take a second or two - well past the point
  * where "stay on the old page" feels like the app froze. Hence the
  * skeleton.
  */

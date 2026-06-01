@@ -5,7 +5,7 @@
  * validators parse free-text record content (operator- or API-supplied), and
  * we've shipped real bugs in them before (SRV port range, AAAA `::`, CAA quote
  * balance). The invariant: validation must never throw and must always return
- * a well-formed result — whatever garbage it's handed.
+ * a well-formed result - whatever garbage it's handed.
  */
 
 import { describe, expect, it } from "vitest";
@@ -14,7 +14,7 @@ import { getRRTypeValidator, SUPPORTED_TYPES } from "./index";
 
 const RUNS = { numRuns: 600 };
 
-describe("rr-type validators — fuzz", () => {
+describe("rr-type validators - fuzz", () => {
   for (const type of SUPPORTED_TYPES) {
     it(`${type}.validate never throws and returns a well-formed result`, () => {
       const validator = getRRTypeValidator(type);

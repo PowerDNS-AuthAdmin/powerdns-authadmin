@@ -4,13 +4,13 @@
  * app/(app)/admin/tsig-keys/_components/tsig-actions.tsx
  *
  * Per-backend TSIG key table + the entry points that mutate it:
- *   • "Create key" — opens the wizard (generate → install → secure zones).
- *   • per-row "Set up" — re-opens the wizard at the install step for an existing
+ *   • "Create key" - opens the wizard (generate → install → secure zones).
+ *   • per-row "Set up" - re-opens the wizard at the install step for an existing
  *     key (e.g. after adding a secondary).
- *   • per-row "Delete" — cascade-deletes by default (strips the key from zones +
+ *   • per-row "Delete" - cascade-deletes by default (strips the key from zones +
  *     secondaries), or key-only when the operator opts out.
  *
- * The one-time secret is never shown here — it lives only inside the wizard's
+ * The one-time secret is never shown here - it lives only inside the wizard's
  * manual step (re-fetched server-side as text/plain). Routes are CSRF-gated by
  * `apiFetch`/`mutate`.
  */
@@ -34,11 +34,11 @@ interface Row {
 interface Props {
   serverSlug: string;
   /** The backend's keys, or null when the list couldn't be fetched (the page
-   *  shows the error separately — we suppress the table in that case). */
+   *  shows the error separately - we suppress the table in that case). */
   rows: Row[] | null;
   /** This backend is a write-target primary (replication makes sense here). */
   isPrimary: boolean;
-  /** The primary's secondaries (for API install) — empty unless `isPrimary`. */
+  /** The primary's secondaries (for API install) - empty unless `isPrimary`. */
   secondaries: InstallSecondary[];
   /** The primary's authoritative zone names (for in-flow key activation). */
   zones: string[];
@@ -110,7 +110,7 @@ export function TsigActions({ serverSlug, rows, isPrimary, secondaries, zones }:
       toast({
         kind: "success",
         description: summary.cascade
-          ? `Deleted ${row.name} — cleaned ${summary.cascade.zonesUpdated} zone(s) and ${summary.cascade.secondariesCleaned} secondary(ies).`
+          ? `Deleted ${row.name} - cleaned ${summary.cascade.zonesUpdated} zone(s) and ${summary.cascade.secondariesCleaned} secondary(ies).`
           : `Deleted ${row.name}.`,
       });
       router.refresh();

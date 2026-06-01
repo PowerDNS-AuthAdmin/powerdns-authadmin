@@ -7,7 +7,7 @@
 #
 # Mounted at /etc/powerdns-authadmin/provisioning.yaml on the app container.
 # Re-application is gated by the `provisioned_at` sentinel in the settings
-# table — drop it to force a re-apply (`DELETE FROM settings WHERE
+# table - drop it to force a re-apply (`DELETE FROM settings WHERE
 # key='provisioned_at'` then restart). Demo zones already on PDNS surface
 # as `skipped` rather than `created` so re-runs are clean.
 # =============================================================================
@@ -17,7 +17,7 @@ settings:
   login_intro: "All three topologies running in one stack. Browse /admin/servers to see the cluster, the standalone primary, and the primary+secondaries group."
 
 # -----------------------------------------------------------------------------
-# Zone templates — applied by the create-zone form + the demo_zones
+# Zone templates - applied by the create-zone form + the demo_zones
 # generator below. Every field shown here maps 1:1 to what the admin UI
 # exposes under /admin/zone-templates, including the zone-object
 # settings (SOA-EDIT-API et al) that land via PUT /zones/<id> right
@@ -46,13 +46,13 @@ zone_templates:
       - { name: "www", type: CNAME, ttl: 3600, content: "@" }
     # Zone-object settings applied via PUT /zones/<id> after creation.
     # These are the PDNS knobs the UI exposes under the zone's Settings
-    # tab — surfacing them on the template means every zone created from
+    # tab - surfacing them on the template means every zone created from
     # this template inherits the same SOA-EDIT-API behavior + rectify
     # policy without operator effort.
     soa_edit: INCEPTION-INCREMENT # tweaks SOA serial on apex updates
-    soa_edit_api: DEFAULT # SOA-EDIT-API — see https://doc.powerdns.com/authoritative/dnssec/operational.html#soa-edit-api
+    soa_edit_api: DEFAULT # SOA-EDIT-API - see https://doc.powerdns.com/authoritative/dnssec/operational.html#soa-edit-api
     api_rectify: true # auto-rectify rrsets after API edits (needed for DNSSEC)
-    # Per-kind metadata bag — values are applied with PUT
+    # Per-kind metadata bag - values are applied with PUT
     # /zones/<id>/metadata/<kind>. The allowed kinds vary across PDNS
     # versions; individual PUT failures are logged but don't abort the
     # template apply.
@@ -86,7 +86,7 @@ clusters:
 # All PDNS backends across the three topologies
 # -----------------------------------------------------------------------------
 pdns_servers:
-  # Topology 1: cluster peers — all writable, all share the same MariaDB.
+  # Topology 1: cluster peers - all writable, all share the same MariaDB.
   - slug: peer-1
     name: "Cluster peer 1"
     description: "Member of the prod-cluster (shared MariaDB backend)."
@@ -112,7 +112,7 @@ pdns_servers:
     api_key: "peer-3-changeme"
     cluster_slug: prod-cluster
 
-  # Topology 2: standalone primary — no replication, its own gsqlite3.
+  # Topology 2: standalone primary - no replication, its own gsqlite3.
   - slug: standalone
     name: "Standalone primary"
     description: "Single-instance backend. No Secondaries, no cluster."
@@ -162,7 +162,7 @@ pdns_servers:
 # zones are skipped (idempotent re-runs).
 # -----------------------------------------------------------------------------
 demo_zones:
-  # Topology 1: cluster — peers chosen per the cluster's write_strategy
+  # Topology 1: cluster - peers chosen per the cluster's write_strategy
   # (round_robin spreads the 10 zones across the 3 peers).
   - target_cluster: prod-cluster
     count: 10
@@ -171,7 +171,7 @@ demo_zones:
     base_domain: demo
     kind: Master
 
-  # Topology 2: standalone — every zone lands on the single primary.
+  # Topology 2: standalone - every zone lands on the single primary.
   - target_server: standalone
     count: 10
     records_per_zone: 10
@@ -179,13 +179,13 @@ demo_zones:
     base_domain: demo
     kind: Master
 
-  # Topology 3: primary+secondaries — created on the Primary; PDNS NOTIFY
+  # Topology 3: primary+secondaries - created on the Primary; PDNS NOTIFY
   # + AXFR replicates to the Secondaries automatically.
   #
   # The NS list MUST contain every Secondary's `SELF_NS` (set in compose
   # as the Secondary's container hostname). PDNS' auto-secondary
   # verification on NOTIFY checks each Secondary's
-  # `supermasters.nameserver` against the zone's NS records — if no
+  # `supermasters.nameserver` against the zone's NS records - if no
   # match, the auto-create is rejected and the Secondary won't pick the
   # zone up. Listing all three lets any of the Secondaries verify cleanly.
   - target_server: ps-primary

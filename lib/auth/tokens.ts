@@ -20,7 +20,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { hashPassword, verifyPassword } from "./password";
 
-/** Prefix marker — public, looks like GitHub PATs ("ghp_..."). */
+/** Prefix marker - public, looks like GitHub PATs ("ghp_..."). */
 export const TOKEN_PREFIX = "pda_pat_";
 
 /** Length of the random portion (base64url chars). */
@@ -57,7 +57,7 @@ export async function generateToken(): Promise<NewTokenMaterial> {
 
 /**
  * Split a presented token into its prefix and the part to verify. Returns
- * null for shapes that don't match the contract — handles abuse cases
+ * null for shapes that don't match the contract - handles abuse cases
  * (random garbage, JWTs, etc.) without throwing.
  */
 export function parsePresentedToken(presented: string): { prefix: string } | null {

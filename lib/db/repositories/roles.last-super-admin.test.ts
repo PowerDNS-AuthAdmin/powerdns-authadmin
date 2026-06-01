@@ -2,11 +2,11 @@
  * lib/db/repositories/roles.last-super-admin.test.ts
  *
  * Regression unit tests for the last-SuperAdmin count query
- * (`countGlobalAssignmentsOfRoleSlug`) — the data-layer half of
+ * (`countGlobalAssignmentsOfRoleSlug`) - the data-layer half of
  * GHSA-86v6-w5p9-29r8. The route guards that consume it are covered over HTTP
  * by tests/integration/admin/role-assignments.test.ts (a real DB invariant),
- * but the query's *logic* — exclude disabled users, dedupe a user with two
- * global rows — is exercised here directly so a regression fails the fast unit
+ * but the query's *logic* - exclude disabled users, dedupe a user with two
+ * global rows - is exercised here directly so a regression fails the fast unit
  * suite, not just the gated integration suite.
  *
  * Runs against an in-memory SQLite database, which proves the query is
@@ -19,7 +19,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { isSqlite } from "@/lib/db/_dialect";
 // Type-only imports are erased at compile time, so they don't construct the
-// (Postgres) connection that the runtime `lib/db` module builds eagerly — that
+// (Postgres) connection that the runtime `lib/db` module builds eagerly - that
 // stays lazily imported below, inside the SQLite-gated suite.
 import type { closeDatabase, db, sqliteHandle } from "@/lib/db";
 import type { roleAssignments, roles, users } from "@/lib/db/schema";
@@ -156,7 +156,7 @@ describeSqlite("countGlobalAssignmentsOfRoleSlug (last-SuperAdmin guard query)",
   it("excludes a DISABLED Super Admin from the count", async () => {
     const roleId = await seedRole();
     await seedUser("u1", false); // enabled
-    await seedUser("u2", true); // disabled — must NOT count
+    await seedUser("u2", true); // disabled - must NOT count
     await assignGlobal("a1", "u1", roleId);
     await assignGlobal("a2", "u2", roleId);
 
@@ -198,7 +198,7 @@ describeSqlite("countGlobalAssignmentsOfRoleSlug (last-SuperAdmin guard query)",
   it("ignores non-global Super Admin assignments", async () => {
     const roleId = await seedRole();
     await seedUser("u1", false);
-    // Team-scoped assignment — not a global Super Admin, so it doesn't count.
+    // Team-scoped assignment - not a global Super Admin, so it doesn't count.
     await dbInstance
       .insert(roleAssignmentsTable)
       .values({ id: "a1", userId: "u1", roleId, scopeType: "team", scopeId: "team-1" });

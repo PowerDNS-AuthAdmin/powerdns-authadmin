@@ -76,7 +76,7 @@ type ZoneTab =
   | "access"
   | "history";
 
-// Always re-render on navigation — the zone state on the upstream PDNS
+// Always re-render on navigation - the zone state on the upstream PDNS
 // can change between tab switches (other operators editing, a NOTIFY
 // triggering a serial bump, etc). Combined with `experimental.staleTimes`
 // in next.config, this keeps the Records tab honest.
@@ -86,7 +86,7 @@ export const revalidate = 0;
 export const metadata: Metadata = { title: "Zone" };
 
 export default async function ZoneDetailPage({ params, searchParams }: PageProps) {
-  // Authenticate only — the zone.read gate is per-zone (global permission
+  // Authenticate only - the zone.read gate is per-zone (global permission
   // OR a zone_grant for THIS server+zone) and is applied below once the
   // backend + canonical zone name are resolved.
   const { globalPermissions, zoneGrants } = await requireUserForPage();
@@ -98,11 +98,11 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   } = await searchParams;
 
   // Two entry points land in cluster mode:
-  //   (a) ?cluster=<slug>            — explicit (canonical URL form)
-  //   (b) ?server=<peer slug>        — implicit, when the selected
+  //   (a) ?cluster=<slug>            - explicit (canonical URL form)
+  //   (b) ?server=<peer slug>        - implicit, when the selected
   //                                    server's clusterId is non-null
   // In both cases the cluster's peer-selection strategy picks which
-  // peer we actually read from for this render — round_robin spreads
+  // peer we actually read from for this render - round_robin spreads
   // requests across peers, lowest_latency pins to the fastest one,
   // etc. The operator's choice of URL form is just a shortcut; the
   // peer is fungible from their POV ("the cluster's writable surface
@@ -163,7 +163,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
       const cluster = await findClusterById(explicit.clusterId);
       if (cluster) {
         // Canonicalize: `?server=<peer>` URLs land in cluster mode
-        // because the peer isn't operator-facing for cluster zones —
+        // because the peer isn't operator-facing for cluster zones -
         // the cluster is. Redirect so refreshes, bookmarks, and
         // sharing all reflect the cluster as the addressable thing.
         const tabSegment = requestedTab ? `&tab=${encodeURIComponent(requestedTab)}` : "";
@@ -197,13 +197,13 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
 
   // Audit/history is scoped by backend slug. For a cluster, writes route
   // through a rotating peer (choosePeer), so a zone's edits are scattered
-  // across every peer's slug — aggregate them all (ADR-0014). Otherwise just
+  // across every peer's slug - aggregate them all (ADR-0014). Otherwise just
   // the selected backend.
   const auditSlugs = clusterContext ? clusterContext.peers.map((p) => p.slug) : [selected.slug];
 
   // Per-zone authorization: a permission is held if it's granted at GLOBAL
   // scope OR a zone_grant covers THIS (server, zone). We deliberately avoid a
-  // type-level `ability.can(action, "Type")` — it returns true for a
+  // type-level `ability.can(action, "Type")` - it returns true for a
   // team/zone-scoped rule and would expose every zone. See
   // `lib/rbac/ability.ts:globalPermissionsOf`.
   const zoneCan = (perm: string): boolean =>
@@ -213,7 +213,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
     redirect("/zones?flash=forbidden&need=zone.read");
   }
 
-  // getZone first so we know the primary's serial — the sync probe
+  // getZone first so we know the primary's serial - the sync probe
   // needs it to compute the verdict (passing `null` made every
   // secondary come back as state="error" → chip stuck on "syncing").
   // audit + sync still run in parallel below.
@@ -233,7 +233,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
     );
   }
 
-  // Back link returns to the amalgamated zones list — no per-backend
+  // Back link returns to the amalgamated zones list - no per-backend
   // filter to preserve since the list shows every backend at once.
   const backLink = "/zones";
 
@@ -258,14 +258,14 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
 
   // Read-only-by-KIND: a Slave/Secondary/Consumer zone's records + DNSSEC are
   // owned by its primary over AXFR, so they're read-only regardless of the
-  // backend's role — a "primary" box can host mirror zones, and vice-versa.
+  // backend's role - a "primary" box can host mirror zones, and vice-versa.
   // Mirrors the server-side guard (lib/pdns/writable-kind.ts). Replication
   // config (masters via settings, transfer metadata) + removing the mirror
   // (zone.delete) stay available.
   const ops = zoneCapabilities(zone.kind);
   const isReadOnlyZone = !ops.rrsets;
   // For a mirror zone, its upstream is read from the site-wide derived topology
-  // (poller-computed from masters[], ADR-0014) — no per-page deriving. Matched →
+  // (poller-computed from masters[], ADR-0014) - no per-page deriving. Matched →
   // the managed primary; otherwise the raw masters render as external.
   let mirrorUpstream: { id: string; name: string } | null = null;
   let mirrorExternal: string[] = [];
@@ -282,7 +282,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   // `masters` (which primaries a mirror pulls from) is editable on a read-only
   // zone, so the settings panel stays writable there for users with zone.update.
   const canEditSettings = canUpdate || (isReadOnlyZone && zoneCan("zone.update"));
-  // Zone creation isn't grantable per-zone — it's a global capability.
+  // Zone creation isn't grantable per-zone - it's a global capability.
   const canCreateZone = globalPermissions.has("zone.create");
   const canDeleteZone = zoneCan("zone.delete");
   // audit.read is an admin-wide (global-only) permission.
@@ -295,7 +295,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   const canReadMetadata = zoneCan("metadata.read");
 
   // Direct ?tab=sync / ?tab=statistics on a polling-off install bounces
-  // back to the default records view with an error flash toast — these
+  // back to the default records view with an error flash toast - these
   // surfaces are powered by the background poller, which is opt-in
   // (`PDNS_BACKGROUND_POLLING=true`). See lib/env.ts + #57.
   if (!pdnsBackgroundPollingEnabled && (requestedTab === "sync" || requestedTab === "statistics")) {
@@ -322,7 +322,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
                     ? "sync"
                     : "records";
 
-  // All four post-zone fetches run in parallel — audit query, last
+  // All four post-zone fetches run in parallel - audit query, last
   // edit lookup, and the live sync probe to every secondary. Now we
   // know primary's serial so the sync probe returns valid verdicts.
   const auditEntriesPromise: Promise<ZoneAuditEntryClient[]> =
@@ -386,7 +386,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
             className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--color-fg-muted)]"
           />
           <p>
-            <strong>Read-only mirror.</strong> This is a {zone.kind} zone — its records and DNSSEC
+            <strong>Read-only mirror.</strong> This is a {zone.kind} zone - its records and DNSSEC
             are served from its primary over AXFR and can&apos;t be edited here. Replication
             settings (masters, transfer metadata) remain editable.
             {mirrorUpstream ? (
@@ -420,7 +420,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
 
       {/*
        * `key={tab}` makes React treat each tab switch as a fresh
-       * subtree — the Suspense boundary re-runs and shows its fallback
+       * subtree - the Suspense boundary re-runs and shows its fallback
        * while async children (DnssecSection / MetadataSection) fetch
        * from PDNS. Synchronous tabs flicker through the fallback for
        * an imperceptible moment because nothing actually suspends.
@@ -508,7 +508,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
             selected={selected}
             canRead={canReadMetadata}
             canWrite={zoneCan("metadata.write")}
-            // Authoritative kinds serve AXFR — only they get the friendly TSIG
+            // Authoritative kinds serve AXFR - only they get the friendly TSIG
             // transfer-key selector (mirrors manage AXFR-MASTER-TSIG via the raw editor).
             showTsigTransfer={zone.kind === "Master" || zone.kind === "Primary"}
           />
@@ -516,7 +516,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
           <ZoneStatisticsSection serverSlugs={auditSlugs} zoneName={zone.name} />
         ) : tab === "sync" ? (
           // tab === "sync"
-          // Cluster (peer) comparison only for a TRUE multi-primary group — ≥2
+          // Cluster (peer) comparison only for a TRUE multi-primary group - ≥2
           // write-capable peers and no secondaries. A primary+secondaries group
           // (one writable peer mirrored by secondaries) uses primary→secondary
           // sync, which compares `selected` against its group's mirrors.
@@ -558,7 +558,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
  * Pull the raw PDNS HTTP rows for every audit entry's correlation id
  * in a single round-trip, then transform into the client component's
  * shape (Date → ISO, jsonb → typed-ish). Returns an empty map when no
- * entries carry a requestId — older rows from before that column existed.
+ * entries carry a requestId - older rows from before that column existed.
  */
 async function fetchPdnsHttpByRequestIds(
   entries: ReadonlyArray<{ requestId: string | null }>,
@@ -616,7 +616,7 @@ function joinRRsetComments(comments: readonly unknown[] | undefined): string {
     .join(" · ");
 }
 
-/** SOA parse is best-effort — if PDNS returns something unexpected we render
+/** SOA parse is best-effort - if PDNS returns something unexpected we render
  *  the panel with defaults so the operator can rewrite it. */
 function parseSoaSafely(content: string | null): SoaFields | null {
   if (!content) return null;

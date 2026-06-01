@@ -3,7 +3,7 @@
 /**
  * app/(app)/admin/clusters/_components/groups-table.tsx
  *
- * Client wrapper around the shared `<DataTable>` for the Groups list —
+ * Client wrapper around the shared `<DataTable>` for the Groups list -
  * sortable columns + search on desktop, cards on mobile. Mirrors the other
  * admin list tables (roles/users/teams).
  */
@@ -65,7 +65,7 @@ export function GroupsTable({ rows }: { rows: GroupRow[] }) {
               {r.writeStrategy.replace("_", " ")}
             </span>
           ) : (
-            <span className="text-xs text-[color:var(--color-fg-muted)]">—</span>
+            <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>
           );
         },
       },

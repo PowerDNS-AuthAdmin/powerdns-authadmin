@@ -24,7 +24,7 @@ function buildOptions(): LoggerOptions {
   return {
     level: env.LOG_LEVEL,
 
-    // Stable base fields on every log line — makes log queries portable across deploys.
+    // Stable base fields on every log line - makes log queries portable across deploys.
     base: {
       app: "powerdns-authadmin",
       // The process PID is useful for correlating logs with `top`/`ps` during incidents.

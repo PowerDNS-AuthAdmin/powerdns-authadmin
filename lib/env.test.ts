@@ -69,7 +69,7 @@ describe("detectBuildTimePlaceholders", () => {
   it("does NOT false-positive on a real DATABASE_URL with a non-placeholder user", () => {
     const v = detectBuildTimePlaceholders({
       ...realLooking,
-      // Different user, same host name "build" coincidentally — not the
+      // Different user, same host name "build" coincidentally - not the
       // placeholder shape.
       DATABASE_URL: "postgres://realuser:realpass@build.example/app",
       isBuildPhase: false,

@@ -1,5 +1,5 @@
 # =============================================================================
-# PowerDNS-AuthAdmin — exhaustive first-boot provisioning template
+# PowerDNS-AuthAdmin - exhaustive first-boot provisioning template
 # =============================================================================
 #
 # This file is the canonical "every setting at a glance" reference for the
@@ -15,7 +15,7 @@
 #      Inter-block references resolve by slug (e.g. an oidc group_mapping
 #      pointing to a role defined a few blocks up just works).
 #   3. On success the applier writes `settings.provisioned_at = <ISO ts>`.
-#      Subsequent boots skip the file — the admin UI is the source of truth
+#      Subsequent boots skip the file - the admin UI is the source of truth
 #      from that point on. To force a re-apply on a running database:
 #        # Postgres
 #        psql "$DATABASE_URL" -c "DELETE FROM settings WHERE key='provisioned_at';"
@@ -23,7 +23,7 @@
 #        sqlite3 /data/powerdns_authadmin.db \
 #          "DELETE FROM settings WHERE key='provisioned_at';"
 #   4. Parse errors abort startup. The app refuses to boot rather than
-#      half-apply a malformed file — fail loud, fix the YAML, retry.
+#      half-apply a malformed file - fail loud, fix the YAML, retry.
 #
 # Secrets policy:
 #
@@ -34,7 +34,7 @@
 #   secret store (Docker secrets, K8s Secret, HashiCorp Vault).
 #
 # Every top-level section is optional. Drop the blocks you don't need.
-# Unknown keys at any level are rejected at parse time — typos fail fast
+# Unknown keys at any level are rejected at parse time - typos fail fast
 # instead of silently becoming no-ops.
 # =============================================================================
 
@@ -48,7 +48,7 @@
 # version: "0.1"
 
 # -----------------------------------------------------------------------------
-# settings  —  global key/value writes to the `settings` table
+# settings  -  global key/value writes to the `settings` table
 # -----------------------------------------------------------------------------
 # Every key here mirrors the admin Settings page (see
 # lib/validators/settings.ts → KNOWN_SETTING_KEYS). Unknown keys reject at
@@ -60,7 +60,7 @@ settings:
 
   # Optional brand logo. Accepts an absolute https:// URL OR an inline
   # `data:image/...` URI. Inline data: is convenient but rows show up in
-  # audit snapshots — keep it under ~1.5 MB or use an external URL.
+  # audit snapshots - keep it under ~1.5 MB or use an external URL.
   # brand_logo_url: "https://example.com/static/logo.png"
 
   # Support contact line shown on the login page footer + 5xx error pages.
@@ -73,22 +73,22 @@ settings:
 
   # Failed-login lockout policy. Defaults: 5 attempts in 900 seconds → 15-min
   # lockout. Both fields are independently tunable.
-  login_lockout_threshold: 5 # int 1..100  — attempts before lockout
-  login_lockout_seconds: 900 # int 60..86400 — lockout duration
+  login_lockout_threshold: 5 # int 1..100  - attempts before lockout
+  login_lockout_seconds: 900 # int 60..86400 - lockout duration
 
   # Self-service password reset (the login page "Forgot password?" link).
-  # Default true. Set false to hide the link and make the endpoint a no-op —
+  # Default true. Set false to hide the link and make the endpoint a no-op -
   # local accounts only; SSO users always reset through their IdP.
   allow_password_reset: true
 
   # Default sign-in method. Decides which provider /login auto-redirects to
   # on a fresh visit. Three accepted forms:
   #
-  #   - "local" — show the form (the default; recovery via /login?force-local=1).
-  #   - bare slug, e.g. "company-sso" — resolved against the slugs reserved
+  #   - "local" - show the form (the default; recovery via /login?force-local=1).
+  #   - bare slug, e.g. "company-sso" - resolved against the slugs reserved
   #     in this file or already in the DB. Slugs are globally unique across
   #     OIDC / SAML / LDAP, so a bare slug is unambiguous.
-  #   - typed-prefix, e.g. "oidc:company-sso" — equivalent; useful when
+  #   - typed-prefix, e.g. "oidc:company-sso" - equivalent; useful when
   #     scripting against the DB directly.
   #
   # The applier resolves whatever form you write into the canonical
@@ -96,14 +96,14 @@ settings:
   # /admin/authentication.
   auth_default_provider: "local"
   # Example bare-slug form (uncomment to make `company-sso` defined below
-  # the default — operators hitting /login auto-redirect through its initiate):
+  # the default - operators hitting /login auto-redirect through its initiate):
   # auth_default_provider: "company-sso"
 
 # -----------------------------------------------------------------------------
-# roles  —  custom (org-specific) roles
+# roles  -  custom (org-specific) roles
 # -----------------------------------------------------------------------------
 # The 5 system roles (super-admin, team-owner, operator, zone-editor,
-# read-only) are seeded by `db:seed` and CANNOT be redefined here — the
+# read-only) are seeded by `db:seed` and CANNOT be redefined here - the
 # applier will refuse a slug collision. Use this section only for the
 # custom roles your org needs on top.
 #
@@ -154,7 +154,7 @@ roles:
       - server.read
 
 # -----------------------------------------------------------------------------
-# teams  —  multi-team RBAC unit
+# teams  -  multi-team RBAC unit
 # -----------------------------------------------------------------------------
 # A team is a named ownership boundary inside the app. Zones can be team-
 # scoped (Phase 5); role assignments can target a team (`scope: team:<slug>`
@@ -178,19 +178,19 @@ teams:
     # `mail` is optional; omitted here on purpose to show it's not required.
 
 # -----------------------------------------------------------------------------
-# zone_templates  —  scaffolding for new zones
+# zone_templates  -  scaffolding for new zones
 # -----------------------------------------------------------------------------
 # Applied at zone-creation time. The create-zone form preselects a template
 # when the operator picks a backend listed in `default_for_primary_slugs`.
 # Templates carry three layers of state, applied in this order:
 #
-#   1. PDNS createZone() — wire-format kind (Master/Slave/Native), seed
+#   1. PDNS createZone() - wire-format kind (Master/Slave/Native), seed
 #      NS records, seed SOA via the soa_* timers.
-#   2. PUT /zones/<id>   — zone-object settings (soa_edit, soa_edit_api,
+#   2. PUT /zones/<id>   - zone-object settings (soa_edit, soa_edit_api,
 #      api_rectify). See the PDNS docs for what each accepts.
-#   3. PUT /zones/<id>/metadata/<kind> — per-kind metadata bag.
+#   3. PUT /zones/<id>/metadata/<kind> - per-kind metadata bag.
 #
-# Failures in steps 2 + 3 are logged but don't abort the create — the zone
+# Failures in steps 2 + 3 are logged but don't abort the create - the zone
 # exists; the operator can fix metadata later from the Zone settings tab.
 # -----------------------------------------------------------------------------
 zone_templates:
@@ -254,7 +254,7 @@ zone_templates:
 
     # ------- Per-kind metadata bag (PDNS PUT /zones/<id>/metadata/<kind>) -------
     # Free-form map: each key is a metadata kind; each value is a list of
-    # strings. Allowed kinds vary across PDNS versions — individual PUT
+    # strings. Allowed kinds vary across PDNS versions - individual PUT
     # failures are logged but never abort the apply.
     metadata:
       ALLOW-AXFR-FROM:
@@ -278,7 +278,7 @@ zone_templates:
 
   - slug: external
     name: External / customer-facing zones
-    description: "Public DNS — longer SOA timers, 3 NS, no metadata bag."
+    description: "Public DNS - longer SOA timers, 3 NS, no metadata bag."
     soa_ttl: 86400
     soa_refresh: 86400
     soa_retry: 7200
@@ -295,14 +295,14 @@ zone_templates:
       - primary-public
 
 # -----------------------------------------------------------------------------
-# clusters  —  multi-primary peer groups
+# clusters  -  multi-primary peer groups
 # -----------------------------------------------------------------------------
 # A cluster is N writable PDNS peers backed by a replicated store (Galera,
 # Postgres logical replication, etc.). The cluster appears as ONE logical
 # backend in every operator-facing picker; the peer-selection strategy
 # (UI label) picks which peer to read from / write to per request.
 #
-# A "group" (cluster row) relates backends that replicate together — the
+# A "group" (cluster row) relates backends that replicate together - the
 # writable peers of a multi-primary cluster, OR a primary together with its
 # secondaries (ADR-0014). Any role may join a group via `cluster_slug`.
 # -----------------------------------------------------------------------------
@@ -329,7 +329,7 @@ clusters:
     description: "One writable Primary mirrored by two read-only Secondaries."
 
 # -----------------------------------------------------------------------------
-# pdns_servers  —  the PDNS Authoritative backends
+# pdns_servers  -  the PDNS Authoritative backends
 # -----------------------------------------------------------------------------
 # Primaries are full read/write backends. Secondaries are read-only mirrors
 # we poll for sync state + stats. Cluster peers are primaries that share a
@@ -413,7 +413,7 @@ pdns_servers:
     cluster_slug: prod-cluster
 
 # -----------------------------------------------------------------------------
-# demo_zones  —  generated demo zones (optional)
+# demo_zones  -  generated demo zones (optional)
 # -----------------------------------------------------------------------------
 # Each entry produces N synthetic zones with realistic record content via
 # the PDNS HTTP API. Useful for showcasing the UI on a fresh stack;
@@ -435,7 +435,7 @@ pdns_servers:
 #       - ns2.internal.example.
 
 # -----------------------------------------------------------------------------
-# oidc  —  identity providers
+# oidc  -  identity providers
 # -----------------------------------------------------------------------------
 # Multi-provider supported. Each row is created from scratch on first
 # apply; the applier never deletes providers (only creates + updates by
@@ -457,7 +457,7 @@ pdns_servers:
 #
 # Mappings whose role / team / server can't be resolved at sign-in are
 # logged + audited under auth.oidc.group_sync.mapping_unresolved and
-# skipped — the rest of the sign-in proceeds.
+# skipped - the rest of the sign-in proceeds.
 # -----------------------------------------------------------------------------
 oidc:
   - slug: company-sso # lowercase kebab-case
@@ -466,12 +466,12 @@ oidc:
     client_id: "powerdns-authadmin"
     client_secret: "REPLACE_ME_company_sso_client_secret"
     scopes: "openid profile email groups" # space-separated OAuth scopes; default "openid profile email"
-    # Claim names — change only if your IdP uses non-standard claim keys.
+    # Claim names - change only if your IdP uses non-standard claim keys.
     claim_email: email
     claim_name: name
     claim_groups: groups
     enabled: true # false hides the provider from the login page
-    # DEPRECATED — kept for one minor for backward compat. Set the global
+    # DEPRECATED - kept for one minor for backward compat. Set the global
     # `auth_default_provider` setting from /admin/authentication instead;
     # the applier translates a legacy `force_default: true` here into that
     # setting at apply time and logs a deprecation warning.
@@ -499,7 +499,7 @@ oidc:
         role: zone-editor
         scope: team:noc
 
-      # zone-scoped → role applies to ONE zone (canonical fqdn — trailing dot).
+      # zone-scoped → role applies to ONE zone (canonical fqdn - trailing dot).
       - group: corp-zone-readers
         role: read-only
         scope: zone:corp.example.
@@ -509,14 +509,14 @@ oidc:
         role: zone-editor
         scope: server:primary-public
 
-      # Custom roles defined in `roles:` above are usable here by slug —
+      # Custom roles defined in `roles:` above are usable here by slug -
       # the materialiser doesn't care whether the role is system-seeded
       # or org-custom.
       - group: dns-noc-team
         role: zone-noc
         scope: global
 
-  # A second provider — Google personal sign-in, defined but disabled.
+  # A second provider - Google personal sign-in, defined but disabled.
   # Flip `enabled: true` from the admin UI when you're ready.
   - slug: google
     name: "Google"
@@ -528,9 +528,9 @@ oidc:
     claim_name: name
     claim_groups: groups
     enabled: false
-    # DEPRECATED — see the note on the first provider above.
+    # DEPRECATED - see the note on the first provider above.
     force_default: false
-    group_mappings: [] # explicit empty list — no group sync
+    group_mappings: [] # explicit empty list - no group sync
 
 # -----------------------------------------------------------------------------
 # saml: SAML 2.0 identity providers (ADR-0021)
@@ -551,7 +551,7 @@ saml:
     idp_entity_id: "https://idp.example.com/saml"
     idp_sso_url: "https://idp.example.com/saml/sso"
     # Optional. When unset, /api/auth/saml/<slug>/slo clears the local session
-    # only — the IdP keeps its own session until it expires.
+    # only - the IdP keeps its own session until it expires.
     idp_slo_url: "https://idp.example.com/saml/slo"
     # Public X.509 cert the IdP signs Responses with.
     idp_signing_cert: |
@@ -604,7 +604,7 @@ saml:
 #
 # Direct-bind sign-in against Active Directory or OpenLDAP. The applier
 # encrypts `bind_password` (and `tls_ca_cert`, if you pin a CA) with the
-# same AES-256-GCM envelope used everywhere else — they NEVER round-trip
+# same AES-256-GCM envelope used everywhere else - they NEVER round-trip
 # back through the API in plaintext.
 #
 # Slugs are reserved in the cross-type `auth_provider_slugs` table the
@@ -618,12 +618,12 @@ ldap:
     server_url: "ldaps://ad.corp.example.com:636"
     # StartTLS upgrades a plain ldap:// connection after connect.
     # MUST be false on ldaps:// URLs (the implicit-TLS port doesn't
-    # speak StartTLS) — the validator refuses the redundant pairing.
+    # speak StartTLS) - the validator refuses the redundant pairing.
     start_tls: false
     bind_dn: "CN=svc-authadmin,OU=ServiceAccounts,DC=corp,DC=example,DC=com"
     bind_password: "REPLACE_ME_ad_service_account_password"
     user_search_base: "OU=Employees,DC=corp,DC=example,DC=com"
-    # AD's typical OR filter — matches `sAMAccountName` (the
+    # AD's typical OR filter - matches `sAMAccountName` (the
     # Active Directory login name), `userPrincipalName`, or `mail`.
     user_search_filter: "(|(sAMAccountName={{username}})(userPrincipalName={{username}})(mail={{username}}))"
     # AD fully resolves `memberOf` on the user record at query time,
@@ -634,7 +634,7 @@ ldap:
     claim_name: displayName
     # Optional CA pin for an internal certificate authority. Concatenated
     # PEM is accepted (cert + intermediates). Use this OR
-    # LDAP_TLS_INSECURE_SKIP_VERIFY=true (NEVER both — the pin is the
+    # LDAP_TLS_INSECURE_SKIP_VERIFY=true (NEVER both - the pin is the
     # secure equivalent).
     # tls_ca_cert: |
     #   -----BEGIN CERTIFICATE-----
@@ -644,7 +644,7 @@ ldap:
     allowed_email_domains:
       - corp.example.com
     group_mappings:
-      # Map AD groups (by their full DN — AD's memberOf is DN-valued)
+      # Map AD groups (by their full DN - AD's memberOf is DN-valued)
       # to roles. Group strings are case-sensitive matches against the
       # values in the user's memberOf attribute.
       - group: "CN=PDNS Super Admins,OU=Groups,DC=corp,DC=example,DC=com"
@@ -662,7 +662,7 @@ ldap:
   # ----- Worked OpenLDAP 2.6 example -----------------------------------
   # OpenLDAP with the memberof overlay enabled in cn=config behaves
   # like AD (group memberships resolved on the user record). Without
-  # the overlay, configure the optional second search below — we
+  # the overlay, configure the optional second search below - we
   # match groupOfNames / groupOfUniqueNames by `member={{userDn}}`.
   - slug: dev-openldap
     name: "Dev OpenLDAP"

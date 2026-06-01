@@ -3,7 +3,7 @@
  *
  * Receiver for Content-Security-Policy violation reports (S-20 from
  * the 2026-05-16 audit). Browsers POST a JSON document here whenever
- * a CSP directive blocks something — inline script that lacks the
+ * a CSP directive blocks something - inline script that lacks the
  * per-request nonce, an `<img>` from a disallowed origin, a font
  * loaded over `http:` in a `connect-src` "https only" policy, etc.
  *
@@ -15,7 +15,7 @@
  *   - Returns 204 No Content so browsers know the report landed.
  *
  * What this endpoint does NOT do (yet):
- *   - Persist reports. Filing for future work — operators need an admin
+ *   - Persist reports. Filing for future work - operators need an admin
  *     UI to read them, which needs schema + UI + retention policy.
  *   - Authenticate. CSP reports come from operator browsers and from
  *     anyone-who-visits browsers; auth would lose the unauthenticated
@@ -42,7 +42,7 @@ import { headers } from "next/headers";
 const NO_CONTENT = new Response(null, { status: 204 });
 
 // Dedicated bucket for this endpoint. A browser legitimately bursts a few
-// reports when a page first violates the policy, then goes quiet — so allow a
+// reports when a page first violates the policy, then goes quiet - so allow a
 // modest burst and a slow refill. Keyed per-IP; see the null-IP fallback below.
 const reportLimiter = new TokenBucketLimiter({
   capacity: 20,
@@ -76,7 +76,7 @@ export async function POST(request: Request): Promise<Response> {
   const ip = getClientIp(hdrs);
 
   // Rate-limit before doing any work or logging. When the IP is unknown
-  // (no trusted proxy) we still throttle, under a single shared key — a
+  // (no trusted proxy) we still throttle, under a single shared key - a
   // global cap is better than no cap for an unauthenticated public sink.
   const limitKey = ip ? `csp-report:${ip}` : "csp-report:unknown";
   const limit = reportLimiter.take(limitKey);
@@ -95,7 +95,7 @@ export async function POST(request: Request): Promise<Response> {
     // body parses.
     body = await request.json();
   } catch {
-    // Malformed body — don't crash, just no-op. Browsers can't act
+    // Malformed body - don't crash, just no-op. Browsers can't act
     // on the response anyway; logging the parse failure is enough.
     logger.warn(
       { contentType: request.headers.get("content-type") ?? null },
@@ -104,7 +104,7 @@ export async function POST(request: Request): Promise<Response> {
     return NO_CONTENT;
   }
 
-  // Single log line per report — the structured fields are searchable
+  // Single log line per report - the structured fields are searchable
   // in any log aggregator. The report is serialized and size-capped so a
   // hostile/oversized body can't write an unbounded log line; within the
   // cap the violated-directive, blocked-uri, source-file, line-number etc.

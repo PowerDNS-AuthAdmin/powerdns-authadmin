@@ -1,8 +1,8 @@
-# docker-compose.ha.yml — HIGH-AVAILABILITY STACK (Postgres + Redis, replicas > 1).
+# docker-compose.ha.yml - HIGH-AVAILABILITY STACK (Postgres + Redis, replicas > 1).
 #
 # The app is stateless behind a load balancer; all shared state lives in Postgres
 # (sessions, data) and Redis (cross-replica rate limiting, reveal-once tokens, and
-# the realtime SSE event bus — ADR-0016). Sessions are DB-backed (ADR-0007) so
+# the realtime SSE event bus - ADR-0016). Sessions are DB-backed (ADR-0007) so
 # they're shared by Postgres alone; Redis covers the three otherwise per-process
 # pieces. Without Redis those degrade to per-replica behaviour, so Redis is
 # REQUIRED past one replica.
@@ -13,11 +13,11 @@
 #   export BOOTSTRAP_ADMIN_PASSWORD='a-strong-password'
 #   docker compose -f docker-compose.ha.yml up -d --scale app=3
 #
-# The app has no host port — put a load balancer (nginx / Traefik / cloud LB) in
+# The app has no host port - put a load balancer (nginx / Traefik / cloud LB) in
 # front of the `app` replicas on port 3000. Migrations are serialised across
 # replica boots by a Postgres advisory lock (ADR-0011), so starting N at once is
 # safe. Add your PowerDNS backend(s) under Admin → PowerDNS servers afterwards
-# (this file ships no PDNS — see the topology compose files for runnable backends).
+# (this file ships no PDNS - see the topology compose files for runnable backends).
 
 name: powerdns-authadmin-ha
 
@@ -25,7 +25,7 @@ services:
   app:
     image: ghcr.io/powerdns-authadmin/powerdns-authadmin:latest
     restart: unless-stopped
-    # No host port — your load balancer fronts the replicas on :3000.
+    # No host port - your load balancer fronts the replicas on :3000.
     expose:
       - "3000"
     depends_on:
@@ -76,7 +76,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    # Coordination cache, not a datastore — persistence off; nothing it holds
+    # Coordination cache, not a datastore - persistence off; nothing it holds
     # needs to survive a restart (the in-process fallbacks cover a cold Redis).
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck:

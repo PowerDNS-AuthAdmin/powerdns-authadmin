@@ -3,7 +3,7 @@
  *
  * The single source of truth for "is this backend reachable RIGHT NOW".
  *
- * Every PowerDNS read — the background poll AND any explicit refresh — records
+ * Every PowerDNS read - the background poll AND any explicit refresh - records
  * the outcome here, so every page that shows reachability (the servers list
  * badge, the zones list, the server-detail header) reads ONE shared value and
  * they can never disagree. This is the live, immediate signal; the debounced
@@ -47,7 +47,7 @@ export function getBackendStatus(backendId: string): BackendStatus | null {
   return current().get(backendId) ?? null;
 }
 
-/** "down" | "auth" | null(=reachable / not yet observed) — for status badges. */
+/** "down" | "auth" | null(=reachable / not yet observed) - for status badges. */
 export function backendUnreachability(backendId: string): "down" | "auth" | null {
   const s = current().get(backendId);
   if (!s || s.reachable) return null;

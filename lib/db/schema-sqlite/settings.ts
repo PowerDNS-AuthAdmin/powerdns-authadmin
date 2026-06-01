@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/settings.ts — SQLite mirror of `../schema/settings.ts`.
+ * lib/db/schema-sqlite/settings.ts - SQLite mirror of `../schema/settings.ts`.
  */
 
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";

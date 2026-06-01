@@ -1,15 +1,15 @@
 /**
  * app/api/auth/webauthn/assertion-verify/route.ts
  *
- * POST — finish a WebAuthn assertion and mint a session.
+ * POST - finish a WebAuthn assertion and mint a session.
  *
  * Two modes share this route (controlled by `mode` in the body):
  *
- *   - `primary` — the user signed in with a passkey only (no password).
+ *   - `primary` - the user signed in with a passkey only (no password).
  *     The challenge token was minted by /assertion-options, bound to the
  *     constant actor `_webauthn-login-pending`.
  *
- *   - `second-factor` — the user already submitted a password to
+ *   - `second-factor` - the user already submitted a password to
  *     /api/auth/login and received a mfa-pending challenge token. We
  *     redeem THAT token (actor `_mfa-pending`, plaintext = userId) to
  *     learn which user this assertion is for, then verify against their
@@ -46,7 +46,7 @@ export async function POST(request: Request): Promise<Response> {
       throw new ForbiddenError("WebAuthn is disabled by configuration.");
     }
 
-    // Pre-session POST — no `requireUser`. We still expect CSRF because the
+    // Pre-session POST - no `requireUser`. We still expect CSRF because the
     // request originates from our SPA bearing the cookie pair (the temp
     // reveal-store doesn't validate origin and the assertion alone proves
     // the device, not the origin).

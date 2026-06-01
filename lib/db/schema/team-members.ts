@@ -1,7 +1,7 @@
 /**
  * lib/db/schema/team-members.ts
  *
- * Membership join table — which users belong to which teams, and what their
+ * Membership join table - which users belong to which teams, and what their
  * team-level role is.
  *
  * `team_role` is a coarse marker for "can manage this team's settings/members".

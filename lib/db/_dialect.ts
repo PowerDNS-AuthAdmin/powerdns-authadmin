@@ -31,5 +31,5 @@ export function dialectFromUrl(url: string | undefined | null): DbDialect {
 /** The active dialect for this process. Snapshot at module load. */
 export const dialect: DbDialect = dialectFromUrl(process.env["DATABASE_URL"]);
 
-/** Convenience boolean — concise check at call sites. */
+/** Convenience boolean - concise check at call sites. */
 export const isSqlite: boolean = dialect === "sqlite";

@@ -3,14 +3,14 @@
  *
  * The roles table. Roles are named bundles of permissions. A user has a role
  * via `role_assignments`, which carries a *scope* (global / team / zone /
- * server) — the same role can grant different access at different scopes.
+ * server) - the same role can grant different access at different scopes.
  *
  * `is_system = true` marks the seeded built-in roles (SuperAdmin, TeamOwner,
  * Operator, ZoneEditor, ReadOnly). System roles can't be deleted and their
  * permissions can't be edited (only viewed) in the admin UI; this prevents an
  * operator from accidentally locking themselves out by stripping SuperAdmin.
  *
- * `permissions` is the source of truth — a flat list of permission strings
+ * `permissions` is the source of truth - a flat list of permission strings
  * (e.g. "zone.read", "record.update") that this role grants. The strings
  * match the vocabulary in `lib/rbac/permissions.ts`; validation happens at
  * the API boundary (you can't write `permissions: ["foo.bar"]`).

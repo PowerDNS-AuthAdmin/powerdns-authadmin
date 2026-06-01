@@ -4,7 +4,7 @@
  * Zod schemas for the OIDC providers admin form.
  *
  * The `client_secret` field is shown plaintext at create time, then never
- * round-tripped to the client again — edit-mode treats it as optional;
+ * round-tripped to the client again - edit-mode treats it as optional;
  * omitting preserves the existing encrypted value.
  */
 
@@ -39,7 +39,7 @@ const scopesSchema = z
  * Optional icon for the login button. Accepts an
  * absolute http(s) URL OR an inline `data:image/...` URI. The
  * size cap is intentionally tighter than the brand-logo
- * 2 MB ceiling — login-button icons are tiny (16-48px) and a
+ * 2 MB ceiling - login-button icons are tiny (16-48px) and a
  * 64 KB base64 string is already overkill for an SVG/PNG that
  * size. Keeps the oidc_providers row small enough that audit
  * before/after snapshots don't bloat.
@@ -68,7 +68,7 @@ const iconUrlSchema = z
  *   [...]  → REPLACE env entirely with this list
  *
  * Each entry is a bare domain (no `@`), lower-cased on submit. Up to
- * 64 entries — that's well beyond any realistic operator need and
+ * 64 entries - that's well beyond any realistic operator need and
  * keeps a malicious admin from stuffing the column.
  */
 const allowedEmailDomainsSchema = z
@@ -117,7 +117,7 @@ export const createOidcProviderSchema = z.object({
     .min(1, "Client secret is required.")
     .max(2048)
     // Strip stray leading/trailing whitespace introduced by clipboard
-    // paste — the most common reason a verified-by-eye secret silently
+    // paste - the most common reason a verified-by-eye secret silently
     // mismatches the IdP. authentik / Keycloak / Okta secrets use a
     // URL-safe alphabet that never includes whitespace, so the trim
     // is non-destructive for every value the IdP would generate.
@@ -126,7 +126,7 @@ export const createOidcProviderSchema = z.object({
   claimEmail: claimSchema.default("email"),
   claimName: claimSchema.default("name"),
   enabled: z.boolean().default(true),
-  /** Default `true` — the account-takeover guard is on for new providers.
+  /** Default `true` - the account-takeover guard is on for new providers.
    *  Operators flip it off only for IdPs that don't emit `email_verified`
    *  at all (custom OIDC bridges, some SAML→OIDC translators). Existing DB
    *  rows keep their stored value; this default only applies at create time. */
@@ -144,7 +144,7 @@ export const updateOidcProviderSchema = z.object({
   issuerUrl: issuerUrlSchema.optional(),
   clientId: z.string().min(1).max(500).optional(),
   /** Omit to keep the existing secret; provide a new one to rotate.
-   *  Trimmed before encryption — see the create schema's comment. */
+   *  Trimmed before encryption - see the create schema's comment. */
   clientSecret: z
     .string()
     .min(1)

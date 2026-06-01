@@ -1,5 +1,5 @@
 # =============================================================================
-# docker-compose-primary-secondaries.yml — full demo stack with 1 PowerDNS
+# docker-compose-primary-secondaries.yml - full demo stack with 1 PowerDNS
 # Primary + 3 PowerDNS Secondaries.
 #
 # Showcases the app's sync-state surface end-to-end: writes go to the Primary,
@@ -8,7 +8,7 @@
 # Secondaries catch up.
 #
 # Design:
-#   * Plain `powerdns/pdns-auth:latest` for every PDNS container — no custom
+#   * Plain `powerdns/pdns-auth:latest` for every PDNS container - no custom
 #     image, no Dockerfile in this stack.
 #   * Each container mounts a role-specific conf from `docker/pdns/*.conf`
 #     and the gsqlite3 schema from `docker/pdns/schema.sqlite3.sql`.
@@ -16,7 +16,7 @@
 #     apply the schema (and, for Secondaries, insert the supermaster row).
 #     Main container depends on `service_completed_successfully`.
 #   * Static IPs on a /24 so the Primary's `also-notify` + each Secondary's
-#     `supermasters` row can use literal IPs — PDNS doesn't accept CIDRs
+#     `supermasters` row can use literal IPs - PDNS doesn't accept CIDRs
 #     in those positions.
 #
 # Usage:

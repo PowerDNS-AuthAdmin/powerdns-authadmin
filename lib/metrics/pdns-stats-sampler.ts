@@ -5,7 +5,7 @@
  * Statistics tab read from here.
  *
  * NOTE: the *sampling* (polling `GET /statistics` from every backend) now lives
- * in the app-wide broker poll (`lib/realtime/zone-poller.ts`, 60 s cadence) — so
+ * in the app-wide broker poll (`lib/realtime/zone-poller.ts`, 60 s cadence) - so
  * all PDNS reads go through one place. This module is read-only.
  */
 
@@ -20,7 +20,7 @@ import { pdnsServerStats } from "@/lib/db/schema";
  * round trips. The composite index on `(server_id, name, ts)` keeps this a
  * cheap range scan.
  *
- * The window is bounded by `since` — the dashboard passes
+ * The window is bounded by `since` - the dashboard passes
  * `Date.now() - DASHBOARD_PDNS_STATS_WINDOW_MS`, which is the same window
  * the retention sweep deletes against. 1:1 link: we read only what we keep,
  * we keep only what we read.

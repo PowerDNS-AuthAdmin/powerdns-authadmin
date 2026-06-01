@@ -4,7 +4,7 @@
  * components/ui/clickable-row.tsx
  *
  * Tiny client wrappers that make a server-rendered table row (or a card div)
- * navigate on click — used by bespoke tables that don't go through DataTable
+ * navigate on click - used by bespoke tables that don't go through DataTable
  * but still want the same "tap anywhere on the row" UX as the DataTable lists.
  *
  * Inner links/buttons/form controls keep working: the click handler bails out

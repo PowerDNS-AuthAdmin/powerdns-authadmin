@@ -7,12 +7,12 @@
  * replicates between them. After the app sends a write to ONE peer (per the
  * cluster's write strategy), there's a brief gap before the other peers pick
  * up the change. During that gap the post-write serial from the
- * peer-that-took-the-write is the source-of-truth — every other peer is
+ * peer-that-took-the-write is the source-of-truth - every other peer is
  * expected to converge to it.
  *
  * `evaluateClusterSync` takes that expected serial (or null in steady state)
  * plus each peer's observed serial and returns the UI's "synced / converging
- * / diverged" verdict. Pure — no I/O, no cache — so the caller owns where the
+ * / diverged" verdict. Pure - no I/O, no cache - so the caller owns where the
  * expected serial comes from and the chip logic stays unit-testable.
  */
 
@@ -25,7 +25,7 @@ export type ClusterSyncVerdict =
 
 /**
  * Given an expected serial + each peer's currently-observed serial, decide
- * the cluster's sync state. Pure — exported for unit tests.
+ * the cluster's sync state. Pure - exported for unit tests.
  *
  *   - expectedSerial = null:
  *       all peers' serials are equal → in-sync
@@ -53,7 +53,7 @@ export function evaluateClusterSync(
       : { state: "converging", expectedSerial, perPeer };
   }
 
-  // No expected — compare peers against each other.
+  // No expected - compare peers against each other.
   let baseline: number | null = null;
   let mismatch = false;
   for (const v of perPeer.values()) {

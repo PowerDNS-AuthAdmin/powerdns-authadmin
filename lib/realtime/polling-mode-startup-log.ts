@@ -8,7 +8,7 @@
  * most once per process; subsequent calls are fast no-ops.
  *
  * Hard 3s budget so a slow Postgres can't block startup. Failures (timeout,
- * query error) are swallowed silently — the worst case is "we didn't print
+ * query error) are swallowed silently - the worst case is "we didn't print
  * the hint", which is strictly better than blocking the app.
  *
  * Triggered from the first `/healthz` hit (the same kick `instrumentation.ts`
@@ -29,10 +29,10 @@ export async function logPollingModeOnce(): Promise<void> {
   if (hasRun) return;
   hasRun = true;
 
-  // Honest case 1 — flag is on. Confirm it so operators see we picked it up.
+  // Honest case 1 - flag is on. Confirm it so operators see we picked it up.
   if (pdnsBackgroundPollingEnabled) {
     logger.info(
-      "[startup] PDNS_BACKGROUND_POLLING=true — background poller scheduled; sync awareness, " +
+      "[startup] PDNS_BACKGROUND_POLLING=true - background poller scheduled; sync awareness, " +
         "dashboard PDNS metrics, per-zone Sync + Statistics, drift advisories are ALL ENABLED.",
     );
     return;
@@ -58,7 +58,7 @@ export async function logPollingModeOnce(): Promise<void> {
   try {
     const result = await Promise.race([probe, timeout]);
     if (result === null) {
-      // Budget burned — silently give up. Better to start unhinted than hold the app.
+      // Budget burned - silently give up. Better to start unhinted than hold the app.
       return;
     }
     const multiPeer = result.mirrors > 0 || result.clusterCount > 0 || result.writers > 1;
@@ -77,13 +77,13 @@ export async function logPollingModeOnce(): Promise<void> {
       );
     } else {
       logger.info(
-        "[startup] PDNS_BACKGROUND_POLLING=false — single-server / standalone mode. PDNS " +
+        "[startup] PDNS_BACKGROUND_POLLING=false - single-server / standalone mode. PDNS " +
           "is contacted only in response to user actions; supplementary sync features hidden. " +
           "This is the recommended default for single-instance deployments.",
       );
     }
   } catch {
-    // Probe failed (e.g. DB still warming) — silently skip; healthz will run
+    // Probe failed (e.g. DB still warming) - silently skip; healthz will run
     // again on the next probe but `hasRun` is already true and won't re-fire.
     // That's by design: a one-shot startup log mustn't spam on every health
     // tick if the DB stays unhappy.

@@ -16,7 +16,7 @@ import type { AuditEntry } from "@/lib/db/schema";
 /**
  * Fixed column order. Matches the on-page table plus the
  * detail-only columns (`request_id`, `before`, `after`, `ip`,
- * `user_agent`). Order is part of the contract — downstream
+ * `user_agent`). Order is part of the contract - downstream
  * consumers (Excel filters, jq pipelines) depend on it being
  * stable across exports.
  */
@@ -82,7 +82,7 @@ export function rowsToCsv(entries: readonly CsvRow[]): string {
  * We defang it by prefixing a single quote, then apply RFC-4180 quoting.
  * See OWASP "CSV Injection".
  *
- * Exported only for the test file — most callers should go through
+ * Exported only for the test file - most callers should go through
  * `rowsToCsv`.
  */
 export function escapeField(value: string): string {

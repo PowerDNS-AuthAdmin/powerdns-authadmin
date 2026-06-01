@@ -1,13 +1,13 @@
 /**
  * lib/dns/txt.ts
  *
- * Shared TXT (and SPF — same wire format) presentation helpers. RFC 1035
+ * Shared TXT (and SPF - same wire format) presentation helpers. RFC 1035
  * § 3.3.14: TXT RDATA is one or more <character-string>s, each a
  * length-prefixed run of 0–255 octets. In presentation form each
  * character-string is quoted (`"…"`) and adjacent strings are
  * concatenated on the wire by consumers (RFC 7208 § 3.3 for SPF/DKIM).
  *
- * The key consequence — and the reason this module exists — is that the
+ * The key consequence - and the reason this module exists - is that the
  * SAME logical value can be presented in many equivalent ways:
  *
  *     "v=DKIM1; p=AAAA…"            (one long character-string)
@@ -62,7 +62,7 @@ export function extractQuotedStrings(input: string): string[] | null {
   return out.length > 0 ? out : null;
 }
 
-/** UTF-8 octet length — how PDNS counts character-string sizes. */
+/** UTF-8 octet length - how PDNS counts character-string sizes. */
 export function octetLength(s: string): number {
   return new TextEncoder().encode(s).byteLength;
 }

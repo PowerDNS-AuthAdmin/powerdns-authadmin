@@ -60,7 +60,7 @@ function formatAge(ageMs: number): string {
 }
 
 /**
- * Day-resolution variant for dates we only know to the calendar day —
+ * Day-resolution variant for dates we only know to the calendar day -
  * SOA-serial-derived "last edit", for example. The input is treated as
  * the start of a UTC day; we never claim sub-day precision because the
  * source can't carry it. Renders "today", "yesterday", or "Nd ago".

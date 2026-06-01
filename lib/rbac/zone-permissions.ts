@@ -2,7 +2,7 @@
  * lib/rbac/zone-permissions.ts
  *
  * Folds `zone_grants` rows into the effective permission set for a
- * specific (server, zone). Pure — the storage shape (`{userId,
+ * specific (server, zone). Pure - the storage shape (`{userId,
  * serverId, zoneName, permissions: string[]}`) is the same as what the
  * repo returns, but declared inline so this module doesn't take a
  * dependency on the DB layer (which would block unit tests under the
@@ -33,7 +33,7 @@ export interface ZoneGrantInput {
 
 /**
  * Union of every permission granted on the given (server, zone) by the
- * supplied grants. Returns an empty set when no grant matches — the
+ * supplied grants. Returns an empty set when no grant matches - the
  * caller decides what to do with that.
  *
  * `zoneName` is matched verbatim (case-sensitive, trailing-dot-aware)
@@ -82,7 +82,7 @@ export function hasZonePermissionViaGrant(
  *
  * `hasGlobalPermission` must be a *global*-scope decision
  * (`auth.globalPermissions.has(permission)`), NOT a type-level
- * `ability.can(action, "Type")` — the latter is true for
+ * `ability.can(action, "Type")` - the latter is true for
  * conditionally-scoped rules and would let a team/zone-scoped role act
  * on every zone. See `globalPermissionsOf` in `lib/rbac/ability.ts`.
  *
@@ -114,7 +114,7 @@ export function canActOnZone(input: {
  * resolve a peer per request via `choosePeer` (round-robin / lowest-latency), so
  * a grant on peer A would intermittently 403 when peer B is chosen. We close
  * that by emitting, for each grant whose server belongs to a cluster, a copy of
- * the grant for every peer id in the same cluster — leaving the exact-`serverId`
+ * the grant for every peer id in the same cluster - leaving the exact-`serverId`
  * matchers (`canActOnZone` et al.) and all their call sites untouched.
  *
  * `equivalentServerIds` maps a grant's `serverId` to every server id in its
@@ -122,7 +122,7 @@ export function canActOnZone(input: {
  * (standalone, or not in a cluster) keeps its single grant verbatim.
  *
  * This is applied only on the AUTHZ path (`getCurrentUser`, the DynDNS token
- * path, the grant-ceiling check) — never on the admin DISPLAY path, where the
+ * path, the grant-ceiling check) - never on the admin DISPLAY path, where the
  * operator should see the real stored row, not synthetic per-peer copies.
  *
  * Pure: storage I/O (the cluster lookup) happens in the repo; this just maps.

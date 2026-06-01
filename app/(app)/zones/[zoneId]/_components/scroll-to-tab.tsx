@@ -8,7 +8,7 @@
  * a long records list), the zone header above the tabs can push the tab
  * body below the fold on a phone viewport. This tiny client component
  * watches the `tab` searchParam and scrolls the named anchor into view
- * each time it changes — including the initial mount.
+ * each time it changes - including the initial mount.
  *
  * Default tab ("records", no `tab=` query) is the page's natural landing
  * state, so we deliberately skip scrolling there to preserve the

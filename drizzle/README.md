@@ -1,8 +1,8 @@
-# `drizzle/` — generated SQL migrations
+# `drizzle/` - generated SQL migrations
 
 Files in this directory are produced by `npm run db:generate` and applied by
 `npm run db:migrate`. **Do not hand-edit** generated `*.sql` files after they're
-committed — write a follow-up migration instead.
+committed - write a follow-up migration instead.
 
 ## Workflow
 
@@ -15,7 +15,7 @@ committed — write a follow-up migration instead.
    clauses), index renames.
 4. Commit `drizzle/NNNN_*.sql` and `drizzle/meta/` together.
 5. Apply locally with `npm run db:migrate`. In production, the operator runs
-   the same command — ADR 0005 forbids auto-applying on app boot.
+   the same command - ADR 0005 forbids auto-applying on app boot.
 
 ## In docker-compose
 

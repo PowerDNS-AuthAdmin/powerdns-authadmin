@@ -1,10 +1,10 @@
 /**
  * app/api/admin/pdns/zones/[zoneId]/metadata/[kind]/route.ts
  *
- * PUT    — replace all values for a single metadata kind. Upsert
+ * PUT    - replace all values for a single metadata kind. Upsert
  *          semantics (PDNS creates the kind if it didn't exist).
  *          Permission: `metadata.write`.
- * DELETE — remove the kind entirely. Permission: `metadata.write`.
+ * DELETE - remove the kind entirely. Permission: `metadata.write`.
  *
  * The route validates the `kind` path segment server-side (PDNS
  * accepts arbitrary strings, but operators get a better experience
@@ -54,7 +54,7 @@ interface RouteContext {
 
 export async function PUT(request: Request, context: RouteContext): Promise<Response> {
   try {
-    // Authenticate without the type-level `can:` short-circuit — we
+    // Authenticate without the type-level `can:` short-circuit - we
     // grant on EITHER the type-level role permission OR a per-zone
     // grant via `canActOnZone` below.
     const { user: actor, globalPermissions, zoneGrants } = await requireUser();
@@ -125,7 +125,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
 
 export async function DELETE(request: Request, context: RouteContext): Promise<Response> {
   try {
-    // Same EITHER-OR pattern as PUT — see comment there.
+    // Same EITHER-OR pattern as PUT - see comment there.
     const { user: actor, globalPermissions, zoneGrants } = await requireUser();
     await requireCsrf(request);
 
@@ -180,7 +180,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
 
 /**
  * Capture the current values for a kind for the audit `before` snapshot.
- * Try GET first; if PDNS returns null (404 or 422 — some kinds aren't
+ * Try GET first; if PDNS returns null (404 or 422 - some kinds aren't
  * GET-able individually even though they're in the LIST), fall back to
  * scanning the full metadata list for a match. Returns null when the
  * kind truly isn't set.

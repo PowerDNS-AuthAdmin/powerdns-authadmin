@@ -1,4 +1,4 @@
-# ADR 0010 — Per-RRset optimistic concurrency for the editor
+# ADR 0010 - Per-RRset optimistic concurrency for the editor
 
 - **Status:** Proposed
 - **Date:** 2026-05-17
@@ -55,7 +55,7 @@ function rrsetHash(rrset: {
 }
 ```
 
-Truncated to 16 hex characters (64 bits) — enough collision resistance for an RRset-by-RRset
+Truncated to 16 hex characters (64 bits) - enough collision resistance for an RRset-by-RRset
 check (operator concurrency is on the order of dozens of users, not adversaries).
 
 ### Wire format
@@ -111,10 +111,10 @@ On 409:
 
 ### Create + Delete paths
 
-- **Create** (`before: null`): no `expected` makes sense — there's nothing to hash. If two
+- **Create** (`before: null`): no `expected` makes sense - there's nothing to hash. If two
   operators both create the same (name, type), the second is treated as an update; the
   server-computed hash diff surfaces in the per-RRset audit row for review.
-- **Delete** (`after: null`): the `expected.hash` of `before` is still meaningful — the
+- **Delete** (`after: null`): the `expected.hash` of `before` is still meaningful - the
   operator is asserting "I want to delete this rrset as I last saw it." If someone changed it
   in between, the conflict path fires and the operator decides whether to delete the new
   content.
@@ -122,14 +122,14 @@ On 409:
 ### Server-side caching to avoid the extra round-trip
 
 The audit `before` snapshot path (line ~180 of `rrsets/route.ts`) already fetches the live
-rrset before applying changes. Reuse the same fetch for hash comparison — no additional
+rrset before applying changes. Reuse the same fetch for hash comparison - no additional
 HTTP round-trip to PDNS.
 
 ## Rationale
 
 - **Per-RRset granularity matches the editor's mental model.** Operators edit one rrset at a
   time; collisions across distinct rrsets shouldn't block each other.
-- **Audit log already carries `before` snapshots** — the conflict reconciliation panel can
+- **Audit log already carries `before` snapshots** - the conflict reconciliation panel can
   reuse the redacted snapshot format from `lib/audit/log.ts`.
 - **Hash, not version number.** A version column on rrsets would require schema changes that
   PDNS doesn't expose (we don't own the rrset table). Hashing is server-side, requires zero
@@ -144,24 +144,24 @@ HTTP round-trip to PDNS.
 - **Zone-level `edited_serial` check.** The discarded earlier approach (consecutive own-edits
   false-conflict). The per-RRset hash fixes that without reintroducing the false-positive.
 - **ETag / If-Match HTTP semantics.** Conceptually equivalent to the hash field but requires
-  per-rrset GET endpoints with their own ETags — adds API surface for marginal gain.
+  per-rrset GET endpoints with their own ETags - adds API surface for marginal gain.
 - **PDNS native concurrency.** PDNS's HTTP API has no concurrency primitive (no ETag, no
   If-Match, no row versioning). Per-RRset locking has to live in the app layer.
 - **Pessimistic locking (per-rrset edit lock).** Operator A starts editing → lock; B can't
-  edit until A times out or commits. Wrong UX for an admin tool — A might walk away with the
+  edit until A times out or commits. Wrong UX for an admin tool - A might walk away with the
   lock open. Pessimistic locks are for shared-document editors with explicit "leave session"
   signals.
 
 ## Consequences
 
-- **Wire format change** (additive `expected` field) — backward-compatible.
+- **Wire format change** (additive `expected` field) - backward-compatible.
 - **One new pure helper** in `lib/pdns/rrsets.ts` or a new
-  `lib/pdns/rrset-hash.ts` — easy to unit-test (pure function over a record).
-- **New conflict-response shape** — typed in `lib/pdns/types.ts` so client + server agree.
+  `lib/pdns/rrset-hash.ts` - easy to unit-test (pure function over a record).
+- **New conflict-response shape** - typed in `lib/pdns/types.ts` so client + server agree.
 - **Audit action vocabulary** gains `record.override` (or similar) for the "operator
   acknowledged conflict and re-submitted without `expected`" path.
 - **No PDNS API change.** No new schema column. No migration.
-- **Integration test surface**: 4 scenarios — happy path (no conflict, applies), single-
+- **Integration test surface**: 4 scenarios - happy path (no conflict, applies), single-
   rrset conflict (returns 409, nothing applied), multi-change with one conflict (still
   nothing applied), override path (re-submit without `expected` applies).
 
@@ -175,5 +175,5 @@ HTTP round-trip to PDNS.
 6. Client: extend the editor's submit to include `expected` from the loaded rrset; render
    the conflict reconciliation panel (T+4 / T+5).
 
-Stop after step 3 if shipping in two phases — server-side is useful to any future client
+Stop after step 3 if shipping in two phases - server-side is useful to any future client
 even before the editor learns to send the field.

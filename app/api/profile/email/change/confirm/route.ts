@@ -1,7 +1,7 @@
 /**
  * app/api/profile/email/change/confirm/route.ts
  *
- * POST { token } — finalize an email change. The token was minted by
+ * POST { token } - finalize an email change. The token was minted by
  * `/api/profile/email/change` and carries `{userId, email=NEW}`.
  *
  * Safety analysis (why this is OK to share the `pde_` token shape
@@ -9,12 +9,12 @@
  *
  *   1. **Cross-redeem verify-token-here**: an attacker who steals an
  *      email-verify token (its `payload.email` equals the user's
- *      CURRENT email) cannot use it to change the email — this route
+ *      CURRENT email) cannot use it to change the email - this route
  *      rejects when `payload.email === user.email` (no-op).
  *
  *   2. **Cross-redeem change-token-at-verify**: an attacker who
  *      steals a change-token (`payload.email` = NEW email) cannot
- *      verify the account — the verify route rejects when
+ *      verify the account - the verify route rejects when
  *      `payload.email !== user.email`.
  *
  *   3. **Replay**: after a successful swap, `user.email` becomes the
@@ -113,7 +113,7 @@ export async function POST(request: Request): Promise<Response> {
       throw new ValidationError("This email change has already been completed.");
     }
 
-    // Uniqueness race — another user grabbed the email between mint
+    // Uniqueness race - another user grabbed the email between mint
     // and confirm.
     const conflicting = await findUserByEmail(newEmail);
     if (conflicting && conflicting.id !== user.id) {
@@ -140,7 +140,7 @@ export async function POST(request: Request): Promise<Response> {
 
       // Revoke everything (including the current session). The user
       // will sign back in with the new email. Mirrors the password-
-      // reset behavior — credential equivalence is changing.
+      // reset behavior - credential equivalence is changing.
       const revoked = await revokeSessionsForUser(user.id, tx);
 
       await appendAudit(

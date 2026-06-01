@@ -1,4 +1,4 @@
-# ADR 0015 — Backend health advisories (the notification bell)
+# ADR 0015 - Backend health advisories (the notification bell)
 
 - **Status:** Accepted
 - **Date:** 2026-05-23
@@ -8,7 +8,7 @@
 
 Operators need to know when a backend is broken or mis-serving without hunting through pages. Each
 poll already yields observed state: reachability (`lastSeenAt`), the capability snapshot and zone
-inventory from ADR-0014, and zone serials. The hazard in any alerting system is **noise** — a bell
+inventory from ADR-0014, and zone serials. The hazard in any alerting system is **noise** - a bell
 that cries wolf gets muted. The user's explicit constraint: this must be "logically sound and
 actually beneficial rather than just noise."
 
@@ -18,29 +18,29 @@ actually beneficial rather than just noise."
    `BackendProfile` set (ADR-0014). Nothing is hand-raised; when the condition clears, the advisory
    disappears. The only persisted state is `firstSeenAt` / `lastSeenAt` (for debounce + age) and
    `acknowledgedAt`.
-2. **Curated, severity-tiered rule set — actionable only:**
-   - **ERROR** — backend unreachable past threshold; `/config` or `/servers` returns 401/403 (API
+2. **Curated, severity-tiered rule set - actionable only:**
+   - **ERROR** - backend unreachable past threshold; `/config` or `/servers` returns 401/403 (API
      off / wrong key); has Slave zones but `secondary=no` (they will never AXFR); a Slave zone with
      empty `masters[]`; replication **serial drift** beyond threshold between matched managed
      backends.
-   - **WARN** — has Master zones but `primary=no` (no NOTIFY on change); `autosecondary=yes` with no
+   - **WARN** - has Master zones but `primary=no` (no NOTIFY on change); `autosecondary=yes` with no
      autoprimaries configured, or autoprimaries present but `autosecondary=no` (capability/intent
      mismatch).
-   - **INFO** — reserved, off by default.
+   - **INFO** - reserved, off by default.
    - No style/opinion rules (e.g. "you should sign this zone"). Signal is protected by _what we
      refuse to alert on_.
 3. **Debounce.** A condition must persist ≥2 consecutive polls (or ≥ N minutes) before it counts as
-   active/alerting — a single failed poll never rings the bell.
+   active/alerting - a single failed poll never rings the bell.
 4. **Acknowledge / snooze** per `(backendId, code)`. Acked advisories drop out of the count but stay
    listed; if the advisory's detail materially changes (e.g. drift grows), the ack is invalidated
    and it re-alerts.
 5. **Surfacing.** A bell in the top bar shows the unacked active count, coloured by max severity. The
    dropdown groups by backend; each row carries a one-line _why it matters_ + _how to fix_ + a deep
-   link to the relevant page; live-updated over the existing SSE bus. **Permission-scoped** — a user
+   link to the relevant page; live-updated over the existing SSE bus. **Permission-scoped** - a user
    only sees advisories for backends they can read.
 6. **Storage.** A `backend_advisory` table upserted by `(backendId, code)` each poll (severity,
    title, detail, `firstSeenAt`, `lastSeenAt`, `acknowledgedAt`). Rows absent from the latest
-   evaluation are pruned — the table self-heals.
+   evaluation are pruned - the table self-heals.
 
 ## Rationale
 

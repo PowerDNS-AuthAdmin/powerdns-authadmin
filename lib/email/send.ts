@@ -24,7 +24,7 @@ import { redact } from "@/lib/errors/redact";
 export interface SendEmailInput {
   to: string;
   subject: string;
-  /** Plain-text body. ALWAYS provide this — some clients are
+  /** Plain-text body. ALWAYS provide this - some clients are
    *  plaintext-only, and our templates render to text first. */
   text: string;
   /** Optional HTML body. When present, recipients with HTML-capable
@@ -69,7 +69,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       subject: input.subject,
       text: input.text,
       ...(input.html ? { html: input.html } : {}),
-      // X-App-Kind is purely informational — useful when an operator
+      // X-App-Kind is purely informational - useful when an operator
       // is filtering relay logs by which transactional flow the
       // message came from.
       headers: { "X-App-Kind": input.kind },

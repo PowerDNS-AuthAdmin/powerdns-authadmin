@@ -13,7 +13,7 @@
 import type { PdnsZoneDetail } from "@/lib/pdns/types";
 
 interface FormatOptions {
-  /** Inject a `; comment line` at the top — useful for "exported by
+  /** Inject a `; comment line` at the top - useful for "exported by
    * {app} at {timestamp}" headers in bundles. Each entry becomes its
    * own `; …` line. */
   header?: string[];
@@ -27,7 +27,7 @@ export function formatZonefile(zone: PdnsZoneDetail, opts: FormatOptions = {}): 
   lines.push(`$ORIGIN ${zone.name}`);
   if (zone.rrsets && zone.rrsets.length > 0) {
     // Stable rrset ordering: SOA first, then NS at apex, then alphabetic by
-    // (name, type) — matches what most operators expect from `dig AXFR`.
+    // (name, type) - matches what most operators expect from `dig AXFR`.
     const sorted = [...zone.rrsets].sort((a, b) => {
       const aw = weight(a.name, a.type, zone.name);
       const bw = weight(b.name, b.type, zone.name);

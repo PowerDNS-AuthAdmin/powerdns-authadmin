@@ -35,7 +35,7 @@ export function emailEnabled(): boolean {
 
 /**
  * Build (or return cached) nodemailer transport. Throws when the
- * caller forgot to gate on `emailEnabled()` — that's a bug, not a
+ * caller forgot to gate on `emailEnabled()` - that's a bug, not a
  * runtime condition, because the env schema rejects partial SMTP
  * configs at boot.
  */
@@ -51,7 +51,7 @@ export function getMailTransport(): Transporter {
   const port =
     env.SMTP_PORT ?? (env.SMTP_SECURE ? 465 : env.SMTP_STARTTLS === "required" ? 587 : 25);
 
-  // Nodemailer's `requireTLS: true` enforces STARTTLS — the connection
+  // Nodemailer's `requireTLS: true` enforces STARTTLS - the connection
   // is dropped if the server doesn't advertise STARTTLS in its EHLO.
   // For opportunistic mode we leave `requireTLS` off and let nodemailer
   // upgrade if possible. For disabled we set `ignoreTLS: true` so

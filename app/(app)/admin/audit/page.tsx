@@ -39,7 +39,7 @@ interface QuickFilter {
 }
 
 function quickFilters(): QuickFilter[] {
-  // 24h ago in UTC midnight precision. Good enough for "recent" —
+  // 24h ago in UTC midnight precision. Good enough for "recent" -
   // operators rarely need minute-level prefixes from the chips.
   const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const yyyy = yesterday.getUTCFullYear();
@@ -101,7 +101,7 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
   const { ability } = await requireUserForPage({ can: "audit.read" });
   // Per-resource navigation perms. Each ability gates one resource-
   // type link in the table. Operators without a given perm see
-  // plain text instead of a Link — clicking a missing-perm link
+  // plain text instead of a Link - clicking a missing-perm link
   // would either 404 or land on a forbidden redirect, both of
   // which are worse than no link. Computed once at the top so the
   // cell renderer below doesn't re-call `ability.can` per row.
@@ -163,7 +163,7 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
   );
 
   // Per-operation PDNS HTTP log. Batched lookup keyed on the audit row's
-  // requestId — we render a collapsible inside each row's before/after
+  // requestId - we render a collapsible inside each row's before/after
   // panel so an operator can see exactly what hit PDNS for that operation.
   const pdnsRequestIds = Array.from(
     new Set(
@@ -328,7 +328,7 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
               ),
             ).toString()}`}
             className="rounded-md border border-[color:var(--color-border)] px-3 py-1 text-xs hover:bg-[color:var(--color-bg-muted)]"
-            // Force a real download rather than navigating — Next's
+            // Force a real download rather than navigating - Next's
             // <Link> normally prefetches; the API route streams CSV
             // so let the browser handle it as a binary response.
             prefetch={false}
@@ -372,23 +372,23 @@ function buildHref(current: Record<string, string>, overrides: Record<string, st
 
 /**
  * Map an audit row's (resourceType, resourceId) to the admin
- * detail page that knows about it — gated by the per-type read
+ * detail page that knows about it - gated by the per-type read
  * permission so missing-perm operators don't get a clickable
  * dead-end. Returns `null` when no linkable destination applies
  * (caller falls back to plain-text render).
  *
  * Not-yet-linked:
- *   - `session` / `api-token` / `auth` — no admin detail page
+ *   - `session` / `api-token` / `auth` - no admin detail page
  *      (sessions are managed under the user-detail page; tokens
  *      similarly). Could link to the parent user but the audit
  *      row's resourceId is the session/token id, not the userId
- *      — would need a denormalization or join we don't have.
- *   - `zone` — the audit stores the zone id which is the
+ *      - would need a denormalization or join we don't have.
+ *   - `zone` - the audit stores the zone id which is the
  *      canonical zone name (PDNS convention). /zones/[zoneId]
  *      expects URL-encoded form; safe to link in principle but
  *      deferred until we add an integration test that exercises
  *      special-character zone names.
- *   - `audit` — meta-resource for export rows; self-reference.
+ *   - `audit` - meta-resource for export rows; self-reference.
  */
 interface NavAbilities {
   user: boolean;
@@ -403,7 +403,7 @@ interface NavAbilities {
  * Server-side row builder: resolve user emails, resource hrefs, before/after
  * line snapshots, and the per-row PDNS HTTP entries into the plain shape the
  * client AuditTable renders. Keeping this off the client component means the
- * table itself does no fetching — every value lands ready to render.
+ * table itself does no fetching - every value lands ready to render.
  */
 function buildAuditRows(
   entries: Awaited<ReturnType<typeof queryAuditLog>>["entries"],

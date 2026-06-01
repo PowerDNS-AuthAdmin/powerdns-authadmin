@@ -20,7 +20,7 @@ export interface PickablePeer {
 
 export interface PeerSamples {
   /** Recent observed p50 latency per peer id (ms). Missing peers default
-   *  to +Infinity so they sort to the bottom — a peer we have no data
+   *  to +Infinity so they sort to the bottom - a peer we have no data
    *  for is less attractive than one we've measured.  */
   latencyP50Ms: Map<string, number>;
   /** Recent zone counts per peer id (proxy for "load"). Missing → 0. */
@@ -32,9 +32,9 @@ export interface PeerSamples {
  * `lib/pdns/backend-lock.ts` and `lib/pdns/zone-state-cache.ts`) rather than a
  * plain module Map: Next bundles route handlers separately, so a module-level
  * Map can be instantiated more than once per process, splitting the rotation
- * state and letting two bundles each start the cursor at 0 — the same peer
+ * state and letting two bundles each start the cursor at 0 - the same peer
  * gets picked twice in a row. A single globalThis holder gives all bundles one
- * shared cursor. Resets on app boot — a stricter cross-instance fairness
+ * shared cursor. Resets on app boot - a stricter cross-instance fairness
  * guarantee would need DB state, not worth the write per request for an
  * internal hint. The map only grows by O(clusters); never trimmed.
  */
@@ -101,7 +101,7 @@ export function pickPeer(
       return best;
     }
     default: {
-      // Exhaustiveness check — every literal of WriteStrategy is handled.
+      // Exhaustiveness check - every literal of WriteStrategy is handled.
       const _exhaustive: never = cluster.writeStrategy;
       void _exhaustive;
       return peers[0]!;

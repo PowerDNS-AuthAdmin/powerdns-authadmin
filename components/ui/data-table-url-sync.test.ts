@@ -79,7 +79,7 @@ describe("parsePageSizeParam", () => {
   });
 
   it("returns null for an integer outside the allowed set (prevents DOM blow-up)", () => {
-    // `?pageSize=9999` could come from a forged link — must NOT
+    // `?pageSize=9999` could come from a forged link - must NOT
     // grant a 9999-row render.
     expect(parsePageSizeParam("9999", allowed)).toBeNull();
     expect(parsePageSizeParam("1", allowed)).toBeNull();

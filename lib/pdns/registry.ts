@@ -13,7 +13,7 @@
  * The registry imports from `lib/db/*` to read the server row and
  * `lib/crypto/*` to decrypt the API key. The ESLint import-boundary rule
  * forbids `lib/pdns/*` from depending on `lib/db/*`, so this module lives
- * one level up logically — it's the *bridge*, not the protocol client. To
+ * one level up logically - it's the *bridge*, not the protocol client. To
  * keep the boundary clean we put the bridge in `lib/pdns/registry.ts` with
  * the understanding that future architectural refactors may move it to
  * `lib/servers/` or similar. For now an inline ESLint disable documents the
@@ -42,7 +42,7 @@ interface CachedEntry {
  * Probe clients (the background poll + explicit Test/Refresh health checks) fail
  * fast: a SINGLE attempt with a short timeout. An unreachable backend then
  * resolves to "down" in ~5s instead of the ~30s a write-path client spends on
- * 3 attempts × 10s — which otherwise wedges the zones/servers pages (they await
+ * 3 attempts × 10s - which otherwise wedges the zones/servers pages (they await
  * the poll) and stalls the Test toast. Interactive reads/writes (via
  * `backend-gateway`) keep the default resilience; the poll cadence is the retry
  * for a transient blip here.
@@ -108,7 +108,7 @@ export function getPdnsClientForRow(row: PdnsServer): PdnsClient {
 
 /**
  * Fast-fail client for observation/health probes (the background poll + the
- * explicit Test/Refresh). Single attempt, short timeout — see `PROBE_TIMEOUT_MS`.
+ * explicit Test/Refresh). Single attempt, short timeout - see `PROBE_TIMEOUT_MS`.
  * NEVER use for a user-initiated read/write; those go through `backend-gateway`
  * and keep the default retry resilience.
  */
@@ -141,6 +141,6 @@ export function clearPdnsClientRegistry(): void {
 }
 
 // The per-backend daemon snapshot refresh (version + capabilities + reachability
-// + advisory) lives in `lib/realtime/backend-health.ts` — the ONE central health
+// + advisory) lives in `lib/realtime/backend-health.ts` - the ONE central health
 // op shared by the poll and every explicit refresh. The registry stays a pure
 // client cache; it no longer owns a separate probe path.

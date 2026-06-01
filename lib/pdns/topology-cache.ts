@@ -3,13 +3,13 @@
  *
  * Site-wide derived replication topology (ADR-0014), computed ONCE per poll
  * cycle by the zone-poller and read by every surface (servers list, zones list,
- * zone detail, sync, realtime). The derive — matching each mirror zone's
- * masters[] against backends' advertised addresses, with DNS resolution — is
+ * zone detail, sync, realtime). The derive - matching each mirror zone's
+ * masters[] against backends' advertised addresses, with DNS resolution - is
  * expensive, so it lives in the poller, not in each page render.
  *
  * State lives on `globalThis`, NOT a plain module-level binding. Next.js's
  * standalone production build bundles server code per route, so a module `let`
- * would give the poller and each page render SEPARATE copies — the poller would
+ * would give the poller and each page render SEPARATE copies - the poller would
  * write a topology the pages never see (the bug that made every surface read
  * empty). Every read and write goes through `globalThis` so all bundles in the
  * process share one object (same survives-duplication pattern as the zone-state
@@ -46,7 +46,7 @@ function current(): DerivedTopology {
 
 const key = (primaryId: string, zoneName: string): string => `${primaryId} ${zoneName}`;
 
-/** Replace the derived topology — called by the poller each cycle. */
+/** Replace the derived topology - called by the poller each cycle. */
 export function writeDerivedTopology(next: DerivedTopology): void {
   globalThis.__pdnsDerivedTopology = next;
 }

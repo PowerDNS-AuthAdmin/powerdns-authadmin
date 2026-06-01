@@ -1,9 +1,9 @@
 /**
  * app/api/admin/ldap-providers/[id]/route.ts
  *
- * PATCH  — update a provider. The bind password rotates only when provided;
+ * PATCH  - update a provider. The bind password rotates only when provided;
  *          omit to leave the encrypted envelope in place.
- * DELETE — remove a provider. Hard-delete; the audit log keeps the history.
+ * DELETE - remove a provider. Hard-delete; the audit log keeps the history.
  */
 
 import { headers } from "next/headers";

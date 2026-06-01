@@ -7,7 +7,7 @@
  * hash + scope intersection in `lib/auth/get-current-user.ts`.
  *
  * Mutations (issue / revoke) live in their own admin route handlers
- * which use the broader Drizzle plumbing directly — this repo only
+ * which use the broader Drizzle plumbing directly - this repo only
  * exposes the read path + the side-effect of bumping `lastUsedAt`.
  */
 
@@ -22,7 +22,7 @@ import { apiTokens, type ApiToken, type NewApiToken } from "@/lib/db/schema";
  * b-tree probe.
  */
 export async function findApiTokenByPublicPrefix(prefix: string): Promise<ApiToken | null> {
-  // Cheap guard against pathological inputs — the prefix shape is fixed
+  // Cheap guard against pathological inputs - the prefix shape is fixed
   // by `lib/auth/tokens.ts` (8 base64url chars). Anything else can't
   // match, so don't bother hitting the DB.
   if (prefix.length === 0 || prefix.length > 64) return null;
@@ -32,7 +32,7 @@ export async function findApiTokenByPublicPrefix(prefix: string): Promise<ApiTok
 
 /**
  * Bump `lastUsedAt` and `lastUsedIp` for an accepted token. Called
- * fire-and-forget from the auth path — failure here must not break the
+ * fire-and-forget from the auth path - failure here must not break the
  * request, so the caller swallows errors and logs them at warn level.
  */
 export async function touchApiTokenLastUsed(id: string, ip: string | null): Promise<void> {
@@ -52,7 +52,7 @@ export async function touchApiTokenLastUsed(id: string, ip: string | null): Prom
  * operator can see "what did I revoke?" briefly without keeping the
  * table cluttered indefinitely.
  *
- * Returns ApiToken rows verbatim — the route layer is responsible for
+ * Returns ApiToken rows verbatim - the route layer is responsible for
  * stripping `tokenHash` before serializing to the client.
  */
 export async function listApiTokensForUser(userId: string): Promise<ApiToken[]> {

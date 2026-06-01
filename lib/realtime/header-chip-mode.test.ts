@@ -33,7 +33,7 @@ describe("decideHeaderChipMode", () => {
   it("falls back to live even when topology exists, if polling is off", () => {
     // The most common 1.2.0 case: an upgraded primary+secondaries fleet whose
     // operator hasn't yet flipped PDNS_BACKGROUND_POLLING=true. The chip MUST
-    // stay quiet — we'd otherwise render stale or empty sync state.
+    // stay quiet - we'd otherwise render stale or empty sync state.
     expect(
       decideHeaderChipMode({
         ...baseInput,

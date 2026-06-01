@@ -1,17 +1,17 @@
 /**
  * app/api/auth/webauthn/assertion-options/route.ts
  *
- * POST — start an unauthenticated WebAuthn assertion. Body is optional and
+ * POST - start an unauthenticated WebAuthn assertion. Body is optional and
  * may include `{ email }` to scope `allowCredentials` to that user's set;
  * omitting the body is the discoverable-credential (passkey-first,
- * username-less) flow — the platform picks the credential from the user's
+ * username-less) flow - the platform picks the credential from the user's
  * device-local set bound to our RP.
  *
  * Returns `{ options, challengeToken }`. The token is bound to the constant
  * actor `_webauthn-login-pending` and redeemed by /api/auth/webauthn/
  * assertion-verify on the next round-trip. Five-minute TTL.
  *
- * Deliberately does NOT leak whether `email` resolves to a user — when
+ * Deliberately does NOT leak whether `email` resolves to a user - when
  * `email` is supplied but unknown we return a *valid-looking* options
  * payload with an empty allowCredentials list, identical in shape to the
  * "known user but no passkeys" case. An attacker can't enumerate accounts
@@ -53,7 +53,7 @@ export async function POST(request: Request): Promise<Response> {
     const config = await getWebauthnConfig();
 
     // Optional account scoping. We deliberately do not signal "unknown
-    // user" through the response shape — enumeration defense.
+    // user" through the response shape - enumeration defense.
     let allowCredentials: Awaited<ReturnType<typeof listCredentials>> | undefined;
     if (input.email) {
       const user = await findUserByEmail(input.email);

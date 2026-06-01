@@ -30,7 +30,7 @@ export const sessions = pgTable(
     // Indexed for the "recently active sessions" admin view.
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
 
-    // Provenance — useful for the user's "manage sessions" view and for
+    // Provenance - useful for the user's "manage sessions" view and for
     // anomaly detection (geo / UA suddenly changing).
     ip: inet("ip"),
     userAgent: text("user_agent"),
@@ -45,7 +45,7 @@ export const sessions = pgTable(
     // and the original id_token here so /api/auth/logout can build
     // the redirect to the IdP's signed-out screen
     // (`<end_session_url>?id_token_hint=<id_token>&client_id=<id>`).
-    // Both null for local-source sessions — logout falls back to the
+    // Both null for local-source sessions - logout falls back to the
     // plain cookie-clear path.
     oidcEndSessionUrl: text("oidc_end_session_url"),
     oidcIdToken: text("oidc_id_token"),
@@ -80,7 +80,7 @@ export const sessions = pgTable(
      * Encrypted OIDC refresh token (AES-256-GCM via
      * `lib/crypto/encryption.ts`). Populated only when the OIDC sign-in
      * returned a refresh token. Used by the token-auth path to re-fetch
-     * the user's groups claim at API-token use time — the basis for
+     * the user's groups claim at API-token use time - the basis for
      * "tokens follow real permissions" semantics. Null for local / SAML /
      * LDAP sessions, and for OIDC sessions where the provider didn't
      * include `offline_access` scope.
@@ -88,7 +88,7 @@ export const sessions = pgTable(
     oidcRefreshTokenEncrypted: text("oidc_refresh_token_encrypted"),
 
     /**
-     * Which IdP family minted this session — `"oidc" | "saml" | "ldap"`
+     * Which IdP family minted this session - `"oidc" | "saml" | "ldap"`
      * for SSO sessions, `null` for local-auth sessions. The token-auth
      * path reads this to pick the recompute strategy (refresh-token
      * for OIDC, service-account-bind for LDAP, session-snapshot
@@ -97,7 +97,7 @@ export const sessions = pgTable(
     idpProviderType: text("idp_provider_type"),
 
     /**
-     * Provider slug — matches the `slug` column on the corresponding
+     * Provider slug - matches the `slug` column on the corresponding
      * `oidc_providers` / `saml_providers` / `ldap_providers` row. Used
      * by the token recompute to resolve the provider config (TLS opts,
      * service account credentials, search base/filter, etc.).

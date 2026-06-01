@@ -7,10 +7,10 @@
  * prune any that no longer apply, so the table self-heals.
  *
  * Debounce: an advisory only "rings the bell" once it's been observed on at
- * least two cycles — expressed as `last_seen_at > first_seen_at` (equal on the
+ * least two cycles - expressed as `last_seen_at > first_seen_at` (equal on the
  * first sighting, strictly greater afterwards). No time constant, no flapping
  * on a single failed poll. Both sides are columns, so the comparison is
- * SQL-level — no Date binds (the dialect trap from the statistics bug).
+ * SQL-level - no Date binds (the dialect trap from the statistics bug).
  */
 
 import "server-only";
@@ -32,14 +32,14 @@ const visibleSig = (r: {
  * whether the BELL-VISIBLE set changed (a confirmed advisory appeared,
  * disappeared, or its severity/detail/ack flipped) so the poller can publish a
  * single `health.updated` only when something an operator would see actually
- * moved — never on a steady-state cycle.
+ * moved - never on a steady-state cycle.
  *
  * Ack invalidation (ADR-0015 §4): if an existing advisory's severity or detail
  * materially changes, its `acknowledged_at` is cleared in the same upsert so it
  * re-alerts; an unchanged advisory keeps its ack. The comparison is column-vs-
  * bind in SQL, so no dialect Date trap.
  *
- * `immediate` (a user-initiated probe — Test/Refresh): the result is
+ * `immediate` (a user-initiated probe - Test/Refresh): the result is
  * authoritative, so a new advisory is made visible AT ONCE rather than waiting
  * out the ≥2-cycle debounce. Implemented by backdating `first_seen_at` so
  * `last_seen_at > first_seen_at` holds on first sighting. The background poll

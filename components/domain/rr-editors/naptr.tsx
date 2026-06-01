@@ -65,7 +65,7 @@ export const naptrEditor: RREditor<NaptrStruct> = {
           <Field label="Preference">
             {uintInput(value.preference, 65535, (n) => onChange({ ...value, preference: n }))}
           </Field>
-          <Field label="Flags" hint='S, A, U, P — or "".'>
+          <Field label="Flags" hint='S, A, U, P - or "".'>
             <input
               value={value.flags}
               onChange={(e) => onChange({ ...value, flags: e.target.value })}

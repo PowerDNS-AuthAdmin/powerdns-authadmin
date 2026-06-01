@@ -3,7 +3,7 @@
  *
  * Hermetic tests for the shared DNS-rebinding-proof fetch helper. No network:
  *   - `undici` is mocked so the per-request `Agent` ctor is captured and
- *     `fetch` is stubbed — we drive the pinned `connect.lookup` directly and
+ *     `fetch` is stubbed - we drive the pinned `connect.lookup` directly and
  *     assert the request options.
  *   - The guard is a plain stub; we exercise both the safe (pin + fetch) and
  *     unsafe (reject before fetch) branches.

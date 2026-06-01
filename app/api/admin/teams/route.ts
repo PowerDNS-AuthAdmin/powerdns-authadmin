@@ -1,8 +1,8 @@
 /**
  * app/api/admin/teams/route.ts
  *
- * GET  — list teams (team.read).
- * POST — create a team (team.create).
+ * GET  - list teams (team.read).
+ * POST - create a team (team.create).
  */
 
 import { headers } from "next/headers";

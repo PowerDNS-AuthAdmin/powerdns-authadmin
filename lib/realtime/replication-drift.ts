@@ -44,7 +44,7 @@ export function updateDriftDurations(
 /**
  * How long this backend has continuously lagged its primary (ms), or null if in
  * sync / not comparable. Read by the out-of-cycle health refresh (an explicit
- * Test) so it evaluates the same drift the poll would — never spuriously pruning
+ * Test) so it evaluates the same drift the poll would - never spuriously pruning
  * an active drift advisory.
  */
 export function getReplicationDriftMs(backendId: string): number | null {

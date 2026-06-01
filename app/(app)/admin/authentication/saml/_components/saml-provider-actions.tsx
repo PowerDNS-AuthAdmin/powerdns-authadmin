@@ -4,7 +4,7 @@
  * app/(app)/admin/authentication/saml/_components/saml-provider-actions.tsx
  *
  * Delete button for the SAML provider edit page. Mirrors the OIDC
- * equivalent — uses the in-app dialog system (no native confirm).
+ * equivalent - uses the in-app dialog system (no native confirm).
  */
 
 import { useRouter } from "next/navigation";

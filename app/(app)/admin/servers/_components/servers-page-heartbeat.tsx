@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * /admin/servers heartbeat. Pure SSE-driven — no client-side polling.
+ * /admin/servers heartbeat. Pure SSE-driven - no client-side polling.
  *
  * The unified background poller adaptively quickens when it sees any
  * primary↔secondary mismatch (replication in flight) and publishes a
  * `zone.updated` event each time a serial transitions; that event arrives
  * over the app-wide RealtimeProvider stream and triggers one router.refresh
  * here. The visible "SYNCED / DESYNCED" chip lives in the shared
- * HeaderStatusChip in the top bar — this component now also pushes the
+ * HeaderStatusChip in the top bar - this component now also pushes the
  * sync state into it via <HeaderStatusMode/>.
  */
 
@@ -29,7 +29,7 @@ export function ServersPageHeartbeat({ inSync }: Props) {
     (event) =>
       event.type === "zone.updated" ||
       event.type === "zone.sync.changed" ||
-      // A backend going (un)reachable flips its status badge — refresh on the
+      // A backend going (un)reachable flips its status badge - refresh on the
       // same health nudge the bell uses so the list reflects it without a reload.
       event.type === "health.updated",
     () => {

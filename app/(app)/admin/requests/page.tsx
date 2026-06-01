@@ -3,14 +3,14 @@
  *
  * Raw HTTP traffic our server sent to PowerDNS, regardless of whether
  * the operation produced an audit row. Reads (list zones, list rrsets,
- * version probes, …) show up here too — useful for end-to-end traffic
+ * version probes, …) show up here too - useful for end-to-end traffic
  * inspection that the audit-log feed can't surface on its own.
  *
- * Permission: `audit.read` — same as the per-operation HTTP log
+ * Permission: `audit.read` - same as the per-operation HTTP log
  * embedded in the audit-log viewer.
  *
  * Filtering / pagination / sorting all happen in the client component
- * `<PdnsRequestsTable>` — the server just fetches a windowed slice of
+ * `<PdnsRequestsTable>` - the server just fetches a windowed slice of
  * the most recent rows (filtered if URL params are set), and the
  * client handles the rest without full page reloads. Live updates
  * piggyback on the app-wide RealtimeProvider stream.
@@ -30,7 +30,7 @@ export const metadata: Metadata = { title: "PowerDNS requests" };
 export const dynamic = "force-dynamic";
 
 // Server-side hard cap on the window we ship to the client. Client-
-// side pagination walks within this slice. 500 rows ≈ 200 KB JSON —
+// side pagination walks within this slice. 500 rows ≈ 200 KB JSON -
 // safe to inline. If the filtered set is bigger, we signal with
 // `windowCapped` so the operator narrows their filter.
 const WINDOW_SIZE = 500;
@@ -159,7 +159,7 @@ export default async function PdnsRequestsPage({ searchParams }: PageProps) {
 /**
  * Parse a `datetime-local` string ("2026-05-18T13:45") as a Date in
  * the SERVER's local zone. The form input is in the BROWSER's local
- * zone, so this conversion is one source of edge-case skew —
+ * zone, so this conversion is one source of edge-case skew -
  * acceptable for an admin tool where the operator usually has the
  * server's zone configured to UTC.
  *

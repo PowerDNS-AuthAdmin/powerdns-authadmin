@@ -3,7 +3,7 @@
  *
  * Parse a PDNS version string into a comparable triple and derive capability
  * flags. Versions that fail to parse fall back to a conservative "no
- * optional capabilities" snapshot — the app degrades to the lowest-common-
+ * optional capabilities" snapshot - the app degrades to the lowest-common-
  * denominator surface rather than guessing.
  */
 
@@ -18,7 +18,7 @@ interface ParsedVersion {
 
 const VERSION_PATTERN = /^(\d+)\.(\d+)\.(\d+)/;
 
-/** Best-effort parse — accepts a leading semver triple, ignores any suffix. */
+/** Best-effort parse - accepts a leading semver triple, ignores any suffix. */
 function parseVersion(version: string): ParsedVersion | null {
   const match = VERSION_PATTERN.exec(version.trim());
   if (!match) return null;

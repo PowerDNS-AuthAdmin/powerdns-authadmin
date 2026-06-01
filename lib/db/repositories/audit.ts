@@ -2,7 +2,7 @@
  * lib/db/repositories/audit.ts
  *
  * Read access to the append-only audit log. The writer lives in
- * `lib/audit/log.ts` — this module only exposes the query surface used by the
+ * `lib/audit/log.ts` - this module only exposes the query surface used by the
  * admin audit viewer.
  *
  * Filters are applied as a conjunction (AND). The page renders pagination via
@@ -22,11 +22,11 @@ import { escapeLikePattern } from "./audit-like";
  * Audit row enriched with the actor's email. The dashboard's
  * `recentAudit` helper used to be the only consumer of this shape;
  * hoisted it here so the full audit page and CSV export
- * carry the email too — operators triage rows by who-did-what far
+ * carry the email too - operators triage rows by who-did-what far
  * more often than by actor UUID.
  *
  * `actorEmail` is null when the actor row was deleted (cascading
- * actor IDs is not cascaded — audit history is intentionally
+ * actor IDs is not cascaded - audit history is intentionally
  * preserved past user-deletion) or when the actor was non-user
  * (system / token).
  */
@@ -46,7 +46,7 @@ export interface AuditQueryFilters {
   /**
    * Request id (`x-request-id` value from the middleware) exact
    * match. Useful for joining audit rows back to a specific HTTP
-   * request when investigating an incident — operators paste the
+   * request when investigating an incident - operators paste the
    * id from a log line or error toast. Not indexed today; equality
    * scan is fine at audit-log scale.
    */
@@ -61,7 +61,7 @@ export interface AuditQueryFilters {
    * Case-insensitive ILIKE; user input is escaped so `_` and `%`
    * become literal characters.
    *
-   * No GIN/tsvector index on the columns today — a sequential
+   * No GIN/tsvector index on the columns today - a sequential
    * scan is fine at sub-million row counts (the audit viewer is
    * an admin-only surface, not a hot path). When the table grows,
    * add a generated tsvector + GIN index migration; the repo
@@ -122,7 +122,7 @@ export async function queryAuditLog(
  *
  * `maxRows` defaults to 10,000 and is hard-capped at the same. We
  * could chunk further if operators ever need to export more, but
- * 10k rows of audit at the typical row size (~1 KB) is ~10 MB —
+ * 10k rows of audit at the typical row size (~1 KB) is ~10 MB -
  * already the practical ceiling for a single browser download
  * without paging.
  */
@@ -154,7 +154,7 @@ function buildWhereClause(filters: AuditQueryFilters): SQL | undefined {
   if (filters.to) parts.push(lte(auditLog.ts, filters.to));
   if (filters.q) {
     // Case-insensitive substring match across the searchable columns.
-    // Lowercasing both sides keeps this dialect-neutral — PG would use ILIKE,
+    // Lowercasing both sides keeps this dialect-neutral - PG would use ILIKE,
     // SQLite has case-insensitive LIKE for ASCII by default but not Unicode,
     // so explicit `lower()` is the portable form.
     const pattern = `%${escapeLikePattern(filters.q).toLowerCase()}%`;

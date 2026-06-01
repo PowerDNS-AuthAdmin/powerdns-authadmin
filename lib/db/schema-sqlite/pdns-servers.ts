@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/pdns-servers.ts — SQLite mirror of `../schema/pdns-servers.ts`.
+ * lib/db/schema-sqlite/pdns-servers.ts - SQLite mirror of `../schema/pdns-servers.ts`.
  */
 
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";

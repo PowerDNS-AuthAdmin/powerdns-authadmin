@@ -1,13 +1,13 @@
 /**
  * lib/validators/rr-types/txt.ts
  *
- * TXT content — RFC 1035 § 3.3.14: one or more <character-string>s. Each
+ * TXT content - RFC 1035 § 3.3.14: one or more <character-string>s. Each
  * character-string is a length-prefixed octet sequence, 0–255 octets long.
  * In presentation form, character-strings are quoted ("…") and may contain
  * escape sequences (`\"`, `\\`, `\NNN` decimal triples).
  *
  * Real-world TXT values for SPF, DKIM, DMARC, and challenge tokens often
- * exceed 255 octets — RFC 7208 § 3.3 requires splitting into adjacent
+ * exceed 255 octets - RFC 7208 § 3.3 requires splitting into adjacent
  * quoted strings, which are concatenated on the wire. Most authoritative
  * servers (including PDNS) accept either the pre-split form or a single
  * very-long string and split internally. We warn on un-quoted oversize
@@ -37,7 +37,7 @@ export const txtValidator: RRTypeValidator = {
 
     // Two accepted shapes:
     //   1. Already-quoted character-strings: `"…" "…"`
-    //   2. Bare text — we warn and auto-quote at normalize.
+    //   2. Bare text - we warn and auto-quote at normalize.
     if (trimmed.startsWith('"')) {
       // Walk through quoted strings and check each one's payload length.
       const strings = extractQuotedStrings(trimmed);
@@ -65,9 +65,9 @@ export const txtValidator: RRTypeValidator = {
       return { issues, normalized: trimmed };
     }
 
-    // Bare text — auto-quote, but warn if it's longer than what fits in one
+    // Bare text - auto-quote, but warn if it's longer than what fits in one
     // character-string.
-    // RFC 1035 § 5.1 requires `\` to be escaped before `"` — doing it
+    // RFC 1035 § 5.1 requires `\` to be escaped before `"` - doing it
     // the other way around doubles the just-inserted backslash.
     const inner = trimmed.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     if (octetLength(trimmed) > 255) {

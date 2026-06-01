@@ -137,7 +137,7 @@ describe("rrsetHash", () => {
           ],
         }),
       );
-      // Order-independent — same hash.
+      // Order-independent - same hash.
       expect(b).toBe(a);
       // And distinct from a single-record variant.
       const single = rrsetHash(rrset({ records: [{ content: "192.0.2.1" }] }));
@@ -153,7 +153,7 @@ describe("rrsetHash", () => {
 
     it("handles non-ASCII content (IDN, TXT free-form)", () => {
       // Punycode-encoded labels and quoted TXT content with
-      // non-ASCII bytes go straight through — no Unicode
+      // non-ASCII bytes go straight through - no Unicode
       // normalization is applied (PDNS round-trips bytes
       // verbatim).
       const a = rrsetHash(rrset({ type: "TXT", records: [{ content: '"héllo"' }] }));
@@ -164,7 +164,7 @@ describe("rrsetHash", () => {
     it("treats trailing-dot vs no-trailing-dot names as distinct", () => {
       // Pinning: DNS canonical form has the trailing dot, but the
       // operator UI sometimes loads names without it. The hash
-      // does NOT silently add the dot — we want trailing-dot
+      // does NOT silently add the dot - we want trailing-dot
       // mismatch to be visible as a conflict so the editor can
       // surface the inconsistency.
       const withDot = rrsetHash(rrset({ name: "www.example.com." }));
@@ -183,7 +183,7 @@ describe("detectRRsetConflicts", () => {
   it("returns empty when no changes carry `expected` (legacy clients)", () => {
     const before = liveZone([rrset()]);
     const changes: ConflictCandidate[] = [
-      { name: "www.example.com.", type: "A" }, // no expected — skipped
+      { name: "www.example.com.", type: "A" }, // no expected - skipped
     ];
     expect(detectRRsetConflicts(changes, before)).toEqual([]);
   });
@@ -231,13 +231,13 @@ describe("detectRRsetConflicts", () => {
     const liveB = rrset({ name: "mail.example.com.", records: [{ content: "192.0.2.2" }] });
     const before = liveZone([liveA, liveB]);
     const changes: ConflictCandidate[] = [
-      // A: hash matches — no conflict.
+      // A: hash matches - no conflict.
       { name: liveA.name, type: liveA.type, expected: { hash: rrsetHash(liveA) } },
-      // B: hash mismatch — modified.
+      // B: hash mismatch - modified.
       { name: liveB.name, type: liveB.type, expected: { hash: "wrongwrongwrong0" } },
-      // C: not in zone — deleted.
+      // C: not in zone - deleted.
       { name: "gone.example.com.", type: "A", expected: { hash: "abcd1234abcd1234" } },
-      // D: no expected — skipped.
+      // D: no expected - skipped.
       { name: "other.example.com.", type: "A" },
     ];
     const result = detectRRsetConflicts(changes, before);
@@ -261,7 +261,7 @@ describe("detectRRsetConflicts", () => {
 
   it("a change with expected but matching live hash adds nothing", () => {
     // Pinning that the "no conflict" path produces zero entries
-    // — not undefined, not a placeholder, just nothing.
+    // - not undefined, not a placeholder, just nothing.
     const live = rrset();
     const before = liveZone([live]);
     const result = detectRRsetConflicts(

@@ -28,7 +28,7 @@ import { mutate } from "@/lib/client/api-fetch";
 
 interface SessionRow {
   id: string;
-  /** ISO 8601 UTC — rendered client-side via <LocalTime>. */
+  /** ISO 8601 UTC - rendered client-side via <LocalTime>. */
   lastSeenAt: string;
   expiresAt: string;
   ip: string | null;
@@ -44,7 +44,7 @@ interface Props {
    * confirm copy so an operator doesn't accidentally lock themselves
    * out by clicking "Revoke all" on their own sessions list. The
    * action is still allowed (deliberately permitted self-
-   * revoke for IR scenarios) — this is just a clearer guardrail.
+   * revoke for IR scenarios) - this is just a clearer guardrail.
    */
   isSelf: boolean;
   sessions: SessionRow[];
@@ -96,8 +96,8 @@ export function SessionsPanel({ userId, canManage, isSelf, sessions }: Props) {
         ? `Revoke all ${sessions.length} of your sessions?`
         : `Revoke all ${sessions.length} sessions?`,
       description: isSelf
-        ? "This includes the session you're using right now — you'll be signed out immediately. Sign in again with your password / SSO afterwards. The account itself stays active."
-        : "Every browser or app signed in as this user will be kicked out. The account stays active — the user can sign in again with their password / SSO.",
+        ? "This includes the session you're using right now - you'll be signed out immediately. Sign in again with your password / SSO afterwards. The account itself stays active."
+        : "Every browser or app signed in as this user will be kicked out. The account stays active - the user can sign in again with their password / SSO.",
       confirmLabel: isSelf ? "Sign me out everywhere" : "Revoke all",
       variant: "danger",
     });

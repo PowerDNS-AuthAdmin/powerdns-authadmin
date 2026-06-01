@@ -8,22 +8,22 @@
  *
  * The hash is deterministic over canonical RRset content:
  *
- *   1. `name` lowercased — PDNS is case-insensitive at the DNS level
+ *   1. `name` lowercased - PDNS is case-insensitive at the DNS level
  *      but the API surface preserves the casing the operator sent.
  *      Two operators editing `Foo.example.` vs `foo.example.` must
  *      produce the same hash.
- *   2. `type` uppercased — PDNS canonicalizes type codes upper.
- *   3. `ttl` as-is — distinct TTLs are distinct rrsets.
- *   4. `records` sorted by (content, disabled) lexicographically —
+ *   2. `type` uppercased - PDNS canonicalizes type codes upper.
+ *   3. `ttl` as-is - distinct TTLs are distinct rrsets.
+ *   4. `records` sorted by (content, disabled) lexicographically -
  *      record order is not semantically meaningful for an RRset.
  *      `disabled` is normalized to a concrete boolean (false when
- *      absent) so two operators sending equivalent records — one
+ *      absent) so two operators sending equivalent records - one
  *      with `{content, disabled: false}` and one with `{content}`
- *      — collide correctly.
+ *      - collide correctly.
  *
  * Output is the first 16 hex chars of SHA-256 (64 bits). For
  * optimistic concurrency among a handful of concurrent operators
- * (not adversaries), 64 bits is comfortably more than enough — at
+ * (not adversaries), 64 bits is comfortably more than enough - at
  * 1000 concurrent rrset edits the birthday-paradox collision
  * probability is ~3e-14.
  */
@@ -75,7 +75,7 @@ export interface RRsetConflict {
   currentHash?: string;
 }
 
-/** Per-change input the conflict detector cares about — only the
+/** Per-change input the conflict detector cares about - only the
  * identifying triple plus the operator-supplied expected hash. */
 export interface ConflictCandidate {
   name: string;
@@ -85,7 +85,7 @@ export interface ConflictCandidate {
 
 /**
  * Compute the ADR 0010 conflict list for a batch of changes against
- * the live zone snapshot. Pure: no DB, no PDNS, no logging — the
+ * the live zone snapshot. Pure: no DB, no PDNS, no logging - the
  * route wraps with auth + 409 response + audit. Pulled out for
  * direct unit testing (the route handler itself has no precedent
  * for unit-test mocking in this project).

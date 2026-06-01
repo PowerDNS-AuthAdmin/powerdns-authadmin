@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/users.ts — SQLite mirror of `../schema/users.ts`.
+ * lib/db/schema-sqlite/users.ts - SQLite mirror of `../schema/users.ts`.
  */
 
 import { sql } from "drizzle-orm";
@@ -17,7 +17,7 @@ export const users = sqliteTable(
     passwordHash: text("password_hash"),
 
     totpSecretEncrypted: text("totp_secret_encrypted"),
-    // Per-user MFA policy override — NULL inherit / true require / false exempt.
+    // Per-user MFA policy override - NULL inherit / true require / false exempt.
     // Supersedes role requiresMfa (and, when set, the SSO exemption). See the
     // Postgres schema for the full semantics.
     mfaRequired: integer("mfa_required", { mode: "boolean" }),

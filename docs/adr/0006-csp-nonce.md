@@ -1,4 +1,4 @@
-# ADR 0006 — Per-request CSP nonce
+# ADR 0006 - Per-request CSP nonce
 
 - **Status:** Accepted
 - **Date:** 2026-05-16
@@ -6,22 +6,22 @@
 
 ## Context
 
-Next.js streams inline `<script>` tags as part of its server-rendered HTML — these carry the
+Next.js streams inline `<script>` tags as part of its server-rendered HTML - these carry the
 hydration payload that React needs to take over the page. A strict Content Security Policy must
 allow those inline scripts somehow.
 
 The options are:
 
-1. `script-src 'unsafe-inline'` — allow any inline script. Defeats most of CSP's protection.
-2. `script-src 'self' 'sha256-<hash>'` — hash-pin known inline scripts. Doesn't work when the
+1. `script-src 'unsafe-inline'` - allow any inline script. Defeats most of CSP's protection.
+2. `script-src 'self' 'sha256-<hash>'` - hash-pin known inline scripts. Doesn't work when the
    inline content varies per request (which it does for hydration).
-3. `script-src 'self' 'nonce-<random>' 'strict-dynamic'` — issue a per-request random nonce,
+3. `script-src 'self' 'nonce-<random>' 'strict-dynamic'` - issue a per-request random nonce,
    include it on every inline script tag we want to allow, trust further scripts loaded by those
    trusted ones.
 
 ## Decision
 
-We use option 3: a **per-request nonce** generated in `proxy.ts` (the Next 16 proxy convention —
+We use option 3: a **per-request nonce** generated in `proxy.ts` (the Next 16 proxy convention -
 formerly `middleware.ts`), propagated to Next.js'
 inline scripts via the `x-nonce` request header, with `'strict-dynamic'` so we don't have to list
 every chunk URL.
@@ -51,7 +51,7 @@ every chunk URL.
 
 - All inline scripts in the app must carry `nonce={nonce}` from a server component / route
   handler. Forgetting this means the script silently fails to execute.
-- Browser DevTools shows the nonce on every script — that's fine; the protection comes from the
+- Browser DevTools shows the nonce on every script - that's fine; the protection comes from the
   nonce being unpredictable per request, not from being secret.
 - E2E tests that inject scripts via Playwright must use Playwright's evaluation context, not
   string injection.

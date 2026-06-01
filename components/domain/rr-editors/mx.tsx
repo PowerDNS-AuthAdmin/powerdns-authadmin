@@ -2,7 +2,7 @@
  * components/domain/rr-editors/mx.tsx
  *
  * MX = preference (uint16) + exchange (hostname). RFC 1035 § 3.3.9.
- * RFC 7505 null MX is `0 .` — handled by the validator on save; the
+ * RFC 7505 null MX is `0 .` - handled by the validator on save; the
  * editor lets you type `.` literally if you need it.
  */
 

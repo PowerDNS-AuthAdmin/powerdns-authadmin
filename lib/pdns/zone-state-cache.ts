@@ -24,7 +24,7 @@ export interface CachedZoneSnapshot {
   notifiedSerial: number | null;
   kind: string;
   dnssec: boolean;
-  /** AXFR source addresses for a mirror zone — drives derived topology. */
+  /** AXFR source addresses for a mirror zone - drives derived topology. */
   masters: string[];
 }
 
@@ -51,7 +51,7 @@ export function writeCachedZones(serverDbId: string, zones: CachedZoneSnapshot[]
   cache.set(serverDbId, { fetchedAt: Date.now(), zones: map });
 }
 
-/** Snapshot getter — handy for tests + the poller's diff. */
+/** Snapshot getter - handy for tests + the poller's diff. */
 export function rawCache(): Map<string, CachedListEntry> {
   return cache;
 }

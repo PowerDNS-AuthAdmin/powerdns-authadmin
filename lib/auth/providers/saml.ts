@@ -35,7 +35,7 @@ import type { SamlGroupMapping, SamlProvider } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
 import type { VerifiedIdentity } from "./types";
 
-/** Resolved provider config — keypairs decrypted in-memory. */
+/** Resolved provider config - keypairs decrypted in-memory. */
 export interface ResolvedSamlProvider {
   id: string;
   slug: string;
@@ -92,7 +92,7 @@ function fromDbRow(row: SamlProvider): ResolvedSamlProvider {
 }
 
 /**
- * Resolve a SAML provider by slug. Returns null when no enabled row matches —
+ * Resolve a SAML provider by slug. Returns null when no enabled row matches -
  * caller surfaces as a 404.
  */
 export async function resolveSamlProvider(slug: string): Promise<ResolvedSamlProvider | null> {
@@ -225,7 +225,7 @@ export async function verifyResponse(
     throw new Error("SAML: response did not include a profile.");
   }
 
-  // InResponseTo binding — defends against an attacker injecting a Response
+  // InResponseTo binding - defends against an attacker injecting a Response
   // not tied to our initiated login. node-saml validates the assertion
   // internally; here we cross-check what came back against our cookie value.
   const inResponseTo = typeof profile["inResponseTo"] === "string" ? profile["inResponseTo"] : null;
@@ -238,7 +238,7 @@ export async function verifyResponse(
   const email = readAttribute(profile, provider.claimEmail) ?? profile.nameID ?? null;
   if (!email) {
     throw new Error(
-      `SAML: no email — attribute '${provider.claimEmail}' missing and NameID is empty.`,
+      `SAML: no email - attribute '${provider.claimEmail}' missing and NameID is empty.`,
     );
   }
 
@@ -259,7 +259,7 @@ export async function verifyResponse(
     source: `saml:${provider.slug}`,
     email: String(email),
     ...(name ? { name } : {}),
-    // SAML has no `email_verified` analogue — leave undefined so the
+    // SAML has no `email_verified` analogue - leave undefined so the
     // existing-account check defers to the per-provider toggle (we mirror
     // OIDC's posture: trust the IdP unless explicitly told not to).
     claims: {
@@ -274,7 +274,7 @@ export async function verifyResponse(
     // SAML has its own logout shape; we surface the IdP SLO URL +
     // sessionIndex via the same `oidcLogout` slot in session storage so the
     // logout path doesn't need a parallel column. The clientId field is
-    // repurposed to carry the sessionIndex — that's what the IdP needs to
+    // repurposed to carry the sessionIndex - that's what the IdP needs to
     // end the right session on SLO. Documented in this module's header.
     oidcLogout: {
       endSessionUrl: provider.idpSloUrl,
@@ -310,7 +310,7 @@ export function buildSpMetadata(provider: ResolvedSamlProvider, appUrl: string):
     privateKey: provider.spSigningKey,
     signatureAlgorithm: provider.signatureAlgorithm,
     digestAlgorithm: provider.signatureAlgorithm,
-    // We do NOT sign the metadata XML itself by default — most IdPs accept
+    // We do NOT sign the metadata XML itself by default - most IdPs accept
     // unsigned metadata, and signing it would require maintaining a separate
     // metadata-signing keypair. Operators that need signed metadata can
     // re-host this output behind their own signing infrastructure.
@@ -345,5 +345,5 @@ export function describeSamlError(err: unknown): SamlErrorDetail {
   };
 }
 
-/** Logger helper — keeps a consistent prefix for SAML diagnostic lines. */
+/** Logger helper - keeps a consistent prefix for SAML diagnostic lines. */
 export const samlLog = logger;

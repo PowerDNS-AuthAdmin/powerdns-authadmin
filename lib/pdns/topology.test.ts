@@ -66,7 +66,7 @@ describe("resolveUpstreams", () => {
   });
 
   it("matches a hidden primary by AXFR address, not NS membership", () => {
-    // The "primary" need not appear in any NS record — matching is purely on
+    // The "primary" need not appear in any NS record - matching is purely on
     // the advertised AXFR address.
     const { matched } = resolveUpstreams(["192.0.2.10"], [primary]);
     expect(matched.map((b) => b.id)).toEqual(["primary"]);

@@ -3,7 +3,7 @@
  *
  * Schema-level coverage for the DNSSEC cryptokey responses the client
  * parses. Mirrors the patterns the `PdnsClient.{list,get}Cryptokeys`
- * methods consume — fixtures lifted from PDNS Authoritative docs +
+ * methods consume - fixtures lifted from PDNS Authoritative docs +
  * representative real-world bodies.
  *
  * The transport itself reuses the same `pdnsRequest` plumbing as
@@ -45,7 +45,7 @@ const PDNS_45_ZSK = {
   bits: 256,
 };
 
-// Older PDNS (4.0-ish) — no `published`, no `cds`, no `algorithm`/`bits`.
+// Older PDNS (4.0-ish) - no `published`, no `cds`, no `algorithm`/`bits`.
 const PDNS_40_LEGACY = {
   id: 99,
   keytype: "ksk",
@@ -119,7 +119,7 @@ describe("pdnsCryptokeyListSchema", () => {
 describe("pdnsCryptokeyDetailSchema", () => {
   it("is identical in shape to the summary schema (no extra fields)", () => {
     // If this ever diverges intentionally we want a test failure that
-    // forces a deliberate look — the comment in types.ts says we
+    // forces a deliberate look - the comment in types.ts says we
     // skip `privatekey` on purpose.
     expect(pdnsCryptokeyDetailSchema.parse(PDNS_45_KSK)).toEqual(
       pdnsCryptokeySummarySchema.parse(PDNS_45_KSK),

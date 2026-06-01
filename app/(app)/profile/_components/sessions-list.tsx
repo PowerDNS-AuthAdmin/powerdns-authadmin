@@ -6,7 +6,7 @@
  * Render the signed-in user's active sessions and offer per-row revocation.
  * Refreshes the page after a successful revoke so the list reflects state.
  *
- * We don't try to identify "this is your current session" here — that
+ * We don't try to identify "this is your current session" here - that
  * requires reading the session cookie which is HttpOnly. can add a
  * server-prop pass for "current session id".
  */
@@ -71,7 +71,7 @@ export function SessionsList({ sessions }: { sessions: SessionSummary[] }) {
         accessorKey: "ip",
         header: "IP",
         cell: (ctx) => (
-          <span className="font-mono text-xs">{ctx.getValue<string | null>() ?? "—"}</span>
+          <span className="font-mono text-xs">{ctx.getValue<string | null>() ?? "-"}</span>
         ),
         meta: { className: "w-44" },
       },
@@ -80,7 +80,7 @@ export function SessionsList({ sessions }: { sessions: SessionSummary[] }) {
         header: "User agent",
         cell: (ctx) => (
           <span className="line-clamp-2 max-w-[36ch] text-xs">
-            {ctx.getValue<string | null>() ?? "—"}
+            {ctx.getValue<string | null>() ?? "-"}
           </span>
         ),
       },

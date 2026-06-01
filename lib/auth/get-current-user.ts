@@ -44,8 +44,8 @@ export interface AuthenticatedRequest {
   user: User;
   ability: AppAbility;
   /**
-   * Permissions held at **global** scope. This — NOT a type-level
-   * `ability.can(action, "Type")` — is the correct "can act on any
+   * Permissions held at **global** scope. This - NOT a type-level
+   * `ability.can(action, "Type")` - is the correct "can act on any
    * resource of this type" decision: a type-level CASL check returns
    * true even for a team/zone/server-scoped rule (see
    * `globalPermissionsOf`). Zone/record/dnssec/metadata routes combine
@@ -60,7 +60,7 @@ export interface AuthenticatedRequest {
    *
    * Token-auth callers see this narrowed to the same intersection
    * with `tokenRow.scopes` that `narrowAssignmentsByTokenScopes`
-   * applies to role assignments — a leaked token can't grant a
+   * applies to role assignments - a leaked token can't grant a
    * permission the user lost.
    */
   zoneGrants: readonly ZoneGrant[];
@@ -70,7 +70,7 @@ export interface AuthenticatedRequest {
 /**
  * Resolve the current actor. Returns null when no valid credential is
  * present. Throws for *malformed* credentials (e.g. a session cookie that
- * decrypts cleanly but points at a deleted user — that's an inconsistency,
+ * decrypts cleanly but points at a deleted user - that's an inconsistency,
  * not "anonymous").
  */
 /**
@@ -107,7 +107,7 @@ export async function getCurrentUser(): Promise<AuthenticatedRequest | null> {
     // validated at write time on admin routes).
     const adminSources = assignments as readonly AbilitySource[];
     // IdP-derived permissions snapshotted onto the session at sign-in.
-    // Folded in as additional ability sources — the ability builder
+    // Folded in as additional ability sources - the ability builder
     // doesn't distinguish between admin- and IdP-issued rows once
     // they're in the source list.
     const derivedSources = session.derivedPermissions as readonly AbilitySource[];
@@ -158,7 +158,7 @@ async function resolvePresentedToken(
   // Cheap structural rejections before the expensive Argon2 verify so
   // attackers can't use an Argon2 oracle to enumerate row presence.
   // Argon2 fires *after* prefix lookup so the timing of "no row" vs
-  // "row but wrong" is similar at the slow scale — a missing-row caller
+  // "row but wrong" is similar at the slow scale - a missing-row caller
   // pays one DB round-trip; a present-row caller pays one DB + Argon2.
   // We accept that minor asymmetry because prefix space (2^48) makes
   // enumeration impractical regardless.
@@ -187,21 +187,21 @@ async function resolvePresentedToken(
 
   // IdP-derived permissions for the token. Two-tier:
   //
-  //   1. **Live recompute** — when the latest session was minted via
+  //   1. **Live recompute** - when the latest session was minted via
   //      an IdP we can back-channel (OIDC with a refresh token, LDAP
   //      with a service account), re-fetch the user's current groups
   //      from the IdP and materialise. Cached per
   //      `IDP_PERMS_CACHE_TTL_SECONDS` so a burst of token calls
   //      doesn't hammer the IdP.
   //
-  //   2. **Session-snapshot fallback** — when the recompute returns
+  //   2. **Session-snapshot fallback** - when the recompute returns
   //      null (SAML; or any failure: refresh rejected, LDAP search
   //      fails, IdP unreachable), use the session's stored snapshot
   //      bounded by `TOKEN_IDP_FALLBACK_TTL_SECONDS`. Token doesn't
   //      lose IdP-derived perms instantly on a transient blip.
   //
   // Either way the result is token-scope-narrowed against the API
-  // token's `scopes` — a leaked token can't exercise a permission
+  // token's `scopes` - a leaked token can't exercise a permission
   // the user holds via groups if the token's scopes don't include it.
   let derivedSources: readonly AbilitySource[] = [];
   if (latestSession?.idpProviderType && latestSession.idpProviderSlug) {
@@ -245,7 +245,7 @@ async function resolvePresentedToken(
   const sources: readonly AbilitySource[] = [...adminSources, ...derivedSources];
   const ability = buildAbility(sources);
 
-  // Narrow grants by the token's scope set too — a leaked token can't
+  // Narrow grants by the token's scope set too - a leaked token can't
   // exercise a permission the user has via a zone grant if the token
   // wasn't issued with that permission. Empty token scopes preserve
   // the user's full grants (back-compat with pre-scope tokens).
@@ -261,7 +261,7 @@ async function resolvePresentedToken(
 
   // Opportunistically bump lastUsedAt + lastUsedIp. Fire-and-forget so a
   // write failure (transient DB hiccup, replica lag, anything) doesn't
-  // block the request — auth already succeeded.
+  // block the request - auth already succeeded.
   void touchApiTokenLastUsed(row.id, ip).catch((cause) => {
     logger.warn(
       { tokenId: row.id, err: cause instanceof Error ? cause.message : "unknown" },

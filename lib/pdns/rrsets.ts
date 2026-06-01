@@ -6,13 +6,13 @@
  * a small builder layer so the editor doesn't compose PDNS payloads by hand.
  *
  * PDNS changetypes:
- *   - REPLACE  — write the given records as the new RRset (loses concurrent edits)
- *   - DELETE   — drop the RRset
- *   - EXTEND   — add records to the RRset without touching others (PDNS ≥ 4.9.12 / 5.0.2)
- *   - PRUNE    — remove specific records from the RRset (PDNS ≥ 4.9.12 / 5.0.2)
+ *   - REPLACE  - write the given records as the new RRset (loses concurrent edits)
+ *   - DELETE   - drop the RRset
+ *   - EXTEND   - add records to the RRset without touching others (PDNS ≥ 4.9.12 / 5.0.2)
+ *   - PRUNE    - remove specific records from the RRset (PDNS ≥ 4.9.12 / 5.0.2)
  *
  * Why this matters: older systems always sent REPLACE. Two operators editing
- * different records of the same RRset would race — last write wins, the loser
+ * different records of the same RRset would race - last write wins, the loser
  * silently lost their edit. EXTEND/PRUNE close that hole.
  * and the upstream issue history linked there.
  */
@@ -33,7 +33,7 @@ export interface RRRecord {
 /**
  * A free-form comment carried by an RRset. PDNS' wire shape is
  * `{ content, account, modified_at }` (snake_case), but we accept
- * arbitrary objects here — the editor doesn't author comments yet,
+ * arbitrary objects here - the editor doesn't author comments yet,
  * and the round-trip path just preserves whatever PDNS returned.
  */
 export type RRsetComment = Record<string, unknown>;
@@ -41,7 +41,7 @@ export type RRsetComment = Record<string, unknown>;
 /**
  * One PATCH operation. The shape matches the PDNS wire format directly so the
  * builder can JSON-serialize without further translation. `comments` is
- * optional — PDNS keeps existing comments when the field is absent.
+ * optional - PDNS keeps existing comments when the field is absent.
  */
 export interface RRsetPatch {
   /** Canonical name, trailing dot. The builder enforces this. */
@@ -74,7 +74,7 @@ interface BuildReplaceArgs {
 /**
  * REPLACE the whole RRset with `records`. Always supported.
  *
- * `comments` is ALWAYS emitted — PDNS interprets a missing `comments`
+ * `comments` is ALWAYS emitted - PDNS interprets a missing `comments`
  * field as "keep existing comments", while an empty array means "clear
  * them." Callers preserve the live comments by passing them through;
  * sending an explicit empty list when truly absent keeps the audit
@@ -112,7 +112,7 @@ interface BuildExtendArgs {
 }
 
 /**
- * EXTEND — add records to an RRset without disturbing existing records.
+ * EXTEND - add records to an RRset without disturbing existing records.
  * Caller is responsible for checking `client.supports("supportsExtendPrune")`
  * before calling; otherwise PDNS will 400.
  */
@@ -137,7 +137,7 @@ interface BuildPruneArgs {
 }
 
 /**
- * PRUNE — remove specific records from an RRset without touching others.
+ * PRUNE - remove specific records from an RRset without touching others.
  * Same capability gate as `extendRRset`.
  */
 export function pruneRRset(args: BuildPruneArgs): RRsetPatch {

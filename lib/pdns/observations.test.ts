@@ -2,7 +2,7 @@
  * lib/pdns/observations.test.ts
  *
  * The in-memory latency ring buffer. Its p50 feeds `metric_samples`, which the
- * cluster picker reads to route `lowest_latency` writes — so the buffer must
+ * cluster picker reads to route `lowest_latency` writes - so the buffer must
  * only ever contain *successful* request timings. The HTTP layer enforces that
  * by not calling `recordPdnsLatency` on the failure path; this suite locks the
  * buffer's own arithmetic (drain percentiles, isolation per slug, reset).
@@ -34,7 +34,7 @@ describe("recordPdnsLatency / drainPdnsLatency", () => {
     expect(summary?.p50).toBe(100);
   });
 
-  it("a flapping peer's fast failures would drag the p50 down — proving why they're excluded", () => {
+  it("a flapping peer's fast failures would drag the p50 down - proving why they're excluded", () => {
     const slug = freshSlug();
     // A few healthy successes around 200ms...
     for (let i = 0; i < 4; i++) recordPdnsLatency(slug, 200);

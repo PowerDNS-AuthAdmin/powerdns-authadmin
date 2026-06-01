@@ -3,7 +3,7 @@
  *
  * DNS-resolving extension of the pure `topology.ts` matcher (ADR-0014). A
  * mirror zone's `masters[]` holds DNS-layer addresses (usually IPs), while a
- * backend's advertised address often defaults to its API hostname — so a string
+ * backend's advertised address often defaults to its API hostname - so a string
  * compare misses (the "API host ≠ DNS IP" caveat). Here we resolve hostnames to
  * IPs (cached, best-effort) on both sides so a `masters[]` IP can match an
  * advertised hostname. This is what lets a primary+secondaries group's sync be
@@ -44,7 +44,7 @@ async function dnsResolve(host: string): Promise<string[]> {
 }
 
 /**
- * A backend's advertised DNS addresses plus their resolved IPs — the set a
+ * A backend's advertised DNS addresses plus their resolved IPs - the set a
  * mirror zone's `masters[]` is matched against.
  */
 export async function backendAddressSet(

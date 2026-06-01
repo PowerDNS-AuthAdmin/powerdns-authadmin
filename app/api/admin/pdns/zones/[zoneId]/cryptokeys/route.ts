@@ -1,13 +1,13 @@
 /**
  * app/api/admin/pdns/zones/[zoneId]/cryptokeys/route.ts
  *
- * POST — generate a new DNSSEC cryptokey for the zone. Permission:
+ * POST - generate a new DNSSEC cryptokey for the zone. Permission:
  *        `dnssec.configure` (type-level) OR a zone_grant with that
  *        permission. CSRF + audit. PDNS generates the key
  *        server-side; we never see the private material (same
  *        discipline as TSIG).
  *
- * Defaults — `keytype: "ksk"`, `active: true`. Operator can override
+ * Defaults - `keytype: "ksk"`, `active: true`. Operator can override
  * via the request body.
  */
 
@@ -78,7 +78,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
 
     const client = getBackendGateway(selected);
     // DNSSEC keys live on the primary; a mirror serves presigned RRSIGs it got
-    // over AXFR, so key management is read-only there — gate by the zone kind.
+    // over AXFR, so key management is read-only there - gate by the zone kind.
     let zone;
     try {
       zone = await client.getZone(zoneName);

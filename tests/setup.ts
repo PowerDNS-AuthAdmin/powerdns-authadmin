@@ -7,12 +7,12 @@
  * pdns client, anything db-shaped) blows up at import time before a single
  * test runs.
  *
- * The values are placeholders sized to pass schema validation — never real
+ * The values are placeholders sized to pass schema validation - never real
  * secrets. Tests that exercise encryption or the database should still spin
  * up their own scoped fixtures rather than relying on these defaults.
  */
 
-// 32-byte value, base64-encoded — passes `secretKey.min(32)` and decodes to
+// 32-byte value, base64-encoded - passes `secretKey.min(32)` and decodes to
 // the 32 bytes that `APP_ENCRYPTION_KEY` requires for AES-256-GCM.
 const TEST_BASE64_32 = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="; // "0123456789abcdef0123456789abcdef"
 

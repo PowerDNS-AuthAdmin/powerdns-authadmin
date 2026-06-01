@@ -1,12 +1,12 @@
 /**
  * lib/validators/rr-types/srv.ts
  *
- * SRV content — RFC 2782: `<priority> <weight> <port> <target>` for service
+ * SRV content - RFC 2782: `<priority> <weight> <port> <target>` for service
  * location. Priority, weight, and port are all 16-bit unsigned integers.
  * Target is a domain name; the special value `.` indicates "service not
  * available at this domain" (similar in spirit to Null MX).
  *
- * Note that SRV RRset *names* follow `_service._proto.name.` — the underscore
+ * Note that SRV RRset *names* follow `_service._proto.name.` - the underscore
  * labels live in the name field, not in the content. The validator allows
  * underscores in the target name with a warning since it's unusual.
  */
@@ -17,7 +17,7 @@ import type { RRTypeValidator, RRValidationIssue } from "./types";
 export const srvValidator: RRTypeValidator = {
   type: "SRV",
   label: "Service location",
-  description: "priority weight port target — e.g. `10 5 443 service.example.com.` (RFC 2782).",
+  description: "priority weight port target - e.g. `10 5 443 service.example.com.` (RFC 2782).",
   placeholder: "10 5 443 service.example.com.",
   rfc: "RFC 2782",
   validate(content: string) {
@@ -53,7 +53,7 @@ export const srvValidator: RRTypeValidator = {
         const n = Number(value);
         if (label === "port" && n > 65535) {
           // Port is a 16-bit field (RFC 2782); values above 65535 cannot be
-          // encoded — this is a hard range violation, not just unusual usage.
+          // encoded - this is a hard range violation, not just unusual usage.
           issues.push({
             level: "error",
             message: "Port must be 0–65535 (16-bit unsigned, RFC 2782).",

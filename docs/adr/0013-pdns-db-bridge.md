@@ -1,4 +1,4 @@
-# ADR 0013 — The PDNS client's sanctioned DB bridge (and fixing boundary enforcement)
+# ADR 0013 - The PDNS client's sanctioned DB bridge (and fixing boundary enforcement)
 
 - **Status:** Accepted
 - **Date:** 2026-05-22
@@ -14,22 +14,22 @@ declared as an ESLint `import/no-restricted-paths` zone (`lib/pdns` may not impo
 Two things were true and in tension:
 
 1. **The rule wasn't actually enforcing anything.** `import/no-restricted-paths` resolves an
-   import to a file path and compares it against the zone's `from`/`target` directories — which
+   import to a file path and compares it against the zone's `from`/`target` directories - which
    requires an import **resolver**. The codebase imports everything via the `@/…` TS path alias,
    and no resolver was configured, so the rule never resolved `@/lib/db` to `./lib/db` and never
    fired. Four files under `lib/pdns/` had `// eslint-disable-next-line import/no-restricted-paths`
-   directives that were inert — the boundary, the centerpiece of ADR-0004, was silently
+   directives that were inert - the boundary, the centerpiece of ADR-0004, was silently
    unenforced.
 
 2. **Four files genuinely need `lib/db`.** They are bridges by nature, not accidental coupling:
-   - `registry.ts` — builds a `PdnsClient` from a `pdns_servers` row (decrypts the API key, reads
+   - `registry.ts` - builds a `PdnsClient` from a `pdns_servers` row (decrypts the API key, reads
      base URL/capabilities). Constructing a client _is_ reading config from the DB.
-   - `request-log.ts` — writes one `pdns_requests` audit row per outbound HTTP call. It is the
+   - `request-log.ts` - writes one `pdns_requests` audit row per outbound HTTP call. It is the
      PDNS transport's own request log; the writer must touch the DB.
-   - `cluster-picker.ts` — `choosePeer()` reads recent `metric_samples` to apply a latency/zone
+   - `cluster-picker.ts` - `choosePeer()` reads recent `metric_samples` to apply a latency/zone
      count routing strategy. The pure decision lives in `cluster-picker-pure.ts`; this file only
      loads the samples that feed it.
-   - `sync.ts` — cross-server zone-state coordination; enumerates a primary's active secondaries
+   - `sync.ts` - cross-server zone-state coordination; enumerates a primary's active secondaries
      (a DB read) and fans probes across them.
 
 ## Decision
@@ -49,7 +49,7 @@ Two things were true and in tension:
 
 - The bridge files are a small, stable, conceptually-coherent set: "turn a DB server/cluster row
   into PDNS traffic, and log that traffic back." Forcing the DB reads up into every call site
-  would duplicate `loadSamples`/`listActiveSecondariesForPrimary` across 4–5 callers each — worse
+  would duplicate `loadSamples`/`listActiveSecondariesForPrimary` across 4–5 callers each - worse
   coupling, not better.
 - Making the rule actually fire is the important correction: any _new_ `lib/pdns → lib/db` import
   now fails CI unless it's a deliberate, reviewed addition to a bridge file.

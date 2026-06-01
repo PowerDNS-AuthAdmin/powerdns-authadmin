@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/ldap-providers.ts — SQLite mirror of `../schema/ldap-providers.ts`.
+ * lib/db/schema-sqlite/ldap-providers.ts - SQLite mirror of `../schema/ldap-providers.ts`.
  */
 
 import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
@@ -41,7 +41,7 @@ export type LdapProvider = typeof ldapProviders.$inferSelect;
 export type NewLdapProvider = typeof ldapProviders.$inferInsert;
 
 /** Same shape as the PG side; re-declared here to keep the SQLite schema
- *  module standalone — same convention as the OIDC mirror. */
+ *  module standalone - same convention as the OIDC mirror. */
 export interface LdapGroupMapping {
   group: string;
   roleSlug: string;

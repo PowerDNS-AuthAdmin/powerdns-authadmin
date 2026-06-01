@@ -1,7 +1,7 @@
 /**
  * Inline-generated app icon. Next.js picks up `app/icon.tsx` at build
  * time and serves a 32×32 PNG at `/icon`, plus auto-injects the link
- * tag — no `public/favicon.ico` file needed.
+ * tag - no `public/favicon.ico` file needed.
  *
  * The shape is a stylised "P" mark (PDNS) on a transparent square,
  * tinted with the brand accent so it looks coherent in both light

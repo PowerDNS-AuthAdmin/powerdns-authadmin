@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/saml-providers.ts — SQLite mirror of `../schema/saml-providers.ts`.
+ * lib/db/schema-sqlite/saml-providers.ts - SQLite mirror of `../schema/saml-providers.ts`.
  */
 
 import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";

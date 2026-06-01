@@ -1,10 +1,10 @@
 /**
  * app/api/admin/teams/[id]/route.ts
  *
- * PATCH  — update team fields (team.update).
- * DELETE — remove a team (team.delete). Cascades members; role assignments
+ * PATCH  - update team fields (team.update).
+ * DELETE - remove a team (team.delete). Cascades members; role assignments
  *          referencing the team via scope_id are NOT auto-cleaned (no FK on
- *          scope_id by design — see role-assignments.ts comment). The
+ *          scope_id by design - see role-assignments.ts comment). The
  *          assignments simply stop matching anything once the team is gone.
  */
 

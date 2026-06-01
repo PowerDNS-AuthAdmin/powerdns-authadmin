@@ -7,13 +7,13 @@
  * one horizontal scroll bar per section (not per row). Layout switches
  * between side-by-side and stacked:
  *
- *   side-by-side — Before column left, After column right. Rows are
+ *   side-by-side - Before column left, After column right. Rows are
  *                  paired across columns by Jaccard similarity so the
  *                  same logical record/value sits on the same horizontal
  *                  line in both sides. Good for unordered "bags of
  *                  records" (rrset edits, metadata values).
  *
- *   stacked      — Before section on top, After section below, each
+ *   stacked      - Before section on top, After section below, each
  *                  showing its lines in ORIGINAL order. Used for ordered
  *                  text snapshots where line position matters (audit-log
  *                  JSON, settings dumps). Backed by `diffLines` so a
@@ -21,7 +21,7 @@
  *                  instead of being reshuffled by the similarity pairer.
  *
  * Both layouts run `diffWordsWithSpace` on paired lines to highlight the
- * actual changed tokens. Empty sides render "—" so the eye doesn't have
+ * actual changed tokens. Empty sides render "-" so the eye doesn't have
  * to scan for missing rows.
  */
 
@@ -190,7 +190,7 @@ function buildStackedRows(
     const c = chunks[i]!;
     const lines = chunkLines(c.value);
     if (!c.added && !c.removed) {
-      // Unchanged context — render plain on both sides so the user sees
+      // Unchanged context - render plain on both sides so the user sees
       // the surrounding shape (matters for JSON diffs).
       for (const line of lines) {
         beforeRows.push({ segments: [{ text: line, changed: false }], changed: false });
@@ -199,7 +199,7 @@ function buildStackedRows(
       continue;
     }
     if (c.removed && chunks[i + 1]?.added) {
-      // Replacement — pair removed lines with the following added lines.
+      // Replacement - pair removed lines with the following added lines.
       const next = chunks[i + 1]!;
       const removedLines = chunkLines(c.value);
       const addedLines = chunkLines(next.value);
@@ -234,7 +234,7 @@ function buildStackedRows(
 }
 
 function chunkLines(value: string): string[] {
-  // `diffLines` keeps trailing newlines on chunks — strip the final empty
+  // `diffLines` keeps trailing newlines on chunks - strip the final empty
   // line that splitting introduces. Empty interior lines are preserved.
   const lines = value.split("\n");
   if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
@@ -269,7 +269,7 @@ function DiffSection({ title, children }: { title: string; children: React.React
       <div className="border-b border-[color:var(--color-border)] px-4 py-1.5 text-[0.65rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
         {title}
       </div>
-      {/* Lines wrap inside each row (see DiffRow) — no per-section horizontal
+      {/* Lines wrap inside each row (see DiffRow) - no per-section horizontal
           scrollbar. Long unbroken tokens still break via break-words. */}
       <div>{children}</div>
     </div>
@@ -310,7 +310,7 @@ function DiffRow({
     return (
       <div className="flex gap-2 px-2 py-1 font-mono text-xs text-[color:var(--color-fg-subtle)] sm:gap-3 sm:px-3">
         <LineGutter n={lineNumber} />
-        <span className="flex-1">—</span>
+        <span className="flex-1">-</span>
       </div>
     );
   }
@@ -329,10 +329,10 @@ function DiffRow({
       {/* `min-w-0` lets the flex child shrink so `break-words` + `whitespace-
           pre-wrap` can actually wrap the line instead of forcing horizontal
           overflow. Wrapped continuations indent under THIS column, not under
-          the gutter — same visual as a code editor with soft-wrap. */}
+          the gutter - same visual as a code editor with soft-wrap. */}
       <span className="min-w-0 flex-1 break-words whitespace-pre-wrap">
         {segments.length === 0 ? (
-          <span className="text-[color:var(--color-fg-subtle)]">—</span>
+          <span className="text-[color:var(--color-fg-subtle)]">-</span>
         ) : (
           segments.map((seg, i) => (
             <SegmentSpan key={i} text={seg.text} changed={seg.changed} kind={kind} />
@@ -355,7 +355,7 @@ function LineGutter({ n }: { n: number }) {
 }
 
 function EmptyRow({ kind }: { kind: "added" | "removed" }) {
-  // Stacked-layout empty-section placeholder — clearly shows the
+  // Stacked-layout empty-section placeholder - clearly shows the
   // operator that this side has no content (pure-create / pure-delete).
   const rowTint =
     kind === "added"
@@ -365,7 +365,7 @@ function EmptyRow({ kind }: { kind: "added" | "removed" }) {
     <div
       className={`px-4 py-1 font-mono text-xs whitespace-pre text-[color:var(--color-fg-subtle)] ${rowTint}`}
     >
-      —
+      -
     </div>
   );
 }

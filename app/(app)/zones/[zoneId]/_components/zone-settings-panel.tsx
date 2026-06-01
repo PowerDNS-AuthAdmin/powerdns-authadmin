@@ -4,7 +4,7 @@
  * Zone-object settings: Zone Type (kind), SOA-EDIT, SOA-EDIT-API,
  * API-RECTIFY, plus the masters list for Secondary zones. All routed
  * through `PUT /api/admin/pdns/zones/[id]/settings`, which forwards to
- * PDNS' `PUT /zones/{id}` — PDNS' metadata-endpoint allowlist doesn't
+ * PDNS' `PUT /zones/{id}` - PDNS' metadata-endpoint allowlist doesn't
  * accept these kinds in 4.9, so the zone-object endpoint is the right
  * door.
  */
@@ -390,7 +390,7 @@ function EnumSelect({ value, options, onChange, disabled, placeholder }: EnumSel
                 : "hover:bg-[color:var(--color-bg-subtle)]"
             }`}
           >
-            (unset — server default)
+            (unset - server default)
           </li>
           {options.map((o) => (
             <li

@@ -7,7 +7,7 @@
  * the TOTP section in the /profile MFA tab. Each enrolled passkey lists
  * its nickname, transports, last-used timestamp, and a remove button.
  *
- * Driven by `@simplewebauthn/browser` — `startRegistration` returns the
+ * Driven by `@simplewebauthn/browser` - `startRegistration` returns the
  * platform's attestation response which we POST to /registration-verify.
  *
  * The forced-enrolment banner (`mfaRequired` query param) is rendered by
@@ -140,7 +140,7 @@ export function PasskeysSection({ initial, ssoOnly }: Props) {
         <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
           Enrol a passkey (Touch ID, Windows Hello, Android screen lock) or a hardware security key
           (YubiKey, Solo, Titan). They count as a second factor and can also sign you in without a
-          password — pick "Sign in with passkey" on the login page.
+          password - pick "Sign in with passkey" on the login page.
         </p>
       </header>
 

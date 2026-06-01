@@ -87,7 +87,7 @@ describe("PDNS client behavior across topologies", () => {
     const zone = randomZone("cluster");
     await createZoneOn(admin, { clusterSlug: "prod-cluster" }, zone);
 
-    // The rrsets PATCH route doesn't know about clusters — it takes a
+    // The rrsets PATCH route doesn't know about clusters - it takes a
     // concrete serverSlug. Try each peer; the one the picker chose will
     // accept the PATCH, the others will too (shared MariaDB).
     const peers = PDNS_BACKENDS.filter((b) => b.topology === "multi-primary");
@@ -131,7 +131,7 @@ describe("PDNS client behavior across topologies", () => {
     expect(seen).toBeDefined();
   }, 20_000);
 
-  it("cluster: zone audit entries scatter across peer slugs — history must aggregate them", async () => {
+  it("cluster: zone audit entries scatter across peer slugs - history must aggregate them", async () => {
     // Root cause of the empty cluster change-history: writes route through a
     // rotating peer, so edits land under different `${peer}:${zone}` audit
     // resource_ids. Reading a single peer's slug misses the rest; the fix ORs

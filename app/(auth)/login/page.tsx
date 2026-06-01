@@ -5,7 +5,7 @@
  * unified "or sign in with" list of non-local sign-in methods: passkey,
  * every enabled OIDC provider, every enabled SAML provider, every enabled
  * LDAP provider. Each option is a single button labelled with the
- * provider name — no "Continue with" / "Sign in with" prefixes.
+ * provider name - no "Continue with" / "Sign in with" prefixes.
  *
  * Clicking an LDAP button focuses that provider's username/password
  * form via `?ldap=<slug>`, since LDAP needs an on-page credential prompt
@@ -13,7 +13,7 @@
  * OIDC + SAML redirect straight to the IdP. Passkey runs an in-page
  * WebAuthn discoverable-credential flow.
  *
- * The page is a server component — it reads `env` and the enabled-provider
+ * The page is a server component - it reads `env` and the enabled-provider
  * tables and decides which methods to render. The form submission, LDAP
  * form, and passkey flow are client components.
  */
@@ -116,7 +116,7 @@ export default async function LoginPage({
   // Default sign-in method controls what's primary on the page. OIDC and
   // SAML are redirect-only (the IdP hosts the form), so when they're the
   // default a fresh visit auto-bounces. LDAP is in-page (we collect creds)
-  // so its "default" effect is just to swap the inline form — no redirect.
+  // so its "default" effect is just to swap the inline form - no redirect.
   // Local default = local form inline.
   //
   // Skips: post-signout, post-error, flash, `?force-local=1` (manual
@@ -148,7 +148,7 @@ export default async function LoginPage({
   // Which LDAP form (if any) renders as the primary inline form:
   //   1. Explicit `?ldap=<slug>` (user picked a non-default LDAP from the list).
   //   2. Default = `ldap:<slug>` AND not `?force-local=1` AND the provider exists.
-  //   3. None — local form is inline.
+  //   3. None - local form is inline.
   let inlineLdap: (typeof dbLdapProviders)[number] | undefined;
   if (ldapFocusSlug !== undefined) {
     inlineLdap = dbLdapProviders.find((l) => l.slug === ldapFocusSlug);
@@ -208,7 +208,7 @@ export default async function LoginPage({
       key: `ldap-${p.slug}`,
       label: p.name,
       tag: "LDAP",
-      // LDAP needs an in-page credential prompt — clicking the button
+      // LDAP needs an in-page credential prompt - clicking the button
       // re-renders the page with that provider's form inline.
       href: `/login${nextParam}${nextParam ? "&" : "?"}ldap=${encodeURIComponent(p.slug)}`,
     });
@@ -231,7 +231,7 @@ export default async function LoginPage({
           className="mb-4 rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-3 text-sm"
         >
           <strong className="text-[color:var(--color-error)]">
-            APP_URL mismatch — sign-in will fail.
+            APP_URL mismatch - sign-in will fail.
           </strong>
           <p className="mt-1 text-[color:var(--color-fg)]">
             You opened this page at <code className="font-mono">{appUrlCheck.actualOrigin}</code>{" "}

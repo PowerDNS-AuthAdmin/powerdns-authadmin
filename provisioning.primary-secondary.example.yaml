@@ -13,7 +13,7 @@
 # created with NS records + SOA timers pre-filled.
 #
 # The applied state is keyed on slug, so re-running the stack after a
-# config tweak (e.g. rotating an API key here) is a clean upsert — except
+# config tweak (e.g. rotating an API key here) is a clean upsert - except
 # for the `provisioned_at` sentinel, which gates against accidentally
 # re-applying when the operator has been editing through the UI. Drop the
 # sentinel row to force a re-apply:
@@ -29,7 +29,7 @@ settings:
   login_intro: "Demo stack with one Primary and three Secondaries. Sign in with the bootstrap admin from .env."
 
 # -----------------------------------------------------------------------------
-# Zone templates — applied at zone-creation time. The `internal` template
+# Zone templates - applied at zone-creation time. The `internal` template
 # is the default for the Primary backend below, so creating any new zone
 # starts with the right NS records + SOA timers.
 # -----------------------------------------------------------------------------
@@ -58,7 +58,7 @@ zone_templates:
       - primary
 
 # -----------------------------------------------------------------------------
-# Groups — relate backends that replicate together (ADR-0014). The primary and
+# Groups - relate backends that replicate together (ADR-0014). The primary and
 # its secondaries share one group, so the app polls them together and compares
 # their sync state. (Multi-primary clusters use the same mechanism.)
 # -----------------------------------------------------------------------------
@@ -76,7 +76,7 @@ clusters:
 pdns_servers:
   - slug: primary
     name: "Primary (Sydney)"
-    description: "Writable backend — every zone create / record edit lands here."
+    description: "Writable backend - every zone create / record edit lands here."
     base_url: "http://pdns-primary:8081/api/v1"
     server_id: localhost
     api_key: "primary-changeme"

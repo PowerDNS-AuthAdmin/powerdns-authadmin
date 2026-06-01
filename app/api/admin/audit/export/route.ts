@@ -1,14 +1,14 @@
 /**
  * app/api/admin/audit/export/route.ts
  *
- * GET — export audit rows matching the same query-string filters the
+ * GET - export audit rows matching the same query-string filters the
  * admin page accepts, as RFC 4180 CSV. Capped at 10,000 rows (the
  * pragmatic ceiling for a single browser download); narrower
  * filters get fewer rows. Audit row itself is appended to record
- * who exported what — exports are themselves a security-relevant
+ * who exported what - exports are themselves a security-relevant
  * action and operators should be able to see them in the log.
  *
- * Gate: `audit.read`. No CSRF — this is a GET (idempotent / cache-
+ * Gate: `audit.read`. No CSRF - this is a GET (idempotent / cache-
  * safe-by-method), accessible by direct URL for sharing.
  */
 

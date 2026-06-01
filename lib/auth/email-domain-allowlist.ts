@@ -6,19 +6,19 @@
  * in the OIDC provider's `openid-client` + DB repository imports.
  *
  * Semantics:
- *   - An empty `allowedDomains` array means "no restriction" — always
+ *   - An empty `allowedDomains` array means "no restriction" - always
  *     returns `{ ok: true }`. Preserves Phase-1 OIDC behavior when the
  *     operator hasn't opted into gating.
  *   - Comparison is case-insensitive on the part after the rightmost `@`.
  *   - Inputs without a `@` (or with an empty domain part) get the literal
  *     sentinel `(no-@-in-email)` as `domain` and are rejected when the
  *     allow-list is non-empty.
- *   - Exact-domain match only — `evil-example.com` is NOT accepted when
+ *   - Exact-domain match only - `evil-example.com` is NOT accepted when
  *     `example.com` is in the list. Subdomain matching needs an explicit
  *     entry per subdomain.
  *
  * Callers should record the returned `domain` (not the full email) when
- * auditing rejections — see S-7's PII-minimization requirement.
+ * auditing rejections - see S-7's PII-minimization requirement.
  */
 
 export type DomainCheckResult = { ok: true; domain: string } | { ok: false; domain: string };
@@ -39,10 +39,10 @@ export function emailDomainAllowed(
  * per-provider override). Rules:
  *
  *   - `providerOverride === null` → inherit the env default
- *     (operator hasn't set an override; env value applies — could
+ *     (operator hasn't set an override; env value applies - could
  *     itself be empty meaning "no restriction").
  *   - `providerOverride` is an empty array `[]` → explicit "no
- *     restriction at this provider, regardless of env" — useful for
+ *     restriction at this provider, regardless of env" - useful for
  *     a public-signup provider on an otherwise-locked-down server.
  *   - `providerOverride` is non-empty → REPLACES env (does not
  *     append). Operators wanting to extend should re-list env

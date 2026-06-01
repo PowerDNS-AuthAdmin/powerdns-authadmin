@@ -2,7 +2,7 @@
  * tests/integration/admin/role-assignments.test.ts
  *
  * L-3 role-assignment guards, driven over HTTP:
- *   1. The last global Super Admin assignment cannot be removed (lockout guard —
+ *   1. The last global Super Admin assignment cannot be removed (lockout guard -
  *      a DB invariant, so only an integration test can prove it).
  *   2. A `role.assign` holder cannot assign a role granting permissions they
  *      don't hold globally (the privilege ceiling), but CAN assign one within it.
@@ -198,7 +198,7 @@ describe("role-assignment guards (L-3)", () => {
       scopeType: "global",
     });
 
-    // Bootstrap (still a Super Admin) can now disable the OTHER one — not the last.
+    // Bootstrap (still a Super Admin) can now disable the OTHER one - not the last.
     const res = await admin.call(`/api/admin/users/${second.id}`, {
       method: "PATCH",
       json: { disabled: true },
@@ -206,7 +206,7 @@ describe("role-assignment guards (L-3)", () => {
     expect(res.status).toBe(200);
 
     // The second admin is now disabled, so bootstrap is again the last ENABLED
-    // global Super Admin — disabling it (via the second actor) must be blocked.
+    // global Super Admin - disabling it (via the second actor) must be blocked.
     const disabler = await actorWithPerms(admin, "disabler2", ["user.update"]);
     const bootstrapId = await bootstrapUserId();
     const blocked = await disabler.call(`/api/admin/users/${bootstrapId}`, {

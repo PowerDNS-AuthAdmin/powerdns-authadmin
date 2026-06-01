@@ -3,7 +3,7 @@
  *
  * Server-side accessor for runtime-mutable app settings. Every page that
  * wants to render `site_name`, `brand_logo_url`, `support_contact`, or
- * `login_intro` calls `getAppSettings()` and reads the typed result —
+ * `login_intro` calls `getAppSettings()` and reads the typed result -
  * nobody hits the repository directly.
  *
  * Defaults are applied here so callers get a non-null `siteName` always.
@@ -29,7 +29,7 @@ export interface AppSettings {
   /**
    * Failed-login attempts before the user's account is locked out.
    * Read at every authentication attempt (`lib/auth/providers/
-   * local.ts`); never null — defaults to 10 if the row is absent.
+   * local.ts`); never null - defaults to 10 if the row is absent.
    */
   loginLockoutThreshold: number;
   /**
@@ -41,7 +41,7 @@ export interface AppSettings {
   /**
    * Whether the self-service "Forgot password?" flow is available. Read by the
    * login page (to show/hide the link) and the forgot-password route (to no-op
-   * when off). Never null — defaults to true.
+   * when off). Never null - defaults to true.
    */
   allowPasswordReset: boolean;
   /**
@@ -49,7 +49,7 @@ export interface AppSettings {
    * `ldap:<slug>`. `local` shows the form; the typed-prefix variants auto-
    * redirect `/login` to the matching provider's initiate URL (subject to the
    * `force-local=1`, `signed-out=1`, and `pda_just_logged_out` escape hatches).
-   * Never null — defaults to "local". Edited from /admin/authentication.
+   * Never null - defaults to "local". Edited from /admin/authentication.
    */
   authDefaultProvider: string;
 }

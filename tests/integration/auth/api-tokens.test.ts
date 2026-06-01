@@ -1,7 +1,7 @@
 /**
  * tests/integration/auth/api-tokens.test.ts
  *
- * Personal access tokens — self-service issuance, listing, redemption
+ * Personal access tokens - self-service issuance, listing, redemption
  * via the one-time reveal endpoint, and Bearer-auth-driven API access.
  * Verifies the plaintext is never returned in the JSON body and that
  * revocation invalidates subsequent token use.
@@ -65,7 +65,7 @@ describe("/api/profile/tokens", () => {
     const plaintext = await firstRes.text();
     expect(plaintext).toMatch(/^pda_pat_/);
 
-    // Second redemption is rejected — single-use semantics.
+    // Second redemption is rejected - single-use semantics.
     const secondRes = await admin.call(`/api/profile/tokens/${created.token.id}/reveal`, {
       method: "POST",
       json: { token: created.revealToken },

@@ -1,7 +1,7 @@
 /**
  * lib/db/repositories/users.ts
  *
- * Query functions over the `users` table. Pure data access — no business
+ * Query functions over the `users` table. Pure data access - no business
  * rules, no authorization. Callers (auth providers, admin route handlers)
  * own those decisions.
  *

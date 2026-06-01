@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/oidc-providers.ts — SQLite mirror of `../schema/oidc-providers.ts`.
+ * lib/db/schema-sqlite/oidc-providers.ts - SQLite mirror of `../schema/oidc-providers.ts`.
  */
 
 import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";

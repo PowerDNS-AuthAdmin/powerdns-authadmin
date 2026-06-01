@@ -1,7 +1,7 @@
 /**
  * lib/db/repositories/audit-log.ts
  *
- * Scoped queries against `audit_log` — currently used by the per-zone change
+ * Scoped queries against `audit_log` - currently used by the per-zone change
  * log on the zone detail page. The dashboard repo has its own broader
  * audit aggregations; this file is for narrower, resource-scoped reads.
  *
@@ -39,7 +39,7 @@ import { escapeLikePattern } from "./audit-like";
 /**
  * Match audit rows for a zone across one or more backend slugs. Multiple slugs
  * matter for a multi-primary cluster: writes route through a rotating peer
- * (`choosePeer`), so a zone's edits are scattered across every peer's slug —
+ * (`choosePeer`), so a zone's edits are scattered across every peer's slug -
  * scoping to a single one would show an empty / partial change history.
  */
 function zoneResourceScope(serverSlugs: readonly string[], zoneName: string): SQL {
@@ -83,7 +83,7 @@ export interface ZoneAuditEntry {
   after: unknown;
   ip: string | null;
   /**
-   * Operation grouping key — every audit row written within the same
+   * Operation grouping key - every audit row written within the same
    * HTTP request shares this. The change-history feed links each entry
    * to `/admin/audit?requestId=<id>` so an operator can see every side
    * effect of one operation (e.g. `record.update` + the subsequent
@@ -137,7 +137,7 @@ export async function zoneAuditLog(
 /**
  * Latest non-`zone.notify` audit row for a single zone on a single
  * backend. Used by the zone-detail header to surface a "last edit"
- * stat — operators landing on the page want to see "modified 2h ago
+ * stat - operators landing on the page want to see "modified 2h ago
  * by alice@…" at a glance instead of clicking through to History.
  *
  * Returns null when the zone has no recorded edits (newly imported
@@ -170,7 +170,7 @@ export async function zoneAuditCounts7d(
     .where(
       and(
         // Use gte() (not a raw sql`` template) so the column's encoder maps the
-        // Date for each dialect — SQLite can't bind a raw Date object.
+        // Date for each dialect - SQLite can't bind a raw Date object.
         gte(auditLog.ts, new Date(sinceMs)),
         or(eq(auditLog.resourceType, "rrset"), eq(auditLog.resourceType, "zone")),
         zoneResourceScope(toSlugs(serverSlug), zoneName),
@@ -226,7 +226,7 @@ export async function latestZoneEdit(
         or(eq(auditLog.resourceType, "rrset"), eq(auditLog.resourceType, "zone")),
         zoneResourceScope(toSlugs(serverSlug), zoneName),
         // Exclude the notify side-effect rows from "what was the
-        // last real edit" — they aren't operator actions, just
+        // last real edit" - they aren't operator actions, just
         // automated downstream effects of the actual writes.
         sql`${auditLog.action} <> 'zone.notify'`,
       ),
@@ -244,11 +244,11 @@ export async function latestZoneEdit(
  * resourceType in {rrset, zone}, resourceId prefixed `${slug}:`,
  * `zone.notify` excluded.
  *
- * One round-trip — Postgres groups by the zone segment extracted
+ * One round-trip - Postgres groups by the zone segment extracted
  * with `split_part(resource_id, ':', 2)`. Zone names can't contain
  * `:` (DNS labels disallow it) so the split is unambiguous. Returns
  * a `Map<zoneName, Date>`; zones with no recorded edits are absent
- * from the map (caller renders "—").
+ * from the map (caller renders "-").
  *
  * Empty input → empty map, no DB call.
  */
@@ -264,7 +264,7 @@ export async function latestEditTimestampsByZone(
   // accepted in earlier Drizzle versions but now flags
   // ("column must appear in GROUP BY clause") because the generated
   // SQL re-emits the column reference without the wrapping function.
-  // Aggregating in app code is cheap — rows are already partitioned
+  // Aggregating in app code is cheap - rows are already partitioned
   // by the `serverSlug:` prefix in the WHERE.
   // Scope to this server's rows only (the JS reducer below splits out the zone
   // segment). Escape the slug + declare `ESCAPE '\'` so a slug containing `_`
@@ -326,7 +326,7 @@ export async function latestServerAdminEdit(serverId: string): Promise<ZoneAudit
 
 /**
  * Latest audit row for a single OIDC-provider admin row.
- * Same shape as `latestServerAdminEdit` — wraps the shared helper
+ * Same shape as `latestServerAdminEdit` - wraps the shared helper
  * with the OIDC `resourceType` literal so callers don't have to
  * remember the magic string.
  */
@@ -337,7 +337,7 @@ export async function latestOidcProviderEdit(providerId: string): Promise<ZoneAu
 /**
  * Recent audit rows scoped to a single admin resource.
  * Returns up to `limit` rows newest-first. Used by the per-resource
- * audit panel on detail pages — gives operators a small window
+ * audit panel on detail pages - gives operators a small window
  * into "what's been happening with this row" without leaving the
  * detail page for /admin/audit. The same private
  * `latestAdminEditByResource` knows the SQL shape; this variant
@@ -357,7 +357,7 @@ export async function recentAdminEditsForOidcProvider(
   return recentAdminEditsByResource("oidc_provider", providerId, limit);
 }
 
-/** SAML-provider wrappers — same shape as the OIDC ones. */
+/** SAML-provider wrappers - same shape as the OIDC ones. */
 export async function latestSamlProviderEdit(providerId: string): Promise<ZoneAuditEntry | null> {
   return latestAdminEditByResource("saml_provider", providerId);
 }
@@ -393,7 +393,7 @@ export async function recentAdminEditsForZoneTemplate(
 
 /**
  * Recent admin activity for a single user. Covers the admin-driven
- * actions written with `resource.type = "user"` — user.create,
+ * actions written with `resource.type = "user"` - user.create,
  * user.update, user.disable, user.enable, user.delete,
  * user.password.reset, user.session(s).revoked, plus the auth.* rows
  * that the admin user-actions write (auth.mfa.removed by admin,
@@ -412,7 +412,7 @@ export async function recentAdminEditsForUser(
  * Recent `dnssec.cryptokey.*` audit rows scoped to a zone (Tick
  * 81). Used by the zone DNSSEC page to surface "last activity"
  * per key card. Caller buckets by the `cryptokeyId` carried in
- * before/after — the audit row's resourceId is the zone name, not
+ * before/after - the audit row's resourceId is the zone name, not
  * the key id, since one zone has many keys and the existing audit
  * writers (/3 era) scoped to the parent zone.
  *
@@ -467,7 +467,7 @@ export async function recentDnssecAuditForZone(
  * `latestOidcProviderEdit` are now one-liners delegating here;
  * future resource types (role, team, zone-template) drop in with
  * the same shape. Kept private to discourage callers using a raw
- * resourceType string — the typed wrappers are the supported
+ * resourceType string - the typed wrappers are the supported
  * surface.
  */
 async function latestAdminEditByResource(
@@ -482,7 +482,7 @@ async function latestAdminEditByResource(
  * Shared internal selector: newest-first audit rows for a single
  * admin resource. Both the "latest one" (`latestAdminEditByResource`)
  * and the "recent N" wrappers (`recentAdminEditsFor*`) share this
- * SQL — keeps the join + projection in one place.
+ * SQL - keeps the join + projection in one place.
  */
 async function recentAdminEditsByResource(
   resourceType: string,
@@ -516,13 +516,13 @@ async function recentAdminEditsByResource(
  * resource ids of one type. Mirrors T-87's
  * `latestEditTimestampsByZone` but parameterized on resourceType
  * so it works for `pdns_server`, `oidc_provider`, `role`, `team`,
- * `zone_template`, `user` — any admin resource whose audit rows
+ * `zone_template`, `user` - any admin resource whose audit rows
  * use the resourceType + UUID convention.
  *
  * Single round-trip; one MAX(ts) per resource id. Empty input
  * short-circuits with no DB call. Returns a Map keyed by
  * resourceId; ids with no recorded edits are absent (caller
- * renders "—").
+ * renders "-").
  *
  * Kept generic + private-friendly: typed wrappers (e.g.
  * `latestAdminEditTimestampsForServers`) own the resourceType

@@ -3,7 +3,7 @@
  *
  * Defense-in-depth secret scrubbing for strings about to be logged or surfaced in
  * error messages. The Pino logger already does field-level redaction (see
- * `lib/logger.ts`) — this module catches the cases Pino can't: secrets that end
+ * `lib/logger.ts`) - this module catches the cases Pino can't: secrets that end
  * up *inside* a free-form string ("connection failed: postgres://user:hunter2@...").
  *
  * Add a pattern here whenever you encounter a new shape of secret in logs. Better
@@ -37,7 +37,7 @@ export function redact(input: string): string {
     "[Redacted PEM block]",
   );
 
-  // GitHub-style PAT prefixes (pda_pat_, github_pat_, ghp_, gho_, etc.) — pad to
+  // GitHub-style PAT prefixes (pda_pat_, github_pat_, ghp_, gho_, etc.) - pad to
   // 8+ chars so we don't accidentally redact "pat_" mentions in prose.
   out = out.replace(/\b(pda_pat_|github_pat_|gh[pousr]_)[A-Za-z0-9_]{8,}/g, "$1[Redacted]");
 

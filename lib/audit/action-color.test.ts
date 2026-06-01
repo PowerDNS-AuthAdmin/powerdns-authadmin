@@ -23,7 +23,7 @@ describe("colorForAuditAction", () => {
   });
 
   it("does not match action that merely contains the verb mid-string", () => {
-    // Suffix-only — `record.creates` (typo) should NOT be treated as create.
+    // Suffix-only - `record.creates` (typo) should NOT be treated as create.
     expect(colorForAuditAction("record.creates")).toContain("color-fg-muted");
   });
 });

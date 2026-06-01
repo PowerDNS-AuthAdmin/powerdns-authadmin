@@ -1,7 +1,7 @@
 /**
  * app/readyz/route.ts
  *
- * Readiness probe. Returns 200 only when the app can actually serve traffic —
+ * Readiness probe. Returns 200 only when the app can actually serve traffic -
  * specifically, when the database is reachable. (A future iteration may also
  * verify that at least one PowerDNS backend is reachable.)
  *
