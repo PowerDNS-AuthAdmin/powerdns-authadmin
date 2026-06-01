@@ -33,10 +33,11 @@ export default async function NewZonePage({
 
   // Collapse SelectableBackend[] into the form's option shape. A cluster
   // is ONE option (not its peers) - the write_strategy picks the peer at
-  // submit time on the server. Standalone-primary entries also carry the
-  // primary's id (so the form can match against template
-  // `defaultForPrimaryIds`) and its active secondaries (so the BACKEND
-  // section can render them as children).
+  // submit time on the server. Every entry carries the writable primary
+  // ids it creates zones through (the standalone primary's own id, or each
+  // cluster peer's id) so the form can match against template
+  // `defaultForPrimaryIds`; standalone entries also carry their active
+  // secondaries so the BACKEND section can render them as children.
   const backendOptions: BackendOption[] = backends.map((b) =>
     b.kind === "cluster"
       ? {
@@ -44,14 +45,15 @@ export default async function NewZonePage({
           slug: b.cluster.slug,
           name: `${b.cluster.name} · ${b.peers.length}-peer cluster`,
           isDefault: false,
+          primaryIds: b.peers.map((peer) => peer.id),
           secondaries: [],
         }
       : {
           kind: "server",
-          id: b.server.id,
           slug: b.server.slug,
           name: b.server.name,
           isDefault: b.server.isDefault,
+          primaryIds: [b.server.id],
           secondaries: b.secondaries.map((s) => ({ slug: s.slug, name: s.name })),
         },
   );
