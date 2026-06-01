@@ -40,12 +40,14 @@ export interface BackendOption {
   /** server slug OR cluster slug, qualified by `kind`. */
   slug: string;
   /**
-   * For kind=server, the underlying `pdns_servers.id` - used to match a
-   * template's `defaultForPrimaryIds` so we can preselect a default
-   * template the moment the operator picks one of its primaries.
-   * Clusters don't carry a primary id; the field stays undefined.
+   * Writable primary ids (`pdns_servers.id`) this backend creates zones
+   * through: a single id for a standalone primary, one per peer for a
+   * cluster. The form matches these against a template's
+   * `defaultForPrimaryIds` to preselect a default template - so a cluster
+   * auto-selects a template registered as the default for any of its
+   * member primaries, not just a standalone server.
    */
-  id?: string;
+  primaryIds: string[];
   name: string;
   /** Only meaningful for kind=server. Clusters never carry isDefault. */
   isDefault: boolean;
@@ -151,21 +153,30 @@ export function CreateZoneForm(props: Props) {
   const [kind, setKind] = useState<(typeof KINDS)[number]["value"]>("Native");
 
   // Compute the template the form should pre-apply for a given backend
-  // selection - first template whose `defaultForPrimaryIds` lists the
-  // selected primary's id wins. Clusters have no primary id, so no
-  // default ever auto-selects for cluster backends.
+  // selection - the first template registered as the default for any
+  // primary the backend writes through wins (a standalone primary exposes
+  // one such id; a cluster exposes one per peer). First match wins across
+  // templates, in their name sort order.
   function defaultTemplateIdFor(selection: { kind: "server" | "cluster"; slug: string } | null) {
-    if (selection?.kind !== "server") return "";
-    const opt = props.backends.find((b) => b.kind === "server" && b.slug === selection.slug);
-    const primaryId = opt?.id;
-    if (!primaryId) return "";
-    const match = props.templates.find((t) => t.defaultForPrimaryIds.includes(primaryId));
+    if (!selection) return "";
+    const backend = props.backends.find(
+      (b) => b.kind === selection.kind && b.slug === selection.slug,
+    );
+    const backendPrimaryIds = backend?.primaryIds ?? [];
+    if (backendPrimaryIds.length === 0) return "";
+    const match = props.templates.find((template) =>
+      template.defaultForPrimaryIds.some((primaryId) => backendPrimaryIds.includes(primaryId)),
+    );
     return match?.id ?? "";
   }
 
-  const initialBackendSelection = defaultBackendKey ? parseKey(defaultBackendKey) : null;
+  // Resolve the initial template once (lazy initializer - off the hot render
+  // path): an explicit `?template=` deep-link wins; otherwise fall back to the
+  // default template registered for the initially-selected backend.
   const [templateId, setTemplateId] = useState<string>(
-    props.initialTemplateId ?? defaultTemplateIdFor(initialBackendSelection),
+    () =>
+      props.initialTemplateId ??
+      (defaultBackendKey ? defaultTemplateIdFor(parseKey(defaultBackendKey)) : ""),
   );
 
   // Track whether the operator has manually touched the template picker

@@ -317,36 +317,45 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
       if (row) serverIdsBySlug.set(row.slug, row.id);
       result.pdnsServersUpserted += 1;
     }
+  }
 
-    // Resolve zone-template `default_for_primary_slugs` (server slugs) into
-    // ids. Pull in any referenced server already in the DB but absent from
-    // this file.
-    if (config.zone_templates) {
-      const hasUnknown = config.zone_templates
-        .flatMap((z) => z.default_for_primary_slugs)
-        .some((slug) => !serverIdsBySlug.has(slug));
-      if (hasUnknown) {
-        const existing = await db
-          .select({ id: pdnsServers.id, slug: pdnsServers.slug })
-          .from(pdnsServers);
-        for (const p of existing) {
-          if (!serverIdsBySlug.has(p.slug)) serverIdsBySlug.set(p.slug, p.id);
-        }
+  // Resolve each zone template's `default_for_primary_slugs` (server slugs) into
+  // the `pdns_servers.id`s the create-zone form matches against to auto-select a
+  // default template. This MUST run whenever the file declares zone templates -
+  // even if it omits the `pdns_servers` section (servers added through the UI or
+  // a prior run) - otherwise a templates-only re-provision would leave the column
+  // holding raw slugs that never match a backend id, silently disabling
+  // auto-selection. Primaries referenced by slug but absent from this file are
+  // back-filled from the database.
+  if (config.zone_templates) {
+    const referencedPrimarySlugs = config.zone_templates.flatMap(
+      (template) => template.default_for_primary_slugs,
+    );
+    const hasUnresolvedSlug = referencedPrimarySlugs.some((slug) => !serverIdsBySlug.has(slug));
+    if (hasUnresolvedSlug) {
+      const existingServers = await db
+        .select({ id: pdnsServers.id, slug: pdnsServers.slug })
+        .from(pdnsServers);
+      for (const server of existingServers) {
+        if (!serverIdsBySlug.has(server.slug)) serverIdsBySlug.set(server.slug, server.id);
       }
-      for (const z of config.zone_templates) {
-        if (z.default_for_primary_slugs.length === 0) continue;
-        const ids: string[] = [];
-        for (const slug of z.default_for_primary_slugs) {
-          const id = serverIdsBySlug.get(slug);
-          if (id) ids.push(id);
-          else
-            logger.warn({ template: z.slug, slug }, "provisioning.zone-template.unknown-primary");
-        }
-        await db
-          .update(zoneTemplates)
-          .set({ defaultForPrimaryIds: ids, updatedAt: new Date() })
-          .where(eq(zoneTemplates.slug, z.slug));
+    }
+    for (const template of config.zone_templates) {
+      if (template.default_for_primary_slugs.length === 0) continue;
+      const resolvedPrimaryIds: string[] = [];
+      for (const slug of template.default_for_primary_slugs) {
+        const primaryId = serverIdsBySlug.get(slug);
+        if (primaryId) resolvedPrimaryIds.push(primaryId);
+        else
+          logger.warn(
+            { template: template.slug, slug },
+            "provisioning.zone-template.unknown-primary",
+          );
       }
+      await db
+        .update(zoneTemplates)
+        .set({ defaultForPrimaryIds: resolvedPrimaryIds, updatedAt: new Date() })
+        .where(eq(zoneTemplates.slug, template.slug));
     }
   }
 

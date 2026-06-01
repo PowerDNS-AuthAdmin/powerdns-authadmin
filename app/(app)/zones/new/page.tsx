@@ -33,25 +33,27 @@ export default async function NewZonePage({
 
   // Collapse SelectableBackend[] into the form's option shape. A cluster
   // is ONE option (not its peers) - the write_strategy picks the peer at
-  // submit time on the server. Standalone-primary entries also carry the
-  // primary's id (so the form can match against template
-  // `defaultForPrimaryIds`) and its active secondaries (so the BACKEND
-  // section can render them as children).
+  // submit time on the server. Every entry carries the writable primary
+  // ids it creates zones through (the standalone primary's own id, or each
+  // cluster peer's id) so the form can match against template
+  // `defaultForPrimaryIds`; standalone entries also carry their active
+  // secondaries so the BACKEND section can render them as children.
   const backendOptions: BackendOption[] = backends.map((b) =>
     b.kind === "cluster"
       ? {
           kind: "cluster",
           slug: b.cluster.slug,
-          name: `${b.cluster.name} · ${b.peers.length}-peer cluster`,
+          name: `${b.cluster.name} · ${describeGroupTopology(b.peers.length, b.secondaries.length)}`,
           isDefault: false,
+          primaryIds: b.peers.map((peer) => peer.id),
           secondaries: [],
         }
       : {
           kind: "server",
-          id: b.server.id,
           slug: b.server.slug,
           name: b.server.name,
           isDefault: b.server.isDefault,
+          primaryIds: [b.server.id],
           secondaries: b.secondaries.map((s) => ({ slug: s.slug, name: s.name })),
         },
   );
@@ -99,4 +101,23 @@ export default async function NewZonePage({
       />
     </div>
   );
+}
+
+/**
+ * Human label for a group backend (a `pdns_clusters` row), shown in the
+ * backend picker. Both topologies are stored as a cluster, but they read very
+ * differently to an operator:
+ *
+ *   - 2+ writable peers        → a true multi-primary cluster ("3-peer cluster")
+ *   - 1 primary + secondaries  → a primary + secondaries group
+ *                                ("primary + 2 secondaries")
+ *   - 1 primary, no secondaries → just a primary that happens to sit in a group
+ *
+ * Calling a single primary + secondary pair a "1-peer cluster" (the old label)
+ * was misleading - the operator sees the count of write targets, not mirrors.
+ */
+function describeGroupTopology(peerCount: number, secondaryCount: number): string {
+  if (peerCount >= 2) return `${peerCount}-peer cluster`;
+  if (secondaryCount === 0) return "primary";
+  return `primary + ${secondaryCount} ${secondaryCount === 1 ? "secondary" : "secondaries"}`;
 }
