@@ -15,6 +15,7 @@ import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { assertSettingsMutable } from "@/lib/auth/settings-lock";
 import { sanitizeBrandLogoValue } from "@/lib/security/svg";
 import { db } from "@/lib/db";
 import { deleteSetting, listAllSettings, upsertSetting } from "@/lib/db/repositories/settings";
@@ -49,6 +50,8 @@ export async function PATCH(request: Request): Promise<Response> {
   try {
     const { user } = await requireUser({ can: "settings.write" });
     await requireCsrf(request);
+    // Global demo lock - rejects even settings.write holders (SETTINGS_RO).
+    assertSettingsMutable();
 
     let input;
     try {

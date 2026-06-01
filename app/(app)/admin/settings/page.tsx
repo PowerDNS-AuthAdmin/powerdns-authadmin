@@ -13,13 +13,17 @@
 import Link from "next/link";
 import { Database } from "lucide-react";
 import { requireUserForPage } from "@/lib/auth/require-user";
+import { isSettingsReadOnly } from "@/lib/auth/settings-lock";
 import { listAllSettings } from "@/lib/db/repositories/settings";
 import { SETTING_DEFAULTS, type KnownSettingKey } from "@/lib/validators/settings";
 import { SettingsForm } from "./_components/settings-form";
 
 export default async function SettingsPage() {
   const { ability, globalPermissions } = await requireUserForPage({ can: "settings.read" });
-  const canWrite = ability.can("write", "Settings");
+  // SETTINGS_RO locks edits for everyone (demo hardening), even settings.write
+  // holders - so it overrides the RBAC capability when computing edit access.
+  const lockedByPolicy = isSettingsReadOnly();
+  const canWrite = ability.can("write", "Settings") && !lockedByPolicy;
   const canReadAuth = ability.can("read", "Auth");
   const canBackup = globalPermissions.has("system.backup");
 
@@ -76,7 +80,7 @@ export default async function SettingsPage() {
         </p>
       </header>
 
-      <SettingsForm initial={initial} canWrite={canWrite} />
+      <SettingsForm initial={initial} canWrite={canWrite} lockedByPolicy={lockedByPolicy} />
 
       {canBackup ? (
         <section className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-5">

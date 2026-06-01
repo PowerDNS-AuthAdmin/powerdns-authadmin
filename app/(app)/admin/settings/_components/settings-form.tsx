@@ -22,6 +22,12 @@ interface SettingsFormProps {
     allow_password_reset: boolean;
   };
   canWrite: boolean;
+  /**
+   * True when edits are disabled by the global `SETTINGS_RO` deployment lock
+   * rather than by a missing `settings.write` permission. Only changes which
+   * read-only notice is shown; `canWrite` already reflects the lock.
+   */
+  lockedByPolicy: boolean;
 }
 
 interface ErrorBody {
@@ -41,7 +47,7 @@ const ALLOWED_MIME = new Set([
   "image/webp",
 ]);
 
-export function SettingsForm({ initial, canWrite }: SettingsFormProps) {
+export function SettingsForm({ initial, canWrite, lockedByPolicy }: SettingsFormProps) {
   const router = useRouter();
   const [siteName, setSiteName] = useState(initial.site_name);
   const [brandLogoUrl, setBrandLogoUrl] = useState(initial.brand_logo_url);
@@ -397,6 +403,10 @@ export function SettingsForm({ initial, canWrite }: SettingsFormProps) {
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
+      ) : lockedByPolicy ? (
+        <p className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-3 py-2.5 text-xs text-[color:var(--color-fg-muted)]">
+          Settings are read-only on this deployment (SETTINGS_RO) and can&apos;t be changed.
+        </p>
       ) : (
         <p className="text-xs text-[color:var(--color-fg-muted)]">
           You have read-only access. The settings.write permission is required to edit.
