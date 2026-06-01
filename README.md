@@ -11,8 +11,6 @@
 > audit log with diffs, SSO with group-driven role mapping, optimistic concurrency in the editor,
 > and a UI built for teams that actually run multi-backend infrastructure.
 
-**Website:** [powerdns-authadmin.org](https://powerdns-authadmin.org/) &nbsp;·&nbsp; **Live demo:** [demo.powerdns-authadmin.org](https://demo.powerdns-authadmin.org/) (sign in with `admin@example.com` / `change-me-now`)
-
 [![CI](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/ci.yml?query=branch%3Amain)
 [![Release](https://img.shields.io/github/v/release/PowerDNS-AuthAdmin/powerdns-authadmin)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/releases/latest)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PowerDNS-AuthAdmin/powerdns-authadmin/badge)](https://scorecard.dev/viewer/?uri=github.com/PowerDNS-AuthAdmin/powerdns-authadmin)
@@ -25,6 +23,9 @@
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)](.nvmrc)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=next.js)](https://nextjs.org)
 [![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
+
+**Website:** [powerdns-authadmin.org](https://powerdns-authadmin.org/)  
+**Live demo:** [demo.powerdns-authadmin.org](https://demo.powerdns-authadmin.org/) (sign in with `admin@example.com` / `change-me-now`)
 
 PowerDNS-AuthAdmin manages one or many PowerDNS Authoritative backends from a single web app. It
 ships with a permissive RBAC engine, OIDC single sign-on with group→role mapping, transactional
