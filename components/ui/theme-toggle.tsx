@@ -3,7 +3,7 @@
 /**
  * components/ui/theme-toggle.tsx
  *
- * Light / dark / system theme switch. One button — the icon mirrors the active
+ * Light / dark / system theme switch. One button - the icon mirrors the active
  * preference (Sun / Moon / Monitor) and clicking cycles light → dark → system →
  * light. Same persistence + live-listener behaviour as before; only the chrome
  * collapsed from three buttons to one.
@@ -12,7 +12,7 @@
  *   - Default is "system" (follows the OS / browser preference).
  *   - User choice is persisted to localStorage under `pda-theme`.
  *   - The actual `.dark` class on <html> is applied by the inline
- *     `theme-init` script in `app/layout.tsx` BEFORE React hydrates —
+ *     `theme-init` script in `app/layout.tsx` BEFORE React hydrates -
  *     this prevents a flash-of-wrong-theme on page load.
  *   - This component just updates the preference + the live class and
  *     listens for OS-level changes when in "system" mode.

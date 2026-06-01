@@ -9,7 +9,7 @@
  * valid OIDC config document?".
  *
  * Pure module: takes the URL as input, makes one fetch, returns a
- * discriminated result. No DB, no env, no logger — callers own
+ * discriminated result. No DB, no env, no logger - callers own
  * persistence + auditing.
  */
 
@@ -85,7 +85,7 @@ export async function probeOidcDiscovery(
     return { ok: false, reason: "missing-issuer" };
   }
   // Issuer claim should match the URL the operator configured
-  // (trailing slash insensitive — some IdPs return slash-suffixed
+  // (trailing slash insensitive - some IdPs return slash-suffixed
   // issuer, some don't).
   if (issuer.replace(/\/+$/, "") !== base) {
     return { ok: false, reason: "issuer-mismatch" };
@@ -93,7 +93,7 @@ export async function probeOidcDiscovery(
 
   // RP-initiated-logout diagnostic. When the IdP doesn't advertise an
   // `end_session_endpoint`, /api/auth/logout falls back to the local
-  // `/login?signed-out=1` redirect — which combined with forceDefault
+  // `/login?signed-out=1` redirect - which combined with forceDefault
   // OIDC re-bouncing makes sign-out appear to do nothing. Surface the
   // missing endpoint to the admin UI so operators can fix it (Keycloak:
   // enable Front Channel Logout; Authentik: SAML/OIDC logout flow).
@@ -105,7 +105,7 @@ export async function probeOidcDiscovery(
 
 /**
  * Human-readable label for a probe failure. Operator-facing string
- * shown next to the badge — doesn't leak the underlying HTTP
+ * shown next to the badge - doesn't leak the underlying HTTP
  * status / error class (those go in server logs via the audit row).
  */
 export function probeFailureLabel(reason: ProbeFailureReason): string {

@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/metric-samples.ts — SQLite mirror of `../schema/metric-samples.ts`.
+ * lib/db/schema-sqlite/metric-samples.ts - SQLite mirror of `../schema/metric-samples.ts`.
  */
 
 import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";

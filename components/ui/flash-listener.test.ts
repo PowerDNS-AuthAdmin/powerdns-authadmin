@@ -16,7 +16,7 @@ describe("describeFlash", () => {
     expect(describeFlash("session-required", null)?.kind).toBe("info");
   });
 
-  // v1.2.0 — the polling-required flash redirect surface.
+  // v1.2.0 - the polling-required flash redirect surface.
   describe("polling-required", () => {
     it("is a red error toast", () => {
       expect(describeFlash("polling-required", null)?.kind).toBe("error");

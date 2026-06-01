@@ -21,7 +21,7 @@ interface TestResponse {
   /**
    * Coarse classification on failure: `auth | reachable | unreachable |
    * unknown`. The server intentionally does NOT return the raw upstream
-   * error (S-12) — operators correlate via `requestId` against the
+   * error (S-12) - operators correlate via `requestId` against the
    * server-side log.
    */
   kind?: "auth" | "reachable" | "unreachable" | "unknown";

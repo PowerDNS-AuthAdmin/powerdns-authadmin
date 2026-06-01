@@ -6,7 +6,7 @@
  * the token from the query string and render a thin client form
  * that POSTs to /api/profile/email/change/confirm.
  *
- * Lives under (app) — not (auth) — because confirming requires an
+ * Lives under (app) - not (auth) - because confirming requires an
  * authenticated session. A leaked link is still useless without the
  * user's password and active session.
  */

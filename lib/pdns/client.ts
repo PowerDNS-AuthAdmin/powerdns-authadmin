@@ -7,13 +7,13 @@
  *
  * Covers: server info + cached version/capabilities; zones (list/get/create/
  * update/delete); rrsets; cryptokeys (DNSSEC); metadata; TSIG keys (with
- * one-time secret reveal); and autoprimaries — reads and mutations for each,
+ * one-time secret reveal); and autoprimaries - reads and mutations for each,
  * all sections of this one module.
  *
  * The client is intentionally not aware of:
  *   - The DB (we don't persist anything here; the caller decides when to
  *     write back the version cache via `lib/db/repositories/pdns-servers`).
- *   - RBAC or audit (enforced one layer up). ESLint enforces this — the
+ *   - RBAC or audit (enforced one layer up). ESLint enforces this - the
  *     import-boundary rules ban `lib/pdns/*` from importing `lib/rbac/*`,
  *     `lib/audit/*`, `lib/db/*`, or `lib/auth/*`.
  */
@@ -52,7 +52,7 @@ import type { ZoneRRsetPatchBody } from "./rrsets";
 // Backstop only. Every real caller forces a live probe now: the poller
 // re-reads the version on its 60 s daemon refresh, and an explicit
 // Test / Refresh-all passes `{ force: true }`. This short TTL just guards
-// any future non-forcing caller from hammering /servers on a tight loop —
+// any future non-forcing caller from hammering /servers on a tight loop -
 // reachability/version must reflect the live poll, never a long-lived blob.
 const VERSION_CACHE_TTL_MS = 60 * 1000;
 
@@ -107,7 +107,7 @@ export class PdnsClient {
   }
 
   /**
-   * `GET /servers/{id}/statistics` — 100+ counters/maps/rings. Used
+   * `GET /servers/{id}/statistics` - 100+ counters/maps/rings. Used
    * by the background sampler. Caller filters down to the metrics we
    * actually graph; the schema preserves the discriminated-union
    * shape so callers can switch on `type`.
@@ -122,11 +122,11 @@ export class PdnsClient {
   }
 
   /**
-   * `GET /servers/{id}/config` — the daemon's global (file-based) settings.
+   * `GET /servers/{id}/config` - the daemon's global (file-based) settings.
    * Read-only: PowerDNS doesn't let the API change these. Used for advisory
    * checks ("you marked this secondary, but it reports secondary=no") and a
    * read-only daemon-settings view. Callers MUST filter to non-sensitive
-   * settings before display — this returns everything, including any
+   * settings before display - this returns everything, including any
    * secret-shaped values (api-key, *-password) the daemon reports.
    */
   public async getConfig(): Promise<PdnsConfigSetting[]> {
@@ -140,7 +140,7 @@ export class PdnsClient {
 
   /**
    * Resolve the daemon version + capability snapshot. Pass `{ force: true }` to
-   * always hit the network — required for any path that asserts reachability
+   * always hit the network - required for any path that asserts reachability
    * (an explicit Test, the poll's daemon refresh): honoring a cached snapshot
    * would let a dead daemon report "reachable" with a stale version. Without
    * `force`, a snapshot newer than `VERSION_CACHE_TTL_MS` is reused. Returns a
@@ -168,7 +168,7 @@ export class PdnsClient {
   // zones
   // ---------------------------------------------------------------------------
 
-  /** `GET /servers/{id}/zones` — returns the zone summary list. */
+  /** `GET /servers/{id}/zones` - returns the zone summary list. */
   public async listZones(): Promise<PdnsZoneSummary[]> {
     const body = await this.request<unknown>({
       method: "GET",
@@ -178,7 +178,7 @@ export class PdnsClient {
     return pdnsZoneListSchema.parse(body);
   }
 
-  /** `GET /servers/{id}/zones/{zoneId}` — detail incl. `rrsets`. */
+  /** `GET /servers/{id}/zones/{zoneId}` - detail incl. `rrsets`. */
   public async getZone(zoneName: string): Promise<PdnsZoneDetail> {
     const id = normalizeZoneId(zoneName);
     const body = await this.request<unknown>({
@@ -190,7 +190,7 @@ export class PdnsClient {
   }
 
   /**
-   * `POST /servers/{id}/zones` — create a new zone.
+   * `POST /servers/{id}/zones` - create a new zone.
    *
    * Body shape per the PDNS HTTP API: at minimum `name` (with trailing
    * dot), `kind`. Optional `nameservers` (only honored by PDNS when the
@@ -199,7 +199,7 @@ export class PdnsClient {
    * created zone's full detail; we re-parse it through the same schema
    * `getZone` uses so the caller gets a typed result.
    *
-   * The `nameservers` and `rrsets` fields are mutually exclusive in PDNS —
+   * The `nameservers` and `rrsets` fields are mutually exclusive in PDNS -
    * if `rrsets` contains NS records, omit `nameservers`. The caller decides
    * which form to send.
    */
@@ -238,14 +238,14 @@ export class PdnsClient {
   }
 
   /**
-   * `PATCH /servers/{id}/zones/{zoneId}` — apply one or more RRset patches.
+   * `PATCH /servers/{id}/zones/{zoneId}` - apply one or more RRset patches.
    * Build the body with the helpers in `lib/pdns/rrsets`. PDNS returns 204
    * on success; on conflict / validation failure the typed PdnsError
    * subclasses bubble.
    *
    * Capability gate: before sending EXTEND/PRUNE changetypes, check
    * `client.supports("supportsExtendPrune")` and fall back to REPLACE if
-   * unsupported. The caller owns that decision — the client transmits what
+   * unsupported. The caller owns that decision - the client transmits what
    * it's given.
    */
   public async patchZone(zoneName: string, body: ZoneRRsetPatchBody): Promise<void> {
@@ -259,7 +259,7 @@ export class PdnsClient {
   }
 
   /**
-   * `PUT /servers/{id}/zones/{zoneId}` — modify zone-object fields.
+   * `PUT /servers/{id}/zones/{zoneId}` - modify zone-object fields.
    *
    * PDNS treats SOA-EDIT, SOA-EDIT-API, and API-RECTIFY as zone-object
    * fields (lines 806–814 of ws-auth.cc on 4.9.x), reaching past the
@@ -267,7 +267,7 @@ export class PdnsClient {
    * metadata storage. `kind` is also settable here to flip between
    * Native/Primary/Secondary, with optional `masters` for Secondary.
    *
-   * Pass only the fields the operator changed — PDNS ignores absent
+   * Pass only the fields the operator changed - PDNS ignores absent
    * fields rather than blanking them out.
    */
   public async updateZoneSettings(
@@ -278,7 +278,7 @@ export class PdnsClient {
       soa_edit?: string;
       soa_edit_api?: string;
       api_rectify?: boolean;
-      // TSIG-secured AXFR — the WRITABLE path for what surfaces read-only as the
+      // TSIG-secured AXFR - the WRITABLE path for what surfaces read-only as the
       // TSIG-ALLOW-AXFR / AXFR-MASTER-TSIG metadata kinds. Send the full desired
       // array (PDNS replaces it), so callers must read-modify-write to add/remove
       // a single key without clobbering others.
@@ -303,10 +303,10 @@ export class PdnsClient {
   }
 
   /**
-   * `DELETE /servers/{id}/zones/{zoneId}` — drop the zone entirely.
+   * `DELETE /servers/{id}/zones/{zoneId}` - drop the zone entirely.
    *
    * PDNS returns 204 on success. We don't try to back the zone up
-   * upstream — backup is the caller's responsibility (the web UI
+   * upstream - backup is the caller's responsibility (the web UI
    * forces a BIND export before exposing the delete button).
    */
   public async deleteZone(zoneName: string): Promise<void> {
@@ -319,13 +319,13 @@ export class PdnsClient {
   }
 
   /**
-   * `PUT /servers/{id}/zones/{zoneId}/notify` — ask PDNS to send NOTIFY
+   * `PUT /servers/{id}/zones/{zoneId}/notify` - ask PDNS to send NOTIFY
    * packets to every secondary listed in the zone's NS records plus any
    * ALSO-NOTIFY metadata. Only meaningful for Master/Primary zones; PDNS
    * 422s on Native / Slave / Consumer zones, which we let the typed error
    * surface so callers can decide whether the failure is interesting.
    *
-   * NOTIFY is fire-and-forget from PDNS' perspective — the response just
+   * NOTIFY is fire-and-forget from PDNS' perspective - the response just
    * confirms PDNS queued the notifications, not that any secondary acked.
    */
   public async notifyZone(zoneName: string): Promise<void> {
@@ -338,14 +338,14 @@ export class PdnsClient {
   }
 
   // ---------------------------------------------------------------------------
-  // cryptokeys (DNSSEC) — list/get + create/update/delete.
+  // cryptokeys (DNSSEC) - list/get + create/update/delete.
   // ---------------------------------------------------------------------------
 
   /**
-   * `GET /servers/{id}/zones/{zoneId}/cryptokeys` — list every cryptokey
+   * `GET /servers/{id}/zones/{zoneId}/cryptokeys` - list every cryptokey
    * configured for the zone. Returns the array (possibly empty when the
    * zone has DNSSEC disabled). `privatekey` is never present in this
-   * response shape — PDNS omits it from the list endpoint regardless of
+   * response shape - PDNS omits it from the list endpoint regardless of
    * query parameters.
    */
   public async listCryptokeys(zoneName: string): Promise<PdnsCryptokeySummary[]> {
@@ -359,7 +359,7 @@ export class PdnsClient {
   }
 
   /**
-   * `GET /servers/{id}/zones/{zoneId}/cryptokeys/{cryptokey_id}` — detail
+   * `GET /servers/{id}/zones/{zoneId}/cryptokeys/{cryptokey_id}` - detail
    * for a single key. We deliberately do NOT request `?includeprivate=true`
    * here; that would surface the unwrapped private key material in the
    * response body and we don't yet have a storage path designed for it.
@@ -377,7 +377,7 @@ export class PdnsClient {
   }
 
   /**
-   * `POST /servers/{id}/zones/{zoneId}/cryptokeys` — generate a new key
+   * `POST /servers/{id}/zones/{zoneId}/cryptokeys` - generate a new key
    * (PDNS does the cryptographic work) and return the resulting record.
    *
    * Defaults align with what an operator usually wants:
@@ -425,7 +425,7 @@ export class PdnsClient {
   }
 
   /**
-   * `PUT /servers/{id}/zones/{zoneId}/cryptokeys/{cryptokey_id}` —
+   * `PUT /servers/{id}/zones/{zoneId}/cryptokeys/{cryptokey_id}` -
    * toggle `active` and/or `published`. The two flags are independent:
    *   - `active=false, published=true` → key is in the zone but not
    *     signing (the "pre-publish" half of a rollover).
@@ -434,7 +434,7 @@ export class PdnsClient {
    * Operators usually only flip `active`; the `published` flag is for
    * rollover orchestration.
    *
-   * Returns void — PDNS sends 204 No Content. Call `getCryptokey` after
+   * Returns void - PDNS sends 204 No Content. Call `getCryptokey` after
    * if the caller needs the updated detail.
    */
   public async updateCryptokey(
@@ -444,7 +444,7 @@ export class PdnsClient {
   ): Promise<void> {
     if (patch.active === undefined && patch.published === undefined) {
       // PDNS happily accepts an empty body and no-ops, but the call is
-      // wasted work — surface the bug at the boundary.
+      // wasted work - surface the bug at the boundary.
       throw new Error("updateCryptokey requires at least one of active/published.");
     }
     const id = normalizeZoneId(zoneName);
@@ -457,11 +457,11 @@ export class PdnsClient {
   }
 
   /**
-   * `DELETE /servers/{id}/zones/{zoneId}/cryptokeys/{cryptokey_id}` —
+   * `DELETE /servers/{id}/zones/{zoneId}/cryptokeys/{cryptokey_id}` -
    * permanent. The deleted key is gone from PDNS' store; if it was the
    * only KSK, the zone is now unsigned until another KSK is created
    * and the parent's DS records are updated. PDNS does not refuse the
-   * delete in that case — the caller decides whether the operation is
+   * delete in that case - the caller decides whether the operation is
    * safe (e.g., the admin UI should confirm + warn).
    */
   public async deleteCryptokey(zoneName: string, cryptokeyId: number): Promise<void> {
@@ -474,11 +474,11 @@ export class PdnsClient {
   }
 
   // ---------------------------------------------------------------------------
-  // metadata — list/get + set/delete.
+  // metadata - list/get + set/delete.
   // ---------------------------------------------------------------------------
 
   /**
-   * `GET /servers/{id}/zones/{zoneId}/metadata` — list every metadata
+   * `GET /servers/{id}/zones/{zoneId}/metadata` - list every metadata
    * entry for the zone. The list may be empty when no metadata has
    * ever been set (common for fresh zones).
    *
@@ -498,7 +498,7 @@ export class PdnsClient {
   }
 
   /**
-   * `GET /servers/{id}/zones/{zoneId}/metadata/{kind}` — read one kind.
+   * `GET /servers/{id}/zones/{zoneId}/metadata/{kind}` - read one kind.
    * Returns null when the kind has never been set on this zone (PDNS
    * 404s; we translate to null so the UI can render "not set"
    * uniformly with empty-array results from a kind that was set to
@@ -520,7 +520,7 @@ export class PdnsClient {
     } catch (err) {
       // Some PDNS builds return 422 "Unsupported metadata kind 'X'" on
       // GET for kinds they don't surface individually (the LIST endpoint
-      // still includes the row). Treat that the same as 404 — caller
+      // still includes the row). Treat that the same as 404 - caller
       // falls back to the list-derived value.
       const { PdnsNotFoundError, PdnsUnprocessableError } = await import("./errors");
       if (err instanceof PdnsNotFoundError) return null;
@@ -530,7 +530,7 @@ export class PdnsClient {
   }
 
   /**
-   * `PUT /servers/{id}/zones/{zoneId}/metadata/{kind}` — replace all
+   * `PUT /servers/{id}/zones/{zoneId}/metadata/{kind}` - replace all
    * values for `kind` with `values`. Upsert semantics: creates the kind
    * if it didn't exist, replaces if it did. PDNS returns the resulting
    * record; we parse and return it so the caller gets the
@@ -557,8 +557,8 @@ export class PdnsClient {
   }
 
   /**
-   * `DELETE /servers/{id}/zones/{zoneId}/metadata/{kind}` — remove the
-   * kind entirely. PDNS sends 204. Idempotent in PDNS' semantics — a
+   * `DELETE /servers/{id}/zones/{zoneId}/metadata/{kind}` - remove the
+   * kind entirely. PDNS sends 204. Idempotent in PDNS' semantics - a
    * second delete of a now-missing kind succeeds with the same status.
    */
   public async deleteZoneMetadata(zoneName: string, kind: string): Promise<void> {
@@ -571,13 +571,13 @@ export class PdnsClient {
   }
 
   // ---------------------------------------------------------------------------
-  // TSIG keys — list/get + create/delete + one-time secret reveal.
+  // TSIG keys - list/get + create/delete + one-time secret reveal.
   // ---------------------------------------------------------------------------
 
   /**
-   * `GET /servers/{id}/tsigkeys` — list every TSIG key configured on
+   * `GET /servers/{id}/tsigkeys` - list every TSIG key configured on
    * this PDNS backend. PDNS does NOT include the secret material in
-   * the list response — only id, name, and algorithm — which is
+   * the list response - only id, name, and algorithm - which is
    * exactly the shape needed to render an inventory view.
    *
    * The summary schema deliberately does not have a `key` field, so
@@ -596,14 +596,14 @@ export class PdnsClient {
   }
 
   /**
-   * `GET /servers/{id}/tsigkeys/{key_id}` — detail incl. `key` (the
+   * `GET /servers/{id}/tsigkeys/{key_id}` - detail incl. `key` (the
    * base64-encoded shared secret). Reserved for the secret-reveal
-   * admin flow — gate the call on `tsig.manage` rather than
+   * admin flow - gate the call on `tsig.manage` rather than
    * `tsig.read`. Pass the returned object into `appendAudit` snapshots
    * only via the redactor (the field name `key` is in REDACT_FIELDS
    * so it auto-redacts).
    *
-   * NEVER pass the full returned object to a logger — write a
+   * NEVER pass the full returned object to a logger - write a
    * destructured copy with `key` stripped explicitly.
    */
   public async getTsigKey(keyId: string): Promise<PdnsTsigKeyDetail> {
@@ -616,21 +616,21 @@ export class PdnsClient {
   }
 
   /**
-   * `POST /servers/{id}/tsigkeys` — generate a new TSIG key. PDNS does
+   * `POST /servers/{id}/tsigkeys` - generate a new TSIG key. PDNS does
    * the HMAC key generation server-side; we never pass an
    * operator-supplied `key` so the secret only exists in PDNS and (via
    * the temp-reveal-store) in the operator's browser session that
    * issued the create. This mirrors the DNSSEC `createCryptokey`
    * discipline.
    *
-   * The response includes `key` — the freshly generated base64 HMAC
+   * The response includes `key` - the freshly generated base64 HMAC
    * secret. Callers are responsible for:
    *   1. Stashing it in the temp-reveal-store (one-shot, actor-bound),
    *   2. Stripping `key` from any audit snapshot (the audit redactor
-   *      catches `key` automatically, but don't rely on that — destructure
+   *      catches `key` automatically, but don't rely on that - destructure
    *      explicitly when shaping the audit payload).
    *
-   * Algorithm defaults to `hmac-sha256` — PDNS' modern default and
+   * Algorithm defaults to `hmac-sha256` - PDNS' modern default and
    * what every BIND/Knot secondary supports out of the box.
    */
   public async createTsigKey(input: {
@@ -659,7 +659,7 @@ export class PdnsClient {
   }
 
   /**
-   * `DELETE /servers/{id}/tsigkeys/{key_id}` — permanent. Once gone,
+   * `DELETE /servers/{id}/tsigkeys/{key_id}` - permanent. Once gone,
    * any zone metadata that references this key by name (TSIG-ALLOW-AXFR,
    * AXFR-MASTER-TSIG) starts rejecting transfers. The caller (admin UI)
    * is responsible for warning operators about that ripple effect.
@@ -673,11 +673,11 @@ export class PdnsClient {
   }
 
   // ---------------------------------------------------------------------------
-  // autoprimaries — full CRUD; no secret material involved.
+  // autoprimaries - full CRUD; no secret material involved.
   // ---------------------------------------------------------------------------
 
   /**
-   * `GET /servers/{id}/autoprimaries` — list the trusted primaries this
+   * `GET /servers/{id}/autoprimaries` - list the trusted primaries this
    * server will auto-create slave zones from. Returns the array (which
    * may be empty when autoprimary handling is disabled or simply
    * unconfigured).
@@ -692,7 +692,7 @@ export class PdnsClient {
   }
 
   /**
-   * `POST /servers/{id}/autoprimaries` — register a (ip, nameserver,
+   * `POST /servers/{id}/autoprimaries` - register a (ip, nameserver,
    * account?) tuple. PDNS rejects duplicates with 409. Returns 201
    * with no body; callers should refresh via `listAutoprimaries` if
    * they need the canonical list back.
@@ -707,7 +707,7 @@ export class PdnsClient {
   }
 
   /**
-   * `DELETE /servers/{id}/autoprimaries/{ip}/{nameserver}` — remove a
+   * `DELETE /servers/{id}/autoprimaries/{ip}/{nameserver}` - remove a
    * registered primary by its compound key. PDNS treats the pair
    * (ip, nameserver) as the row identifier; `account` is informational
    * and doesn't participate in lookup or delete.

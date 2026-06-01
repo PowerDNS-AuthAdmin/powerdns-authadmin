@@ -1,5 +1,5 @@
 # =============================================================================
-# CodeQL — static analysis (SAST) for the app code and the workflows.
+# CodeQL - static analysis (SAST) for the app code and the workflows.
 #
 # Why a workflow file instead of GitHub's "default setup": this repo treats
 # everything as code (ADRs, CI, compose), and the classic-PAT default-setup
@@ -54,7 +54,7 @@ jobs:
           queries: security-and-quality
 
       # JS/TS is interpreted and the Actions language has nothing to compile,
-      # so autobuild is a no-op here — kept for portability if a compiled
+      # so autobuild is a no-op here - kept for portability if a compiled
       # language is ever added.
       - name: Autobuild
         uses: github/codeql-action/autobuild@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4

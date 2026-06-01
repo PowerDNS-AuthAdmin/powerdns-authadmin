@@ -22,7 +22,7 @@ vi.mock("@/lib/env", () => ({
 }));
 
 // Stub everything `zone-poller` reaches into so we don't need a live DB or
-// PDNS — we only want to observe the scheduling behaviour.
+// PDNS - we only want to observe the scheduling behaviour.
 vi.mock("@/lib/db/repositories/pdns-servers", () => ({
   listAllActiveBackends: vi.fn().mockResolvedValue([]),
 }));

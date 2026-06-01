@@ -9,7 +9,7 @@
  * any nav link still triggers a Next.js soft-navigation flash (loading shimmer,
  * URL change, redirect bounce) before the server pulls them back. This guard
  * intercepts those clicks on the client *before* the navigation starts and
- * tells the banner to shake — the operator stays put and the reason is
+ * tells the banner to shake - the operator stays put and the reason is
  * obvious.
  *
  * One guard handles both reasons (MFA-enrollment-required and password-must-
@@ -100,7 +100,7 @@ export function ComplianceGuardProvider({
   useEffect(() => {
     if (!blocked) return;
     function onClick(e: MouseEvent) {
-      // Honor modified clicks (open in new tab) — those go to a fresh server
+      // Honor modified clicks (open in new tab) - those go to a fresh server
       // page and our `requireUserForPage` gate handles them server-side.
       if (
         e.defaultPrevented ||

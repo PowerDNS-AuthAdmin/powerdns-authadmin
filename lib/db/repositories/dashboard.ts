@@ -2,7 +2,7 @@
  * lib/db/repositories/dashboard.ts
  *
  * Queries that power the dashboard's charts and KPI cards. Pure data access
- * — no permission checks, no formatting; the page composes and renders.
+ * - no permission checks, no formatting; the page composes and renders.
  *
  * Two sources:
  *   - `audit_log`: every state-changing action with a timestamp; great for
@@ -60,7 +60,7 @@ export async function auditCountsPerHour(opts: {
   return rows.map((row) => ({
     // SQLite returns the truncated bucket as a UTC ISO string ('…THH:00:00Z',
     // see truncToHour); PG returns a Date. `new Date(str)` parses the 'Z' as
-    // UTC so both dialects agree — without it the string would be read as
+    // UTC so both dialects agree - without it the string would be read as
     // local time and skew the chart by the server's offset.
     bucket: row.bucket instanceof Date ? row.bucket : new Date(row.bucket as unknown as string),
     count: Number(row.count),
@@ -147,7 +147,7 @@ export interface BackendStat {
   serverName: string;
   /** Whether this backend is a write target (ADR-0014, observed capability). */
   isWriteTarget: boolean;
-  /** Cluster membership — when set, all peers in the cluster see the same
+  /** Cluster membership - when set, all peers in the cluster see the same
    *  zone set (backend-level replication), so the dashboard collapses them
    *  to one row when computing totals. Null for standalone primaries. */
   clusterId: string | null;
@@ -246,7 +246,7 @@ export interface SessionsSeriesRow {
 /**
  * Counts of users in attention-worthy states. Single round-trip
  * across the `users` table using FILTER predicates. Disabled
- * accounts are excluded from every bucket — they aren't actionable
+ * accounts are excluded from every bucket - they aren't actionable
  * (an admin already decided to turn them off).
  */
 export interface UserAttentionCounts {
@@ -261,7 +261,7 @@ export interface UserAttentionCounts {
 }
 
 // PDNS-backend attention is computed on the dashboard from the live reachability
-// store (`lib/realtime/backend-status`), not the DB — see app/(app)/dashboard.
+// store (`lib/realtime/backend-status`), not the DB - see app/(app)/dashboard.
 // The old `last_seen_at`-derived counter lived here; it's gone so there's one
 // reachability source.
 
@@ -274,19 +274,19 @@ export interface UserAttentionCounts {
  *     null. Either freshly added (the next visit to the admin page
  *     will sample) or row predates the sampler.
  *   - `failing`: enabled providers whose latest probe set
- *     `discovery_cache.ok = false`. Most urgent actionable signal —
+ *     `discovery_cache.ok = false`. Most urgent actionable signal -
  *     the IdP is unreachable, misconfigured, or returning a bad
  *     discovery doc. Operator should click into the provider to
  *     read the reason hint.
  *
- * Disabled providers (enabled=false) are excluded — they're not
+ * Disabled providers (enabled=false) are excluded - they're not
  * shown on the login page, so unreachability doesn't matter until
  * the operator re-enables them. Single round-trip via FILTER.
  *
  * Did NOT include a `stale` count like the PDNS variant: the T-103
  * sampler refreshes every 15 minutes on the admin-page load, so
  * "stale" in practice means "no one has visited /admin/oidc-
- * providers for 24h" — bucketed under operator inattention, not
+ * providers for 24h" - bucketed under operator inattention, not
  * provider health.
  */
 export interface OidcAttentionCounts {
@@ -322,8 +322,8 @@ export async function userAttentionCounts(): Promise<UserAttentionCounts> {
   const mustChangeTrue = isSqlite
     ? sql`${users.mustChangePassword} = 1`
     : sql`${users.mustChangePassword} = true`;
-  // For SQLite, timestamps are integer ms — compare against a literal number;
-  // for PG, lockedUntil is timestamptz — compare against the `now()` literal.
+  // For SQLite, timestamps are integer ms - compare against a literal number;
+  // for PG, lockedUntil is timestamptz - compare against the `now()` literal.
   const stillLocked = isSqlite
     ? sql`${users.lockedUntil} > ${nowMs}`
     : sql`${users.lockedUntil} > now()`;

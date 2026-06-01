@@ -4,7 +4,7 @@
  * Health advisories surfaced in the notification bell (ADR-0015). Each row is
  * one active issue for one backend, keyed by `(backend_id, code)`. The poller
  * recomputes advisories from observed state every cycle and upserts/prunes this
- * table, so it self-heals — a cleared condition's row is deleted. The only
+ * table, so it self-heals - a cleared condition's row is deleted. The only
  * operator-owned state is `acknowledged_at`. `first_seen_at` drives debounce
  * (don't ring the bell until an issue has persisted); `last_seen_at` shows age.
  */

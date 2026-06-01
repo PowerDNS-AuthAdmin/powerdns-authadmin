@@ -8,14 +8,17 @@
  * Output:
  *   - screenshots/<theme>/<name>.png         (1440×900 viewport, full bleed)
  *   - screenshots/<theme>/<name>-mobile.png  (iPhone 14 screenshot wrapped in
- *                                             a CSS-rendered iPhone bezel —
+ *                                             a CSS-rendered iPhone bezel -
  *                                             showcase-grade marketing asset)
  *
  * Prereqs:
  *   - The combined demo stack is up:
  *       docker compose -f docker-compose-combined.yml up -d --build
  *     (needs APP_SECRET_KEY + APP_ENCRYPTION_KEY env)
- *   - The bootstrap admin's must_change_password is cleared:
+ *   - The bootstrap admin can log in straight away. The combined stack sets
+ *     BOOTSTRAP_ADMIN_RO=true, so the seed already creates the admin with
+ *     must_change_password=false - no manual SQL needed. If you run with
+ *     BOOTSTRAP_ADMIN_RO=false, clear the flag yourself first:
  *       docker exec powerdns-authadmin-combined-postgres-1 \
  *         psql -U pdns -d powerdns_authadmin \
  *         -c "UPDATE users SET must_change_password=false WHERE email='admin@example.com';"
@@ -42,7 +45,7 @@
  *   SKIP_OPTIMIZE        "1" to skip the post-pass PNG optimizer
  *
  * Optional but strongly recommended:
- *   - pngquant  (lossy, quality 80-95 — visually identical for UI shots)
+ *   - pngquant  (lossy, quality 80-95 - visually identical for UI shots)
  *   - oxipng    (lossless restream)
  * Install both with `brew install pngquant oxipng` (or apt/dnf equivalent).
  * The sweep skips the optimizer silently if neither is on PATH; with both
@@ -57,7 +60,7 @@ const BASE = process.env.SCREENSHOT_URL ?? "http://localhost:3000";
 const EMAIL = process.env.SCREENSHOT_EMAIL ?? "admin@example.com";
 const PASSWORD = process.env.SCREENSHOT_PASSWORD ?? "bootstrap-admin-pw-changeme";
 // Showcase zone for the per-zone shots. ps-6.demo is a primary+secondaries
-// group zone (cluster slug `ps-group`) — picked because it renders the
+// group zone (cluster slug `ps-group`) - picked because it renders the
 // richest mix of data: a records table with multiple rrset types, a change
 // history tab populated by the demo seed, and a sync chip with peers to
 // compare against. Override via env if you point the script at a custom
@@ -80,8 +83,8 @@ const MOBILE_DEVICE = {
 };
 
 /**
- * Pages to shoot. Every entry produces 4 variants — desktop+light,
- * desktop+dark, mobile+light, mobile+dark — so the docs reference a
+ * Pages to shoot. Every entry produces 4 variants - desktop+light,
+ * desktop+dark, mobile+light, mobile+dark - so the docs reference a
  * consistent set for each page.
  *
  * Each entry has a `path` (navigated to first) and may have an async
@@ -102,7 +105,7 @@ const PAGES = [
       // don't accidentally hit the hamburger / health-bell / other
       // collapsibles that also use `aria-expanded`. The responsive
       // overlay has BOTH the desktop table and the mobile card list in
-      // the DOM at once — only the visible form factor's toggle is
+      // the DOM at once - only the visible form factor's toggle is
       // clicked, the hidden one is left alone.
       await page.evaluate(() => {
         const toggles = document.querySelectorAll(
@@ -135,7 +138,7 @@ const PAGES = [
     name: "zone-edit",
     path: ZONE_PATH,
     async prepare(page) {
-      // Click the first row's "Edit" button — opens the Edit-record dialog.
+      // Click the first row's "Edit" button - opens the Edit-record dialog.
       await page.getByRole("button", { name: "Edit" }).first().click();
       await page.getByRole("heading", { name: "Edit record" }).waitFor({ timeout: 5_000 });
       await page.waitForTimeout(200);
@@ -165,7 +168,7 @@ const PAGES = [
     name: "backend-health",
     path: "/dashboard",
     async prepare(page) {
-      // The bell's aria-label is "Backend health: N active issue(s)" — match
+      // The bell's aria-label is "Backend health: N active issue(s)" - match
       // by prefix so the exact count doesn't matter.
       await page.getByRole("button", { name: /^Backend health:/ }).click();
       await page.waitForTimeout(300);
@@ -228,7 +231,7 @@ async function settle(page) {
 
 async function applyFontOverride(page) {
   // Playwright's bundled Chromium falls back to a wider hyphen glyph for
-  // `ui-monospace` than system Chromium does — force a literal font stack
+  // `ui-monospace` than system Chromium does - force a literal font stack
   // so zone names like `ps-6.demo` render with a normal hyphen, not the
   // em-dash-looking glyph the bundled font would otherwise produce.
   await page.addStyleTag({
@@ -253,7 +256,7 @@ async function shootDesktop(page, theme, def) {
  * Mobile shots: take the raw 390×844 webpage screenshot, then re-screenshot
  * it inside a CSS-rendered iPhone 14 Pro bezel. The OS status bar (time +
  * carrier/wifi/battery icons + dynamic island) sits ABOVE the webpage
- * content — the island does not encroach into the page viewport, matching a
+ * content - the island does not encroach into the page viewport, matching a
  * real device's layout. All Playwright + CSS, no extra deps.
  */
 async function shootMobile(page, framePage, theme, def) {
@@ -280,7 +283,7 @@ async function renderIphoneFrame(framePage, screenDataUrl, theme) {
   //   - Status bar (with Dynamic Island): 50 px
   //   - Screen total: 393 × 902
   //   - Bezel: 11 px each side (slimmer than 14-era) → frame 415 × 924
-  //   - Corner radii: 56 px outer, 45 px inner — nested-radius bezel.
+  //   - Corner radii: 56 px outer, 45 px inner - nested-radius bezel.
   //   - Hardware cues: Action Button (left, replaces mute switch) and
   //     Camera Control (right, slightly recessed wide pill, iPhone 16+).
   const isDark = theme === "dark";
@@ -342,17 +345,17 @@ async function renderIphoneFrame(framePage, screenDataUrl, theme) {
     width: 393px;
     height: 852px;
   }
-  /* Hardware buttons — iPhone 16 / 16 Pro layout. */
+  /* Hardware buttons - iPhone 16 / 16 Pro layout. */
   .btn { position: absolute; background: #1c1c20; border-radius: 2px; }
   .btn-left  { left:  -2px; width: 3px; }
   .btn-right { right: -2px; width: 3px; }
-  /* Action Button — replaces the mute switch from iPhone 14 era. */
+  /* Action Button - replaces the mute switch from iPhone 14 era. */
   .btn-action  { top: 105px; height: 34px; }
   .btn-volup   { top: 165px; height: 60px; }
   .btn-voldn   { top: 235px; height: 60px; }
   /* Power / Sleep. */
   .btn-power   { top: 175px; height: 92px; }
-  /* Camera Control — the recessed wide pill new on iPhone 16. */
+  /* Camera Control - the recessed wide pill new on iPhone 16. */
   .btn-camera  {
     top: 305px;
     height: 42px;
@@ -456,7 +459,7 @@ async function runMobilePass(browser, theme) {
  * Optional post-pass: shrink every PNG with `pngquant` (lossy at q=80-95,
  * visually identical for UI screenshots) and then `oxipng -o 4` (lossless
  * deflate restream). Brings the gallery from ~11 MB → ~3 MB. Both tools
- * are optional — if neither is installed we skip the pass and only log a
+ * are optional - if neither is installed we skip the pass and only log a
  * hint. Run `SKIP_OPTIMIZE=1` to bypass even when they're available.
  */
 function optimizePngs() {
@@ -466,7 +469,7 @@ function optimizePngs() {
   const hasOxipng = spawnSync("oxipng", ["--version"], { stdio: "ignore" }).status === 0;
   if (!hasPngquant && !hasOxipng) {
     console.log(
-      "optimize: skipped — neither pngquant nor oxipng on PATH. " +
+      "optimize: skipped - neither pngquant nor oxipng on PATH. " +
         "Install with `brew install pngquant oxipng` (or apt/dnf equivalents) " +
         "to shrink the gallery by ~70%.",
     );

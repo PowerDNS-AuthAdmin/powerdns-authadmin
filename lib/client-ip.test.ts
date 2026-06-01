@@ -62,7 +62,7 @@ describe("getClientIp", () => {
     it("rejects empty XFF leftmost when proxy double-comma'd", () => {
       // Defensive: ", 1.2.3.4" has an empty leftmost. The helper
       // should reject it (we don't pick the second value when the
-      // first is empty — that would let an attacker bypass the
+      // first is empty - that would let an attacker bypass the
       // rate limiter by sending an extra leading comma).
       expect(getClientIp(h({ "x-forwarded-for": ", 1.2.3.4" }))).toBeNull();
     });

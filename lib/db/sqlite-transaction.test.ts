@@ -3,7 +3,7 @@
  *
  * The portable cases drive a fake exec-handle that records the SQL it's asked
  * to run, so they assert the BEGIN/COMMIT/ROLLBACK ordering, top-level
- * serialization, and SAVEPOINT nesting without a native module — they run in
+ * serialization, and SAVEPOINT nesting without a native module - they run in
  * any environment.
  *
  * The final block opens a real in-memory better-sqlite3 database to prove
@@ -100,7 +100,7 @@ describe("createSqliteTransactionRunner (fake handle)", () => {
     await Promise.all([t1, t2]);
 
     expect(order).toEqual(["t1-start", "t1-end", "t2-start"]);
-    // Strictly serialized — never BEGIN,BEGIN.
+    // Strictly serialized - never BEGIN,BEGIN.
     expect(h.calls).toEqual(["BEGIN", "COMMIT", "BEGIN", "COMMIT"]);
   });
 
@@ -154,7 +154,7 @@ let DatabaseCtor: DatabaseCtorType | null = null;
 try {
   const ctor = createRequire(import.meta.url)("better-sqlite3") as DatabaseCtorType;
   // The JS wrapper requires fine, but the native binding only loads on first
-  // instantiation — so probe it here. An ABI mismatch (dev sandbox) then skips
+  // instantiation - so probe it here. An ABI mismatch (dev sandbox) then skips
   // the suite instead of failing it; CI's matching ABI runs it.
   new ctor(":memory:").close();
   DatabaseCtor = ctor;
@@ -183,7 +183,7 @@ describe.skipIf(DatabaseCtor === null)(
           throw new Error("rollback me");
         }),
       ).rejects.toThrow("rollback me");
-      // The "b" insert must have been rolled back — still exactly one row.
+      // The "b" insert must have been rolled back - still exactly one row.
       expect((handle.prepare("SELECT COUNT(*) AS c FROM t").get() as { c: number }).c).toBe(1);
 
       handle.close();

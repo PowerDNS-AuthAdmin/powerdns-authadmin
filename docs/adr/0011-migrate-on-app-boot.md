@@ -1,4 +1,4 @@
-# ADR 0011 — Migrations run at app-container boot
+# ADR 0011 - Migrations run at app-container boot
 
 - **Status:** Accepted. **Supersedes [ADR 0005](./0005-migrations-explicit.md).**
 - **Date:** 2026-05-18
@@ -6,7 +6,7 @@
 
 ## Context
 
-ADR 0005 said the project would never auto-apply migrations at app boot — that migrations were
+ADR 0005 said the project would never auto-apply migrations at app boot - that migrations were
 an explicit operator action, and that a one-shot `migrate` sidecar service in
 `docker compose` would carry the explicitness intent over to the container world.
 
@@ -20,7 +20,7 @@ for the deployment shapes this project actually targets:
 - **SQLite has no notion of a separate sidecar writer.** The SQLite variant
   added in this commit owns a single file on a shared volume. A "migrate
   container" attached to the same volume would still be SQLite's only
-  writer — the sidecar shape is theatre, not enforcement.
+  writer - the sidecar shape is theatre, not enforcement.
 - **The "explicit operator action" frame leaked.** Operators bringing up the
   stack on a new host either ran `docker compose up` and got migrations for
   free (sidecar dependency on `service_healthy`), or they ran `docker
@@ -32,7 +32,7 @@ What we still want from ADR 0005:
 - **Single-writer safety.** When the app scales to multiple replicas, only
   one of them should actually apply pending migrations on cold start.
 - **Operator opt-out for fancy CI/CD flows.** Some operators want to run
-  migrations from CI before pods are even allowed to come up — the new
+  migrations from CI before pods are even allowed to come up - the new
   shape needs a switch for that.
 
 ## Decision
@@ -43,7 +43,7 @@ sidecar.
 
 - The entrypoint is `docker/entrypoint.mjs`. It spawns
   `node scripts/migrate.js`, then dynamic-imports the Next.js standalone
-  server. Exit code from migrate aborts the boot — a broken migration is
+  server. Exit code from migrate aborts the boot - a broken migration is
   a refused start, not a degraded run.
 - `scripts/migrate.ts` (compiled to `scripts/migrate.js` at build time)
   inspects `DATABASE_URL`:
@@ -62,7 +62,7 @@ Positive:
 
 - One container, one entrypoint. Operators bring the stack up with
   `docker compose up` and the rest is mechanical.
-- The SQLite variant works the same as Postgres — one shared compose
+- The SQLite variant works the same as Postgres - one shared compose
   shape, one mental model.
 - The Postgres advisory lock keeps multi-replica deployments safe; the
   failure mode for the few-second lock-wait window is "the second pod

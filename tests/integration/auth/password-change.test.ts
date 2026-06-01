@@ -1,7 +1,7 @@
 /**
  * tests/integration/auth/password-change.test.ts
  *
- * POST /api/auth/change-password — self-service password change for
+ * POST /api/auth/change-password - self-service password change for
  * the authenticated user. To avoid mutating the bootstrap admin's
  * password (which subsequent tests need), we operate on a fresh user
  * we create per test.

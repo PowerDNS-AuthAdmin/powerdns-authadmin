@@ -38,13 +38,13 @@ import {
 } from "react";
 
 // =============================================================================
-// Shared body-scroll-lock — counter-based so stacked dialogs cooperate.
+// Shared body-scroll-lock - counter-based so stacked dialogs cooperate.
 //
 // The bug this guards against: each Dialog effect used to save+restore
 // `body.style.overflow` independently. When the editor flow opened a second
 // dialog (Review) on top of the first (Editor), the Review effect captured
 // the already-set `overflow: hidden` as its "previous" value. On close,
-// React fires cleanups in an order that depends on commit timing — if the
+// React fires cleanups in an order that depends on commit timing - if the
 // outer cleanup ran first, the inner cleanup would then *re-apply*
 // `overflow: hidden` over the now-restored `""`, leaving the page scroll
 // permanently locked.
@@ -318,7 +318,7 @@ function ConfirmModal({
 
     // Focus the primary action (last focusable element by render order) once
     // the dialog mounts so destructive prompts don't open with focus on the
-    // confirm button — keyboard users have to deliberately move forward.
+    // confirm button - keyboard users have to deliberately move forward.
     const tabbables = getTabbables(dialogRef.current);
     const initial = tabbables.find((el) => el.dataset["dialogFocus"] === "true") ?? tabbables[0];
     initial?.focus();
@@ -356,7 +356,7 @@ function ConfirmModal({
   const dismissOnBackdrop = state.dismissOnBackdrop !== false;
 
   return (
-    // Two-layer layout — see the matching comment in `Dialog` below for the
+    // Two-layer layout - see the matching comment in `Dialog` below for the
     // why. Outer is the scrollable viewport, inner flex centers the dialog
     // when there's room and lets it overflow + scroll when there isn't.
     <div className="fixed inset-0 z-[100] !mt-0 overflow-y-auto" aria-hidden={!isTopMost}>
@@ -432,7 +432,7 @@ function ConfirmModal({
 }
 
 // =============================================================================
-// Prompt modal — text input variant of confirm
+// Prompt modal - text input variant of confirm
 // =============================================================================
 
 function PromptModal({
@@ -461,7 +461,7 @@ function PromptModal({
     if (!isTopMost) return;
     lockBodyScroll();
 
-    // Focus the input rather than the primary button — operator
+    // Focus the input rather than the primary button - operator
     // starts typing immediately, the common case for a prompt.
     inputRef.current?.focus();
     inputRef.current?.select();
@@ -586,7 +586,7 @@ function PromptModal({
 }
 
 // =============================================================================
-// Low-level Dialog — for custom content (forms, diff previews, etc.)
+// Low-level Dialog - for custom content (forms, diff previews, etc.)
 // =============================================================================
 
 interface DialogProps {
@@ -596,7 +596,7 @@ interface DialogProps {
   title: string;
   hideTitle?: boolean;
   description?: string;
-  /** Tailwind max-width class — default "max-w-lg". */
+  /** Tailwind max-width class - default "max-w-lg". */
   maxWidthClass?: string;
   /** When false, backdrop click does nothing. Default true. */
   dismissOnBackdrop?: boolean;
@@ -682,7 +682,7 @@ export function Dialog({
   return (
     // Two-layer layout: the outer is the scrollable viewport (with body
     // locked, this is the *only* surface that scrolls while the dialog is
-    // open). The inner is a flex container with `min-h-full` — it stretches
+    // open). The inner is a flex container with `min-h-full` - it stretches
     // to the viewport when the dialog is short (so `items-center` centers
     // the dialog), and grows past the viewport when the dialog is tall (so
     // the outer scrolls to reveal the overflow). The earlier single-div

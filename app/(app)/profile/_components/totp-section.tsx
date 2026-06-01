@@ -25,7 +25,7 @@ interface Props {
   requiringRoleSlugs?: string[];
   /**
    * When true, the user has no local password and only signs in via
-   * an IdP — MFA is the IdP's responsibility. The section renders
+   * an IdP - MFA is the IdP's responsibility. The section renders
    * read-only with a "managed upstream" caption; no enroll button,
    * no disable button, no forced-enrollment banner.
    */
@@ -98,7 +98,7 @@ export function TotpSection({
           title: "Confirm failed",
           description: result.error,
         });
-        // On a wrong code the reveal store burned the secret — the
+        // On a wrong code the reveal store burned the secret - the
         // operator has to start over. Clear the form to make that
         // obvious.
         setEnrolling(null);
@@ -138,7 +138,7 @@ export function TotpSection({
   // Banner shown when the layout shunted the operator here because
   // their role(s) demand MFA. Stays visible until enrolled (the layout
   // stops adding the query param once the user has TOTP enrolled).
-  // Suppressed for SSO-only users — the IdP is the second-factor
+  // Suppressed for SSO-only users - the IdP is the second-factor
   // authority for them, so we don't double-prompt.
   const showRequiredBanner = mfaRequired && !initialEnabled && !ssoOnly;
 
@@ -211,7 +211,7 @@ export function TotpSection({
                 className="shrink-0 rounded-md bg-white p-3"
                 aria-label="TOTP enrollment QR code"
                 // SVG produced server-side by `qrcode` from a URI WE
-                // generated — no user-controlled content, so the
+                // generated - no user-controlled content, so the
                 // dangerouslySetInnerHTML is safe.
                 dangerouslySetInnerHTML={{ __html: enrolling.qrSvg }}
                 style={{ width: 200, height: 200 }}

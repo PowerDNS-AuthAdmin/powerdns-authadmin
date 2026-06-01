@@ -42,7 +42,7 @@ export async function startRegistration(input: StartRegistrationInput): Promise<
   challenge: string;
 }> {
   // WebAuthn's userID is opaque to the authenticator (browsers prevent duplicate
-  // registrations against the same (rpID, userID) pair). Use the user's UUID —
+  // registrations against the same (rpID, userID) pair). Use the user's UUID -
   // it's already unique and not PII.
   const userID = new TextEncoder().encode(input.user.id);
 

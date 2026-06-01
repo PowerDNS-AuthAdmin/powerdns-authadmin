@@ -3,7 +3,7 @@
 /**
  * Read-only TSIG keys table for operators with `tsig.read` but not
  * `tsig.manage`. Same column shape as the writable variant in
- * <TsigActions/>, just no per-row actions — funnels both views onto the
+ * <TsigActions/>, just no per-row actions - funnels both views onto the
  * shared <DataTable> so the mobile-card layout, sort, and spacing match.
  */
 

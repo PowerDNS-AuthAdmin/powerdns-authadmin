@@ -4,8 +4,8 @@
  * app/(app)/zones/[zoneId]/_components/bind-diff-view.tsx
  *
  * Side-by-side / unified diff of the zone's BIND zonefile, before vs after a
- * pending edit. Powered by `react-diff-viewer-continued` — the maintained
- * successor to `react-diff-viewer` — so we get a battle-tested diff renderer
+ * pending edit. Powered by `react-diff-viewer-continued` - the maintained
+ * successor to `react-diff-viewer` - so we get a battle-tested diff renderer
  * (line numbers, expand-collapsed, sub-line word diff, accessibility) for
  * free, themed against our design tokens.
  *
@@ -15,7 +15,7 @@
  * library's default greyscale.
  *
  * Syntax highlighting: `renderContent` runs each line through the BIND
- * tokenizer in `lib/dns/bind-format.ts` and renders color-classed spans —
+ * tokenizer in `lib/dns/bind-format.ts` and renders color-classed spans -
  * directives, RR type, ttl/class, comments all get their own color so the
  * diff doubles as a readable zonefile view.
  */
@@ -44,7 +44,7 @@ interface BindDiffViewProps {
    *   - The library's "X collapsed lines" fold marker is hidden via CSS so
    *     the operator doesn't see a "ghost" row between hunks.
    *
-   * Default false — the Review dialog keeps the richer rendering so
+   * Default false - the Review dialog keeps the richer rendering so
    * operators can scan a full before/after of the zone before applying.
    */
   compact?: boolean;
@@ -160,7 +160,7 @@ function classForToken(token: BindToken): string {
 }
 
 // =============================================================================
-// Style overrides — blend the library's frame with our design tokens
+// Style overrides - blend the library's frame with our design tokens
 // =============================================================================
 
 /**
@@ -169,7 +169,7 @@ function classForToken(token: BindToken): string {
  * tints so the diff aligns with our --color-success / --color-error
  * semantic tokens. We use raw hex/rgba values here because Emotion (the
  * library's styling engine) can't resolve CSS variables defined on `:root`
- * — those only paint on the DOM at render time, not at serialization.
+ * - those only paint on the DOM at render time, not at serialization.
  */
 function diffStyles(isDark: boolean, compact = false) {
   const bg = isDark ? "#0a0a0a" : "#ffffff";
@@ -220,7 +220,7 @@ function diffStyles(isDark: boolean, compact = false) {
   // code-fold "X lines hidden" summary row). extraLinesSurroundingDiff=0
   // keeps fold sections from being created in the first place; these
   // style overrides cover the case where the lib still reserves a row.
-  // `marker` (the +/- gutter glyph) is hidden in BOTH modes — the
+  // `marker` (the +/- gutter glyph) is hidden in BOTH modes - the
   // operator identifies sides via column header + row tint, not a glyph.
   const compactOverrides = compact
     ? {

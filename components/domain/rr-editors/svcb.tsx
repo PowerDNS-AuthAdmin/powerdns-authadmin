@@ -4,7 +4,7 @@
  * SVCB / HTTPS = priority target [SvcParams]. RFC 9460.
  *
  * SvcParams editor: repeatable rows of (key dropdown / custom, value input).
- * The value input shape is driven by the key — comma-list for alpn/hints,
+ * The value input shape is driven by the key - comma-list for alpn/hints,
  * port for port, base64 for ech, no value for boolean params.
  *
  * HTTPS shares the wire format (RFC 9460 § 7); the HTTPS editor delegates.

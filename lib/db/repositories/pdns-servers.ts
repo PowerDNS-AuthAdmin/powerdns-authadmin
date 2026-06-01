@@ -1,14 +1,14 @@
 /**
  * lib/db/repositories/pdns-servers.ts
  *
- * Data-access for `pdns_servers`. Pure queries — no business rules, no
+ * Data-access for `pdns_servers`. Pure queries - no business rules, no
  * authorization, no encryption. Callers (admin route handlers, the PdnsClient
  * registry) own those decisions.
  *
  * The `apiKeyEncrypted` column stays opaque at this layer; callers passing a
  * plaintext API key must encrypt it via `lib/crypto/encryption.ts` first.
  * The repository never logs the value (Pino's redactor also covers
- * `*.apiKey` / `*.api_key` field shapes — defense in depth).
+ * `*.apiKey` / `*.api_key` field shapes - defense in depth).
  */
 
 import "server-only";
@@ -24,7 +24,7 @@ import {
 import { isReadOnlyMirror, isWriteCapable } from "@/lib/pdns/capabilities";
 
 /**
- * Active (non-disabled) WRITE-TARGET backends — the default for read paths
+ * Active (non-disabled) WRITE-TARGET backends - the default for read paths
  * (zones list, dashboards, write APIs). A backend is a write target when its
  * observed capabilities report `primary`, or it hasn't been probed yet
  * (ADR-0014). Replaces the old `role='primary'` filter. Use
@@ -39,7 +39,7 @@ export async function listActivePdnsServers(): Promise<PdnsServer[]> {
   return rows.filter((r) => isWriteCapable(r.capabilities));
 }
 
-/** Every active backend regardless of role — for the stats sampler. */
+/** Every active backend regardless of role - for the stats sampler. */
 export async function listAllActiveBackends(): Promise<PdnsServer[]> {
   return db
     .select()
@@ -49,7 +49,7 @@ export async function listAllActiveBackends(): Promise<PdnsServer[]> {
 }
 
 /**
- * Active secondaries that belong to NO group (`cluster_id` null) — they mirror
+ * Active secondaries that belong to NO group (`cluster_id` null) - they mirror
  * an external / unmanaged primary, so the app can only browse their zones
  * read-only. The amalgamated zones list uses this to surface those otherwise-
  * invisible zones (deduped against primary zones).
@@ -90,7 +90,7 @@ export async function listAllPdnsServers(): Promise<PdnsServer[]> {
 }
 
 /**
- * Active backends that belong to no group yet (`cluster_id` null) — the pool a
+ * Active backends that belong to no group yet (`cluster_id` null) - the pool a
  * "new group" form can pull initial members from. Servers already in a group
  * are excluded so creating a group never silently steals a peer from another.
  */
@@ -120,7 +120,7 @@ export async function assignServerToCluster(
   return rows[0] ?? null;
 }
 
-/** Write-target backends, any disabled state — for admin lists/pickers. */
+/** Write-target backends, any disabled state - for admin lists/pickers. */
 export async function listAllPrimaries(): Promise<PdnsServer[]> {
   const rows = await db.select().from(pdnsServers).orderBy(pdnsServers.name);
   return rows.filter((r) => isWriteCapable(r.capabilities));
@@ -140,12 +140,12 @@ export async function findPdnsServerBySlug(slug: string): Promise<PdnsServer | n
 
 /**
  * The default backend used when an API request omits `?server=`. Returns the
- * row marked `is_default=true` and not disabled, or — if there's exactly one
- * active server — that one. Otherwise null.
+ * row marked `is_default=true` and not disabled, or - if there's exactly one
+ * active server - that one. Otherwise null.
  */
 export async function findDefaultPdnsServer(): Promise<PdnsServer | null> {
   // The default is the implicit write target, so it must be write-capable
-  // (ADR-0014) — a read-only mirror is never the default.
+  // (ADR-0014) - a read-only mirror is never the default.
   const marked = await db
     .select()
     .from(pdnsServers)
@@ -161,10 +161,10 @@ export async function findDefaultPdnsServer(): Promise<PdnsServer | null> {
  * Resolve which backend a per-server *inspection* page (autoprimaries, TSIG, …)
  * should land on: the explicitly-requested slug, else the FIRST backend in the
  * (name-ordered) tab list. It deliberately does NOT prefer the is_default write
- * target — that could sort anywhere among the tabs and made the highlighted tab
+ * target - that could sort anywhere among the tabs and made the highlighted tab
  * appear to jump to the "last" backend; landing on the first tab is predictable.
  * Lands happily on a secondary too, since these pages read/manage server-level
- * config (autoprimaries, TSIG keys) that is valid on secondaries — so a
+ * config (autoprimaries, TSIG keys) that is valid on secondaries - so a
  * secondary-only deployment doesn't dead-end on "No backend selected".
  */
 export async function findServerToInspect(requestedSlug?: string): Promise<PdnsServer | null> {
@@ -181,7 +181,7 @@ export async function findServerToInspect(requestedSlug?: string): Promise<PdnsS
 /**
  * Insert a backend. The caller is responsible for encrypting the API key. If
  * `isDefault` is true, any other default-flagged row is cleared in the same
- * transaction — exactly one default at a time.
+ * transaction - exactly one default at a time.
  *
  * Executor-aware: pass a `tx` so the route can group the default-clearing +
  * insert + `appendAudit` into ONE transaction. Called bare, it opens its own
@@ -209,7 +209,7 @@ export async function insertPdnsServer(
 }
 
 /**
- * Update mutable fields. Same default-uniqueness invariant applies — setting
+ * Update mutable fields. Same default-uniqueness invariant applies - setting
  * `isDefault: true` clears the flag on every other row inside the same
  * transaction. The id and createdAt columns are immutable.
  *
@@ -242,7 +242,7 @@ export async function updatePdnsServer(
 /**
  * Persist a successful version probe back to the row. A successful probe
  * is also proof of reachability, so it bumps `last_seen_at` alongside the
- * cache — keeps the manual Test / Refresh-all path in step with the
+ * cache - keeps the manual Test / Refresh-all path in step with the
  * poller's continuous `markPdnsServersSeen` updates.
  */
 export async function setPdnsVersionCache(id: string, cache: PdnsVersionCache): Promise<void> {
@@ -255,7 +255,7 @@ export async function setPdnsVersionCache(id: string, cache: PdnsVersionCache): 
 
 /**
  * Persist a freshly-observed daemon capability snapshot (ADR-0014). Also bumps
- * `last_seen_at` — reading `/config` means we reached the backend. Deliberately
+ * `last_seen_at` - reading `/config` means we reached the backend. Deliberately
  * leaves `updated_at` untouched: capabilities don't affect the cached
  * PdnsClient (base URL / API key), so there's no reason to bust the registry
  * cache, same reasoning as markPdnsServersSeen.

@@ -1,7 +1,7 @@
 /**
  * tests/integration/zones/clone.test.ts
  *
- * POST /api/admin/pdns/zones/clone — copy an existing zone's RRsets
+ * POST /api/admin/pdns/zones/clone - copy an existing zone's RRsets
  * into a fresh zone, dropping the SOA so PDNS regenerates one. We
  * verify the new zone exists on the same backend and carries the
  * source's records (rewritten to the new origin), but with a fresh SOA.

@@ -31,7 +31,7 @@ export default async function NewClusterPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">New group</h1>
         <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
-          A group relates backends that replicate together — the writable peers of a multi-primary
+          A group relates backends that replicate together - the writable peers of a multi-primary
           cluster, or a primary with its read-only secondaries. Pick its initial members below, or
           assign them later from each server&rsquo;s page (or the provisioning YAML&rsquo;s{" "}
           <code>cluster_slug</code> field).

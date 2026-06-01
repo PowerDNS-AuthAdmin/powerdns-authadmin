@@ -69,7 +69,7 @@ describe("AAAA validator", () => {
 
   it("rejects a fully-specified address that still contains :: (RFC 4291 § 2.2.2)", () => {
     // '::' must represent one or more zero groups; when all 8 groups are
-    // explicit there is no room for even one zero group — this is malformed.
+    // explicit there is no room for even one zero group - this is malformed.
     expect(hasErrors(aaaaValidator.validate("1:2:3:4:5:6:7:8::"))).toBe(true);
     expect(hasErrors(aaaaValidator.validate("::1:2:3:4:5:6:7:8"))).toBe(true);
   });
@@ -135,7 +135,7 @@ describe("SRV validator", () => {
   });
 
   it("rejects port > 65535 as an error (16-bit field, RFC 2782)", () => {
-    // port=70000 overflows the 16-bit wire field — this must be an error,
+    // port=70000 overflows the 16-bit wire field - this must be an error,
     // not merely a warning, because the value cannot be encoded.
     const r = srvValidator.validate("10 5 70000 service.example.com.");
     expect(r.issues.some((i) => i.level === "error" && i.message.includes("0–65535"))).toBe(true);
@@ -203,7 +203,7 @@ describe("CAA validator", () => {
 
   it("re-quotes a leading-only quote (unbalanced) into a balanced string", () => {
     // A value like `"letsencrypt.org` (opening quote, no closing quote) is
-    // unbalanced — passing it through verbatim would produce malformed wire
+    // unbalanced - passing it through verbatim would produce malformed wire
     // data. The validator must wrap it so the output is balanced.
     const r = caaValidator.validate('0 issue "letsencrypt.org');
     expect(hasErrors(r)).toBe(false); // unbalanced quote is a warning, not an error
@@ -216,7 +216,7 @@ describe("CAA validator", () => {
   });
 
   it("escapes backslashes (not just quotes) when quoting a bare value", () => {
-    // A bare value containing `\` must have it escaped before being wrapped —
+    // A bare value containing `\` must have it escaped before being wrapped -
     // leaving it raw emits malformed wire data (CodeQL js/incomplete-sanitization).
     const r = caaValidator.validate("0 issue ca\\corp");
     const valueField = r.normalized.split(" ").slice(2).join(" ");
@@ -226,13 +226,13 @@ describe("CAA validator", () => {
   it("escapes backslash before quote in a bare value (correct order)", () => {
     const r = caaValidator.validate('0 issue a\\b"c');
     const valueField = r.normalized.split(" ").slice(2).join(" ");
-    // a\b"c  →  "a\\b\"c"  — backslash doubled, quote escaped, neither doubled twice.
+    // a\b"c  →  "a\\b\"c"  - backslash doubled, quote escaped, neither doubled twice.
     expect(valueField).toBe('"a\\\\b\\"c"');
   });
 });
 
 describe("DS validator", () => {
-  // Real DS record for `example.com.` (digest-type 2 / SHA-256 — 64 hex chars).
+  // Real DS record for `example.com.` (digest-type 2 / SHA-256 - 64 hex chars).
   const VALID_SHA256 = "12345 13 2 " + "a".repeat(64);
 
   it("accepts a canonical SHA-256 DS record", () => {
@@ -291,7 +291,7 @@ describe("DS validator", () => {
   });
 
   it("warns on SHA-1 digest-type (deprecated)", () => {
-    // digest-type 1 (SHA-1) — 40 hex chars; structurally valid but
+    // digest-type 1 (SHA-1) - 40 hex chars; structurally valid but
     // deprecated. The validator emits a warning, not an error.
     const r = dsValidator.validate(`12345 8 1 ${"a".repeat(40)}`);
     expect(r.issues.some((i) => i.level === "error")).toBe(false);
@@ -315,7 +315,7 @@ describe("DS validator", () => {
 });
 
 describe("SSHFP validator", () => {
-  // Ed25519 + SHA-256 — the modern combo `ssh-keygen -r` emits by default.
+  // Ed25519 + SHA-256 - the modern combo `ssh-keygen -r` emits by default.
   const VALID_ED25519_SHA256 = `4 2 ${"a".repeat(64)}`;
 
   it("accepts a canonical Ed25519/SHA-256 record", () => {
@@ -349,7 +349,7 @@ describe("SSHFP validator", () => {
 
   it("warns on deprecated SHA-1 fingerprint-type (1) and accepts its 40-char length", () => {
     const r = sshfpValidator.validate(`4 1 ${"a".repeat(40)}`);
-    // No length error — 40 chars is correct for SHA-1.
+    // No length error - 40 chars is correct for SHA-1.
     expect(r.issues.some((i) => i.level === "error")).toBe(false);
     // But SHA-1 is deprecated per RFC 6594.
     expect(r.issues.some((i) => i.level === "warning" && i.message.includes("deprecated"))).toBe(
@@ -388,7 +388,7 @@ describe("SSHFP validator", () => {
 });
 
 describe("TLSA validator", () => {
-  // DANE-EE + SPKI + SHA-256 — the most-deployed combo for service certs.
+  // DANE-EE + SPKI + SHA-256 - the most-deployed combo for service certs.
   const VALID_DANE_EE_SPKI_SHA256 = `3 1 1 ${"a".repeat(64)}`;
 
   it("accepts a canonical DANE-EE/SPKI/SHA-256 record", () => {
@@ -449,7 +449,7 @@ describe("TLSA validator", () => {
 
   it("warns on short cert-data for matching-type 0 (Full)", () => {
     // matching-type 0 is variable-length but should be a full cert in
-    // hex — hundreds of chars. 64 is suspicious.
+    // hex - hundreds of chars. 64 is suspicious.
     const r = tlsaValidator.validate(`3 1 0 ${"a".repeat(64)}`);
     expect(
       r.issues.some((i) => i.level === "warning" && i.message.includes("hundreds of hex")),
@@ -561,7 +561,7 @@ describe("SVCB / HTTPS validators", () => {
 
 describe("OPENPGPKEY validator", () => {
   // A short valid-base64 string (length multiple of 4). Decodes to
-  // 300 bytes — plausibly key-sized so no length warning fires.
+  // 300 bytes - plausibly key-sized so no length warning fires.
   const LONG_BASE64 = "A".repeat(400); // 400 / 4 * 3 = 300 bytes decoded
 
   it("accepts a plausibly-sized base64 blob", () => {
@@ -586,7 +586,7 @@ describe("OPENPGPKEY validator", () => {
     ).toBe(true);
   });
 
-  it("rejects URL-safe base64 (`-`/`_`) — RFC 7929 uses standard base64", () => {
+  it("rejects URL-safe base64 (`-`/`_`) - RFC 7929 uses standard base64", () => {
     const urlsafe = "A-B_CDEF"; // length 8, multiple of 4
     const r = openpgpkeyValidator.validate(urlsafe);
     expect(r.issues.some((i) => i.level === "error" && i.message.includes("URL-safe"))).toBe(true);
@@ -712,7 +712,7 @@ describe("URI validator", () => {
 });
 
 describe("SMIMEA validator", () => {
-  // RFC 8162 wire format identical to TLSA — the validator
+  // RFC 8162 wire format identical to TLSA - the validator
   // delegates to TLSA's validate. Tests here pin (a) the identity
   // fields (type, label, RFC citation distinct from TLSA) and (b)
   // the delegation actually works on a canonical record.
@@ -724,7 +724,7 @@ describe("SMIMEA validator", () => {
 
   it("delegates content validation to TLSA's logic (same wire format)", () => {
     // Canonical SHA-256-of-SPKI form: usage=3 selector=1 type=1
-    // + 64 hex chars. Should pass with no errors — same as TLSA
+    // + 64 hex chars. Should pass with no errors - same as TLSA
     // accepts.
     const r = smimeaValidator.validate(`3 1 1 ${"a".repeat(64)}`);
     expect(r.issues.filter((i) => i.level === "error")).toEqual([]);
@@ -818,7 +818,7 @@ describe("NAPTR validator", () => {
   });
 
   it("rejects unquoted flags / services / regexp", () => {
-    // Flags is `S` instead of `"S"` — tokenizer reads it as
+    // Flags is `S` instead of `"S"` - tokenizer reads it as
     // unquoted, then stripQuotes returns null and the error fires.
     expect(
       naptrValidator
@@ -842,7 +842,7 @@ describe("NAPTR validator", () => {
   });
 
   it("rejects regexp without enough delimited parts", () => {
-    // "!a!b" → split gives [, a, b] (3 parts) — missing the third
+    // "!a!b" → split gives [, a, b] (3 parts) - missing the third
     // delimited section (flags), so the helper rejects.
     const r = naptrValidator.validate('100 10 "U" "E2U+sip" "!a!b" .');
     expect(r.issues.some((i) => i.level === "error" && i.message.includes("three delimited"))).toBe(

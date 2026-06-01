@@ -36,7 +36,7 @@ export type DynDnsParse =
 
 /**
  * Parse a /nic/update request. The standard supports a comma-separated
- * `hostname` list — we reject that with `numhost` because supporting it
+ * `hostname` list - we reject that with `numhost` because supporting it
  * complicates the audit story without operator demand.
  *
  * `myip` may be:
@@ -63,7 +63,7 @@ export function parseDynDnsRequest(url: URL): DynDnsParse {
       ? myipRaw.trim()
       : null;
   if (myip && !isPlausibleIp(myip)) {
-    // Bad explicit IP — fall through to dnserr rather than a more specific
+    // Bad explicit IP - fall through to dnserr rather than a more specific
     // code; DynDNS 2 has no `badip`. The route logs the rejection.
     return { kind: "error", code: "dnserr" };
   }
@@ -74,7 +74,7 @@ export function parseDynDnsRequest(url: URL): DynDnsParse {
 /**
  * Format the wire body. `good` and `nochg` MUST carry the IP per the
  * protocol; all other codes are bare strings. Output ends with no
- * newline — clients that parse `<code> <ip>` care about the literal
+ * newline - clients that parse `<code> <ip>` care about the literal
  * length.
  */
 export function formatResponse(code: DynDnsCode, ip?: string): string {
@@ -87,7 +87,7 @@ export function formatResponse(code: DynDnsCode, ip?: string): string {
 /**
  * Extract email + token from a Basic auth header. Returns null when the
  * header is missing, malformed, or doesn't decode cleanly. We don't
- * surface why — the caller turns null into `badauth`.
+ * surface why - the caller turns null into `badauth`.
  */
 export function parseBasicAuth(header: string | null): { user: string; pass: string } | null {
   if (!header) return null;
@@ -110,7 +110,7 @@ export function parseBasicAuth(header: string | null): { user: string; pass: str
 /**
  * Find the most-specific zone name (from a known set) that suffix-matches
  * the hostname. Both arguments are normalized (lowercase, NO trailing
- * dot — strip before passing). Returns the matching zone name (still
+ * dot - strip before passing). Returns the matching zone name (still
  * no trailing dot) or null.
  *
  * Suffix anchored on the literal label boundary so `evil-example.com`
@@ -141,7 +141,7 @@ const FQDN_LABEL = /^[a-z0-9_]([a-z0-9_-]{0,62}[a-z0-9_])?$/;
 
 function isPlausibleFqdn(name: string): boolean {
   if (name.length === 0 || name.length > 253) return false;
-  // Must have at least one dot — a single label can't be an FQDN.
+  // Must have at least one dot - a single label can't be an FQDN.
   if (!name.includes(".")) return false;
   return name.split(".").every((label) => FQDN_LABEL.test(label));
 }

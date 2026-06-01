@@ -5,7 +5,7 @@
  *
  * Client wrapper using the shared <DataTable>. The env-configured provider (when
  * not shadowed by a DB row) is folded into the same row list so it renders with
- * the same column shape — its read-only/no-edit nature is encoded per-cell, not
+ * the same column shape - its read-only/no-edit nature is encoded per-cell, not
  * by a parallel table. Per-row icon, the discovery badge, the freshness label,
  * and the per-row attention tint all live here so the page can hand over
  * fully-serializable data.
@@ -19,7 +19,7 @@ import { freshnessOf } from "@/lib/freshness";
 import { TestDiscoveryButton } from "./test-discovery-button";
 
 export interface OidcProviderRow {
-  /** Empty string for the env-only synthetic row — disables actions. */
+  /** Empty string for the env-only synthetic row - disables actions. */
   id: string;
   name: string;
   slug: string;
@@ -33,7 +33,7 @@ export interface OidcProviderRow {
     reason?: string;
     endSessionEndpoint?: string | null;
   } | null;
-  /** Pre-resolved by lib/freshness — server can compute it once. */
+  /** Pre-resolved by lib/freshness - server can compute it once. */
   lastAdminEditLabel: string | null;
   lastAdminEditTitle: string | null;
   /** Pre-resolved human-readable failure hint for the badge tooltip. */
@@ -134,7 +134,7 @@ export function OidcProvidersTable({ rows, canManage, canReadAudit }: Props) {
         cell: (ctx) => {
           const row = ctx.row.original;
           if (row.isEnvManaged) {
-            return <span className="text-xs text-[color:var(--color-fg-muted)]">—</span>;
+            return <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>;
           }
           return <DiscoveryBadge cache={row.discoveryCache} failHint={row.discoveryFailHint} />;
         },
@@ -148,7 +148,7 @@ export function OidcProvidersTable({ rows, canManage, canReadAudit }: Props) {
         cell: (ctx) => {
           const row = ctx.row.original;
           if (row.isEnvManaged || !row.lastAdminEditLabel) {
-            return <span className="text-xs text-[color:var(--color-fg-muted)]">—</span>;
+            return <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>;
           }
           return (
             <span
@@ -171,7 +171,7 @@ export function OidcProvidersTable({ rows, canManage, canReadAudit }: Props) {
           return (
             <span
               className="text-xs text-[color:var(--color-fg-muted)]"
-              title="Read-only — edit via OIDC_* environment variables"
+              title="Read-only - edit via OIDC_* environment variables"
             >
               Read-only
             </span>
@@ -208,8 +208,8 @@ export function OidcProvidersTable({ rows, canManage, canReadAudit }: Props) {
  * Three-state renderer for the per-provider email-domain allow-list (matches the
  * resolver semantics in `lib/auth/email-domain-allowlist.ts`):
  *
- *   null       → "(inherited)"  — env default applies
- *   []         → "(unrestricted)" — explicit override of env
+ *   null       → "(inherited)"  - env default applies
+ *   []         → "(unrestricted)" - explicit override of env
  *   [a, b, …]  → "N domain(s)" with the list as a tooltip
  */
 function DomainsCell({ allowedEmailDomains }: { allowedEmailDomains: string[] | null }) {
@@ -266,7 +266,7 @@ function DiscoveryBadge({
   if (cache.ok) {
     // Surface a soft warning when the IdP doesn't advertise an
     // end_session_endpoint. Operationally this means our /api/auth/logout
-    // can't tell the IdP to terminate the session — operators get
+    // can't tell the IdP to terminate the session - operators get
     // re-authed silently by the still-valid IdP cookie and "logout
     // appears to do nothing." We have a 60s suppression cookie that
     // covers the immediate case, but the underlying config is the real
@@ -282,7 +282,7 @@ function DiscoveryBadge({
         {endSessionMissing ? (
           <span
             className="ml-1 inline-flex items-center gap-1 rounded-full bg-[color:var(--color-warn)]/15 px-1.5 py-0.5 text-[0.625rem] font-medium text-[color:var(--color-warn)]"
-            title="IdP doesn't advertise end_session_endpoint. RP-initiated sign-out can't reach the IdP — users will see the local sign-out screen instead of the IdP's. Fix: enable Front Channel / Back Channel Logout on the IdP."
+            title="IdP doesn't advertise end_session_endpoint. RP-initiated sign-out can't reach the IdP - users will see the local sign-out screen instead of the IdP's. Fix: enable Front Channel / Back Channel Logout on the IdP."
           >
             no end-session
           </span>

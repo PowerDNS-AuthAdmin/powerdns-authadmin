@@ -1,8 +1,8 @@
 # =============================================================================
-# Sign release — supply-chain provenance for published releases.
+# Sign release - supply-chain provenance for published releases.
 #
 # Triggered AFTER the CI workflow finishes pushing the multi-arch image to
-# GHCR for a vX.Y.Z tag — never before. This avoids the race that bit v1.1.4:
+# GHCR for a vX.Y.Z tag - never before. This avoids the race that bit v1.1.4:
 # the previous `on: release: published` trigger could fire seconds after the
 # tag/release was published, but the image push completes minutes later, so
 # `cosign sign` against `:X.Y.Z` would fail with "not found" if signing won
@@ -10,7 +10,7 @@
 # registry when this job starts.
 #
 # It:
-#   1. cosign-signs the published multi-arch image (keyless / Sigstore) — a
+#   1. cosign-signs the published multi-arch image (keyless / Sigstore) - a
 #      verifiable signature attached to the image in GHCR.
 #   2. generates an SPDX SBOM of the image,
 #   3. writes a checksums file over the attached artifacts and cosign sign-blobs
@@ -64,7 +64,7 @@ jobs:
       # from. GH_REPO is the documented way to set it explicitly.
       GH_REPO: ${{ github.repository }}
     steps:
-      # No `actions/checkout` here — Scorecard `Dangerous-Workflow` flags any
+      # No `actions/checkout` here - Scorecard `Dangerous-Workflow` flags any
       # privileged `workflow_run`-triggered job that checks out the
       # triggering run's `head_sha`, because in some scenarios that ref
       # could be from a fork's PR (in our `if:` filter we already restrict
@@ -114,7 +114,7 @@ jobs:
       # above proves "these bytes were signed by this workflow"; provenance
       # additionally records HOW they were built (the source repo, commit,
       # workflow). OpenSSF Scorecard "Signed-Releases" wants a provenance file
-      # among the release assets — we attest the SBOM + checksums and upload
+      # among the release assets - we attest the SBOM + checksums and upload
       # the attestation bundle as `multiple.intoto.jsonl` (a name Scorecard
       # recognizes). The action also pushes the attestation to GitHub's
       # attestations store (gh attestation verify).
@@ -135,7 +135,7 @@ jobs:
         run: |
           # The tag push triggers CI before `gh release create` finishes (the
           # operator runs them seconds apart). CI itself takes ~10 min, so by
-          # the time we're here the release is almost certainly published —
+          # the time we're here the release is almost certainly published -
           # but tolerate up to 5 min slip just in case the release-create call
           # is delayed by the operator's flow.
           set -euo pipefail
@@ -147,7 +147,7 @@ jobs:
             echo "Waiting for release $TAG... ($i/30)"
             sleep 10
           done
-          echo "Release $TAG did not appear within 5 min — failing." >&2
+          echo "Release $TAG did not appear within 5 min - failing." >&2
           exit 1
 
       - name: Upload signed assets to the release

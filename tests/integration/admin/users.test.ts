@@ -1,7 +1,7 @@
 /**
  * tests/integration/admin/users.test.ts
  *
- * /api/admin/users — list / create / update / disable / role-assign.
+ * /api/admin/users - list / create / update / disable / role-assign.
  * Drives the routes via HTTP as the bootstrap admin and verifies the
  * effects via both the API surface and direct DB reads.
  */
@@ -23,7 +23,7 @@ describe("/api/admin/users", () => {
     await resetState({ skipPdns: true });
   });
 
-  it("lists users — bootstrap admin is present after a fresh reset", async () => {
+  it("lists users - bootstrap admin is present after a fresh reset", async () => {
     const admin = await loginAsBootstrap();
     const { users } = await admin.getJson<{ users: Array<{ email: string }> }>("/api/admin/users");
     const emails = users.map((u) => u.email);
@@ -134,7 +134,7 @@ describe("/api/admin/users", () => {
     expect(reLogin.status).toBe(401);
   });
 
-  it("non-admin caller (operator) cannot create users — 403", async () => {
+  it("non-admin caller (operator) cannot create users - 403", async () => {
     const admin = await loginAsBootstrap();
     const op = await createUser(admin, {
       email: uniqueEmail("op-perm"),

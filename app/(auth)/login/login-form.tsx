@@ -32,7 +32,7 @@ export function LoginForm({
   next = "/dashboard",
 }: {
   turnstileSiteKey?: string;
-  /** Validated (same-origin) post-login destination — see lib/auth/safe-redirect. */
+  /** Validated (same-origin) post-login destination - see lib/auth/safe-redirect. */
   next?: string;
 }) {
   const [email, setEmail] = useState("");
@@ -202,7 +202,7 @@ export function LoginForm({
 
   const submitDisabled = loading || (turnstileSiteKey !== undefined && captchaToken === null);
 
-  // MFA step — rendered after a successful password verify when the
+  // MFA step - rendered after a successful password verify when the
   // user has any factor enrolled. The challenge tokens are single-use;
   // any failed verification drops back to the password step.
   if (mfa) {

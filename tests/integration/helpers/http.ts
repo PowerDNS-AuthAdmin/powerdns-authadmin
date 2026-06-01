@@ -4,7 +4,7 @@
  * Minimal HTTP client for the integration suite. Holds the cookie jar between
  * requests so the same session_id + pda_csrf survives a multi-request flow
  * (login → mutate → read), and copies the pda_csrf cookie into the
- * `x-csrf-token` header on mutating methods — mirroring the real
+ * `x-csrf-token` header on mutating methods - mirroring the real
  * `lib/client/api-fetch.ts` behavior so server-side CSRF checks pass.
  *
  * Tests construct one client per "user" they want to act as. Two clients
@@ -22,7 +22,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
  * Each TestHttp instance models one logical client (one browser / one
  * machine), so it presents a distinct source IP via `X-Forwarded-For`. The
  * app's per-IP rate limiter (login, password-reset, …) then buckets each test
- * client separately — mirroring production, where distinct users connect from
+ * client separately - mirroring production, where distinct users connect from
  * distinct addresses. Without this, every request in the suite collapses to a
  * single `unknown` bucket and the suite trips its own login throttle. This
  * keeps app-level rate limiting fully ACTIVE under test rather than disabling
@@ -94,7 +94,7 @@ export class TestHttp {
       redirect: "manual",
     });
 
-    // Capture Set-Cookie. Node's undici exposes getSetCookie() — use it when
+    // Capture Set-Cookie. Node's undici exposes getSetCookie() - use it when
     // available, else fall back to parsing the raw header (a single string
     // join in older runtimes).
     const setCookies =

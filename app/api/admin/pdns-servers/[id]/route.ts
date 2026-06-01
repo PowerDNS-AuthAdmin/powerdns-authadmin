@@ -1,9 +1,9 @@
 /**
  * app/api/admin/pdns-servers/[id]/route.ts
  *
- * PATCH  — update a backend (server.update). The API key rotates only when
+ * PATCH  - update a backend (server.update). The API key rotates only when
  *          `apiKey` is provided; omit to leave it in place.
- * DELETE — remove a backend (server.delete). Hard-delete; the audit log
+ * DELETE - remove a backend (server.delete). Hard-delete; the audit log
  *          carries the historical record.
  *
  * The cached PdnsClient is invalidated on every write so the next request
@@ -75,7 +75,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     if (input.serverId !== undefined) patch.serverId = input.serverId;
     if (input.apiKey !== undefined) {
       patch.apiKeyEncrypted = encrypt(input.apiKey, "pdns-api-key");
-      // Clear the cached version snapshot — capabilities should be re-probed
+      // Clear the cached version snapshot - capabilities should be re-probed
       // against the new credentials before any UI relies on them.
       patch.versionCache = null;
     }

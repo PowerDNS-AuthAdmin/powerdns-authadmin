@@ -4,7 +4,7 @@
  * app/(app)/admin/roles/[id]/_components/require-mfa-toggle.tsx
  *
  * Single checkbox + save button bound to the role's `requiresMfa`
- * column. The save is a narrow PATCH to /api/admin/roles/[id] — the
+ * column. The save is a narrow PATCH to /api/admin/roles/[id] - the
  * rest of the role row (slug, name, permissions) isn't editable from
  * the UI yet, so a focused toggle keeps the blast radius small.
  *

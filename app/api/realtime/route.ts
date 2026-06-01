@@ -8,14 +8,14 @@
  *
  * Replaces the four per-channel endpoints (/api/realtime/zone,
  * /api/realtime/server, /api/realtime/audit, /api/realtime/pdns-requests)
- * — operators noticed dozens of EventSource connections opening per
+ * - operators noticed dozens of EventSource connections opening per
  * page (one per indicator) and an explosion of router.refresh() bursts
  * driven by uncoordinated subscribers.
  *
  * Permissions: client-side filtering trusts only the events the bus
  * emits, but we still strip sensitive event types before delivery for
  * users without the matching read permission (audit/pdns-requests
- * leak action vocabulary, actor IDs, URLs — gated by audit.read).
+ * leak action vocabulary, actor IDs, URLs - gated by audit.read).
  */
 
 import { requireUser } from "@/lib/auth/require-user";
@@ -50,7 +50,7 @@ export async function GET(request: Request): Promise<Response> {
     const { user, globalPermissions, zoneGrants } = await requireUser();
     const globalZoneRead = globalPermissions.has("zone.read");
     // The stream is per-user and per-event filtered, so even a user with
-    // no read permissions can hold an open connection — they just receive
+    // no read permissions can hold an open connection - they just receive
     // no events. We deliberately don't gate the connection itself: an
     // EventSource that fails-open leaves the SSE badge stuck on OFFLINE
     // even for an authenticated user, which is misleading (the connection
@@ -58,10 +58,10 @@ export async function GET(request: Request): Promise<Response> {
     // per-event filters below ensure no zone events leak.
     //
     // Cost: a permissionless user opens an idle stream (capped at
-    // MAX_CONNS_PER_USER). That's a small concession for honest UX —
+    // MAX_CONNS_PER_USER). That's a small concession for honest UX -
     // far better than a "OFFLINE" badge on every page for them.
     const canReadAudit = globalPermissions.has("audit.read");
-    // The health bell's audience (ADR-0015) — gates the payload-free
+    // The health bell's audience (ADR-0015) - gates the payload-free
     // `health.updated` nudge so it isn't sent to users with no bell mounted.
     const canReadServers = globalPermissions.has("server.read");
 
@@ -90,7 +90,7 @@ export async function GET(request: Request): Promise<Response> {
     conns.set(user.id, active + 1);
 
     // The slot is reserved above, so the decrement MUST run exactly once no
-    // matter how the stream ends — including the request already being aborted
+    // matter how the stream ends - including the request already being aborted
     // before `start` runs, or `start` itself throwing. `releaseSlot` is the
     // single owner of the counter decrement; `cleanup` (defined in `start`)
     // tears down listeners/timers and delegates the count back to it.
@@ -106,7 +106,7 @@ export async function GET(request: Request): Promise<Response> {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
-        // Request was aborted before `start` got a chance to run — release the
+        // Request was aborted before `start` got a chance to run - release the
         // reserved slot immediately and don't wire up listeners we'd then have
         // to tear down.
         if (request.signal.aborted) {
@@ -131,7 +131,7 @@ export async function GET(request: Request): Promise<Response> {
         try {
           unsubscribe = subscribeAll((event: RealtimeEvent) => {
             if (closed) return;
-            // Drop sensitive events for users without audit.read — they
+            // Drop sensitive events for users without audit.read - they
             // leak actor IDs, action vocabulary, request URLs.
             if (
               (event.type === "audit.appended" || event.type === "pdns.request.appended") &&
@@ -156,7 +156,7 @@ export async function GET(request: Request): Promise<Response> {
             try {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
             } catch {
-              // Stream is gone — self-clean so we don't leak this
+              // Stream is gone - self-clean so we don't leak this
               // listener if `abort` never fires (server crash mid-
               // stream, hung connection, etc.). Without this, dead
               // listeners would accumulate in the bus and call

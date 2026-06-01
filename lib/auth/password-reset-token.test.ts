@@ -103,7 +103,7 @@ describe("password-reset-token", () => {
   it("rejects a tampered payload (modified userId)", () => {
     const { token } = mintResetToken({ userId: "alice", secret: SECRET });
     // Swap the payload base64 portion for a different one with the
-    // same signature copied over — should fail signature.
+    // same signature copied over - should fail signature.
     const swapped = mintResetToken({ userId: "mallory", secret: SECRET });
     const swappedBody = swapped.token.split(".")[0];
     const originalSig = token.split(".")[1];

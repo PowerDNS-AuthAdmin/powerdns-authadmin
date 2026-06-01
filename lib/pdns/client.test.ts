@@ -1,5 +1,5 @@
 /**
- * lib/pdns/client.test.ts — zone-id normalization + HTTP integration sketch.
+ * lib/pdns/client.test.ts - zone-id normalization + HTTP integration sketch.
  *
  * Full transport behavior (retries, timeouts) is exercised in the integration
  * suite under `tests/integration/` where a fake PDNS is available; here we

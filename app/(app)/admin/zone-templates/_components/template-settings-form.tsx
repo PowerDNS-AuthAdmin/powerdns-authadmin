@@ -444,7 +444,7 @@ function EnumSelect({ value, options, onChange, disabled, placeholder }: EnumSel
                 : "hover:bg-[color:var(--color-bg-subtle)]"
             }`}
           >
-            (unset — server default)
+            (unset - server default)
           </li>
           {options.map((o) => (
             <li

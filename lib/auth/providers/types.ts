@@ -11,7 +11,7 @@ import "server-only";
 export interface VerifiedIdentity {
   /** The provider that vouches for this identity ("local","oidc:google",…). */
   source: string;
-  /** Email — canonical user identifier in our model. */
+  /** Email - canonical user identifier in our model. */
   email: string;
   /** Display name, if the provider gave us one. */
   name?: string;
@@ -29,7 +29,7 @@ export interface VerifiedIdentity {
     endSessionUrl: string | null;
     /** The compact JWS id_token string returned at the token endpoint. */
     idToken: string | null;
-    /** Client id used at sign-in — included in the logout redirect. */
+    /** Client id used at sign-in - included in the logout redirect. */
     clientId: string | null;
     /**
      * Refresh token, if the IdP issued one (scope `offline_access`).

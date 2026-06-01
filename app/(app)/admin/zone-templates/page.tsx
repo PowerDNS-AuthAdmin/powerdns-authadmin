@@ -2,7 +2,7 @@
  * app/(app)/admin/zone-templates/page.tsx
  *
  * Zone-template list. Templates are reusable scaffolds applied at zone-
- * creation time — they seed NS records, SOA timers, and any prelude
+ * creation time - they seed NS records, SOA timers, and any prelude
  * records (MX, CAA, SPF…) the operator wants on every zone.
  */
 
@@ -45,7 +45,7 @@ export default async function ZoneTemplatesListPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Zone templates</h1>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
-            Reusable scaffolds applied when creating a new zone — NS records, SOA timers, and any
+            Reusable scaffolds applied when creating a new zone - NS records, SOA timers, and any
             prelude records you want on every zone of this kind.
           </p>
         </div>

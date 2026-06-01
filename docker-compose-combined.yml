@@ -1,12 +1,12 @@
 # =============================================================================
-# docker-compose-combined.yml — every topology in one stack.
+# docker-compose-combined.yml - every topology in one stack.
 #
 # Demonstrates all three PDNS deployment shapes side-by-side so the admin
 # UI shows them grouped under their backends + cluster:
 #
-#   1. Multi-primary cluster   — 3 peers sharing one MariaDB backend.
-#   2. Standalone primary      — single PDNS, its own gsqlite3 store.
-#   3. Primary + 3 Secondaries — classic AXFR replication, supermaster
+#   1. Multi-primary cluster   - 3 peers sharing one MariaDB backend.
+#   2. Standalone primary      - single PDNS, its own gsqlite3 store.
+#   3. Primary + 3 Secondaries - classic AXFR replication, supermaster
 #                                auto-secondary wiring.
 #
 # Plus 10 demo zones × 10 records each per topology = 30 zones / 300
@@ -454,8 +454,17 @@ services:
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?must be set; generate with openssl rand -base64 32}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-bootstrap-admin-pw-changeme}
+      # This is the public demo stack: lock the shared admin's login so a
+      # visitor can't change the password/email/MFA or delete it out from under
+      # everyone. Override BOOTSTRAP_ADMIN_RO=false for a private deployment.
+      BOOTSTRAP_ADMIN_RO: ${BOOTSTRAP_ADMIN_RO:-true}
       LOCAL_AUTH_ENABLED: "true"
       APP_PDNS_ALLOW_PRIVATE_NETWORKS: "true"
+      # Enable the background poller so the dashboard's PDNS-statistics tab
+      # (per-backend query rate / latency / cache / response charts) renders -
+      # it's hidden when polling is off. Also what the demo graph backfill
+      # (scripts/demo-seed-graphs.ts) populates.
+      PDNS_BACKGROUND_POLLING: ${PDNS_BACKGROUND_POLLING:-true}
       MIGRATE_ON_BOOT: ${MIGRATE_ON_BOOT:-true}
       SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
       PROVISIONING_FILE: /etc/powerdns-authadmin/provisioning.yaml

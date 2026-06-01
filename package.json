@@ -1,8 +1,8 @@
 {
   "name": "powerdns-authadmin",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
-  "description": "Modern, self-hosted DNS administration UI for PowerDNS — multi-team RBAC, real audit, real SSO. From-scratch rebuild of PowerDNS-Admin in Node.js + TypeScript.",
+  "description": "Modern, self-hosted DNS administration UI for PowerDNS - multi-team RBAC, real audit, real SSO. From-scratch rebuild of PowerDNS-Admin in Node.js + TypeScript.",
   "license": "MIT",
   "homepage": "https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin",
   "bugs": "https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues",
@@ -40,6 +40,7 @@
     "db:studio:sqlite": "drizzle-kit studio --config=drizzle.sqlite.config.ts",
     "db:seed": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed.ts",
     "provision": "NODE_OPTIONS=--conditions=react-server tsx scripts/provision.ts",
+    "demo:seed:graphs": "NODE_OPTIONS=--conditions=react-server tsx scripts/demo-seed-graphs.ts",
     "audit:strict": "npm audit --audit-level=high --omit=dev",
     "validate": "npm run lint && npm run typecheck && npm run format:check && npm run test",
     "ci:local": "act -j static-checks && act -j test"

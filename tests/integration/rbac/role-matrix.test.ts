@@ -127,14 +127,14 @@ describe("RBAC role matrix", () => {
         ],
       },
     );
-    // Zone create — denied
+    // Zone create - denied
     await expectStatus(client, "POST", "/api/admin/pdns/zones", [403], {
       serverSlug: "standalone",
       name: randomZone("ze-denied"),
       kind: "Master",
       nameservers: NS,
     });
-    // Admin surfaces — denied
+    // Admin surfaces - denied
     await expectStatus(client, "GET", "/api/admin/oidc-providers", [403]);
   }, 30_000);
 
@@ -162,7 +162,7 @@ describe("RBAC role matrix", () => {
       `/api/admin/pdns/zones/${encodeURIComponent(zone)}/export?serverSlug=standalone`,
       [200],
     );
-    // Mutations — denied
+    // Mutations - denied
     await expectStatus(client, "POST", "/api/admin/pdns/zones", [403], {
       serverSlug: "standalone",
       name: randomZone("ro-denied"),

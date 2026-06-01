@@ -1,11 +1,11 @@
 /**
  * app/(app)/zones/[zoneId]/_components/access-section.tsx
  *
- * Zone "Access" tab — a single surface that summarises who can touch
+ * Zone "Access" tab - a single surface that summarises who can touch
  * this zone and via what mechanism. Three sub-lists in order:
  *
  *   1. Roles that grant zone-scope permissions. Dynamically derived
- *      from each role's `permissions` column — a role surfaces here iff
+ *      from each role's `permissions` column - a role surfaces here iff
  *      it carries any permission in the zone vocab (the same regex
  *      ZONE_GRANT_PERMISSIONS uses). System roles end up on the list
  *      naturally because their permission set includes zone perms;
@@ -20,7 +20,7 @@
  *      person on this specific zone" view.
  *
  * Empty sub-lists collapse to a short note instead of an empty
- * shell — visually obvious that "nothing here" is the real answer.
+ * shell - visually obvious that "nothing here" is the real answer.
  */
 
 import { listGrantsForZone } from "@/lib/db/repositories/zone-grants";

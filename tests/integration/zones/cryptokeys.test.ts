@@ -1,7 +1,7 @@
 /**
  * tests/integration/zones/cryptokeys.test.ts
  *
- * POST/PUT/DELETE /api/admin/pdns/zones/[zoneId]/cryptokeys — DNSSEC
+ * POST/PUT/DELETE /api/admin/pdns/zones/[zoneId]/cryptokeys - DNSSEC
  * key management. DNSSEC is enabled on the test backends
  * (`g*-dnssec=yes` in docker/pdns/*.conf), so this covers real key
  * creation plus the permission + validation surface:
@@ -9,8 +9,8 @@
  *   - permission-gated 403 for under-privileged users,
  *   - the validation surface (bad cryptokey id / missing flags → 400).
  *
- * Full end-to-end signing — DNSKEY/RRSIG served over DNS and the
- * presigned AXFR to a Secondary — lives in
+ * Full end-to-end signing - DNSKEY/RRSIG served over DNS and the
+ * presigned AXFR to a Secondary - lives in
  * tests/integration/dns/dnssec.test.ts.
  */
 
@@ -79,7 +79,7 @@ describe("DNSSEC cryptokeys route", () => {
     };
     expect(body.ok).toBe(true);
     // PDNS reports a lone SEP key that signs the whole zone as a "csk"
-    // (it does both KSK + ZSK duty), even though we asked for "ksk" — so
+    // (it does both KSK + ZSK duty), even though we asked for "ksk" - so
     // accept either. The point is a real, active key was generated.
     expect(["ksk", "csk"]).toContain(body.cryptokey.keytype);
     expect(body.cryptokey.active).toBe(true);

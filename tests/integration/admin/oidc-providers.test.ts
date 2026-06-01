@@ -1,7 +1,7 @@
 /**
  * tests/integration/admin/oidc-providers.test.ts
  *
- * /api/admin/oidc-providers — list / create / update / delete + on-demand
+ * /api/admin/oidc-providers - list / create / update / delete + on-demand
  * IdP probe. The fake issuer URL we use isn't a real OIDC IdP so the probe
  * returns ok: false; the route shape is the same either way.
  */
@@ -83,7 +83,7 @@ describe("/api/admin/oidc-providers", () => {
     expect(body.provider).not.toHaveProperty("clientSecret");
   });
 
-  it("GET /api/admin/oidc-providers/[id] — route is not exposed; expect 404 or 405", async () => {
+  it("GET /api/admin/oidc-providers/[id] - route is not exposed; expect 404 or 405", async () => {
     const admin = await loginAsBootstrap();
     const created = await createProvider(admin);
     const res = await admin.call(`/api/admin/oidc-providers/${created.id}`);

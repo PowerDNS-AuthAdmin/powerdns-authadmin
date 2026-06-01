@@ -4,22 +4,22 @@
  * Resolves the four bits of WebAuthn configuration the server-side ceremony
  * helpers (`@simplewebauthn/server`) need on every call:
  *
- *   - `rpId`         — Relying-Party identifier. A bare hostname; MUST equal
+ *   - `rpId`         - Relying-Party identifier. A bare hostname; MUST equal
  *                       (or be a registrable-domain ancestor of) the `origin`
  *                       the browser reaches us on. Derived from APP_URL's
  *                       hostname by default, override via WEBAUTHN_RP_ID for
  *                       apex/sub-domain sharing.
- *   - `rpName`       — display name shown by browsers/OS at the prompt.
+ *   - `rpName`       - display name shown by browsers/OS at the prompt.
  *                       Pulled at request time from `settings.site_name`
  *                       with a fallback literal when settings are
  *                       unreachable.
- *   - `expectedOrigin` — list of origins the verifier accepts during
+ *   - `expectedOrigin` - list of origins the verifier accepts during
  *                       verification. Always includes the canonical
  *                       `https://<rpId>` and the `APP_URL` origin. When
  *                       `WEBAUTHN_ALLOW_INSECURE_ORIGINS=true`, also
  *                       includes the `http://<rpId>` and any local-dev
  *                       origins the operator may hit.
- *   - `userVerification` / `attestation` — policy controls, passed
+ *   - `userVerification` / `attestation` - policy controls, passed
  *                       through to ceremony options.
  *
  * Pure and unit-tested. The settings.site_name lookup is the only
@@ -42,9 +42,9 @@ export interface ResolvedWebauthnConfig {
 
 export interface ResolveWebauthnConfigInput {
   appUrl: string;
-  /** From env.WEBAUTHN_RP_ID — bare host, or undefined to derive from APP_URL. */
+  /** From env.WEBAUTHN_RP_ID - bare host, or undefined to derive from APP_URL. */
   rpIdOverride: string | undefined;
-  /** From env.WEBAUTHN_RP_NAME — explicit override; takes precedence over siteName. */
+  /** From env.WEBAUTHN_RP_NAME - explicit override; takes precedence over siteName. */
   rpNameOverride: string | undefined;
   /** Resolved from `settings.site_name` by the caller; null when unavailable. */
   siteName: string | null;
@@ -89,7 +89,7 @@ export function resolveWebauthnConfig(input: ResolveWebauthnConfigInput): Resolv
   if (input.allowInsecureOrigins) {
     origins.add(`http://${rpId}`);
     // The Next.js dev server also serves on localhost regardless of host
-    // configuration — keep that working without forcing operators to
+    // configuration - keep that working without forcing operators to
     // remember a separate env var.
     origins.add("http://localhost:3000");
   }

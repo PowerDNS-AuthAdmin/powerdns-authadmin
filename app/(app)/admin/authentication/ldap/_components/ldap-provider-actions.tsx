@@ -4,7 +4,7 @@
  * app/(app)/admin/authentication/ldap/_components/ldap-provider-actions.tsx
  *
  * Delete button for the LDAP provider edit page. Same shape as the OIDC
- * actions component — in-app dialog (no native confirm).
+ * actions component - in-app dialog (no native confirm).
  */
 
 import { useRouter } from "next/navigation";

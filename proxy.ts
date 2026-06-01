@@ -1,9 +1,9 @@
 /**
  * proxy.ts
  *
- * Next.js Proxy — the Next 16 successor to the `middleware` file convention —
- * runs on every request. It applies the security headers — most importantly a
- * per-request CSP nonce — generates and propagates a request id for log + audit
+ * Next.js Proxy - the Next 16 successor to the `middleware` file convention -
+ * runs on every request. It applies the security headers - most importantly a
+ * per-request CSP nonce - generates and propagates a request id for log + audit
  * correlation, and forwards the nonce and request pathname to server components
  * via request headers.
  *
@@ -17,7 +17,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { buildCsp } from "@/lib/security/csp";
 
 // Cryptographically random nonce. 16 random bytes → 24 base64 chars. Generated on
-// every request because that's the whole point — a stale nonce defeats CSP.
+// every request because that's the whole point - a stale nonce defeats CSP.
 function generateNonce(): string {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -27,7 +27,7 @@ function generateNonce(): string {
 
 /**
  * Allow an upstream-set `x-request-id` only when it looks like a sane
- * identifier — UUID, ULID, KSUID, or any opaque token of safe characters.
+ * identifier - UUID, ULID, KSUID, or any opaque token of safe characters.
  * Pathological inputs (newlines, control bytes, header-injection attempts)
  * get replaced by a fresh UUID instead.
  */
@@ -63,7 +63,7 @@ export default function proxy(request: NextRequest): NextResponse {
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("x-request-id", requestId);
   // Forward the request pathname so server components can branch on
-  // the current route — Next.js doesn't expose `usePathname()` on the
+  // the current route - Next.js doesn't expose `usePathname()` on the
   // server side without a hook. Used today by `(app)/layout.tsx` to
   // allowlist MFA-enrollment routes when redirecting non-compliant
   // operators. Set verbatim from `nextUrl.pathname` (no query string).
@@ -117,7 +117,7 @@ export default function proxy(request: NextRequest): NextResponse {
   response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
   response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
 
-  // HSTS — production only. We never want to send this from a dev server (would
+  // HSTS - production only. We never want to send this from a dev server (would
   // make `localhost` redirect to HTTPS forever).
   if (!isDev) {
     response.headers.set(
@@ -134,12 +134,12 @@ export const config = {
   matcher: [
     /*
      * Run on every path except:
-     *   _next/static     — bundled assets, hashed, served with long-cache headers
-     *   _next/image      — next/image optimizer responses (CSP would break inline svg)
-     *   favicon.ico      — static asset
-     *   robots.txt       — static
-     *   sitemap.xml      — static
-     * Health endpoints DO run through the proxy — we want their responses to
+     *   _next/static     - bundled assets, hashed, served with long-cache headers
+     *   _next/image      - next/image optimizer responses (CSP would break inline svg)
+     *   favicon.ico      - static asset
+     *   robots.txt       - static
+     *   sitemap.xml      - static
+     * Health endpoints DO run through the proxy - we want their responses to
      * carry the security headers too.
      */
     "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",

@@ -4,7 +4,7 @@
  * app/(app)/admin/authentication/oidc/_components/oidc-provider-actions.tsx
  *
  * Delete button for the provider edit page. Uses the in-app dialog system
- * (no native confirm — banned by project convention).
+ * (no native confirm - banned by project convention).
  */
 
 import { useRouter } from "next/navigation";

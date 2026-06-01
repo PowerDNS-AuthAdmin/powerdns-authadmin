@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/team-members.ts — SQLite mirror of `../schema/team-members.ts`.
+ * lib/db/schema-sqlite/team-members.ts - SQLite mirror of `../schema/team-members.ts`.
  *
  * SQLite has no enum type; team_role is text with a CHECK constraint.
  */

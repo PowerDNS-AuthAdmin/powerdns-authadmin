@@ -1,13 +1,13 @@
 /**
  * app/api/admin/pdns/zones/[zoneId]/tsig-transfer/route.ts
  *
- * POST — set (or clear) the TSIG key that secures this zone's AXFR. One call
+ * POST - set (or clear) the TSIG key that secures this zone's AXFR. One call
  *        wires BOTH ends: TSIG-ALLOW-AXFR on the primary's copy of the zone and
  *        AXFR-MASTER-TSIG on each secondary that hosts it. `serverSlug` is the
  *        primary; `keyName` is the key (null clears).
  *
  * This is zone metadata, so it's gated on `metadata.write` (type-level OR a
- * per-zone grant), exactly like the raw metadata route — replicating to the
+ * per-zone grant), exactly like the raw metadata route - replicating to the
  * secondaries is a convenience on top, not a privilege escalation.
  */
 
@@ -33,7 +33,7 @@ const bodySchema = z.object({
     .min(1)
     .max(255)
     .regex(/^[A-Za-z0-9.-]+$/, "Invalid key name."),
-  // Additive by design — `add` unions the key in, `remove` takes only it out,
+  // Additive by design - `add` unions the key in, `remove` takes only it out,
   // so other keys configured on the zone are never clobbered.
   mode: z.enum(["add", "remove"]),
 });

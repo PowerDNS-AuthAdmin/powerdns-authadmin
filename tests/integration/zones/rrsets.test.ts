@@ -1,7 +1,7 @@
 /**
  * tests/integration/zones/rrsets.test.ts
  *
- * PATCH /api/admin/pdns/zones/[zoneId]/rrsets — upsert / delete record
+ * PATCH /api/admin/pdns/zones/[zoneId]/rrsets - upsert / delete record
  * sets. Each test creates a fresh zone, applies a change via the UI's
  * API, then reads the zone back from PDNS directly to confirm the
  * resulting RRset is exactly what we asked for.

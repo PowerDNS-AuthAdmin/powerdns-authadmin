@@ -18,7 +18,7 @@ interface CreateTokenResponse {
   expiresInSec: number;
 }
 
-describe("/api/profile/tokens — GET shape + admin-only revoke", () => {
+describe("/api/profile/tokens - GET shape + admin-only revoke", () => {
   beforeEach(async () => {
     await resetState({ skipPdns: true });
   });

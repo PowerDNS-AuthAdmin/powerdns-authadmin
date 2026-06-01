@@ -58,7 +58,7 @@ export interface ZoneAuditEntryClient {
    * Per-operation correlation id (every audit row from the same HTTP
    * request shares this). Each change-log row deep-links to the audit
    * log filtered on `requestId` so the operator can see all side-effects
-   * of one operation — a `record.update` and its sibling `zone.notify`,
+   * of one operation - a `record.update` and its sibling `zone.notify`,
    * for instance.
    */
   requestId: string | null;
@@ -94,7 +94,7 @@ export function ZoneChangeLog({ entries, zoneName, pdnsHttpByRequestId }: ZoneCh
   );
   const actorChoices = useMemo(() => {
     const set = new Set<string>();
-    for (const e of entries) set.add(e.actorEmail ?? (e.actorType === "system" ? "system" : "—"));
+    for (const e of entries) set.add(e.actorEmail ?? (e.actorType === "system" ? "system" : "-"));
     return Array.from(set).sort();
   }, [entries]);
 
@@ -104,7 +104,7 @@ export function ZoneChangeLog({ entries, zoneName, pdnsHttpByRequestId }: ZoneCh
     const toTs = to ? new Date(to).getTime() : Number.POSITIVE_INFINITY;
     return entries.filter((e) => {
       if (actionFilter && e.action !== actionFilter) return false;
-      const actor = e.actorEmail ?? (e.actorType === "system" ? "system" : "—");
+      const actor = e.actorEmail ?? (e.actorType === "system" ? "system" : "-");
       if (actorFilter && actor !== actorFilter) return false;
       const ts = new Date(e.ts).getTime();
       if (ts < fromTs || ts > toTs) return false;
@@ -189,7 +189,7 @@ export function ZoneChangeLog({ entries, zoneName, pdnsHttpByRequestId }: ZoneCh
       ) : (
         <>
           {/* Mobile (< md): a stacked card per entry. The desktop 5-column
-              table doesn't fit a phone viewport — Resource + Actor get clipped
+              table doesn't fit a phone viewport - Resource + Actor get clipped
               on the right. Cards reflow to one entry per line with the same
               expand-to-diff interaction. */}
           <div className="space-y-2 md:hidden">
@@ -254,7 +254,7 @@ export function ZoneChangeLog({ entries, zoneName, pdnsHttpByRequestId }: ZoneCh
 }
 
 /**
- * Shared body for the expand-on-click section — same content for both the
+ * Shared body for the expand-on-click section - same content for both the
  * desktop table row and the mobile card. Holds the `requestId` deep link,
  * the BareDiff (for diffable actions) or one-line event summary, and the
  * per-operation PDNS HTTP log.
@@ -275,7 +275,7 @@ function ExpandedPanel({
           <a
             href={`/admin/audit?${new URLSearchParams({ requestId: entry.requestId }).toString()}`}
             className="text-[color:var(--color-accent)] hover:underline"
-            title="See every audit row from this operation — record edit, notify, etc."
+            title="See every audit row from this operation - record edit, notify, etc."
           >
             View operation in audit log →
           </a>
@@ -334,7 +334,7 @@ function ChangeRow({
   httpLog: PdnsHttpLogEntry[];
 }) {
   const resourceLabel = describeResource(entry, zoneName);
-  const actor = entry.actorEmail ?? (entry.actorType === "system" ? "system" : "—");
+  const actor = entry.actorEmail ?? (entry.actorType === "system" ? "system" : "-");
 
   return (
     <>
@@ -354,7 +354,7 @@ function ChangeRow({
           <ActionChip action={entry.action} />
         </td>
         <td className="px-4 py-3 align-top font-mono text-xs text-[color:var(--color-fg)]">
-          {resourceLabel ?? "—"}
+          {resourceLabel ?? "-"}
         </td>
         <td className="px-4 py-3 align-top text-xs text-[color:var(--color-fg-muted)]">
           {actor}
@@ -393,7 +393,7 @@ function ChangeCard({
   httpLog: PdnsHttpLogEntry[];
 }) {
   const resourceLabel = describeResource(entry, zoneName);
-  const actor = entry.actorEmail ?? (entry.actorType === "system" ? "system" : "—");
+  const actor = entry.actorEmail ?? (entry.actorType === "system" ? "system" : "-");
   return (
     <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)]">
       <button
@@ -414,7 +414,7 @@ function ChangeCard({
             <ActionChip action={entry.action} />
           </div>
           <div className="font-mono text-xs break-all text-[color:var(--color-fg)]">
-            {resourceLabel ?? "—"}
+            {resourceLabel ?? "-"}
           </div>
           <div className="text-xs text-[color:var(--color-fg-muted)]">
             {actor}
@@ -585,7 +585,7 @@ function Pagination({ page, totalPages, pageSize, onPageChange, onPageSize }: Pa
 
 /**
  * Action types whose payloads we render as a two-column `-` / `+` diff via
- * BareDiff. Each handled in `computeEntryDiff` — the snapshot shape varies
+ * BareDiff. Each handled in `computeEntryDiff` - the snapshot shape varies
  * per resource type but the output is always two `string[]`s of line-shaped
  * facts.
  */
@@ -601,10 +601,10 @@ function isDiffableAction(action: string): boolean {
 /**
  * Convert an audit entry's before/after snapshot into the line-shaped
  * pair BareDiff renders. The shape depends on the action:
- *   record.*            — BIND-style `name TTL IN TYPE content` per record
- *   zone.metadata.*     — `<KIND> = <value>` per stored value
- *   zone.settings.update — `<field> = <value>` per zone-object field
- *   dnssec.cryptokey.*  — `<field> = <value>` per key field
+ *   record.*            - BIND-style `name TTL IN TYPE content` per record
+ *   zone.metadata.*     - `<KIND> = <value>` per stored value
+ *   zone.settings.update - `<field> = <value>` per zone-object field
+ *   dnssec.cryptokey.*  - `<field> = <value>` per key field
  */
 function computeEntryDiff(entry: ZoneAuditEntryClient): { removed: string[]; added: string[] } {
   if (entry.resourceType === "rrset") {
@@ -675,7 +675,7 @@ function snapshotToLines(snapshot: RRsetSnapshot | null): string[] {
  * Using a generic keeps `no-unnecessary-type-assertion` from mis-flagging
  * the cast: `unknown ?? null` collapses to `{} | null`, which the rule
  * considers mutually-assignable to an all-optional interface and would
- * strip — breaking the downstream typed access.
+ * strip - breaking the downstream typed access.
  */
 function snapshotOf<T>(value: unknown): T | null {
   return (value ?? null) as T | null;

@@ -4,7 +4,7 @@
  * Build a CASL `Ability` from a user's effective role assignments + scopes.
  *
  * CASL's model:
- *   ability.can(action, subject) — where subject is either a *type name*
+ *   ability.can(action, subject) - where subject is either a *type name*
  *   (string like "Zone") or an *instance* (object with a `__type` field).
  *
  * Our adapter:
@@ -13,7 +13,7 @@
  *   - "Subject types" are the first halves capitalized ("Zone", "Record",
  *     "Dnssec", ...). See `SubjectType` below.
  *   - At rule definition time (`AbilityBuilder.can(...)`) we pass the subject
- *     *type name*. CASL types require this — passing the instance type union
+ *     *type name*. CASL types require this - passing the instance type union
  *     here doesn't typecheck.
  *   - At check time (`ability.can(...)`), callers may pass either a subject
  *     type name (existence check) or an instance (scoped check). The
@@ -55,7 +55,7 @@ export type SubjectType =
 
 /**
  * The shape of a resource instance we pass at check time. The `__type` field
- * discriminates the subject type — `detectSubjectType` reads it.
+ * discriminates the subject type - `detectSubjectType` reads it.
  */
 export type SubjectInstance =
   | { __type: "Zone"; id: string; teamId: string }
@@ -65,7 +65,7 @@ export type SubjectInstance =
   | { __type: "Token"; userId: string };
 
 /**
- * Either form — what route handlers pass to `can()` / `requirePermission()`.
+ * Either form - what route handlers pass to `can()` / `requirePermission()`.
  * Type-level checks use the string form; per-resource checks use the instance.
  */
 export type Subject = SubjectType | SubjectInstance;
@@ -77,7 +77,7 @@ export type AppAbility = MongoAbility<[Action, Subject]>;
 
 /**
  * One entry in the input to `buildAbility`. Each role assignment expands into
- * one or more CASL rules — the assignment's permissions × the resource type
+ * one or more CASL rules - the assignment's permissions × the resource type
  * the action applies to, scoped by the assignment's scope_type/scope_id.
  */
 export interface AbilitySource {
@@ -88,7 +88,7 @@ export interface AbilitySource {
 
 /**
  * Map a permission string to (action, subjectType). Subject type names match
- * the `SubjectType` union by construction — they're the capitalized resource
+ * the `SubjectType` union by construction - they're the capitalized resource
  * half of the permission string.
  */
 function splitPermission(p: Permission): {
@@ -144,7 +144,7 @@ export function buildAbility(sources: readonly AbilitySource[]): AppAbility {
             can(action, subjectType, { id: src.scopeId });
           } else {
             // Team-scoped role on a non-team-bound resource (e.g. "Audit" or
-            // "User"). Don't grant — team scope is meaningless for it.
+            // "User"). Don't grant - team scope is meaningless for it.
           }
           break;
 
@@ -162,7 +162,7 @@ export function buildAbility(sources: readonly AbilitySource[]): AppAbility {
           if (subjectType === "Server") {
             can(action, subjectType, { id: src.scopeId });
           } else if (subjectType === "Zone" || subjectType === "Record") {
-            // future work — Zone/Record carry a serverId; we'll grant by that
+            // future work - Zone/Record carry a serverId; we'll grant by that
             // once the schema has it. No-op for now.
           }
           break;
@@ -179,7 +179,7 @@ export function buildAbility(sources: readonly AbilitySource[]): AppAbility {
       if (subject && typeof subject === "object" && "__type" in subject) {
         return (subject as { __type: SubjectType }).__type;
       }
-      // Default fallback — should never hit if call sites use the helper.
+      // Default fallback - should never hit if call sites use the helper.
       return "Settings";
     },
   });
@@ -190,7 +190,7 @@ export function buildAbility(sources: readonly AbilitySource[]): AppAbility {
  *
  * Why this exists separately from the CASL ability: a *type-level* CASL check
  * (`ability.can("update", "Record")` with a bare subject string) answers "can
- * the user do this to *some* instance?" — so it returns `true` for a rule that
+ * the user do this to *some* instance?" - so it returns `true` for a rule that
  * is conditionally scoped to one team/zone/server. That makes it unsafe as a
  * blanket ("any instance") authorization decision: a team-scoped Operator
  * would pass `ability.can("update", "Record")` and appear to have access to
@@ -198,8 +198,8 @@ export function buildAbility(sources: readonly AbilitySource[]): AppAbility {
  *
  * A genuine "all instances" capability is exactly a **global** grant. Callers
  * that must make an all-instances decision (zone/record/dnssec/metadata
- * operations — which have no zone→team mapping and are gated per-zone by
- * `zone_grants` instead — plus zone/server *creation* and admin-wide list
+ * operations - which have no zone→team mapping and are gated per-zone by
+ * `zone_grants` instead - plus zone/server *creation* and admin-wide list
  * endpoints) consult this set. Callers holding a concrete resource pass a
  * subject instance to `ability.can` for a properly scoped check.
  */
@@ -216,7 +216,7 @@ export function globalPermissionsOf(sources: readonly AbilitySource[]): Readonly
 /**
  * The privilege ceiling for role assignment (L-3): the permissions a role would
  * grant that the actor does NOT already hold globally. An actor may only assign
- * a role whose permission set is a subset of their own global permissions —
+ * a role whose permission set is a subset of their own global permissions -
  * otherwise a holder of `role.assign` could grant SuperAdmin (or any permission
  * they lack) to others or themselves, escalating past their own authority. The
  * assignment route is global-only (`requireUser` checks the global grant), so
@@ -254,7 +254,7 @@ export interface GroupMappingViolation {
  * A `oidc.manage` holder configures rules that, at a stranger's first sign-in,
  * mint role assignments for them. Without a ceiling, an operator who lacks
  * (say) `user.delete` could wire a `superusers` group to the Super Admin role
- * and then escalate by logging in through that group — laundering privilege
+ * and then escalate by logging in through that group - laundering privilege
  * through the IdP. So every mapping's target role must be a subset of what the
  * acting user already holds **globally**, exactly as role assignment is gated
  * (`permissionsExceedingGrant`). Scope on the mapping doesn't relax this: a

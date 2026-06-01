@@ -1,10 +1,10 @@
 /**
  * app/api/admin/pdns/tsig-keys/[id]/manual/route.ts
  *
- * POST — return a copy-paste `pdnsutil` script to install this TSIG key on the
+ * POST - return a copy-paste `pdnsutil` script to install this TSIG key on the
  *        secondaries by hand (older daemons without the TSIG API, air-gapped
  *        boxes, or operators who prefer the CLI). The script contains the
- *        plaintext secret, so — like the S-8 reveal — it's returned as
+ *        plaintext secret, so - like the S-8 reveal - it's returned as
  *        `text/plain` (never a JSON body that loggers/devtools would retain) and
  *        audited as a reveal.
  *
@@ -70,7 +70,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     }
 
     // The primary's authoritative zones (those a secondary would AXFR), from the
-    // broker cache — no extra PDNS call.
+    // broker cache - no extra PDNS call.
     const zones = [...(readCachedZones(primary.id)?.zones.values() ?? [])]
       .filter((z) => PRIMARY_KINDS.has(z.kind.toLowerCase()))
       .map((z) => z.name)
@@ -97,7 +97,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       request: getRequestContext(hdrs),
     });
 
-    // text/plain, no-store — the secret must not be cached or JSON-logged.
+    // text/plain, no-store - the secret must not be cached or JSON-logged.
     return new Response(script, {
       headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
     });
@@ -114,11 +114,11 @@ function buildScript(
   modernCli: boolean,
 ): string {
   const lines: string[] = [
-    `# TSIG key "${name}" (${algorithm}) — manual install`,
+    `# TSIG key "${name}" (${algorithm}) - manual install`,
     `# Commands match PowerDNS ${modernCli ? "5.0+ (pdnsutil tsigkey …)" : "4.x (pdnsutil …-tsig-key)"}.`,
     secondaries.length > 0
       ? `# Secondaries: ${secondaries.map((s) => s.name).join(", ")}`
-      : `# No managed secondaries detected — run on each box that should mirror this primary.`,
+      : `# No managed secondaries detected - run on each box that should mirror this primary.`,
     "",
     "# 1) On EACH secondary, import the shared secret:",
     cmds.importOnSecondary,

@@ -4,7 +4,7 @@
  * app/(app)/admin/authentication/ldap/_components/ldap-provider-form.tsx
  *
  * Shared create / edit form for an LDAP provider. The structure mirrors
- * `oidc-provider-form.tsx` — same field component, same group-mapping
+ * `oidc-provider-form.tsx` - same field component, same group-mapping
  * editor (LDAP groups go through the same `applyGroupSync` differ).
  *
  * Bind password is required in create mode, optional in edit mode
@@ -30,7 +30,7 @@ export interface LdapFormInitial {
   groupAttr: string;
   claimEmail: string;
   claimName: string;
-  /** Bytes are not round-tripped — only the "is one set?" state. */
+  /** Bytes are not round-tripped - only the "is one set?" state. */
   tlsCaCertSet: boolean;
   enabled: boolean;
   allowedEmailDomains: string[] | null;
@@ -329,7 +329,7 @@ export function LdapProviderForm(props: Props) {
           Upgrade the connection with StartTLS (RFC 4511 §4.14) after connecting
           <span className="block text-xs text-[color:var(--color-fg-muted)]">
             Only valid on plain <code>ldap://</code> URLs. Most servers reject StartTLS on the
-            implicit-TLS port — pick this OR <code>ldaps://</code>, not both.
+            implicit-TLS port - pick this OR <code>ldaps://</code>, not both.
           </span>
         </span>
       </label>
@@ -379,7 +379,7 @@ export function LdapProviderForm(props: Props) {
       <Field
         id="userSearchBase"
         label="User search base"
-        hint="The DN under which the user record lives. The search is `sub` — nested OUs are fine."
+        hint="The DN under which the user record lives. The search is `sub` - nested OUs are fine."
         errors={fieldErrors["userSearchBase"]}
       >
         <input
@@ -495,7 +495,7 @@ export function LdapProviderForm(props: Props) {
           disabled={!canEdit}
           placeholder={
             initial.tlsCaCertSet
-              ? "(CA pin set — paste a new PEM to replace, or check Clear)"
+              ? "(CA pin set - paste a new PEM to replace, or check Clear)"
               : "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
           }
           className={`${inputClass} font-mono text-xs`}
@@ -555,7 +555,7 @@ export function LdapProviderForm(props: Props) {
         <p className="text-xs text-[color:var(--color-fg-muted)]">
           On every successful sign-in, the group set (from <code>{groupAttr || "memberOf"}</code> or
           the second search) is matched against the rules below. Each matching row materialises a
-          role assignment tagged with this provider — the NEXT sign-in revokes it if the user is no
+          role assignment tagged with this provider - the NEXT sign-in revokes it if the user is no
           longer in the group. Admin-issued assignments are never touched.
         </p>
         {groupMappings.length === 0 ? (
@@ -616,7 +616,7 @@ export function LdapProviderForm(props: Props) {
                 <label className="text-xs">
                   Target
                   {m.scopeType === "global" ? (
-                    <input value="" disabled placeholder="—" className={`${inputClass} text-xs`} />
+                    <input value="" disabled placeholder="-" className={`${inputClass} text-xs`} />
                   ) : m.scopeType === "team" ? (
                     <SelectMenu
                       value={m.scopeId ?? ""}

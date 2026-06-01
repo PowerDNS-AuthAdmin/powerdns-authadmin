@@ -16,7 +16,7 @@ if [ ! -s "$DB" ]; then
   echo "[init-primary] applying schema to $DB"
   sqlite3 "$DB" < "$SCHEMA"
 else
-  echo "[init-primary] existing DB at $DB — skipping"
+  echo "[init-primary] existing DB at $DB - skipping"
 fi
 
 echo "[init-primary] done"

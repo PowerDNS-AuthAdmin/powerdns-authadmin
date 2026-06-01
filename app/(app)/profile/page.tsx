@@ -19,6 +19,7 @@ import { TotpSection } from "./_components/totp-section";
 import { PasskeysSection } from "./_components/passkeys-section";
 import { SectionTabs, SectionTabPanel } from "@/components/ui/section-tabs";
 import { ComplianceBanner } from "@/components/auth/compliance-guard";
+import { isBootstrapAdminLocked } from "@/lib/auth/bootstrap-admin";
 import { env } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Profile" };
@@ -35,6 +36,10 @@ export default async function ProfilePage({
     : [];
 
   const { user } = await requireUserForPage();
+  // When the demo RO lock is on for this account, the credential-mutation
+  // routes return 403 - swap their forms for a notice so the operator isn't
+  // led to a dead end. The API guard is the real enforcement; this is UX.
+  const readonlyDemo = isBootstrapAdminLocked(user.email);
   const [sessions, roleSlugs, tokens, assignments] = await Promise.all([
     listSessionsForUser(user.id),
     listRoleSlugsForUser(user.id),
@@ -49,7 +54,7 @@ export default async function ProfilePage({
     new Set(assignments.flatMap((a) => a.permissions)),
   ).sort();
 
-  // Tabs. Conditional entries hide when their section is absent —
+  // Tabs. Conditional entries hide when their section is absent -
   // change-password / change-email are only meaningful when the user
   // has a local password (SSO-only accounts manage these upstream).
   const tabs = [
@@ -87,7 +92,11 @@ export default async function ProfilePage({
               <div className="contents">
                 <dt className="text-[color:var(--color-fg-muted)]">Name</dt>
                 <dd className="min-w-0">
-                  <NameEdit initialName={user.name} />
+                  {readonlyDemo ? (
+                    <span className="truncate">{user.name ?? "-"}</span>
+                  ) : (
+                    <NameEdit initialName={user.name} />
+                  )}
                 </dd>
               </div>
               <Row
@@ -118,11 +127,15 @@ export default async function ProfilePage({
                   Change password
                 </h2>
                 <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
-                  Minimum 12 characters. Existing sessions stay valid — revoke them below if you
+                  Minimum 12 characters. Existing sessions stay valid - revoke them below if you
                   want to sign out elsewhere.
                 </p>
               </header>
-              <ChangePasswordForm turnstileSiteKey={env.TURNSTILE_SITE_KEY} />
+              {readonlyDemo ? (
+                <DemoLockNotice />
+              ) : (
+                <ChangePasswordForm turnstileSiteKey={env.TURNSTILE_SITE_KEY} />
+              )}
             </div>
           </SectionTabPanel>
         ) : null}
@@ -140,7 +153,7 @@ export default async function ProfilePage({
                   your sessions.
                 </p>
               </header>
-              <ChangeEmailForm />
+              {readonlyDemo ? <DemoLockNotice /> : <ChangeEmailForm />}
             </div>
           </SectionTabPanel>
         ) : null}
@@ -170,26 +183,32 @@ export default async function ProfilePage({
         </SectionTabPanel>
 
         <SectionTabPanel id="mfa">
-          <div className="space-y-4">
-            <TotpSection
-              initialEnabled={user.totpSecretEncrypted !== null}
-              mfaRequired={mfaRequired}
-              requiringRoleSlugs={requiringRoleSlugs}
-              ssoOnly={user.passwordHash === null}
-            />
-            {env.WEBAUTHN_ENABLED ? (
-              <PasskeysSection
+          {readonlyDemo ? (
+            <div className="rounded-md border border-[color:var(--color-border)] p-5">
+              <DemoLockNotice />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <TotpSection
+                initialEnabled={user.totpSecretEncrypted !== null}
+                mfaRequired={mfaRequired}
+                requiringRoleSlugs={requiringRoleSlugs}
                 ssoOnly={user.passwordHash === null}
-                initial={user.webauthnCredentials.map((c) => ({
-                  id: c.id,
-                  nickname: c.nickname,
-                  transports: c.transports ?? [],
-                  createdAt: c.createdAt,
-                  lastUsedAt: c.lastUsedAt,
-                }))}
               />
-            ) : null}
-          </div>
+              {env.WEBAUTHN_ENABLED ? (
+                <PasskeysSection
+                  ssoOnly={user.passwordHash === null}
+                  initial={user.webauthnCredentials.map((c) => ({
+                    id: c.id,
+                    nickname: c.nickname,
+                    transports: c.transports ?? [],
+                    createdAt: c.createdAt,
+                    lastUsedAt: c.lastUsedAt,
+                  }))}
+                />
+              ) : null}
+            </div>
+          )}
         </SectionTabPanel>
 
         <SectionTabPanel id="api-tokens">
@@ -212,6 +231,21 @@ export default async function ProfilePage({
   );
 }
 
+/**
+ * Shown in place of the password / email / two-factor forms when this account
+ * is the RO-locked demo bootstrap admin. The matching API routes return 403, so
+ * this just explains why the controls are gone rather than letting the operator
+ * hit a dead end.
+ */
+function DemoLockNotice() {
+  return (
+    <p className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-3 py-2.5 text-xs text-[color:var(--color-fg-muted)]">
+      This is a shared, read-only demo account - its login and security settings are locked and
+      can&apos;t be changed.
+    </p>
+  );
+}
+
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="contents">
@@ -223,7 +257,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 /**
  * Render the user's role-slug list as small chips instead of a
- * comma-joined string. Visual upgrade only — chips wrap cleanly when
+ * comma-joined string. Visual upgrade only - chips wrap cleanly when
  * the user has many roles + reads as discrete bound items rather
  * than one freeform field. Not links: most users don't have
  * `role.read` (it's an admin permission), and rendering "looks

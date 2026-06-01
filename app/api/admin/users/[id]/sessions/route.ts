@@ -1,14 +1,14 @@
 /**
  * app/api/admin/users/[id]/sessions/route.ts
  *
- * DELETE — revoke EVERY active session for the named user (incident
+ * DELETE - revoke EVERY active session for the named user (incident
  * response: stolen laptop, suspected credential compromise, etc.).
  * Distinct from the user-disable flow because the operator can leave
  * the account active and let the user re-authenticate after their
  * password is reset / device is recovered.
  *
  * Gate: `user.update` permission on the target user. Admins can
- * revoke their own sessions through this endpoint too — useful for
+ * revoke their own sessions through this endpoint too - useful for
  * the "I'm leaving my workstation, sign me out everywhere" flow even
  * though /profile already exposes per-session controls.
  */

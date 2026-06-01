@@ -7,7 +7,7 @@
  * not change the wire content unless they made an edit.
  *
  * The expected forms here are the canonical presentations PDNS would
- * emit on AXFR — they match the per-type validator's `normalized`.
+ * emit on AXFR - they match the per-type validator's `normalized`.
  */
 
 import { describe, expect, it } from "vitest";

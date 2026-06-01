@@ -1,10 +1,10 @@
 /* =============================================================================
- * app/globals.css — Tailwind v3 directives + design tokens.
+ * app/globals.css - Tailwind v3 directives + design tokens.
  *
  * Brand guidance:
  *  - Neutral grays + a single accent (indigo as a placeholder until the
  *    project picks a real palette).
- *  - Dark mode is first-class — every token has a dark variant via the `dark`
+ *  - Dark mode is first-class - every token has a dark variant via the `dark`
  *    class on <html>. The toggle component lands in Phase 1.5.
  *  - All assets self-hosted. No `@import url(...)` to external fonts.
  *
@@ -18,14 +18,14 @@
  * component) so the theme overrides at the bottom of this file land
  * AFTER it in the cascade. Imported via the component instead, the
  * library's `.react-datepicker { background: #fff }` rule sits at the
- * same specificity as ours but later in the bundle and wins — the
+ * same specificity as ours but later in the bundle and wins - the
  * popup then stays light even in dark mode. */
 @import "react-datepicker/dist/react-datepicker.css";
 
 /* Tailwind v4 single-import entry (replaces the v3 @tailwind base/components/
  * utilities trio). `@config` loads the v3-style JS config so the existing
  * `content` globs and class-based dark mode (`darkMode: "class"`) keep working
- * — the app toggles a `.dark` class on <html> and uses a few `dark:` utilities. */
+ * - the app toggles a `.dark` class on <html> and uses a few `dark:` utilities. */
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
@@ -33,7 +33,7 @@
  * Light-mode tokens. The `.dark` block below overrides these.
  * ------------------------------------------------------------------------- */
 :root {
-  /* Color palette — purpose-named, not appearance-named. */
+  /* Color palette - purpose-named, not appearance-named. */
   --color-bg: oklch(99% 0 0);
   --color-bg-subtle: oklch(97% 0 0);
   --color-bg-muted: oklch(94% 0 0);
@@ -42,7 +42,7 @@
   --color-fg-subtle: oklch(60% 0 0);
   --color-border: oklch(90% 0 0);
 
-  /* Accent — indigo placeholder. Per-deployment branding will override. */
+  /* Accent - indigo placeholder. Per-deployment branding will override. */
   --color-accent: oklch(55% 0.18 270);
   --color-accent-fg: oklch(99% 0 0);
 
@@ -53,13 +53,13 @@
   --color-error: oklch(55% 0.22 25);
 
   /* Foreground variants for tinted badges. Yellow/orange at their semantic
-   * lightness are unreadable on top of a /15 tint of themselves — these are
+   * lightness are unreadable on top of a /15 tint of themselves - these are
    * the darker hue used for text in that pairing (CLUSTER works because the
    * accent indigo is already dark enough; warn/orange aren't). */
   --color-warn-fg: oklch(38% 0.12 80);
   --color-orange-fg: oklch(40% 0.13 55);
 
-  /* Typography — system stack, zero font downloads, instant render. No CDN. */
+  /* Typography - system stack, zero font downloads, instant render. No CDN. */
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
@@ -74,7 +74,7 @@
 }
 
 /* Used by the must-change-password banner when the operator tries to navigate
- * away — shaken every time a click on a nav link is blocked, so the "you
+ * away - shaken every time a click on a nav link is blocked, so the "you
  * can't go anywhere until you change this" reason is unmistakable. */
 @keyframes pda-shake {
   0%,
@@ -103,7 +103,7 @@
  * outward + fade with only a mild stroke taper, so they stay solid-line
  * (not broken/dotted) even at small inline sizes. Second ring uses a
  * negative animation-delay so the pulse is continuous from the first frame
- * — no two-stationary-rings warm-up. */
+ * - no two-stationary-rings warm-up. */
 @keyframes pda-sync-pulse {
   0% {
     r: 10;
@@ -143,7 +143,7 @@
   animation: pda-desync-spin-reverse 4s linear infinite;
 }
 
-/* Padding override for the zone-list sync chip — asymmetric (tight left, wide
+/* Padding override for the zone-list sync chip - asymmetric (tight left, wide
  * right) so the icon hugs the left edge and the trailing count number sits
  * comfortably on the right. `!important` wins against any utility class that
  * might inadvertently re-add padding. */
@@ -176,7 +176,7 @@
   --color-accent-fg: oklch(15% 0 0);
   /* On dark bg the warn/orange /15 tint is a dim wash of the same hue, so
    * same-hue text (even at high lightness) visually blends. Use near-white
-   * with a faint tone instead — max lightness contrast against the dim tint,
+   * with a faint tone instead - max lightness contrast against the dim tint,
    * still tinted enough to read as "yellow" / "orange". */
   --color-warn-fg: oklch(96% 0.06 80);
   --color-orange-fg: oklch(95% 0.07 55);
@@ -185,7 +185,7 @@
 /* ---------------------------------------------------------------------------
  * Document-level baseline.
  *
- * `color-scheme` is bound to OUR theme class — not `light dark`. Reason: the
+ * `color-scheme` is bound to OUR theme class - not `light dark`. Reason: the
  * "light dark" value tells the browser "the OS preference wins", which means
  * a dark-mode-OS user toggled into our light theme still gets dark-rendered
  * native form chrome (checkbox/radio/select dropdowns). Binding to our own
@@ -195,7 +195,7 @@ html {
   /* Root stays at the browser default (typically 16px) so rem-based spacing,
    * gaps, and radii are true to the design. The comfortably-large *text* scale
    * lives in the Tailwind `fontSize` theme (each utility ≈1.2× default),
-   * replacing the former blanket `font-size: 120%` here — which also inflated
+   * replacing the former blanket `font-size: 120%` here - which also inflated
    * spacing and made the UI feel zoomed, especially on mobile. */
   background-color: var(--color-bg);
   color: var(--color-fg);
@@ -238,7 +238,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Focus styling — visible by default. WCAG AA requires clear focus indicators;
+/* Focus styling - visible by default. WCAG AA requires clear focus indicators;
    Tailwind's default `focus:` ring covers interactive elements, this is the
    safety net for anything tab-focusable without explicit styling. */
 :focus-visible {
@@ -291,7 +291,7 @@ body {
  * don't paint anything outside the picker.
  * ========================================================================== */
 
-/* The picker's text input — react-datepicker renders a real <input>
+/* The picker's text input - react-datepicker renders a real <input>
  * inside `.react-datepicker__input-container`. Callers can pass their
  * own className for the box (border / padding / bg) but `color` needs
  * an explicit rule because <input> doesn't inherit from its parent in

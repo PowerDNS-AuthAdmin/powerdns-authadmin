@@ -1,13 +1,13 @@
 /**
  * app/api/profile/mfa/webauthn/registration-verify/route.ts
  *
- * POST — finish a WebAuthn registration ceremony. Redeems the challenge
+ * POST - finish a WebAuthn registration ceremony. Redeems the challenge
  * token from the temp-reveal-store, runs `verifyRegistrationResponse`,
  * persists the resulting credential into `users.webauthn_credentials`,
  * and audits.
  *
  * The challenge token is single-use; a wrong response burns it and the
- * client has to start over (mirrors the TOTP enrol-confirm pattern —
+ * client has to start over (mirrors the TOTP enrol-confirm pattern -
  * see app/api/profile/mfa/totp/route.ts).
  */
 
@@ -17,6 +17,7 @@ import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { assertBootstrapAdminMutable } from "@/lib/auth/bootstrap-admin";
 import { redeem } from "@/lib/auth/temp-reveal-store";
 import { getWebauthnConfig } from "@/lib/auth/webauthn";
 import { verifyRegistration } from "@/lib/auth/webauthn/registration";
@@ -36,6 +37,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const { user } = await requireUser({ skipComplianceGate: true });
     await requireCsrf(request);
+    assertBootstrapAdminMutable(user.email);
 
     let input;
     try {
@@ -66,7 +68,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     // The challenge token is single-use so the credential id is the only
-    // remaining replay surface — `addCredential` refuses duplicates.
+    // remaining replay surface - `addCredential` refuses duplicates.
     const hdrs = await headers();
     await db.transaction(async (tx) => {
       const existing = await listCredentials(user.id, tx);

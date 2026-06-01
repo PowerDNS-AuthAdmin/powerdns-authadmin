@@ -86,7 +86,7 @@ describe("pickPeer lowest_latency", () => {
     const slowButHealthy = peer("healthy");
     const samples: PeerSamples = {
       // Only the healthy peer recorded a (success) latency. The failing peer is
-      // absent — modelling the buffer no longer ingesting its failure timings.
+      // absent - modelling the buffer no longer ingesting its failure timings.
       latencyP50Ms: new Map([["healthy", 300]]),
       zoneCounts: new Map(),
     };

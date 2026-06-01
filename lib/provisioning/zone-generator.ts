@@ -2,7 +2,7 @@
  * lib/provisioning/zone-generator.ts
  *
  * Pure helper that produces synthetic zone definitions from a generator
- * spec — used by the demo_zones provisioning section. Kept separate from
+ * spec - used by the demo_zones provisioning section. Kept separate from
  * `apply.ts` so unit tests don't pull lib/db at module load.
  *
  * Each zone gets:
@@ -11,7 +11,7 @@
  *     SPF TXT, api A, cdn CNAME, then synthetic `hostNN` A records to pad)
  *
  * The PDNS createZone path packs records into rrsets keyed on (name,
- * type) — multiple A records on the same name end up as one rrset with
+ * type) - multiple A records on the same name end up as one rrset with
  * multiple `records` entries.
  */
 
@@ -90,7 +90,7 @@ function buildZoneRrsets(args: BuildArgs): RRsetPatch[] {
   // into rrsets at the end.
   const flat: Array<{ name: string; type: string; ttl: number; content: string }> = [];
 
-  // The "default 10 records" template, in priority order — the slice below
+  // The "default 10 records" template, in priority order - the slice below
   // trims to `recordsPerZone`. Realistic enough to look like an in-use zone.
   const template: Array<{ name: string; type: string; ttl: number; content: string }> = [
     { name: zoneName, type: "A", ttl: 3600, content: `10.0.${index}.1` },

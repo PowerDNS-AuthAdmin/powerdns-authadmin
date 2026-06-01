@@ -7,13 +7,13 @@
  * gateway (so reachability is tracked) and to the topology (group + derived
  * secondaries).
  *
- *   • replicateKeyToSecondaries — push the primary's exact secret to each
+ *   • replicateKeyToSecondaries - push the primary's exact secret to each
  *     secondary's TSIG API. Per-backend version-gated on `supportsTsigApi`;
  *     older daemons report `unsupported` (the UI falls back to manual pdnsutil).
- *   • setZoneTransferKey — activate (or clear) a key for ONE zone's transfer:
+ *   • setZoneTransferKey - activate (or clear) a key for ONE zone's transfer:
  *     TSIG-ALLOW-AXFR on the primary, AXFR-MASTER-TSIG on each secondary that
  *     actually hosts the zone.
- *   • listPrimarySecondaries — the primary's secondaries: explicit group members
+ *   • listPrimarySecondaries - the primary's secondaries: explicit group members
  *     ∪ masters[]-derived mirrors.
  */
 
@@ -121,7 +121,7 @@ function applyMode(current: readonly string[], keyName: string, mode: TransferKe
 }
 
 /**
- * Add or remove a TSIG key on ONE zone's AXFR — the WRITABLE zone-object fields
+ * Add or remove a TSIG key on ONE zone's AXFR - the WRITABLE zone-object fields
  * (`master_tsig_key_ids` on the primary, `slave_tsig_key_ids` on each secondary
  * that hosts the zone), which PDNS surfaces read-only as TSIG-ALLOW-AXFR /
  * AXFR-MASTER-TSIG. (The per-kind metadata API rejects those as read-only.)
@@ -209,9 +209,9 @@ async function mapLimit<T, R>(
 
 /**
  * Delete a TSIG key AND clean up after it (the default, opt-out, delete path):
- *   1. Remove it from every authoritative zone that references it — on the
+ *   1. Remove it from every authoritative zone that references it - on the
  *      primary (master_tsig_key_ids) and, via `setZoneTransferKey`, on the
- *      hosting secondaries (slave_tsig_key_ids) — so no zone is left pointing at
+ *      hosting secondaries (slave_tsig_key_ids) - so no zone is left pointing at
  *      a key that's about to vanish.
  *   2. Delete the replicated key copy from each secondary.
  *   3. Delete the key from the primary.

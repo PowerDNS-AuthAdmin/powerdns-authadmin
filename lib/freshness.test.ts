@@ -19,9 +19,9 @@ describe("freshnessOf", () => {
   });
 
   it("crosses from fresh to aging at the 1h mark", () => {
-    // 59 minutes ago — still fresh (boundary is exclusive).
+    // 59 minutes ago - still fresh (boundary is exclusive).
     expect(freshnessOf("2026-05-17T11:01:00.000Z", NOW).kind).toBe("fresh");
-    // Exactly 1 hour ago — flips to aging.
+    // Exactly 1 hour ago - flips to aging.
     expect(freshnessOf("2026-05-17T11:00:00.000Z", NOW)).toEqual({
       label: "1h ago",
       kind: "aging",

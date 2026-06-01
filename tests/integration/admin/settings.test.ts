@@ -1,7 +1,7 @@
 /**
  * tests/integration/admin/settings.test.ts
  *
- * /api/admin/settings — read + patch app-wide runtime settings. Verifies a
+ * /api/admin/settings - read + patch app-wide runtime settings. Verifies a
  * single-field PATCH lands in the audit log as settings.write, and that a
  * non-admin caller is refused.
  */
@@ -71,7 +71,7 @@ describe("/api/admin/settings", () => {
     }
   });
 
-  it("non-admin (operator) cannot update settings — 403", async () => {
+  it("non-admin (operator) cannot update settings - 403", async () => {
     const admin = await loginAsBootstrap();
     const op = await createUser(admin, {
       email: uniqueEmail("op-settings"),

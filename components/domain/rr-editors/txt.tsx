@@ -1,7 +1,7 @@
 /**
  * components/domain/rr-editors/txt.tsx
  *
- * TXT — one or more <character-string>s, each capped at 255 octets
+ * TXT - one or more <character-string>s, each capped at 255 octets
  * (RFC 1035 § 3.3.14). Operators type the value as a single unquoted
  * blob; on save we split the blob into ≤255-octet chunks, escape `\`
  * and `"`, and emit `"chunk1" "chunk2"` wire format.
@@ -64,7 +64,7 @@ export const txtEditor: RREditor<TxtStruct> = {
       if (!strings) return null;
       return { blob: strings.join("") };
     }
-    // Bare unquoted text — accept as the blob unchanged so editing a
+    // Bare unquoted text - accept as the blob unchanged so editing a
     // legacy non-quoted record doesn't lose its payload.
     return { blob: trimmed };
   },

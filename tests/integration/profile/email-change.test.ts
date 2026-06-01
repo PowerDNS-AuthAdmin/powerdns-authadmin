@@ -3,7 +3,7 @@
  *
  * Email change request + confirm flow. The mint route stashes the
  * confirm URL in the audit row's `after.url` (transactional email is
- * not wired yet) — the test extracts the token from there. Wrong
+ * not wired yet) - the test extracts the token from there. Wrong
  * password and already-taken email failure modes are also covered.
  */
 

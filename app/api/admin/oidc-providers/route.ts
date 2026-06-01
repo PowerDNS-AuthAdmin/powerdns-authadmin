@@ -1,8 +1,8 @@
 /**
  * app/api/admin/oidc-providers/route.ts
  *
- * GET  — list every OIDC provider (oidc.read).
- * POST — create a new provider (oidc.manage). The client_secret is encrypted
+ * GET  - list every OIDC provider (oidc.read).
+ * POST - create a new provider (oidc.manage). The client_secret is encrypted
  *        before insert and never returned over the wire.
  */
 
@@ -85,7 +85,7 @@ export async function POST(request: Request): Promise<Response> {
 
     // Privilege ceiling (GHSA-wf29-rmhc-rqc9): group→role mappings auto-assign
     // roles at first sign-in, so they can't carry permissions the actor lacks
-    // globally — otherwise `oidc.manage` would launder privilege through the IdP.
+    // globally - otherwise `oidc.manage` would launder privilege through the IdP.
     await assertGroupMappingsWithinCeiling(user.id, input.groupMappings ?? null);
 
     const clientSecretEncrypted = encrypt(input.clientSecret, "oidc-client-secret");
@@ -148,10 +148,10 @@ export async function POST(request: Request): Promise<Response> {
     // Fires the discovery check as a detached promise so the create
     // response returns immediately; the list page reads the cache on
     // its next render. Failures are logged but don't surface as a
-    // create error — the operator can re-probe via the Test button.
+    // create error - the operator can re-probe via the Test button.
     void (async () => {
       try {
-        // SSRF pre-check before the detached probe — defense-in-depth (the
+        // SSRF pre-check before the detached probe - defense-in-depth (the
         // pinned fetch re-checks too) and a clean transport-style failure if
         // the issuer resolves to a blocked address. Mirrors the `/test` route.
         const safety = await checkOidcIssuerUrlSafe(row.issuerUrl);

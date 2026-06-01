@@ -1,7 +1,7 @@
 /**
  * app/api/admin/teams/[id]/members/route.ts
  *
- * POST — add a member by email + role. Permission: team.manage-members.
+ * POST - add a member by email + role. Permission: team.manage-members.
  */
 
 import { headers } from "next/headers";

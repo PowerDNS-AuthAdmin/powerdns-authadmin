@@ -12,7 +12,7 @@
  *     placeholder that's behaviorally complete (focus management aside) and
  *     will be migrated then.
  *   - The "avatar" is an SVG-generated monogram derived from email. No
- *     Gravatar — CONTRIBUTING.md bans external image hosts.
+ *     Gravatar - CONTRIBUTING.md bans external image hosts.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -51,7 +51,7 @@ export function UserMenu({ email, name }: UserMenuProps) {
 
   // Sign-out is a state-changing POST. `apiFetch` adds the CSRF header
   // so `requireCsrf` on /api/auth/logout accepts it. The server replies
-  // with JSON `{ ok, location }` — `location` is either the IdP's
+  // with JSON `{ ok, location }` - `location` is either the IdP's
   // RP-initiated-logout URL (for OIDC sessions) or the local
   // /login?signed-out=1 fallback. We navigate via `window.location.replace`
   // rather than letting fetch follow a 303 redirect: a cross-origin
@@ -70,7 +70,7 @@ export function UserMenu({ email, name }: UserMenuProps) {
         }
       }
     } catch {
-      // Network failure — fall through to the local redirect.
+      // Network failure - fall through to the local redirect.
     }
     window.location.replace(target);
   }

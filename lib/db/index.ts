@@ -9,7 +9,7 @@
  *   - `file:...`       / `sqlite:...`       → better-sqlite3 + drizzle-orm/better-sqlite3
  *
  * The exported `db` value is typed against the Postgres schema as the canonical
- * shape — at runtime, when SQLite is the dialect, the actual object is a
+ * shape - at runtime, when SQLite is the dialect, the actual object is a
  * `BetterSQLite3Database` operating on the parallel sqlite-core tables in
  * `lib/db/schema-sqlite/`. The two schemas are structurally identical (same
  * column names, same JS-side row types modulo `bigint` ↔ `number` for the
@@ -36,7 +36,7 @@ type PgPool = InstanceType<typeof pg.Pool>;
 
 /**
  * The exported `db` is typed against the Postgres schema as the canonical
- * shape — but at runtime under SQLite mode the actual value is a
+ * shape - but at runtime under SQLite mode the actual value is a
  * BetterSQLite3Database operating on the parallel sqlite-core tables.
  */
 export type AppDatabase = NodePgDatabase<typeof schema>;
@@ -45,7 +45,7 @@ export type AppDatabase = NodePgDatabase<typeof schema>;
  * A query executor: either the shared `db` or an open transaction handle.
  * Repository mutations that participate in an audited write accept this
  * (defaulting to `db`) so a route can run the mutation AND its `appendAudit`
- * row inside one `db.transaction(...)` — making the state change and its audit
+ * row inside one `db.transaction(...)` - making the state change and its audit
  * entry atomic (either both commit or neither does).
  */
 export type DbExecutor = AppDatabase | Parameters<Parameters<AppDatabase["transaction"]>[0]>[0];
@@ -61,9 +61,9 @@ function stripSqlitePrefix(url: string): string {
   //   file:./foo.db        → ./foo.db (relative)
   //   file:foo.db          → foo.db    (relative)
   //   file:/abs/foo.db     → /abs/foo.db (absolute, "abbreviated" form)
-  //   file:///abs/foo.db   → /abs/foo.db (RFC 8089 absolute form — strip the
+  //   file:///abs/foo.db   → /abs/foo.db (RFC 8089 absolute form - strip the
   //                                       extra //, keep the leading /)
-  //   sqlite:* — same shapes as file:.
+  //   sqlite:* - same shapes as file:.
   let s = url;
   if (s.startsWith("sqlite:")) s = s.slice("sqlite:".length);
   else if (s.startsWith("file:")) s = s.slice("file:".length);
@@ -96,7 +96,7 @@ function buildBundle(): DbBundle {
     // seed/provision boot scripts. Replace `transaction` with a runner that
     // wraps the async callback in a real BEGIN/COMMIT/ROLLBACK (serialized,
     // since one connection can't hold overlapping transactions) so the mutation
-    // and its audit row commit atomically — matching the Postgres path. See
+    // and its audit row commit atomically - matching the Postgres path. See
     // ./sqlite-transaction.ts for the serialization + nesting details.
     sqliteDb.transaction = createSqliteTransactionRunner(
       handle,
@@ -121,7 +121,7 @@ const bundle = buildBundle();
 
 export const db: AppDatabase = bundle.db;
 
-/** Postgres pool — null in SQLite mode. Exposed for the migration runner. */
+/** Postgres pool - null in SQLite mode. Exposed for the migration runner. */
 export const pool: PgPool | null = bundle.pool;
 
 /**
@@ -153,7 +153,7 @@ export async function pingDatabase(): Promise<boolean> {
 
 /**
  * Close the connection. CLI scripts (seed, migrations) call this so the
- * process exits cleanly. The app server never calls it — Node handles
+ * process exits cleanly. The app server never calls it - Node handles
  * shutdown via SIGTERM and the framework's shutdown hooks.
  */
 export async function closeDatabase(): Promise<void> {
@@ -166,7 +166,7 @@ export async function closeDatabase(): Promise<void> {
 
 /**
  * Access the raw better-sqlite3 handle (SQLite mode only). Used by the
- * migration runner; repositories should NOT reach for this — go through
+ * migration runner; repositories should NOT reach for this - go through
  * Drizzle's API instead.
  */
 export function sqliteHandle(): Database.Database | null {

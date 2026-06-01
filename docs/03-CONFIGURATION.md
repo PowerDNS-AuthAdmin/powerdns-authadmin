@@ -1,13 +1,13 @@
 # Configuration reference
 
 Every setting is an environment variable, validated **once at boot**. If anything
-required is missing or malformed, the app refuses to start with a clear error —
+required is missing or malformed, the app refuses to start with a clear error -
 misconfiguration is a startup failure, not a 3-AM surprise. The annotated source
 of truth is [`.env.example`](../.env.example); this page groups the variables and
 explains the ones with sharp edges.
 
 > **`_FILE` suffix for secrets.** Any variable accepts a `<NAME>_FILE` form that
-> points at a file whose contents are the value — for Docker/Kubernetes secrets:
+> points at a file whose contents are the value - for Docker/Kubernetes secrets:
 > `APP_SECRET_KEY_FILE=/run/secrets/app_key`. If both inline and `_FILE` are set,
 > the inline value wins and a warning is logged.
 
@@ -15,7 +15,7 @@ explains the ones with sharp edges.
 
 | Variable    | Default          | Notes                                                                                        |
 | ----------- | ---------------- | -------------------------------------------------------------------------------------------- |
-| `APP_URL`   | — (**required**) | Public, browser-visible URL. No trailing slash. Drives OIDC redirect URIs, email links, CSP. |
+| `APP_URL`   | - (**required**) | Public, browser-visible URL. No trailing slash. Drives OIDC redirect URIs, email links, CSP. |
 | `PORT`      | `3000`           | Port the server listens on.                                                                  |
 | `NODE_ENV`  | `development`    | The published image runs `production`.                                                       |
 | `LOG_LEVEL` | `info`           | `trace` \| `debug` \| `info` \| `warn` \| `error` \| `fatal`.                                |
@@ -33,7 +33,7 @@ Generate each with `openssl rand -base64 32`. Obvious placeholders are rejected.
 
 | Variable             | Default          | Notes                                                                                                                                |
 | -------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `DATABASE_URL`       | — (**required**) | `file:/data/powerdns_authadmin.db` (SQLite) or `postgres://user:pass@host:5432/db`. The prefix selects the driver and migration set. |
+| `DATABASE_URL`       | - (**required**) | `file:/data/powerdns_authadmin.db` (SQLite) or `postgres://user:pass@host:5432/db`. The prefix selects the driver and migration set. |
 | `DATABASE_POOL_SIZE` | `10`             | Postgres connection pool size (1–100). Ignored on SQLite.                                                                            |
 
 ## Boot stages
@@ -49,13 +49,23 @@ Read by the container entrypoint (not the app itself); all default **on**.
 
 ## Bootstrap admin
 
-Set **both** or neither (one without the other is a startup error). Idempotent —
+Set **both** or neither (one without the other is a startup error). Idempotent -
 ensures the account exists, created with "must change password on next login".
 
 | Variable                   | Constraint  |
 | -------------------------- | ----------- |
 | `BOOTSTRAP_ADMIN_EMAIL`    | valid email |
 | `BOOTSTRAP_ADMIN_PASSWORD` | ≥ 12 chars  |
+
+For a **public demo** whose login is published, set `BOOTSTRAP_ADMIN_RO=true`
+(default `false`; requires `BOOTSTRAP_ADMIN_EMAIL`). It locks the bootstrap
+admin's own identity and credentials - password, email, name, MFA/passkey
+enrolment, disable/delete, and role changes all return 403 - so a visitor signed
+in as the shared account can't hijack or lock out the login. The account can
+still operate everything else (zones, other users, …); this is an identity lock,
+not a global read-only mode. With it on, the seed creates the account already
+compliant (`must_change_password=false`), since it can no longer change its own
+password.
 
 ## Sessions
 
@@ -72,7 +82,7 @@ ensures the account exists, created with "must change password on next login".
 
 ## Self-service signup
 
-Off by default — admins create users (or users arrive via OIDC). Turn it on only
+Off by default - admins create users (or users arrive via OIDC). Turn it on only
 when you want the public to register themselves. When **disabled**, both the
 `/signup` page and `POST /api/auth/signup` return **404** (the feature does not
 exist for the deployment) and no "Create an account" link is shown on the login
@@ -81,14 +91,15 @@ page.
 | Variable                       | Default          | Notes                                                                                                   |
 | ------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------- |
 | `SIGNUP_ENABLED`               | `false`          | Master switch. `false` → `/signup` + the API are 404; admins create users.                              |
-| `SIGNUP_DEFAULT_ROLE`          | `read-only`      | Role (slug) every signup receives. **Must be low-privilege** — the seed step refuses to boot otherwise. |
+| `SIGNUP_DEFAULT_ROLE`          | `read-only`      | Role (slug) every signup receives. **Must be low-privilege** - the seed step refuses to boot otherwise. |
 | `SIGNUP_ALLOWED_EMAIL_DOMAINS` | unset (no limit) | Comma-separated allow-list of email domains. Empty = any domain. Exact-domain, case-insensitive.        |
 
 **`SMTP_*` must be configured** (see [Email / SMTP](#email--smtp-optional)) for verification
 links to be **delivered**. Without SMTP the signup flow still works, but the
 verification link is only recorded in the audit log (action
 `auth.email.verify.sent`, field `after.url`) for an operator to share out-of-band
-— the same fallback the password-reset and email-change flows use.
+
+- the same fallback the password-reset and email-change flows use.
 
 **Boot-time guard.** When `SIGNUP_ENABLED=true`, the seed step validates
 `SIGNUP_DEFAULT_ROLE` _after_ the system roles are upserted: it must resolve to an
@@ -107,7 +118,7 @@ signup is off.
 2. The server validates input, enforces `SIGNUP_ALLOWED_EMAIL_DOMAINS`, then
    creates an **unverified** user assigned exactly `SIGNUP_DEFAULT_ROLE` (one
    audited transaction) and sends the verification link. The response is the same
-   whether or not the email already exists (**no account enumeration**) — a
+   whether or not the email already exists (**no account enumeration**) - a
    duplicate silently re-sends verification to an unfinished signup.
 3. The user **cannot log in until verified**: while signup is enabled, any
    unverified local account is blocked at login (`403`, `reason: email-unverified`).
@@ -119,7 +130,7 @@ signup is off.
 ## OIDC single sign-on
 
 The `OIDC_*` variables configure a **single, read-only provider** that appears on
-the login page and in **Admin → OIDC providers** badged **"Configured by ENV"** —
+the login page and in **Admin → OIDC providers** badged **"Configured by ENV"** -
 alongside any DB providers, not as a hidden fallback. It's edited by changing env
 vars (not the UI), can't do group → role mapping, and is shadowed by a DB provider
 that shares its slug. For multiple providers, icons, group → role mapping, and
@@ -132,10 +143,10 @@ configuration paths relate.** The env knobs:
 | Variable                                   | Default                    | Notes                                                        |
 | ------------------------------------------ | -------------------------- | ------------------------------------------------------------ |
 | `OIDC_ENABLED`                             | `false`                    | Master switch for the env fallback provider.                 |
-| `OIDC_PROVIDER_ID`                         | —                          | Slug in the callback URL: `/api/auth/oidc/<id>/callback`.    |
-| `OIDC_PROVIDER_NAME`                       | —                          | Label on the login button.                                   |
-| `OIDC_ISSUER_URL`                          | —                          | Issuer; the app fetches its `.well-known` discovery doc.     |
-| `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET`    | —                          | OAuth client credentials.                                    |
+| `OIDC_PROVIDER_ID`                         | -                          | Slug in the callback URL: `/api/auth/oidc/<id>/callback`.    |
+| `OIDC_PROVIDER_NAME`                       | -                          | Label on the login button.                                   |
+| `OIDC_ISSUER_URL`                          | -                          | Issuer; the app fetches its `.well-known` discovery doc.     |
+| `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET`    | -                          | OAuth client credentials.                                    |
 | `OIDC_SCOPES`                              | `openid profile email`     | Space-separated.                                             |
 | `OIDC_CLAIM_USERNAME` / `_EMAIL` / `_NAME` | `email` / `email` / `name` | Claim mapping.                                               |
 | `OIDC_ALLOWED_EMAIL_DOMAINS`               | unset (no limit)           | Comma-separated allow-list for **new** users' email domains. |
@@ -143,7 +154,7 @@ configuration paths relate.** The env knobs:
 When `OIDC_ENABLED=true`, the five required keys (`OIDC_PROVIDER_ID`,
 `OIDC_PROVIDER_NAME`, `OIDC_ISSUER_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`)
 must all be present or the app won't start. The env fallback **cannot do
-group → role mapping** — that requires a DB provider.
+group → role mapping** - that requires a DB provider.
 
 ## PowerDNS connectivity (SSRF guard)
 
@@ -161,7 +172,7 @@ IP into the connection as a DNS-rebinding defense. Link-local addresses (incl. t
 
 Opt-in switch for AuthAdmin's replication-awareness layer. **Defaults to
 `false`** so a fresh install (or any deployment without multi-peer
-topology) makes no background calls to PowerDNS — every PDNS interaction
+topology) makes no background calls to PowerDNS - every PDNS interaction
 is a direct consequence of an operator action.
 
 When `false` (default):
@@ -211,7 +222,7 @@ pair of flags. Same rule: link-local / cloud-metadata is always blocked.
 
 ## Email / SMTP (optional)
 
-With `SMTP_HOST` unset, mail is skipped (logged) — verify-email, password reset,
+With `SMTP_HOST` unset, mail is skipped (logged) - verify-email, password reset,
 and email-change links simply aren't sent. With it set, the rest must be coherent
 (validated at boot). Pick **one** encryption shape.
 
@@ -222,14 +233,14 @@ and email-change links simply aren't sent. With it set, the rest must be coheren
 | `SMTP_SECURE`                     | `false`            | `true` = implicit TLS (SMTPS, port 465).                |
 | `SMTP_STARTTLS`                   | `opportunistic`    | `required` \| `opportunistic` \| `disabled`.            |
 | `SMTP_USERNAME` / `SMTP_PASSWORD` | unset              | Set **both** or neither (unauthenticated relay).        |
-| `SMTP_FROM`                       | —                  | Envelope sender. **Required** when `SMTP_HOST` is set.  |
+| `SMTP_FROM`                       | -                  | Envelope sender. **Required** when `SMTP_HOST` is set.  |
 | `SMTP_FROM_NAME`                  | unset              | Display name.                                           |
 | `SMTP_TLS_REJECT_UNAUTHORIZED`    | `true`             | `false` only for local fakemail with self-signed certs. |
 | `SMTP_TIMEOUT_MS`                 | `10000`            | Per-stage timeout.                                      |
 
-`SMTP_SECURE=true` **and** `SMTP_STARTTLS=required` together is rejected — pick one.
+`SMTP_SECURE=true` **and** `SMTP_STARTTLS=required` together is rejected - pick one.
 
-## Captcha — Cloudflare Turnstile (optional)
+## Captcha - Cloudflare Turnstile (optional)
 
 | Variable               | Effect                                                        |
 | ---------------------- | ------------------------------------------------------------- |
@@ -246,7 +257,7 @@ Set both for a public-facing login.
 | `METRICS_TOKEN`               | unset   | Require `Authorization: Bearer <token>` (≥ 16 chars) to scrape. Unset = open; rely on network ACLs. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | unset   | OTLP traces endpoint.                                                                               |
 
-## Redis — horizontal scale (optional)
+## Redis - horizontal scale (optional)
 
 Setting `REDIS_URL` makes three otherwise per-process pieces of state coordinate
 across replicas: auth rate limiting, the realtime SSE event-bus, and reveal-once

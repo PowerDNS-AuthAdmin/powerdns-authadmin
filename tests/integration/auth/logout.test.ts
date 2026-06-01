@@ -1,7 +1,7 @@
 /**
  * tests/integration/auth/logout.test.ts
  *
- * POST /api/auth/logout — invalidates the current session. Verifies the
+ * POST /api/auth/logout - invalidates the current session. Verifies the
  * session record is gone from the DB and follow-up calls with the same
  * cookie are rejected.
  */

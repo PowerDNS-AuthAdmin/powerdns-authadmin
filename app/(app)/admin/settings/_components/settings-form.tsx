@@ -163,7 +163,7 @@ export function SettingsForm({ initial, canWrite }: SettingsFormProps) {
   return (
     // autoComplete="off" suppresses the browser/keychain autofill popup
     // ("No items to show / + New identity") that fires on the support_contact
-    // field — these aren't credentials.
+    // field - these aren't credentials.
     <form onSubmit={handleSubmit} autoComplete="off" className="space-y-5">
       <Field
         id="site_name"
@@ -185,7 +185,7 @@ export function SettingsForm({ initial, canWrite }: SettingsFormProps) {
       <Field
         id="brand_logo_url"
         label="Brand logo"
-        hint="Paste an absolute URL or upload an image (PNG, JPEG, GIF, SVG, WebP — up to 2 MB). Uploaded images are stored inline as base64. Empty to use the default wordmark."
+        hint="Paste an absolute URL or upload an image (PNG, JPEG, GIF, SVG, WebP - up to 2 MB). Uploaded images are stored inline as base64. Empty to use the default wordmark."
         errors={fieldErrors["brand_logo_url"]}
       >
         <input
@@ -232,7 +232,7 @@ export function SettingsForm({ initial, canWrite }: SettingsFormProps) {
           Live preview. Mirrors the sidebar slot (224 × 40 with overflow:hidden)
           and the auth-layout banner so the operator can see how the logo will
           crop in both contexts before saving. Wrapper backgrounds use the same
-          tokens as the actual chromes — dark sidebar in the (app) shell,
+          tokens as the actual chromes - dark sidebar in the (app) shell,
           neutral subtle panel in the (auth) shell.
         */}
         <p className="mt-4 text-xs font-medium tracking-wide text-[color:var(--color-fg-subtle)] uppercase">
@@ -375,7 +375,7 @@ export function SettingsForm({ initial, canWrite }: SettingsFormProps) {
             <span className="font-medium">Allow self-service password reset</span>
             <span className="mt-0.5 block text-xs text-[color:var(--color-fg-muted)]">
               Shows the “Forgot password?” link on the login page and enables the reset-email flow.
-              Local accounts only — SSO users reset through their identity provider. Requires SMTP
+              Local accounts only - SSO users reset through their identity provider. Requires SMTP
               to actually deliver the email.
             </span>
           </span>
@@ -441,7 +441,7 @@ function Field({
 /**
  * Boxed slot with the exact pixel dimensions of one of the real brand-mark
  * placements, plus `overflow:hidden` so the user sees what (if anything)
- * gets cropped. The dotted border isn't part of the actual render — it's a
+ * gets cropped. The dotted border isn't part of the actual render - it's a
  * preview affordance to show the bounds.
  */
 function PreviewSlot({

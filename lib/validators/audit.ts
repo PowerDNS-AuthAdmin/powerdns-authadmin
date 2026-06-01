@@ -19,7 +19,7 @@ const optionalString = z
  * Accept either a bare date (`YYYY-MM-DD`, useful with
  * `<input type="date">`) or a full ISO datetime with offset. The page
  * code passes the value straight into `new Date(...)`, which handles
- * both — bare dates parse as 00:00 UTC, which matches operators'
+ * both - bare dates parse as 00:00 UTC, which matches operators'
  * default "day filter" mental model.
  */
 // Bug fix: a prior `z.string().optional()` happily matches `""`, so the

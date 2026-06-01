@@ -2,7 +2,7 @@
  * scripts/provision.ts
  *
  * First-boot IaC entry point. Reads `PROVISIONING_FILE`, applies it,
- * writes the sentinel. Idempotent — re-running with the sentinel present
+ * writes the sentinel. Idempotent - re-running with the sentinel present
  * is a no-op.
  *
  * Invocation:
@@ -44,7 +44,7 @@ async function main(): Promise<void> {
   }
 }
 
-// Exit explicitly — same reason as scripts/seed.ts: this runs as a one-shot
+// Exit explicitly - same reason as scripts/seed.ts: this runs as a one-shot
 // boot step under docker/entrypoint.mjs's blocking spawnSync, and a lingering
 // pool socket / pino transport worker would otherwise keep the process alive
 // and hang the boot before the Next server starts.

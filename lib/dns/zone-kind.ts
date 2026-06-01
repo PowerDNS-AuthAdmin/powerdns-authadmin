@@ -25,7 +25,7 @@ const IPV6_SUFFIX = ".ip6.arpa";
 /**
  * `true` for any sub-zone of `in-addr.arpa.` or `ip6.arpa.`. The
  * reverse trees themselves (`in-addr.arpa.` / `ip6.arpa.` with no
- * prefix) also count — operators occasionally host the root reverse
+ * prefix) also count - operators occasionally host the root reverse
  * tree as a placeholder.
  */
 export function isReverseZone(name: string): boolean {

@@ -1,22 +1,22 @@
 /**
  * lib/validators/rr-types/naptr.ts
  *
- * NAPTR (Naming Authority Pointer) content — RFC 3403:
+ * NAPTR (Naming Authority Pointer) content - RFC 3403:
  *   `<order> <preference> "<flags>" "<services>" "<regexp>" <replacement>`
  *
- *   - order      : uint16 — lower processed first.
- *   - preference : uint16 — tiebreaker within the same order.
+ *   - order      : uint16 - lower processed first.
+ *   - preference : uint16 - tiebreaker within the same order.
  *   - flags      : quoted ASCII chars (0–256 octets per RFC). Typical
  *                  letters: S (SRV lookup follows), A (A/AAAA lookup
  *                  follows), U (URI in regexp output), P (protocol-
- *                  specific terminal). Empty `""` is legal — means
+ *                  specific terminal). Empty `""` is legal - means
  *                  the regexp must be applied for further lookup.
  *   - services   : quoted ASCII, typically a protocol identifier
  *                  with optional resolution-service tokens
  *                  ("E2U+sip", "SIP+D2U", etc per RFC 3404). Empty
  *                  is legal.
- *   - regexp     : quoted string. Either empty (`""`) — meaning
- *                  "use replacement" — or a `!pattern!replacement
+ *   - regexp     : quoted string. Either empty (`""`) - meaning
+ *                  "use replacement" - or a `!pattern!replacement
  *                  !flags` form (any delimiter; bang shown is the
  *                  common one).
  *   - replacement: domain name, FQDN with trailing dot, or `.` to
@@ -24,7 +24,7 @@
  *
  * NAPTR records are uncommon today (peaked with ENUM telephony
  * routing); this validator catches structural mistakes for the
- * cases that do show up — DDDS / S-NAPTR / U-NAPTR configurations.
+ * cases that do show up - DDDS / S-NAPTR / U-NAPTR configurations.
  */
 
 import type { RRTypeValidator, RRValidationIssue } from "./types";
@@ -37,7 +37,7 @@ export const naptrValidator: RRTypeValidator = {
   type: "NAPTR",
   label: "Naming Authority Pointer",
   description:
-    'order preference "flags" "services" "regexp" replacement — RFC 3403/3404. Common for ENUM/DDDS lookups.',
+    'order preference "flags" "services" "regexp" replacement - RFC 3403/3404. Common for ENUM/DDDS lookups.',
   placeholder: '100 10 "S" "SIP+D2U" "" _sip._udp.example.com.',
   rfc: "RFC 3403 + RFC 3404",
   validate(content: string) {
@@ -162,7 +162,7 @@ export const naptrValidator: RRTypeValidator = {
       const delim = regexpInner[0]!;
       const parts = regexpInner.split(delim);
       // For "!a!b!c" split gives ["", "a", "b", "c"] (length 4).
-      // For "!a!b!" split gives ["", "a", "b", ""] (length 4) — flags empty.
+      // For "!a!b!" split gives ["", "a", "b", ""] (length 4) - flags empty.
       if (parts.length !== 4) {
         issues.push({
           level: "error",
@@ -173,7 +173,7 @@ export const naptrValidator: RRTypeValidator = {
 
     // replacement: either `.` (no replacement) OR a domain name.
     // RFC 3403 says it must be a fully-qualified domain name when
-    // not `.`. We warn on missing trailing dot rather than error —
+    // not `.`. We warn on missing trailing dot rather than error -
     // operators sometimes load names without it and PDNS
     // canonicalizes on save.
     if (replacement !== "." && !replacement.endsWith(".")) {
@@ -183,7 +183,7 @@ export const naptrValidator: RRTypeValidator = {
       });
     }
     // Mutual-exclusivity check: regexp empty XOR replacement is `.`
-    // (RFC 3403 § 4.1). Both empty is illegal — the record would
+    // (RFC 3403 § 4.1). Both empty is illegal - the record would
     // resolve to nothing.
     const regexpEmpty = regexpInner === "";
     const replacementEmpty = replacement === ".";
@@ -191,14 +191,14 @@ export const naptrValidator: RRTypeValidator = {
       issues.push({
         level: "error",
         message:
-          "Regexp and replacement cannot both be empty/dot — the record must point somewhere (RFC 3403 § 4.1).",
+          "Regexp and replacement cannot both be empty/dot - the record must point somewhere (RFC 3403 § 4.1).",
       });
     }
     if (!regexpEmpty && !replacementEmpty) {
       issues.push({
         level: "warning",
         message:
-          "When regexp is non-empty, replacement should be `.` (RFC 3403 § 4.1 — regexp takes precedence). Verify your DDDS profile if both are set deliberately.",
+          "When regexp is non-empty, replacement should be `.` (RFC 3403 § 4.1 - regexp takes precedence). Verify your DDDS profile if both are set deliberately.",
       });
     }
 

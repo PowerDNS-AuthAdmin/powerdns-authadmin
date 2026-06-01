@@ -4,8 +4,8 @@
  * Regression coverage for the failed-login lockout path (GHSA-frpq-xgm7-574x).
  *
  * Two layers:
- *  - `computeLockoutUntil` — the pure threshold→lockedUntil rule, no DB.
- *  - `recordFailedLogin` — the atomic increment, exercised against a real
+ *  - `computeLockoutUntil` - the pure threshold→lockedUntil rule, no DB.
+ *  - `recordFailedLogin` - the atomic increment, exercised against a real
  *    on-disk SQLite database (one of the two supported dialects). The
  *    pre-fix read-modify-write lost increments under concurrency; the
  *    concurrency case below is the regression that would fail before the fix.
@@ -31,7 +31,7 @@ import type * as UsersRepository from "./users";
  * matches the running Node ABI (NODE_MODULE_VERSION). When it doesn't (e.g. a
  * dev machine whose Node differs from the one node_modules was built against),
  * opening a DB throws `ERR_DLOPEN_FAILED`. We probe once here and skip the
- * DB-backed suite rather than fail the run — CI builds the addon for its Node,
+ * DB-backed suite rather than fail the run - CI builds the addon for its Node,
  * so the suite (incl. the concurrency regression) runs there.
  */
 function sqliteAddonLoads(): boolean {

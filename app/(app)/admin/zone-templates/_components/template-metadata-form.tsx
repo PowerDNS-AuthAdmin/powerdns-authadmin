@@ -3,8 +3,8 @@
 /**
  * Per-template Metadata editor. Stores a `{kind: values[]}` bag on the
  * template that the zone-create apply path replays via PDNS' metadata
- * endpoints. UX matches the zone metadata tab — same KIND_SPECS, same
- * MetadataValuesInput renderer, same kind picker — so an operator who
+ * endpoints. UX matches the zone metadata tab - same KIND_SPECS, same
+ * MetadataValuesInput renderer, same kind picker - so an operator who
  * knows the zone metadata page reads this without retraining.
  */
 

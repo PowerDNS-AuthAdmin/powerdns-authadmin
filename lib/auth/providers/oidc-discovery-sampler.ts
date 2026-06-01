@@ -12,7 +12,7 @@
  * mirrored: stale rows surface as red, fresh rows green.
  *
  * Why on-access rather than a background cron: same reasoning as
- * `lib/metrics/sampler.ts` — Phase-1/2 ops are kept simple (no
+ * `lib/metrics/sampler.ts` - Phase-1/2 ops are kept simple (no
  * BullMQ worker yet). The OIDC providers list is the only surface
  * that reads the data, so sampling on its load is "fresh enough."
  * A real BullMQ / Prometheus scheduler is future work.
@@ -20,7 +20,7 @@
  * Failure handling: per-provider try/catch. One unreachable IdP
  * must not stall a page render that lists ten of them. Probe
  * errors are written back as `ok=false` cache entries so the
- * discovery badge reflects the attempt rather than going silent —
+ * discovery badge reflects the attempt rather than going silent -
  * "tried 3m ago, failed: transport error" beats "last seen 2h ago,
  * still showing green because we stopped trying."
  */
@@ -77,7 +77,7 @@ async function sampleOneProvider(
 ): Promise<void> {
   const fetchedAt = new Date().toISOString();
   try {
-    // Explicit SSRF pre-check before probing — defense-in-depth (the pinned
+    // Explicit SSRF pre-check before probing - defense-in-depth (the pinned
     // fetch inside `probeOidcDiscovery` re-checks too) and a clean
     // transport-style failure when the persisted issuer now resolves to a
     // blocked address. Mirrors the `/test` route.
@@ -94,7 +94,7 @@ async function sampleOneProvider(
     });
   } catch (err) {
     // probeOidcDiscovery already classifies its own failures and
-    // returns a typed result — reaching this catch means something
+    // returns a typed result - reaching this catch means something
     // unusual (DB write below, fetch impl threw an unexpected
     // shape, etc). Log + try to record a "transport" failure so
     // the cache still moves forward.
@@ -112,7 +112,7 @@ async function sampleOneProvider(
         reason: "transport",
       });
     } catch (writeErr) {
-      // DB write failure on the failure path — swallow. The outer
+      // DB write failure on the failure path - swallow. The outer
       // log captured the original error; double-logging adds noise
       // without information.
       void writeErr;

@@ -20,7 +20,7 @@ interface ZoneTabsProps {
   canReadAudit: boolean;
   /**
    * Gates the Access tab. The tab lists roles + teams + users that
-   * can act on this zone — useful "who can touch this?" forensic
+   * can act on this zone - useful "who can touch this?" forensic
    * surface. Gated on `user.read` because the tab reveals user emails
    * and team membership.
    */
@@ -59,7 +59,7 @@ export function ZoneTabs({
 
   return (
     // Mobile (< sm): tabs wrap to multiple rows so the last one ("Change
-    // history" — the widest label) never lives off-screen. From sm+ they
+    // history" - the widest label) never lives off-screen. From sm+ they
     // collapse back to a single horizontally-scrollable row, matching the
     // dense desktop layout.
     <div className="border-b border-[color:var(--color-border)] sm:overflow-x-auto">

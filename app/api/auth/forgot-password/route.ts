@@ -1,7 +1,7 @@
 /**
  * app/api/auth/forgot-password/route.ts
  *
- * POST { email } — initiate a password reset. Always returns 200 with
+ * POST { email } - initiate a password reset. Always returns 200 with
  * the same body regardless of whether the email matched a real user,
  * so the response is not an account-existence oracle. When the email
  * does match, mint a `pdr_…` signed token and:
@@ -14,7 +14,7 @@
  *     stdout for ops debugging.
  *
  * Rate-limited by IP via the existing `loginLimiter` bucket (same
- * tier as login — this is a credential-related action).
+ * tier as login - this is a credential-related action).
  */
 
 import { headers } from "next/headers";
@@ -42,7 +42,7 @@ const bodySchema = z.object({
 
 const GENERIC_OK = {
   ok: true,
-  // Uniform message — never hints at whether the email exists.
+  // Uniform message - never hints at whether the email exists.
   message:
     "If an account exists for that email, a password-reset link has been recorded in the audit log. Ask your administrator to share it with you.",
 };
@@ -87,7 +87,7 @@ export async function POST(request: Request): Promise<Response> {
   // DB lookup so a bot stream can't burn DB cycles to scrape timing.
   // Note: the response is still GENERIC_OK on captcha failure rather
   // than 4xx, so this endpoint stays account-existence opaque even when
-  // captcha is misconfigured client-side — bots learn "captcha
+  // captcha is misconfigured client-side - bots learn "captcha
   // rejected" only via the audit log, not the HTTP response.
   if (env.TURNSTILE_SECRET_KEY) {
     if (!body.captchaToken) {
@@ -121,7 +121,7 @@ export async function POST(request: Request): Promise<Response> {
   const user = await findUserByEmail(body.email);
   if (!user || user.disabledAt || !user.passwordHash) {
     // SSO-only users (no passwordHash) and disabled accounts get the
-    // same opaque OK as missing emails — don't leak which.
+    // same opaque OK as missing emails - don't leak which.
     return Response.json(GENERIC_OK, { headers: { "Cache-Control": "no-store" } });
   }
 
@@ -153,10 +153,10 @@ export async function POST(request: Request): Promise<Response> {
   if (mail.skipped) {
     logger.warn(
       { userId: user.id, resetUrl },
-      "auth.password.reset.requested — SMTP disabled; share this URL with the user out-of-band",
+      "auth.password.reset.requested - SMTP disabled; share this URL with the user out-of-band",
     );
   } else if (!mail.ok) {
-    // Never surface send failures here — the response must stay opaque so it
+    // Never surface send failures here - the response must stay opaque so it
     // can't be used to enumerate accounts. Log for the operator.
     logger.error({ userId: user.id, error: mail.error }, "auth.password.reset.send-failed");
   }

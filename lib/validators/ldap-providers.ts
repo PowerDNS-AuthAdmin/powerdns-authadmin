@@ -10,7 +10,7 @@
  * unless EITHER `LDAP_ALLOW_INSECURE_PORT_389=true` (env-level
  * homelab opt-in) OR the row's `start_tls: true` upgrades the
  * connection after connect (RFC 4511 § 4.14). We also refuse the
- * redundant `start_tls + ldaps://` pair — the implicit-TLS port
+ * redundant `start_tls + ldaps://` pair - the implicit-TLS port
  * already speaks TLS and most servers reject StartTLS on it.
  */
 
@@ -37,7 +37,7 @@ const dnSchema = z
   .string()
   .min(1)
   .max(1000)
-  // The DN syntax is RFC 4514. Don't fully parse here — operators paste
+  // The DN syntax is RFC 4514. Don't fully parse here - operators paste
   // values straight from AD/OpenLDAP and small variations (e.g. trailing
   // space, escaped commas) are common. The bind itself is the real
   // validator. We do strip whitespace at the seams because clipboard
@@ -47,7 +47,7 @@ const dnSchema = z
 
 /**
  * RFC 4515 filter, with a `{{username}}` placeholder. We don't parse
- * the filter — escapes and nesting are too much for a Zod string — but
+ * the filter - escapes and nesting are too much for a Zod string - but
  * we DO require the placeholder so an operator can't accidentally save
  * a filter that returns every user in the directory.
  */
@@ -56,7 +56,7 @@ const userSearchFilterSchema = z
   .min(3, "User search filter is required.")
   .max(2000, "Filter is too long.")
   .refine((s) => s.includes("{{username}}"), {
-    message: "Filter must contain the {{username}} placeholder — see hint below.",
+    message: "Filter must contain the {{username}} placeholder - see hint below.",
   })
   // Cheap guard against an unbalanced filter saving and then exploding
   // at sign-in time. Both AD and OpenLDAP reject mismatched parens
@@ -88,7 +88,7 @@ const attrNameSchema = z
   .string()
   .min(1)
   .max(64)
-  // LDAP attribute names are LDAP-Display-Name per RFC 4512 § 2.5 — a
+  // LDAP attribute names are LDAP-Display-Name per RFC 4512 § 2.5 - a
   // letter followed by letters, digits, hyphens, and underscores. The
   // operator-paste path produces no other shapes.
   .regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/, "Attribute name must be a valid LDAP display name.");
@@ -114,7 +114,7 @@ const allowedEmailDomainsSchema = z
 
 const groupMappingSchema = z
   .object({
-    /** Exact group value to match — for AD `memberOf` this is the DN of
+    /** Exact group value to match - for AD `memberOf` this is the DN of
      *  the group, for OpenLDAP overlay the cn=… etc. Case-sensitive. */
     group: z.string().min(1).max(1000),
     roleSlug: z.string().min(1).max(64),
@@ -161,7 +161,7 @@ function applyUrlSafety(
       code: "custom",
       path: ["startTls"],
       message:
-        "StartTLS is redundant on ldaps:// URLs — the implicit-TLS port already speaks TLS. Pick one.",
+        "StartTLS is redundant on ldaps:// URLs - the implicit-TLS port already speaks TLS. Pick one.",
     });
   }
   if (isLdap && startTls !== true && !env.LDAP_ALLOW_INSECURE_PORT_389) {
@@ -181,7 +181,7 @@ export const createLdapProviderSchema = z
     serverUrl: serverUrlSchema,
     startTls: z.boolean().default(false),
     bindDn: dnSchema,
-    // Trimmed same as the OIDC client secret — clipboard whitespace is the
+    // Trimmed same as the OIDC client secret - clipboard whitespace is the
     // most common reason a known-good password silently mismatches the DC.
     bindPassword: z
       .string()

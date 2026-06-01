@@ -3,7 +3,7 @@
  *
  * DB-backed LDAP identity providers (ADR-0020). One row per directory; the
  * admin UI manages them under /admin/authentication/ldap. There is no env fallback
- * for LDAP — every directory is configured at runtime via the admin UI or
+ * for LDAP - every directory is configured at runtime via the admin UI or
  * a `ldap:` block in `provisioning.yaml`.
  *
  * `bind_password_encrypted` carries the service-account password as an
@@ -28,7 +28,7 @@ export const ldapProviders = pgTable(
     name: text("name").notNull(),
 
     /**
-     * Full LDAP server URL — `ldaps://host:636` (implicit TLS, preferred)
+     * Full LDAP server URL - `ldaps://host:636` (implicit TLS, preferred)
      * or `ldap://host:389` (plain, only allowed when StartTLS is configured
      * on the row OR `LDAP_ALLOW_INSECURE_PORT_389=true` env-wide).
      */
@@ -37,7 +37,7 @@ export const ldapProviders = pgTable(
     /**
      * Issue a StartTLS extended request after connecting (RFC 4511 § 4.14)
      * to upgrade an `ldap://` connection to TLS. Has no effect on `ldaps://`
-     * URLs — the implicit-TLS port already speaks TLS from the first byte,
+     * URLs - the implicit-TLS port already speaks TLS from the first byte,
      * and most servers reject StartTLS on that connection. Validators refuse
      * the redundant pairing.
      */
@@ -73,7 +73,7 @@ export const ldapProviders = pgTable(
 
     /**
      * Attribute on the user record that lists group memberships. Default
-     * `memberOf` — AD's fully-resolved attribute. Read first; the second
+     * `memberOf` - AD's fully-resolved attribute. Read first; the second
      * search above is only invoked when this attribute is empty or absent.
      */
     groupAttr: text("group_attr").notNull().default("memberOf"),
@@ -96,7 +96,7 @@ export const ldapProviders = pgTable(
 
     /**
      * Per-provider email-domain allow-list. Null = no restriction (LDAP
-     * has no env-level default — operators set it explicitly per
+     * has no env-level default - operators set it explicitly per
      * provider when they want one). Empty array also = no restriction.
      */
     allowedEmailDomains: jsonb("allowed_email_domains").$type<string[]>(),

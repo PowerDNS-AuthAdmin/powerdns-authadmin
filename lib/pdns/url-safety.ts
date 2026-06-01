@@ -9,9 +9,9 @@
  *     DNS-rebinding defense).
  *
  * Policy:
- *   - `APP_PDNS_ALLOW_PRIVATE_NETWORKS` — loopback / RFC1918 / CGNAT / ULA.
+ *   - `APP_PDNS_ALLOW_PRIVATE_NETWORKS` - loopback / RFC1918 / CGNAT / ULA.
  *     Default permissive in non-prod (docker-compose), strict in prod.
- *   - `APP_PDNS_ALLOW_INSECURE_HTTP` — relax the https-in-prod scheme check.
+ *   - `APP_PDNS_ALLOW_INSECURE_HTTP` - relax the https-in-prod scheme check.
  * Link-local (incl. 169.254.169.254 cloud metadata) is always blocked.
  */
 
@@ -54,7 +54,7 @@ export async function checkPdnsUrlSafe(
   return checkOutboundUrlSafe(urlString, pdnsPolicy(opts));
 }
 
-/** Throwing variant — raises `ValidationError` on failure. */
+/** Throwing variant - raises `ValidationError` on failure. */
 export async function assertSafePdnsUrl(
   urlString: string,
   opts: AssertOptions = {},

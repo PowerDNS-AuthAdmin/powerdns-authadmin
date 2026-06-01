@@ -1,7 +1,7 @@
 /**
  * app/api/admin/pdns/tsig-keys/[id]/reveal/route.ts
  *
- * POST — redeem the single-use reveal token minted by the sibling
+ * POST - redeem the single-use reveal token minted by the sibling
  *        TSIG create route and return the HMAC secret as
  *        `text/plain` exactly once. Mirrors S-8's reset-password
  *        reveal pattern: the secret never appears in a JSON

@@ -21,13 +21,13 @@ export const DASHBOARD_METRIC_SAMPLES_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 /**
  * `pdns_server_stats` window. Read by `readRecentMetrics()` (per-backend
  * queries / cache hits / response sizes widgets on the backend-detail
- * card). 2 hours — the dashboard's "what's the daemon doing right now?"
+ * card). 2 hours - the dashboard's "what's the daemon doing right now?"
  * view. Beyond that, the data isn't shown and is just bloating the table.
  */
 export const DASHBOARD_PDNS_STATS_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 /**
- * `audit_log` hourly buckets — read by `auditCountsPerHour()` (edits-per-
+ * `audit_log` hourly buckets - read by `auditCountsPerHour()` (edits-per-
  * hour and logins-per-hour panels). 24 hours. Stored here for symmetry; the
  * audit table doesn't carry the same retention concern (audit rows persist
  * for compliance), so retention does NOT prune it.

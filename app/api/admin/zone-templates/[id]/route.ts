@@ -1,9 +1,9 @@
 /**
  * app/api/admin/zone-templates/[id]/route.ts
  *
- * PATCH  — edit (template.manage).
- * DELETE — remove (template.manage). Existing zones already created from
- *          this template are not affected — templates are a creation-time
+ * PATCH  - edit (template.manage).
+ * DELETE - remove (template.manage). Existing zones already created from
+ *          this template are not affected - templates are a creation-time
  *          scaffold, not a live link.
  */
 

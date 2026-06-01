@@ -1,8 +1,8 @@
 /**
- * lib/pdns/rrsets.test.ts — patch-builder semantics.
+ * lib/pdns/rrsets.test.ts - patch-builder semantics.
  *
  * The builders are tiny but the trailing-dot + uppercase-type invariants are
- * load-bearing on the PDNS wire format — covering them here keeps a
+ * load-bearing on the PDNS wire format - covering them here keeps a
  *refactor from regressing the contract.
  */
 

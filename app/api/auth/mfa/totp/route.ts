@@ -1,13 +1,13 @@
 /**
  * app/api/auth/mfa/totp/route.ts
  *
- * POST { challengeToken, code } — complete the MFA step after a
+ * POST { challengeToken, code } - complete the MFA step after a
  * successful password verification. Redeems the challenge token
  * (single-use, 5-min TTL, minted by /api/auth/login when the user
  * has TOTP enrolled), verifies the 6-digit code, and starts the
  * session.
  *
- * The challenge token is the bearer credential here — there's no
+ * The challenge token is the bearer credential here - there's no
  * session cookie yet. Single-use semantics from `temp-reveal-store`
  * prevent replay; the 5-min TTL bounds the window if the operator
  * walked away after entering their password. Wrong-code attempts

@@ -48,7 +48,7 @@ export default async function SamlProviderEditPage({
 
   // The signature algorithm is a "sha1" | "sha256" | "sha512" enum in the
   // form type but the DB column is a free `text` (for forward compat with
-  // any future algos). Narrow defensively — anything else falls back to the
+  // any future algos). Narrow defensively - anything else falls back to the
   // recommended default.
   const safeSigAlg = (
     ["sha1", "sha256", "sha512"].includes(provider.signatureAlgorithm)
@@ -62,7 +62,7 @@ export default async function SamlProviderEditPage({
         <h1 className="text-2xl font-semibold tracking-tight">{provider.name}</h1>
         <p className="text-sm text-[color:var(--color-fg-muted)]">
           Slug{" "}
-          <code className="rounded bg-[color:var(--color-bg-subtle)] px-1">{provider.slug}</code> —
+          <code className="rounded bg-[color:var(--color-bg-subtle)] px-1">{provider.slug}</code> -
           the slug can&apos;t be renamed (would break in-flight sign-ins).
         </p>
         <p className="text-xs text-[color:var(--color-fg-muted)]">
@@ -75,7 +75,7 @@ export default async function SamlProviderEditPage({
           >
             /api/auth/saml/{provider.slug}/metadata
           </a>{" "}
-          — paste this URL into your IdP&apos;s SP registration form.
+          - paste this URL into your IdP&apos;s SP registration form.
         </p>
         {canReadAudit ? (
           <p className="text-xs text-[color:var(--color-fg-muted)]">

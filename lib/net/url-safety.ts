@@ -2,8 +2,8 @@
  * lib/net/url-safety.ts
  *
  * Dialect-neutral SSRF guard for ANY operator-supplied outbound URL. The app
- * fetches two classes of operator-configured URLs — PowerDNS backend base URLs
- * and OIDC issuer URLs — and both must pass through this before being persisted
+ * fetches two classes of operator-configured URLs - PowerDNS backend base URLs
+ * and OIDC issuer URLs - and both must pass through this before being persisted
  * or requested. Domain wrappers (`lib/pdns/url-safety.ts`,
  * `lib/auth/providers/oidc-url-safety.ts`) supply the per-feature policy
  * (env-gated private-network / insecure-http allowances + reason wording).
@@ -18,7 +18,7 @@
  *   - IPv4 loopback 127/8, RFC1918 10/8 · 172.16/12 · 192.168/16, CGNAT 100.64/10
  *   - IPv6 loopback ::1, ULA fc00::/7
  *
- * Re-checked at request time by callers (DNS-rebinding defense — the address that
+ * Re-checked at request time by callers (DNS-rebinding defense - the address that
  * resolved a minute ago is not guaranteed to be the same now).
  */
 
@@ -29,7 +29,7 @@ import { isProduction } from "@/lib/env";
 
 /**
  * `safe: true` means every resolved address passed. `safe: false` carries a
- * user-facing reason (references the input, not internal state — safe to show).
+ * user-facing reason (references the input, not internal state - safe to show).
  */
 export type UrlSafetyResult = { safe: true; addresses: string[] } | { safe: false; reason: string };
 
@@ -40,8 +40,8 @@ export interface OutboundUrlPolicy {
   allowInsecureHttp: boolean;
   /**
    * Treat a host that doesn't resolve (DNS failure / no addresses) as safe
-   * rather than rejecting it. An unresolvable host is NOT an SSRF vector —
-   * there's no internal address to reach — so for a URL validated at config
+   * rather than rejecting it. An unresolvable host is NOT an SSRF vector -
+   * there's no internal address to reach - so for a URL validated at config
    * time but only fetched later (an OIDC issuer), we store it and let the
    * fetch-time re-check be the real guard. PDNS leaves this off: a backend you
    * can't resolve is definitionally unusable, so it fails fast on add.
@@ -49,9 +49,9 @@ export interface OutboundUrlPolicy {
   treatUnresolvableAsSafe?: boolean;
   /** Noun used in reason strings, e.g. "Base URL" / "Issuer URL". */
   label: string;
-  /** Appended to the https-in-production rejection — names the relax flag. */
+  /** Appended to the https-in-production rejection - names the relax flag. */
   insecureHttpHint: string;
-  /** Appended to the private-address rejection — names the relax flag. */
+  /** Appended to the private-address rejection - names the relax flag. */
   privateNetworkHint: string;
 }
 
@@ -182,7 +182,7 @@ const V6_V4MAPPED = ipv6ToBytes("::ffff:0:0")!;
 function classifyV6(addr: string): "ok" | "always-blocked" | "private" {
   const bytes = ipv6ToBytes(addr);
   if (!bytes) return "always-blocked";
-  // IPv4-mapped (::ffff:0:0/96) — recurse on the v4 tail.
+  // IPv4-mapped (::ffff:0:0/96) - recurse on the v4 tail.
   if (v6HasPrefix(bytes, V6_V4MAPPED, 96)) {
     return classifyV4(`${bytes[12]}.${bytes[13]}.${bytes[14]}.${bytes[15]}`);
   }
@@ -208,7 +208,7 @@ function stripBrackets(host: string): string {
  *   1. parses + is http(s);
  *   2. https in production unless `policy.allowInsecureHttp`;
  *   3. resolves the host (skipping DNS for literal IPs);
- *   4. every resolved IP is classified — always-blocked fails unconditionally,
+ *   4. every resolved IP is classified - always-blocked fails unconditionally,
  *      private fails unless `policy.allowPrivateNetworks`.
  */
 export async function checkOutboundUrlSafe(

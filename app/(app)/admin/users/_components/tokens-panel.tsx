@@ -5,7 +5,7 @@
  *
  * Admin view + per-row revoke of a user's API tokens. Read-only:
  * admins see metadata (name, prefix, scopes, last-used, expiry,
- * revocation state) but never the secret — token secrets are
+ * revocation state) but never the secret - token secrets are
  * Argon2-hashed and can't be recovered, even by an admin.
  *
  * Mirrors `SessionsPanel`. Date strings are pre-formatted
@@ -24,7 +24,7 @@ interface TokenRow {
   name: string;
   prefix: string;
   scopes: string[];
-  /** ISO 8601 UTC — rendered client-side via <LocalTime>. */
+  /** ISO 8601 UTC - rendered client-side via <LocalTime>. */
   expiresAt: string | null;
   lastUsedAt: string | null;
   revokedAt: string | null;
@@ -38,7 +38,7 @@ interface Props {
    * True when the admin is looking at their own account. Tightens
    * the confirm copy. Token revocation doesn't affect the operator's
    * own session (sessions and tokens are independent credentials),
-   * so the warning is informational rather than blocking — but worth
+   * so the warning is informational rather than blocking - but worth
    * making explicit so the operator doesn't think "my session is
    * fine" means "scripts using this PAT are fine."
    */
@@ -55,7 +55,7 @@ export function TokensPanel({ userId, canManage, isSelf, tokens }: Props) {
     const ok = await confirm({
       title: `Revoke token "${name}"?`,
       description: isSelf
-        ? "Any scripts or integrations using THIS token will start failing immediately. Your browser session is unaffected — sessions and tokens are independent credentials. Create a new token from /profile when you need API access again."
+        ? "Any scripts or integrations using THIS token will start failing immediately. Your browser session is unaffected - sessions and tokens are independent credentials. Create a new token from /profile when you need API access again."
         : "Calls authenticated with this token will start failing immediately. The user can create a new token from /profile if they still need API access.",
       confirmLabel: "Revoke",
       variant: "danger",

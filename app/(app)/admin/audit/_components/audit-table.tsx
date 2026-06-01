@@ -6,7 +6,7 @@
  * Client wrapper around the shared <DataTable> for the audit log. The page
  * pre-resolves everything that needs server-side data (user emails, resource
  * hrefs, per-row PDNS HTTP entries, before/after diff lines) and passes a
- * plain row shape — this component does no fetching.
+ * plain row shape - this component does no fetching.
  *
  * Pagination is intentionally hidden: the audit log can be huge, so the page
  * keeps its own server-side `?offset=` prev/next nav (one limit-wide window

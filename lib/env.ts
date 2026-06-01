@@ -15,7 +15,7 @@
  *
  * Why module-scope side effects: the env is validated at import time so the app
  * cannot lazily defer the failure. If you change the schema, every test that imports
- * `env` will fail fast — that's the intended behavior.
+ * `env` will fail fast - that's the intended behavior.
  */
 
 import "server-only";
@@ -96,7 +96,7 @@ const envSchema = z.object({
   // --- Secrets ---
   APP_SECRET_KEY: secretKey,
   // `lib/crypto/encryption.ts deriveKey` base64-decodes this and requires
-  // >=32 BYTES. A 32-char base64 string decodes to only 24 bytes — it would
+  // >=32 BYTES. A 32-char base64 string decodes to only 24 bytes - it would
   // pass `secretKey`'s min(32)-CHARS check at boot but throw at first use.
   // Refine here so the misconfig fails loudly at boot, matching env.ts's intent.
   APP_ENCRYPTION_KEY: secretKey.refine((s) => Buffer.from(s, "base64").length >= 32, {
@@ -108,7 +108,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url("DATABASE_URL must be a valid connection URL"),
   DATABASE_POOL_SIZE: z.coerce.number().int().positive().max(100).default(10),
 
-  // --- Redis (optional — enables HA across replicas, ADR-0016) ---
+  // --- Redis (optional - enables HA across replicas, ADR-0016) ---
   // When set, the rate limiter, the realtime SSE event-bus, and the reveal-once
   // token store coordinate through Redis so they work across >1 replica. Unset =
   // single-instance (all three run in-process). A multi-replica deploy needs
@@ -129,7 +129,7 @@ const envSchema = z.object({
   // How old the latest session's `derived_permissions` snapshot is allowed
   // to be before the token-auth path stops using it. After this window, an
   // API token used by an OIDC/SAML/LDAP user falls back to admin-issued
-  // permissions only — the IdP-derived perms drop off until the user
+  // permissions only - the IdP-derived perms drop off until the user
   // signs in again (which re-mints the snapshot). Default: 24h.
   TOKEN_IDP_FALLBACK_TTL_SECONDS: z.coerce.number().int().positive().default(86400),
   // Cache window for the live IdP-perms recompute. When a token
@@ -148,7 +148,7 @@ const envSchema = z.object({
     .transform((s) => s.toLowerCase() === "true")
     .pipe(z.boolean())
     .default(true),
-  // Public self-service signup. Default false — admin must create users.
+  // Public self-service signup. Default false - admin must create users.
   SIGNUP_ENABLED: z
     .string()
     .transform((s) => s.toLowerCase() === "true")
@@ -157,7 +157,7 @@ const envSchema = z.object({
   /**
    * Role (by slug) assigned to every self-service signup. Defaults to the
    * seeded low-privilege `read-only` role. This is the ONLY role a signup
-   * ever receives — there is no path from public signup to an admin role.
+   * ever receives - there is no path from public signup to an admin role.
    *
    * The slug's existence and low-privilege nature are verified at boot by the
    * seed step (`scripts/seed.ts`), AFTER the system roles are upserted: if the
@@ -187,6 +187,26 @@ const envSchema = z.object({
   // --- Bootstrap admin (run on seed if no users exist) ---
   BOOTSTRAP_ADMIN_EMAIL: z.string().email().optional(),
   BOOTSTRAP_ADMIN_PASSWORD: z.string().min(12).optional(),
+  /**
+   * Lock the bootstrap admin account (the one matching BOOTSTRAP_ADMIN_EMAIL)
+   * against any change to its own identity or credentials. Intended for a
+   * publicly-hosted demo where the login is published: with this set, a visitor
+   * signed in as the bootstrap admin cannot change its password or email, enrol
+   * MFA / a passkey, rename it, or have it disabled / deleted / re-roled - so the
+   * shared login can never be hijacked or locked out from under everyone else.
+   *
+   * Everything else the account can do (zone CRUD, managing OTHER users, etc.)
+   * is unaffected - this is an identity lock, not a global read-only mode.
+   *
+   * Default false. When true, BOOTSTRAP_ADMIN_EMAIL must be set (enforced at
+   * boot) and the seed creates the account with must_change_password=false
+   * (it can't change its password, so the compliance gate must not trap it).
+   */
+  BOOTSTRAP_ADMIN_RO: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .default(false),
 
   // --- OIDC (one provider later; multi-provider later) ---
   OIDC_ENABLED: z
@@ -201,7 +221,7 @@ const envSchema = z.object({
     .optional(),
   /** Display name shown on the login page. */
   OIDC_PROVIDER_NAME: z.string().optional(),
-  /** Issuer URL — used for OIDC discovery. */
+  /** Issuer URL - used for OIDC discovery. */
   OIDC_ISSUER_URL: z.string().url().optional(),
   OIDC_CLIENT_ID: z.string().optional(),
   OIDC_CLIENT_SECRET: z.string().optional(),
@@ -217,7 +237,7 @@ const envSchema = z.object({
    * rejected before a local user row is created. Existing users keep
    * signing in regardless.
    *
-   * Empty / unset means "no restriction" — preservesbehavior.
+   * Empty / unset means "no restriction" - preservesbehavior.
    * Matching is case-insensitive on the part after `@`.
    */
   OIDC_ALLOWED_EMAIL_DOMAINS: z
@@ -249,7 +269,7 @@ const envSchema = z.object({
   //
   // Set to `true` for in-cluster PDNS reached via a private hostname or for
   // the docker-compose dev stack (`http://pdns:8081/api/v1`). The default is
-  // `true` in non-production, `false` in production — see lib/pdns/url-safety.ts.
+  // `true` in non-production, `false` in production - see lib/pdns/url-safety.ts.
   APP_PDNS_ALLOW_PRIVATE_NETWORKS: z
     .string()
     .transform((s) => s.toLowerCase() === "true")
@@ -269,7 +289,7 @@ const envSchema = z.object({
     .pipe(z.boolean())
     .optional(),
 
-  // Background polling of PDNS backends — opt-in supplementary features.
+  // Background polling of PDNS backends - opt-in supplementary features.
   //
   // When TRUE, the unified background poller ticks on a 30 s zone-state /
   // 60 s daemon refresh / 5 min metric-sample schedule and powers:
@@ -281,7 +301,7 @@ const envSchema = z.object({
   //   • Background drift-derived advisories in the bell
   //
   // When FALSE (default), AuthAdmin only talks to PDNS in response to user
-  // actions — every page render warms what it needs on demand, every Test /
+  // actions - every page render warms what it needs on demand, every Test /
   // Refresh All is a one-shot, mutations publish their own SSE refresh.
   // The supplementary surfaces above hide; the rest of the app (zone CRUD,
   // DNSSEC, TSIG, autoprimaries, audit, RBAC, OIDC, …) is unchanged.
@@ -312,7 +332,7 @@ const envSchema = z.object({
     .pipe(z.boolean())
     .default(false),
   // When true, the LDAP TLS handshake accepts self-signed / mismatched
-  // certificates. Loud opt-in for lab use only — re-issue the certs and
+  // certificates. Loud opt-in for lab use only - re-issue the certs and
   // pin the CA on the provider row for production.
   LDAP_TLS_INSECURE_SKIP_VERIFY: z
     .string()
@@ -356,10 +376,10 @@ const envSchema = z.object({
   //       SMTP_STARTTLS=disabled      → plaintext only, never STARTTLS
   //                                     (for local relays / fakemail)
   //     Setting both SMTP_SECURE=true AND SMTP_STARTTLS=required is an
-  //     error — pick one.
+  //     error - pick one.
   //
   //   • Auth (optional): SMTP_USERNAME + SMTP_PASSWORD. If only one is
-  //     set, that's an error. If neither is set, auth is skipped — the
+  //     set, that's an error. If neither is set, auth is skipped - the
   //     relay must allow unauthenticated submission from the app's IP.
   SMTP_HOST: z.string().min(1).optional(),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).optional(),
@@ -374,7 +394,7 @@ const envSchema = z.object({
   /** RFC 5321 envelope sender. Required when SMTP_HOST is set. */
   SMTP_FROM: z.string().email().optional(),
   /** Optional override for the human-readable display name on outbound
-   *  messages — `<SMTP_FROM_NAME> <SMTP_FROM@example.com>`. */
+   *  messages - `<SMTP_FROM_NAME> <SMTP_FROM@example.com>`. */
   SMTP_FROM_NAME: z.string().min(1).optional(),
   /** Reject self-signed / mismatched certificates. Default true; set
    *  to "false" only for local fakemail servers. */
@@ -411,7 +431,7 @@ const envSchema = z.object({
     .default(true),
   /**
    * Relying-Party identifier. Must equal the `origin` hostname the browser
-   * uses to reach the app (NOT a URL, NOT a path — just the host). Derives
+   * uses to reach the app (NOT a URL, NOT a path - just the host). Derives
    * from `APP_URL` host when unset, which is correct for ~all single-host
    * deployments. Override only for apex/sub-domain sharing (e.g. set
    * `example.com` so credentials registered at `auth.example.com` work at
@@ -443,7 +463,7 @@ const envSchema = z.object({
   WEBAUTHN_ATTESTATION: z.enum(["none", "direct"]).default("none"),
   /**
    * Opt-in to allow non-localhost http:// origins (LAN development without
-   * TLS). Default false — production deployments serve over HTTPS and have
+   * TLS). Default false - production deployments serve over HTTPS and have
    * no business loosening this.
    */
   WEBAUTHN_ALLOW_INSECURE_ORIGINS: z
@@ -501,6 +521,7 @@ const ENV_KEYS = [
   "SIGNUP_ALLOWED_EMAIL_DOMAINS",
   "BOOTSTRAP_ADMIN_EMAIL",
   "BOOTSTRAP_ADMIN_PASSWORD",
+  "BOOTSTRAP_ADMIN_RO",
   "OIDC_ENABLED",
   "OIDC_PROVIDER_ID",
   "OIDC_PROVIDER_NAME",
@@ -547,7 +568,7 @@ const ENV_KEYS = [
 /**
  * Marker substring that identifies the build-time placeholder values
  * below. Used by `detectBuildTimePlaceholders` to refuse to start the
- * runtime if a placeholder somehow leaks into the deployed image — see
+ * runtime if a placeholder somehow leaks into the deployed image - see
  * S-9 in reports/audit-2026-05-16.md.
  *
  * Keep this in sync with the literals in `injectBuildTimePlaceholders`.
@@ -557,7 +578,7 @@ export const BUILD_TIME_PLACEHOLDER_MARK = "build-time-placeholder";
 /**
  * During `next build`, Next imports route modules to extract metadata. Those
  * route modules transitively import this file. Real env values aren't
- * available to the build (and shouldn't be — secrets stay out of build
+ * available to the build (and shouldn't be - secrets stay out of build
  * artifacts), so we substitute placeholders for the four required keys.
  *
  * These placeholders MUST NOT survive into runtime. The
@@ -565,7 +586,7 @@ export const BUILD_TIME_PLACEHOLDER_MARK = "build-time-placeholder";
  * of them are still present after Zod validation, so a deploy that
  * accidentally inherits `NEXT_PHASE=phase-production-build` (or otherwise
  * leaves the placeholder in place) fails loudly instead of silently
- * booting with a shared fixed key — which would let any attacker who
+ * booting with a shared fixed key - which would let any attacker who
  * cracked the placeholder forge sessions across deployments.
  */
 function injectBuildTimePlaceholders(): void {
@@ -580,7 +601,7 @@ function injectBuildTimePlaceholders(): void {
 
 /**
  * Inspect a parsed env for build-time placeholders that have leaked into
- * runtime. Returns the list of violating keys (empty when clean). Pure —
+ * runtime. Returns the list of violating keys (empty when clean). Pure -
  * easy to unit-test without poking module-level state.
  *
  * `DATABASE_URL` is checked for the literal `build:build@` username/host
@@ -623,7 +644,7 @@ function parseEnv(): Env {
 
     console.error(message);
     // Throw so callers can surface the failure cleanly. The server entrypoint
-    // bubbles this to a crash — same effect as `process.exit` but lets tests
+    // bubbles this to a crash - same effect as `process.exit` but lets tests
     // import this module without killing the test runner.
     throw new Error(message);
   }
@@ -658,7 +679,7 @@ function parseEnv(): Env {
     }
     if (parsed.SMTP_SECURE && parsed.SMTP_STARTTLS === "required") {
       smtpErrors.push(
-        "SMTP_SECURE=true (implicit TLS) is incompatible with SMTP_STARTTLS=required — pick one.",
+        "SMTP_SECURE=true (implicit TLS) is incompatible with SMTP_STARTTLS=required - pick one.",
       );
     }
     if (Boolean(parsed.SMTP_USERNAME) !== Boolean(parsed.SMTP_PASSWORD)) {
@@ -681,6 +702,16 @@ function parseEnv(): Env {
   ) {
     const msg =
       "\n[env] BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD must be set together.\n";
+
+    console.error(msg);
+    throw new Error(msg);
+  }
+
+  // The RO lock is keyed by email match, so it's a silent no-op without an
+  // email to match. Fail loudly rather than let an operator think the demo
+  // login is protected when it isn't.
+  if (!isBuildPhase && parsed.BOOTSTRAP_ADMIN_RO && !parsed.BOOTSTRAP_ADMIN_EMAIL) {
+    const msg = "\n[env] BOOTSTRAP_ADMIN_RO=true requires BOOTSTRAP_ADMIN_EMAIL to be set.\n";
 
     console.error(msg);
     throw new Error(msg);
@@ -723,7 +754,7 @@ function parseEnv(): Env {
   if (placeholderViolations.length > 0) {
     const msg =
       "\n[env] Build-time placeholder values detected at runtime. " +
-      "The app will not start with these values — they are fixed across " +
+      "The app will not start with these values - they are fixed across " +
       "all builds and would let an attacker who recovered them forge " +
       "sessions in production.\n\n" +
       `  • Affected: ${placeholderViolations.join(", ")}\n\n` +

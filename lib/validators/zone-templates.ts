@@ -5,7 +5,7 @@
  * the create-zone path uses to expand a template against a concrete zone
  * name.
  *
- * Validation is intentionally generous — the per-RR-type validators in
+ * Validation is intentionally generous - the per-RR-type validators in
  * `lib/validators/rr-types/` already enforce RFC-compliance at the editor.
  * Here we just sanity-check the shape (non-empty, length caps) so a
  * malformed POST can't slip past Zod.
@@ -50,7 +50,7 @@ const ZONE_KIND_VALUES = [
   "Consumer",
 ] as const;
 
-/** Zone metadata bag — keyed by PDNS metadata kind (`ALLOW-AXFR-FROM`, …). */
+/** Zone metadata bag - keyed by PDNS metadata kind (`ALLOW-AXFR-FROM`, …). */
 const metadataBagSchema = z.record(
   z.string().regex(/^[A-Z][A-Z0-9-]*$/, "Metadata kinds must be uppercase letters/digits/hyphens."),
   z.array(z.string().max(2048)).max(256),

@@ -1,7 +1,7 @@
 /**
  * lib/provisioning/schema.ts
  *
- * Zod schema for `provisioning.yaml`. Every top-level section is optional —
+ * Zod schema for `provisioning.yaml`. Every top-level section is optional -
  * an operator who only wants to seed OIDC and PDNS servers can leave the
  * other blocks out. Unknown keys are rejected so typos don't silently
  * become a no-op.
@@ -156,7 +156,7 @@ const pdnsServerEntry = z
 /**
  * Demo-zone generator. Produces N synthetic zones, each with a handful of
  * realistic records (apex A, www, mail, MX, SPF TXT, a few hosts, a CNAME).
- * Lands on a single target — either a specific server (`target_server`)
+ * Lands on a single target - either a specific server (`target_server`)
  * or any peer in a cluster (`target_cluster`, picked via the cluster's
  * write strategy). Exactly one of the two must be set.
  *
@@ -168,7 +168,7 @@ const demoZonesEntry = z
     /** Server slug to land all generated zones on. Mutually exclusive
      *  with `target_cluster`. */
     target_server: z.string().min(1).optional(),
-    /** Cluster slug — applier picks a peer per the cluster's strategy.
+    /** Cluster slug - applier picks a peer per the cluster's strategy.
      *  Mutually exclusive with `target_server`. */
     target_cluster: z.string().min(1).optional(),
     count: z.number().int().min(1).max(500).default(10),
@@ -265,7 +265,7 @@ const samlProviderEntry = z
     /** SP private key PEM. Plaintext in YAML; encrypted before write. */
     sp_signing_key: z.string().min(1),
     sp_signing_cert: z.string().min(1),
-    /** Optional encryption keypair — both required if either set. Validated
+    /** Optional encryption keypair - both required if either set. Validated
      *  in the applier so the YAML error reports the field name accurately. */
     sp_encryption_key: z.string().min(1).optional(),
     sp_encryption_cert: z.string().min(1).optional(),
@@ -340,7 +340,7 @@ export const provisioningSchema = z
     zone_templates: z.array(zoneTemplateEntry).optional(),
     clusters: z.array(pdnsClusterEntry).optional(),
     pdns_servers: z.array(pdnsServerEntry).optional(),
-    /** Generated demo zones — applied via the PDNS HTTP API after the
+    /** Generated demo zones - applied via the PDNS HTTP API after the
      *  backends are registered. See `demoZonesEntry`. */
     demo_zones: z.array(demoZonesEntry).optional(),
     oidc: z.array(oidcProviderEntry).optional(),

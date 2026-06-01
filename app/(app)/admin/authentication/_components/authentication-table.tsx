@@ -11,7 +11,7 @@
  * Per-protocol edit pages live elsewhere:
  *   - Local Auth → /admin/settings
  *   - OIDC (DB) → /admin/oidc-providers/<id>
- *   - OIDC (env) → no editor (env vars only — row badged "ENV")
+ *   - OIDC (env) → no editor (env vars only - row badged "ENV")
  *
  * PR 2 (LDAP) and PR 3 (SAML) add their own rows + detail pages and plug
  * into this same table by adding to the parent's `AuthRow[]`.
@@ -24,7 +24,7 @@ import { DataTable } from "@/components/ui/data-table";
 
 export interface AuthRow {
   /**
-   * Disambiguates rendering for the same protocol — `oidc-env` is read-only,
+   * Disambiguates rendering for the same protocol - `oidc-env` is read-only,
    * `oidc-db` is editable, `local` routes to the global Settings page,
    * `saml-db` routes to the SAML provider detail page,
    * `ldap-db` is the per-row LDAP entry (no env analogue).
@@ -37,7 +37,7 @@ export interface AuthRow {
   /** Secondary line under the name (issuer URL, description, …). */
   description: string;
   enabled: boolean;
-  /** Chip text — "Local", "OIDC", "SAML", "LDAP". */
+  /** Chip text - "Local", "OIDC", "SAML", "LDAP". */
   protocol: "Local" | "OIDC" | "SAML" | "LDAP";
   /** Edit destination. Null when there's nothing to edit (env-only OIDC). */
   detailHref: string | null;
@@ -97,7 +97,7 @@ export function AuthenticationTable({ rows }: { rows: AuthRow[] }) {
         accessorKey: "description",
         header: "Description",
         cell: (ctx) => (
-          // Wrap, don't truncate — same posture as the role-description column
+          // Wrap, don't truncate - same posture as the role-description column
           // we added in the previous PR. The text is long enough to be the
           // operator's "how is this configured" cue at a glance.
           <span className="block max-w-prose text-xs whitespace-normal text-[color:var(--color-fg-muted)]">
@@ -129,7 +129,7 @@ export function AuthenticationTable({ rows }: { rows: AuthRow[] }) {
             return (
               <span
                 className="text-xs text-[color:var(--color-fg-muted)]"
-                title="Read-only — configured by environment variables."
+                title="Read-only - configured by environment variables."
               >
                 Read-only
               </span>

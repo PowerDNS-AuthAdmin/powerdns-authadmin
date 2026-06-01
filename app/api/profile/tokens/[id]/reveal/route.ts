@@ -1,7 +1,7 @@
 /**
  * app/api/profile/tokens/[id]/reveal/route.ts
  *
- * POST — redeem the one-time reveal token minted by the sibling
+ * POST - redeem the one-time reveal token minted by the sibling
  *        tokens issuance endpoint. Returns the plaintext PAT as
  *        `text/plain` exactly once. Same temp-reveal-store pattern
  *        as S-8 + TSIG: the plaintext never appears in any JSON

@@ -63,7 +63,7 @@ describe("installKeyOnBackend", () => {
   });
 
   it("matches the existing key by NAME, not by id", async () => {
-    // id differs from name — we must still find it and not double-create.
+    // id differs from name - we must still find it and not double-create.
     const client = fakeClient([
       { id: "internal-id-7", name: "p2s", algorithm: "hmac-sha256", key: "QUJDREVG" },
     ]);

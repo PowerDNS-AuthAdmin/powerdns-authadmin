@@ -1,7 +1,7 @@
 /**
  * lib/validators/rr-types/dname.ts
  *
- * DNAME content — RFC 6672: a single fully-qualified domain name
+ * DNAME content - RFC 6672: a single fully-qualified domain name
  * that redirects an entire subtree to a different one. For example,
  * `example.com DNAME example.net` causes `foo.example.com` to
  * resolve as `foo.example.net`.

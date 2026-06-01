@@ -8,7 +8,7 @@
  *
  * The "Default sign-in method" selector at the top picks which provider
  * `/login` auto-redirects to on a fresh visit. Replaces the retired per-
- * provider `force_default` checkbox — exactly one default across the whole
+ * provider `force_default` checkbox - exactly one default across the whole
  * app, persisted in `settings.auth_default_provider` as a typed-prefix
  * string (`local` | `oidc:<slug>` | `saml:<slug>` | `ldap:<slug>`).
  *
@@ -37,7 +37,7 @@ export default async function AuthenticationPage() {
   const { ability } = await requireUserForPage({ can: "auth.read" });
   const canManage = ability.can("manage", "Auth");
 
-  // Opportunistic discovery refresh — same staleness-gated probe the old
+  // Opportunistic discovery refresh - same staleness-gated probe the old
   // OIDC list page ran. Best-effort; failures here don't stall the render.
   try {
     await ensureFreshOidcDiscovery();
@@ -59,7 +59,7 @@ export default async function AuthenticationPage() {
   const showEnvRow = envProvider !== null && !envShadowed;
 
   // Assemble the unified row list. Local Auth is always present when
-  // LOCAL_AUTH_ENABLED — it's not a configurable "provider" per se (its
+  // LOCAL_AUTH_ENABLED - it's not a configurable "provider" per se (its
   // settings live on /admin/settings: signup, captcha, lockout) but it
   // IS a way operators sign in, so it belongs in the same overview.
   const rows: AuthRow[] = [];
@@ -112,7 +112,7 @@ export default async function AuthenticationPage() {
       id: l.id,
       slug: l.slug,
       name: l.name,
-      // Show the server URL — bind DN lives on the detail page.
+      // Show the server URL - bind DN lives on the detail page.
       description: l.serverUrl,
       enabled: l.enabled,
       protocol: "LDAP",
@@ -137,7 +137,7 @@ export default async function AuthenticationPage() {
   }
 
   // The default-provider dropdown's options. Local Auth is always present
-  // (when LOCAL_AUTH_ENABLED — otherwise the operator can't pick it as a
+  // (when LOCAL_AUTH_ENABLED - otherwise the operator can't pick it as a
   // default anyway). Each enabled provider adds one option.
   const defaultProviderOptions: Array<{
     value: string;
@@ -149,7 +149,7 @@ export default async function AuthenticationPage() {
     defaultProviderOptions.push({
       value: "local",
       label: "Local Auth",
-      description: "Email + password — shows the form on /login.",
+      description: "Email + password - shows the form on /login.",
       protocol: "Local",
     });
   }
@@ -195,7 +195,7 @@ export default async function AuthenticationPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Authentication</h1>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
-            Every configured way to sign in — local password, OIDC, LDAP, and (soon) SAML. The
+            Every configured way to sign in - local password, OIDC, LDAP, and (soon) SAML. The
             default below decides which one <code>/login</code> auto-redirects to on a fresh visit.
           </p>
         </div>

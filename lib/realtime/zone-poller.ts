@@ -4,15 +4,15 @@
  * The single, app-wide background poller. Drives several jobs at
  * staggered cadences from one timer:
  *
- *   • 30 s  — zone-state cache refresh + serial-change events (this
+ *   • 30 s  - zone-state cache refresh + serial-change events (this
  *             module's primary job, matches the cache TTL).
- *   • 60 s  — "daemon refresh": `/statistics` into `pdns_server_stats`,
+ *   • 60 s  - "daemon refresh": `/statistics` into `pdns_server_stats`,
  *             a forced version re-probe (`/servers/{id}`), and the
  *             observed capability snapshot from `/config` +
  *             `/autoprimaries` (ADR-0014). Nothing about a backend's
  *             reachability/version/capabilities is cached longer than
- *             this — the UI always reflects the live poll.
- *   • 5 min — backend health snapshot into `metric_samples`.
+ *             this - the UI always reflects the live poll.
+ *   • 5 min - backend health snapshot into `metric_samples`.
  *
  * Reusing the same `listZones()` call across jobs means we don't
  * double-hit the backend. The 5-min snapshot also reuses the
@@ -20,7 +20,7 @@
  *
  * Lazy-started: any SSE subscriber + the dashboard page call
  * `ensurePollerRunning()`. While there are zero subscribers the cycle drops to
- * STATS-ONLY — it samples `/statistics` (+ the 5-min snapshot) so the time-series
+ * STATS-ONLY - it samples `/statistics` (+ the 5-min snapshot) so the time-series
  * graphs never gap, but skips the zone diff, daemon refresh, topology rebuild and
  * advisory eval. A subscriber (or a page warm-up / post-mutation poll) restores
  * the full cycle. `subscriberCount > 0` is the active indicator.
@@ -69,7 +69,7 @@ import { pdnsBackgroundPollingEnabled } from "@/lib/env";
 const POLL_INTERVAL_MS = 30_000;
 // When a poll cycle observes any primary↔secondary serial mismatch
 // (replication in flight), schedule a follow-up at this cadence so
-// the chip flips back to "live" within seconds of AXFR completing —
+// the chip flips back to "live" within seconds of AXFR completing -
 // not 30 s later on the next regular tick. Steady state stays at the
 // 30 s cadence above.
 const IN_FLIGHT_FOLLOWUP_MS = 2_500;
@@ -96,7 +96,7 @@ declare global {
         lastStatsSampleAt: number;
         // The 60 s daemon refresh (version + capabilities + TSIG presence) has a
         // SEPARATE clock from the statistics sample so the stats-only idle path,
-        // which advances `lastStatsSampleAt`, doesn't starve the daemon refresh —
+        // which advances `lastStatsSampleAt`, doesn't starve the daemon refresh -
         // the first full cycle after idle still re-probes promptly.
         lastDaemonRefreshAt: number;
         lastMetricSampleAt: number;
@@ -105,17 +105,17 @@ declare global {
         // Concurrent callers JOIN it (await the same promise) and request a
         // single rerun, instead of overlapping (overlapping cycles double-hit
         // every backend and race the advisory upsert/prune). On `state` so it's
-        // shared across route bundles via globalThis — a page's warm-up and the
+        // shared across route bundles via globalThis - a page's warm-up and the
         // timer coordinate on one cycle.
         pollInFlight: Promise<void> | null;
         rerunRequested: boolean;
         // Intent for the next coalesced iteration: run the FULL cycle (vs the
         // idle stats-only one). A full request mid-flight reruns as full.
         pendingFull: boolean;
-        // When the last cycle completed (epoch ms) — drives the warm-up's
+        // When the last cycle completed (epoch ms) - drives the warm-up's
         // staleness check so a page reads the store without re-fetching.
         lastCycleAt: number;
-        // When the last FULL cycle completed — the warm-up keys off THIS (not
+        // When the last FULL cycle completed - the warm-up keys off THIS (not
         // `lastCycleAt`) so a recent stats-only cycle never lets a page read
         // stale zones without a full refresh.
         lastFullCycleAt: number;
@@ -149,7 +149,7 @@ export function registerPollerSubscriber(): () => void {
 
 export function ensurePollerRunning(): void {
   state.lastSubscriberAt = Date.now();
-  // PDNS_BACKGROUND_POLLING=false (default) — no setInterval. Every PDNS
+  // PDNS_BACKGROUND_POLLING=false (default) - no setInterval. Every PDNS
   // interaction is operator-initiated; supplementary sync-aware features are
   // surfaced as hidden in the UI. `ensureBackendsObserved` (the per-request
   // warm-up) still calls `pollOnce` directly, so pages keep working.
@@ -157,7 +157,7 @@ export function ensurePollerRunning(): void {
   if (state.timer) return;
   // The timer never self-stops: with zero subscribers it keeps ticking but each
   // cycle is STATS-ONLY (the only background work that should run when nobody's
-  // looking — it backs the time-series graphs). `pollOnce()` with no `full`
+  // looking - it backs the time-series graphs). `pollOnce()` with no `full`
   // resolves the cycle mode from `subscriberCount` at fire time.
   state.timer = setInterval(() => {
     // Each tick gets a fresh request id so its PDNS calls + any audit rows
@@ -170,14 +170,14 @@ export function ensurePollerRunning(): void {
       );
     });
   }, POLL_INTERVAL_MS);
-  // Kick off an immediate first FULL poll — a freshly-started poller was just
+  // Kick off an immediate first FULL poll - a freshly-started poller was just
   // demanded by a subscriber or page render, so warm everything at once.
   void withRequestId(newSystemRequestId(), () => pollOnce({ full: true })).catch(() => undefined);
 }
 
 /**
  * Kick an immediate poll cycle outside the regular 30s timer. Used by
- * the realtime bus right after a mutation publishes a zone event — the
+ * the realtime bus right after a mutation publishes a zone event - the
  * cache otherwise stays stale until the next scheduled tick (up to
  * 30 s later), which makes the in-flight "syncing" state invisible to
  * the operator who just clicked Apply.
@@ -200,7 +200,7 @@ export function scheduleImmediatePoll(): void {
   immediatePollPending = true;
   setTimeout(() => {
     immediatePollPending = false;
-    // A mutation just happened — always a FULL cycle so the operator sees the
+    // A mutation just happened - always a FULL cycle so the operator sees the
     // zone/topology/advisory effects, even if no SSE subscriber is attached yet.
     // Fresh request id: this poll was *triggered by* the mutation but is its
     // own operation (different timestamp, different PDNS call set).
@@ -224,7 +224,7 @@ export function scheduleImmediatePoll(): void {
  */
 export function pollOnce(opts?: { full?: boolean }): Promise<void> {
   // `full` defaults to "active right now" (a subscriber is attached). Callers
-  // that represent a live demand — page warm-up, post-mutation, follow-up —
+  // that represent a live demand - page warm-up, post-mutation, follow-up -
   // pass `full: true` explicitly so they aren't downgraded to stats-only.
   const wantFull = opts?.full ?? state.subscriberCount > 0;
   // Already running → join the in-flight cycle. Only ESCALATE to a rerun when a
@@ -264,7 +264,7 @@ async function runCoalescedCycles(): Promise<void> {
  * Read-through warm-up for page renders: ensure the broker's store reflects a
  * recent observation, then return so the caller can read the caches. Serves
  * straight from the warm store when a cycle completed within `maxAgeMs` (the
- * common case — the background poll keeps it warm); otherwise runs/joins one
+ * common case - the background poll keeps it warm); otherwise runs/joins one
  * cycle and awaits it. This is how pages "ask the broker" instead of hitting
  * PDNS themselves.
  */
@@ -279,8 +279,8 @@ export async function ensureBackendsObserved(maxAgeMs: number = POLL_INTERVAL_MS
 /**
  * Force the NEXT `ensureBackendsObserved()` to run a fresh full cycle instead of
  * serving the warm store. Call after a backend's config changes (add / edit /
- * delete) — especially its advertised addresses or group, which feed the derived
- * topology — so the immediately-following page render re-derives it rather than
+ * delete) - especially its advertised addresses or group, which feed the derived
+ * topology - so the immediately-following page render re-derives it rather than
  * showing the pre-change nesting for up to a poll interval. `scheduleImmediatePoll`
  * alone is debounced + async, so a post-save redirect can out-run it.
  */
@@ -308,7 +308,7 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
   const dueForMetric = now - state.lastMetricSampleAt >= METRIC_SAMPLE_INTERVAL_MS;
 
   // IDLE (no subscribers): the only background work that should run is the
-  // time-series sampling that backs the graphs — no zone diff, daemon refresh,
+  // time-series sampling that backs the graphs - no zone diff, daemon refresh,
   // topology rebuild or advisory eval. A subscriber / page warm-up / mutation
   // restores the full cycle below.
   if (!full) {
@@ -322,7 +322,7 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
 
   // FULL cycle. The daemon refresh (version + capabilities + TSIG presence) keeps
   // its OWN 60 s clock so idle stats sampling, which advances lastStatsSampleAt,
-  // can't starve it — the first full cycle after idle still re-probes promptly.
+  // can't starve it - the first full cycle after idle still re-probes promptly.
   const dueForDaemonRefresh = now - state.lastDaemonRefreshAt >= STATS_INTERVAL_MS;
   if (dueForStats) state.lastStatsSampleAt = now;
   if (dueForDaemonRefresh) state.lastDaemonRefreshAt = now;
@@ -368,7 +368,7 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
   //
   // Why: previously a browser refresh triggered by primary's
   // "serial changed" event could land at the server BEFORE the
-  // secondary's per-backend block had written its updated cache —
+  // secondary's per-backend block had written its updated cache -
   // so `computeSecondarySync` (which reads `rawCache()`) saw the
   // new primary serial alongside the OLD secondary serial, and
   // reported "desynced". With the two-phase commit, by the time
@@ -449,7 +449,7 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
         }
 
         // 5-min backend snapshot reuses the zone-count we already have
-        // plus the in-process latency drain — no extra PDNS call.
+        // plus the in-process latency drain - no extra PDNS call.
         if (dueForMetric) {
           const latency = drainPdnsLatency(b.slug);
           metricRows.push({
@@ -478,7 +478,7 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
         }
       } catch (err) {
         // Don't write cache or queue events for backends that
-        // failed to fetch — their cache stays at the last known
+        // failed to fetch - their cache stays at the last known
         // good state. Distinguish a 401/403 (daemon up, key/ACL
         // wrong) from a plain unreachable so the bell can advise
         // precisely (ADR-0015).
@@ -502,7 +502,7 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
     }),
   );
 
-  // future work — atomic-from-subscribers'-POV cache commit. Write every
+  // future work - atomic-from-subscribers'-POV cache commit. Write every
   // successful backend's new state synchronously, THEN publish every
   // queued event. Any router.refresh triggered by an event will read
   // a cache where ALL backends reflect the same poll cycle's data.
@@ -514,13 +514,13 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
   }
 
   // Recompute the site-wide derived topology (ADR-0014) once per cycle from
-  // this poll's masters[] — pages read it from cache instead of re-deriving.
+  // this poll's masters[] - pages read it from cache instead of re-deriving.
   await rebuildDerivedTopology(backends, pollResults);
 
   // Record reachability for every backend whose listZones() succeeded this
   // cycle. The Status badge + dashboard "stale backend" attention key off
   // `last_seen_at`, not `version_cache` (only the manual Test / Refresh-all
-  // path moves that) — so healthy continuous polling keeps both green.
+  // path moves that) - so healthy continuous polling keeps both green.
   const seenIds = pollResults.filter((r) => r.snapshots !== null).map((r) => r.backendId);
   if (seenIds.length > 0) {
     try {
@@ -607,7 +607,7 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
   }
 
   // One app-wide row per metric tick carries the active-session count
-  // (`serverId = null`) — counted once here, never on the per-backend rows.
+  // (`serverId = null`) - counted once here, never on the per-backend rows.
   if (dueForMetric) {
     const appWide = await appWideMetricRow(sampledAt);
     if (appWide) metricRows.push(appWide);
@@ -618,7 +618,7 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
   await persistSamples(metricRows, statsRows);
 
   // If any expected-to-replicate zone is still mid-transfer, chain a quick
-  // follow-up so we observe the catch-up and broadcast within seconds — not
+  // follow-up so we observe the catch-up and broadcast within seconds - not
   // 30 s on the next regular tick. Capped per sustained mismatch so a
   // permanently broken replica doesn't hot-loop the fleet forever; the
   // 30 s cadence keeps monitoring and the drift advisory fires past threshold.
@@ -652,10 +652,10 @@ function statisticsToRows(
 }
 
 /**
- * Build the single app-wide metric row for this tick — `serverId = null`, with
+ * Build the single app-wide metric row for this tick - `serverId = null`, with
  * only `activeSessions` populated (the backend-scoped fields stay null per the
  * schema's app-wide-row design). Active sessions are an app-wide quantity, so it
- * is counted ONCE per metric tick and written as one row — never duplicated
+ * is counted ONCE per metric tick and written as one row - never duplicated
  * across the per-backend rows, which would pollute the series the dashboard
  * reads. Best-effort: a failed count just drops the app-wide row for this tick
  * rather than failing the whole sample (the next tick re-samples in 5 min).
@@ -711,13 +711,13 @@ async function persistSamples(
 
   // Retention sweep. Throttled internally to 5-min cadence, so it's a no-op
   // on most ticks. Awaited so a slow DELETE doesn't get sniped by a fast
-  // re-entry, but a thrown error never propagates — the helper logs and
+  // re-entry, but a thrown error never propagates - the helper logs and
   // returns. See `lib/metrics/retention.ts` for the windows + reasoning.
   await pruneOldSamples();
 }
 
 /**
- * Idle (no-subscriber) path: sample ONLY the time-series that back the graphs —
+ * Idle (no-subscriber) path: sample ONLY the time-series that back the graphs -
  * `/statistics` (60 s) and the 5-min `metric_samples` snapshot. No zone diff,
  * daemon refresh, topology rebuild or advisory eval. The metric snapshot reuses
  * the cached zone count (no listZones) since nothing's refreshing the zone cache
@@ -752,7 +752,7 @@ async function sampleTimeSeries(
         }
       }
       if (dueForMetric) {
-        // Idle path used to read `zoneCount` from `readCachedZones(b.id)` —
+        // Idle path used to read `zoneCount` from `readCachedZones(b.id)` -
         // but the cache is only populated by FULL cycles, which only run
         // when there's a subscriber or a page request. Without one (an
         // unattended deployment) the cache stays empty and the time-series
@@ -770,7 +770,7 @@ async function sampleTimeSeries(
             { server: b.slug, err: err instanceof Error ? redact(err.message) : "unknown" },
             "pdns.zone-poller.idle-zone-count.failed",
           );
-          // Fall through with zoneCount=0 — better to record a gap than to
+          // Fall through with zoneCount=0 - better to record a gap than to
           // skip the row entirely; the dashboard's "gaps mean the backend
           // wasn't sampled" caption already covers that.
         }
@@ -788,7 +788,7 @@ async function sampleTimeSeries(
   );
 
   // Keep last_seen_at fresh while idle so the status badge is green when the
-  // operator returns — the /statistics hit already proved reachability.
+  // operator returns - the /statistics hit already proved reachability.
   if (seenIds.length > 0) {
     try {
       await markPdnsServersSeen(seenIds, sampledAt);
@@ -814,13 +814,13 @@ async function sampleTimeSeries(
 /**
  * Cross-backend TSIG missing-key detection (ADR-0015). For each primary, the
  * "replicated set" is the keys present on the primary AND on at least one of its
- * secondaries — i.e. keys the operator actually pushed to the group (the install
+ * secondaries - i.e. keys the operator actually pushed to the group (the install
  * flow pushes to all). A secondary missing any of those has drifted (the user's
  * test: deleting a replicated key off one secondary). Primary-only keys (never
  * replicated) aren't flagged, so a key kept solely on the primary is fine.
  *
  * `namesById` carries each backend's enumerated key names, or null when not
- * enumerated this cycle (unreachable / old version / listing failed) — a null
+ * enumerated this cycle (unreachable / old version / listing failed) - a null
  * secondary is skipped, never falsely flagged.
  */
 async function computeTsigMissing(
@@ -852,7 +852,7 @@ const MIRROR_KINDS = new Set(["slave", "secondary", "consumer"]);
  * Recompute the site-wide derived topology (ADR-0014) from this cycle's
  * masters[]. Builds an `address → primary id` index from every write-target's
  * advertised addresses (DNS-resolved), then maps each mirror zone's masters[]
- * to its upstream primary in O(1). The result is cached for all surfaces — the
+ * to its upstream primary in O(1). The result is cached for all surfaces - the
  * derive happens here, not per page render.
  */
 async function rebuildDerivedTopology(
@@ -904,7 +904,7 @@ async function rebuildDerivedTopology(
 
 /**
  * Mirror backends with at least one expected-to-replicate zone NOT yet caught
- * up to its primary's serial — via EITHER explicit group membership OR the
+ * up to its primary's serial - via EITHER explicit group membership OR the
  * site-wide derived (masters[]-based) topology. Native zones aren't AXFR'd, so
  * a Native missing on the secondary is fine; only Master/Primary zones count
  * (else any primary hosting a Native would chain follow-ups forever).
@@ -976,7 +976,7 @@ function scheduleFollowupPoll(): void {
   followupPollPending = true;
   setTimeout(() => {
     followupPollPending = false;
-    // A follow-up exists to observe an in-flight AXFR catching up — inherently a
+    // A follow-up exists to observe an in-flight AXFR catching up - inherently a
     // full-cycle concern (zone serials + drift), so never stats-only.
     void withRequestId(newSystemRequestId(), () => pollOnce({ full: true })).catch((err) => {
       logger.warn(

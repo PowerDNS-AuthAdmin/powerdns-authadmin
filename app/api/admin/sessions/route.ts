@@ -1,7 +1,7 @@
 /**
  * app/api/admin/sessions/route.ts
  *
- * DELETE — incident-response action: wipe every session in the
+ * DELETE - incident-response action: wipe every session in the
  * database, forcing every signed-in user to re-authenticate. Use
  * when a leak / compromise affects credentials at scale (config
  * leak, infra compromise, suspected credential dump).
@@ -9,7 +9,7 @@
  * Defaults to SPARING the actor's own current session so the
  * operator doesn't lose the audit-log window mid-investigation by
  * locking themselves out. Pass `?include-self=1` to revoke their
- * own session too — useful when the operator wants the same
+ * own session too - useful when the operator wants the same
  * sign-back-in friction everyone else gets.
  *
  * Gate: `user.update` (same perm as per-user revoke).
@@ -37,7 +37,7 @@ export async function DELETE(request: Request): Promise<Response> {
     const includeSelf = url.searchParams.get("include-self") === "1";
 
     // Read the actor's session row so we know which one to spare.
-    // Token-auth actors don't have a session row — for them
+    // Token-auth actors don't have a session row - for them
     // `current` is null and the route reduces to a full wipe (which
     // can't lock them out anyway since they auth by token).
     const current = await readSession();
@@ -55,7 +55,7 @@ export async function DELETE(request: Request): Promise<Response> {
           after: {
             revokedCount: count,
             includeSelf,
-            // Capture whether we spared the actor's session — operators
+            // Capture whether we spared the actor's session - operators
             // reviewing the audit row later see exactly what scope the
             // action had.
             sparedSessionId: exceptId ?? null,

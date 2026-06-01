@@ -30,7 +30,7 @@ export function RolesTable({
   showLastAdminEdit,
 }: {
   rows: RoleRow[];
-  /** Omit column entirely when false — matches T-87/T-88/T-89 gating. */
+  /** Omit column entirely when false - matches T-87/T-88/T-89 gating. */
   showLastAdminEdit: boolean;
 }) {
   const columns = useMemo<Array<ColumnDef<RoleRow, unknown>>>(() => {
@@ -48,12 +48,12 @@ export function RolesTable({
       {
         accessorKey: "description",
         header: "Description",
-        // Wrap, never truncate — short blurbs are the whole point of the column.
+        // Wrap, never truncate - short blurbs are the whole point of the column.
         // `whitespace-normal` overrides the table's default `nowrap`; the cap on
         // length lives in the schema (`text` column) and the form's UX.
         cell: (ctx) => {
           const v = ctx.getValue<string | null>();
-          if (!v) return <span className="text-xs text-[color:var(--color-fg-muted)]">—</span>;
+          if (!v) return <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>;
           return (
             <span className="block max-w-prose text-xs whitespace-normal text-[color:var(--color-fg-muted)]">
               {v}
@@ -82,7 +82,7 @@ export function RolesTable({
               required
             </span>
           ) : (
-            <span className="text-xs text-[color:var(--color-fg-muted)]">—</span>
+            <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>
           ),
       },
     ];
@@ -94,7 +94,7 @@ export function RolesTable({
         sortUndefined: "last",
         cell: (ctx) => {
           const iso = ctx.getValue<string | null>();
-          if (!iso) return <span className="text-xs text-[color:var(--color-fg-muted)]">—</span>;
+          if (!iso) return <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>;
           return (
             <span className="text-xs text-[color:var(--color-fg-muted)]" title={iso}>
               {freshnessOf(iso).label}

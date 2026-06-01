@@ -3,7 +3,7 @@
  *
  * Real DNS resolution against the PowerDNS Authoritative backends, used to
  * prove that what the app writes via the PDNS HTTP API is actually *served*
- * over DNS — and, for DNSSEC, that the zone is signed (DNSKEY at the apex,
+ * over DNS - and, for DNSSEC, that the zone is signed (DNSKEY at the apex,
  * RRSIG over the answers) on the primary and on its AXFR secondaries.
  *
  * The combined topology publishes each backend's port 53 to the host:
@@ -12,10 +12,10 @@
  *   - ps-secondary 1/2/3  → 5301 / 5302 / 5303
  *
  * Two layers:
- *   1. `Resolver` (node:dns) for record VALUES — A/AAAA/TXT/MX/CNAME/SOA/NS.
+ *   1. `Resolver` (node:dns) for record VALUES - A/AAAA/TXT/MX/CNAME/SOA/NS.
  *      It handles UDP, TCP fallback, and parsing for us.
  *   2. A tiny hand-rolled UDP/TCP query with the EDNS DO bit set for DNSSEC
- *      PRESENCE — node:dns can't request DNSKEY/RRSIG or read the DO flag.
+ *      PRESENCE - node:dns can't request DNSKEY/RRSIG or read the DO flag.
  *      We only walk the record types (and the RRSIG "type covered" field),
  *      not their rdata, which keeps the parser small and robust.
  */
@@ -77,7 +77,7 @@ export async function pollDns<T>(
 }
 
 // ---------------------------------------------------------------------------
-// Raw DNS query with the EDNS DO bit — for DNSSEC presence checks.
+// Raw DNS query with the EDNS DO bit - for DNSSEC presence checks.
 // ---------------------------------------------------------------------------
 
 const RRTYPE: Record<string, number> = {

@@ -3,10 +3,10 @@
  *
  * Raw PowerDNS Authoritative API client. Tests use this for two things:
  *
- *   1. **Cleanup** — before each test that touches PDNS, iterate over every
+ *   1. **Cleanup** - before each test that touches PDNS, iterate over every
  *      registered backend and delete every zone, so tests don't pollute
  *      each other.
- *   2. **Verification** — after the app under test creates a zone or
+ *   2. **Verification** - after the app under test creates a zone or
  *      patches an RRset, hit the PDNS API directly to confirm the change
  *      landed in the backend (not just in our DB).
  *
@@ -18,7 +18,7 @@
 
 /**
  * Drop a single trailing dot from a PDNS name. Mirrors `lib/pdns/tsig.ts`'s
- * helper — the integration suite deliberately runs on plain Node without the
+ * helper - the integration suite deliberately runs on plain Node without the
  * app's module resolution, so it can't import `lib/*` (no `@/` alias here).
  * Used to normalize the trailing-dot zone key-id fields PDNS returns before
  * comparing against the dot-less names the app stores.
@@ -143,7 +143,7 @@ export interface PdnsConfigSetting {
   value: string;
 }
 
-/** Read-only daemon config — the source the capability snapshot derives from. */
+/** Read-only daemon config - the source the capability snapshot derives from. */
 export async function getConfig(backend: PdnsBackend): Promise<PdnsConfigSetting[]> {
   const res = await pdnsCall(backend, "/servers/localhost/config");
   if (!res.ok) throw new Error(`[pdns] ${backend.slug} get config → HTTP ${res.status}`);
@@ -154,7 +154,7 @@ export async function deleteZone(backend: PdnsBackend, zoneId: string): Promise<
   // This cleanup hits PDNS DIRECTLY (bypassing the app's per-backend
   // coordination), so it can still race the background poll on a single-file
   // gsqlite3 store and get a TRANSIENT 5xx. We retry only to ride out that
-  // transient — a 5xx that PERSISTS through every retry is a genuine failure and
+  // transient - a 5xx that PERSISTS through every retry is a genuine failure and
   // is thrown, never swallowed.
   const MAX_ATTEMPTS = 4;
   let lastStatus = 0;
@@ -170,13 +170,13 @@ export async function deleteZone(backend: PdnsBackend, zoneId: string): Promise<
     if (res.status < 500 || attempt === MAX_ATTEMPTS) break;
     await new Promise((r) => setTimeout(r, 150 * attempt));
   }
-  // Reached only when no attempt succeeded — fail loudly with the last status.
+  // Reached only when no attempt succeeded - fail loudly with the last status.
   throw new Error(`[pdns] ${backend.slug} delete zone ${zoneId} → HTTP ${lastStatus}`);
 }
 
 /**
  * Logical groupings of backends that share storage. Wiping zones via one
- * member of a shared group cleans the whole group — and avoids the race
+ * member of a shared group cleans the whole group - and avoids the race
  * where parallel DELETEs across peers of a multi-primary cluster collide
  * on the same row in MariaDB and one of them returns 422/409.
  *
@@ -185,7 +185,7 @@ export async function deleteZone(backend: PdnsBackend, zoneId: string): Promise<
  * so the secondaries must be wiped individually.
  */
 const WIPE_GROUPS: PdnsBackend[][] = [
-  // Multi-primary cluster — 3 peers, 1 shared MariaDB. Wipe via peer-1 only.
+  // Multi-primary cluster - 3 peers, 1 shared MariaDB. Wipe via peer-1 only.
   [PDNS_BACKENDS.find((b) => b.slug === "peer-1")!],
   [PDNS_BACKENDS.find((b) => b.slug === "single")!],
   [PDNS_BACKENDS.find((b) => b.slug === "ps-primary")!],

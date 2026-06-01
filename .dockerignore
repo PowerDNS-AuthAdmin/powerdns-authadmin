@@ -37,12 +37,12 @@ build
 .vscode
 *.swp
 
-# Docs not needed at runtime — keep the image small.
+# Docs not needed at runtime - keep the image small.
 docs
 *.md
 !README.md
 
-# Legacy reference — explicitly excluded.
+# Legacy reference - explicitly excluded.
 PowerDNS-Admin
 
 # Tests sources aren't built into the image.

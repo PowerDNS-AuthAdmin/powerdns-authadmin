@@ -4,7 +4,7 @@
  * components/realtime/header-status-chip.tsx
  *
  * The SSE connection chip that lives in the top header (left, just past the
- * hamburger). One chip for the whole app — its *label* varies per page:
+ * hamburger). One chip for the whole app - its *label* varies per page:
  *
  *   • Dashboard (default)         → "Live"
  *   • Zones, Zone detail, Servers → "Synced" / "Desynced" (replication aware)
@@ -14,7 +14,7 @@
  * the mode resets to the default "live" label.
  *
  * The chip itself reads the connection state from RealtimeProvider, which
- * already applies a 5 s grace before reporting "offline" — so a Ctrl-R won't
+ * already applies a 5 s grace before reporting "offline" - so a Ctrl-R won't
  * flash offline → connecting → live, only connecting → live.
  */
 
@@ -39,7 +39,7 @@ const HeaderStatusContext = createContext<HeaderStatusContextValue | null>(null)
  * not a generic "Live" label. Per-page `<HeaderStatusMode/>` sets a transient
  * override (zone detail's per-zone view, zones-list's amalgamated view); on
  * unmount the override clears and the chip falls back to whatever the layout
- * is currently rendering — a router.refresh after a mutation re-runs the
+ * is currently rendering - a router.refresh after a mutation re-runs the
  * layout, so the global verdict stays fresh without prop-syncing into state.
  */
 export function HeaderStatusProvider({
@@ -92,12 +92,12 @@ export function HeaderStatusChip() {
 
   // When the layout deliberately skips the RealtimeProvider (e.g. a
   // compliance-redirected user who can't reach /api/realtime) the chip would
-  // otherwise be stuck on "CONNECTING" forever — render nothing.
+  // otherwise be stuck on "CONNECTING" forever - render nothing.
   if (!available) return null;
 
   // Connection state is the first half of the chip and is ALWAYS shown:
   // connecting / connected / offline / paused. The sync half (synced/desynced)
-  // is appended only when actually connected on a page that pushed sync mode —
+  // is appended only when actually connected on a page that pushed sync mode -
   // never show two stale states (offline AND synced doesn't make sense).
   const isConnected = status === "live";
   const connLabel =
@@ -112,7 +112,7 @@ export function HeaderStatusChip() {
   const syncLabel = showSync && mode.kind === "sync" ? (mode.inSync ? "synced" : "desynced") : null;
 
   // The dot purely reflects connection state. Sync state has its own glyph
-  // (<SyncIndicator/>) appended next to the synced/desynced label below — so
+  // (<SyncIndicator/>) appended next to the synced/desynced label below - so
   // the dot stays green-pulsing as long as the SSE stream is live, even when
   // a backend is mid-replication.
   const dotClass =
@@ -126,16 +126,16 @@ export function HeaderStatusChip() {
 
   const title =
     status === "paused"
-      ? "Live updates paused — click to resume"
+      ? "Live updates paused - click to resume"
       : status === "offline"
-        ? "Connection lost — auto-retrying"
+        ? "Connection lost - auto-retrying"
         : status === "connecting"
           ? "Connecting…"
           : showSync && mode.kind === "sync" && !mode.inSync
-            ? "Connected — replication in flight (waiting for AXFR)"
+            ? "Connected - replication in flight (waiting for AXFR)"
             : showSync
-              ? "Connected — all backends in sync"
-              : "Connected — live updates streaming";
+              ? "Connected - all backends in sync"
+              : "Connected - live updates streaming";
 
   return (
     <button

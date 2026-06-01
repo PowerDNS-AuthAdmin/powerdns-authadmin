@@ -10,14 +10,14 @@
  *   3. Pick a kind. The fields below shift based on kind:
  *        Native / Master / Primary  → SOA mailbox + NS list (or template-supplied)
  *        Slave / Secondary          → primary master IP(s); NS comes from primary
- *   4. Optionally pick a template — populates NS + SOA timers + prelude records.
+ *   4. Optionally pick a template - populates NS + SOA timers + prelude records.
  *      The operator can still override anything below.
  *
  * Best practices the form enforces (with one-line explanations rendered
  * inline so the operator knows why each rule exists):
  *
- *   - At least 2 NS records recommended (RFC 2182 § 5) — warning only.
- *   - NS hostnames fully qualified — auto-add trailing dot on submit.
+ *   - At least 2 NS records recommended (RFC 2182 § 5) - warning only.
+ *   - NS hostnames fully qualified - auto-add trailing dot on submit.
  *   - Responsible mailbox required + email-shaped.
  *   - Secondary zones must specify at least one master IP.
  *   - Apex name "@" / empty → the zone itself; we show the canonical form.
@@ -30,7 +30,7 @@ import { SelectMenu } from "@/components/ui/select-menu";
 
 /**
  * Operator-facing backend option. A logical backend is either a
- * standalone PDNS server or a cluster — the cluster is exposed as a
+ * standalone PDNS server or a cluster - the cluster is exposed as a
  * single option (not its individual peers); the write_strategy picks
  * which peer the create actually hits server-side. Per the user-facing
  * model: "you create the zone on the cluster, not on peer-2."
@@ -40,7 +40,7 @@ export interface BackendOption {
   /** server slug OR cluster slug, qualified by `kind`. */
   slug: string;
   /**
-   * For kind=server, the underlying `pdns_servers.id` — used to match a
+   * For kind=server, the underlying `pdns_servers.id` - used to match a
    * template's `defaultForPrimaryIds` so we can preselect a default
    * template the moment the operator picks one of its primaries.
    * Clusters don't carry a primary id; the field stays undefined.
@@ -95,7 +95,7 @@ interface Props {
   initialTemplateId?: string | undefined;
 }
 
-/** Compact discriminator the form holds in state — collapses
+/** Compact discriminator the form holds in state - collapses
  *  (kind, slug) into the one string the <select> emits. */
 type BackendKey = `server:${string}` | `cluster:${string}`;
 
@@ -151,7 +151,7 @@ export function CreateZoneForm(props: Props) {
   const [kind, setKind] = useState<(typeof KINDS)[number]["value"]>("Native");
 
   // Compute the template the form should pre-apply for a given backend
-  // selection — first template whose `defaultForPrimaryIds` lists the
+  // selection - first template whose `defaultForPrimaryIds` lists the
   // selected primary's id wins. Clusters have no primary id, so no
   // default ever auto-selects for cluster backends.
   function defaultTemplateIdFor(selection: { kind: "server" | "cluster"; slug: string } | null) {
@@ -169,9 +169,9 @@ export function CreateZoneForm(props: Props) {
   );
 
   // Track whether the operator has manually touched the template picker
-  // — once they have, we stop auto-applying the per-backend default when
+  // - once they have, we stop auto-applying the per-backend default when
   // they switch backend. (`?template=` from a deep-link also counts as a
-  // manual pick — the linker explicitly chose it.)
+  // manual pick - the linker explicitly chose it.)
   const templateTouched = useRef<boolean>(Boolean(props.initialTemplateId));
   const [responsibleEmail, setResponsibleEmail] = useState("");
   const [nameservers, setNameservers] = useState<string[]>([""]);
@@ -200,7 +200,7 @@ export function CreateZoneForm(props: Props) {
   }
 
   // When the operator picks a template themselves, mirror its defaults
-  // into the form and remember that they overrode the auto-default —
+  // into the form and remember that they overrode the auto-default -
   // switching backends after this point no longer auto-swaps the
   // template out from under them.
   function applyTemplate(id: string) {
@@ -210,7 +210,7 @@ export function CreateZoneForm(props: Props) {
   }
 
   // Re-apply the per-backend default template whenever the backend
-  // selection changes — except after the operator has touched the
+  // selection changes - except after the operator has touched the
   // picker. The initial mount also runs here so a URL-supplied or
   // auto-defaulted template gets its NS / kind prefill.
   const didMountRef = useRef(false);
@@ -346,7 +346,7 @@ export function CreateZoneForm(props: Props) {
       <Section title="Name + template">
         <Field
           label="Zone name"
-          hint="Lowercase. Trailing dot added automatically — e.g. type 'example.com'."
+          hint="Lowercase. Trailing dot added automatically - e.g. type 'example.com'."
           errors={fieldErrors["name"]}
         >
           <input
@@ -365,14 +365,14 @@ export function CreateZoneForm(props: Props) {
         {props.templates.length > 0 ? (
           <Field
             label="Template (optional)"
-            hint="Templates prefill name servers + SOA timers below — you can still override before submitting."
+            hint="Templates prefill name servers + SOA timers below - you can still override before submitting."
           >
             <SelectMenu
               value={templateId}
               onChange={(v) => applyTemplate(v)}
               ariaLabel="Template (optional)"
               options={[
-                { value: "", label: "— none —" },
+                { value: "", label: "- none -" },
                 ...props.templates.map((t) => ({ value: t.id, label: t.name })),
               ]}
               className="mt-1 w-full"
@@ -403,7 +403,7 @@ export function CreateZoneForm(props: Props) {
         ) : (
           <p className="text-xs text-[color:var(--color-fg-muted)]">
             No templates defined yet. Templates prefill NS records, SOA timers, and prelude records
-            — set them up under Admin → Zone templates to make this picker appear.
+            - set them up under Admin → Zone templates to make this picker appear.
           </p>
         )}
         <Field label="Kind">
@@ -424,7 +424,7 @@ export function CreateZoneForm(props: Props) {
         title="Backend"
         subtitle={
           props.backends.length > 1
-            ? "Where this zone will live. Clusters appear as a single entry — the cluster's peer-selection strategy picks which peer the create hits."
+            ? "Where this zone will live. Clusters appear as a single entry - the cluster's peer-selection strategy picks which peer the create hits."
             : "Where this zone will live. You only have one configured backend, so the destination is fixed."
         }
       >
@@ -501,7 +501,7 @@ export function CreateZoneForm(props: Props) {
             title="Name servers"
             subtitle={
               selectedTemplate
-                ? `Template "${selectedTemplate.name}" seeded these — edit if needed. Trailing dot added on submit.`
+                ? `Template "${selectedTemplate.name}" seeded these - edit if needed. Trailing dot added on submit.`
                 : "Authoritative name servers for the zone. At least one required; two recommended (RFC 2182 § 5)."
             }
           >
@@ -616,7 +616,7 @@ function Section({
 
 /**
  * Render the selected primary's secondaries as a small indented tree
- * under the primary in the BACKEND section. Cosmetic only — secondaries
+ * under the primary in the BACKEND section. Cosmetic only - secondaries
  * aren't write targets; the zone is created on the primary and the
  * secondaries pick it up on the next AXFR.
  */
@@ -672,12 +672,12 @@ function Field({
  * Map a template's stored kind (Native / Master / Slave / Primary /
  * Secondary / Producer / Consumer) to one of the three options the
  * create-zone form's Kind picker supports. Returns null for kinds that
- * don't have a matching form option (e.g. Producer / Consumer — the
+ * don't have a matching form option (e.g. Producer / Consumer - the
  * operator can still pick something else and the template's other
  * fields still apply on the server side).
  */
 /**
- * Build the "will also apply" hint for the template picker — lists the
+ * Build the "will also apply" hint for the template picker - lists the
  * zone-object fields the apply path will set after the zone is created.
  * Shown under the template selector so the operator knows what they get
  * without having to inspect the template themselves.

@@ -152,7 +152,7 @@ export function RoleForm({
         />
         <p className="text-xs text-[color:var(--color-fg-muted)]">
           {mode === "edit"
-            ? "Slug is the immutable lookup key — used by OIDC group mappings and any provisioning YAML referencing this role."
+            ? "Slug is the immutable lookup key - used by OIDC group mappings and any provisioning YAML referencing this role."
             : "Lowercase letters, digits, and hyphens. Starts with a letter. Cannot be changed after creation."}
         </p>
         {fieldErrors["slug"] ? (

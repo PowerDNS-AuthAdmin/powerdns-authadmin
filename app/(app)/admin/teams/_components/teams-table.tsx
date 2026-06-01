@@ -29,7 +29,7 @@ export function TeamsTable({
   showLastAdminEdit,
 }: {
   rows: TeamRow[];
-  /** Omit column entirely when false — matches T-87/T-88/T-89 gating. */
+  /** Omit column entirely when false - matches T-87/T-88/T-89 gating. */
   showLastAdminEdit: boolean;
 }) {
   const columns = useMemo<Array<ColumnDef<TeamRow, unknown>>>(() => {
@@ -58,7 +58,7 @@ export function TeamsTable({
         sortUndefined: "last",
         cell: (ctx) => {
           const iso = ctx.getValue<string | null>();
-          if (!iso) return <span className="text-xs text-[color:var(--color-fg-muted)]">—</span>;
+          if (!iso) return <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>;
           return (
             <span className="text-xs text-[color:var(--color-fg-muted)]" title={iso}>
               {freshnessOf(iso).label}

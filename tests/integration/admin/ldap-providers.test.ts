@@ -1,7 +1,7 @@
 /**
  * tests/integration/admin/ldap-providers.test.ts
  *
- * /api/admin/ldap-providers — list / create / update / delete. We don't
+ * /api/admin/ldap-providers - list / create / update / delete. We don't
  * stand up a real OpenLDAP container in this slice; that's a follow-up.
  * The cases below pin the admin CRUD path + the slug-reservation
  * handshake with `auth_provider_slugs` (cross-type uniqueness).
@@ -40,7 +40,7 @@ async function createProvider(
   overrides: Partial<{ slug: string; name: string; serverUrl: string; startTls: boolean }> = {},
 ): Promise<LdapProvider> {
   const slug = overrides.slug ?? uniqueLdapSlug();
-  // Default to an ldaps:// URL — the validator refuses plain ldap://
+  // Default to an ldaps:// URL - the validator refuses plain ldap://
   // without start_tls or the env opt-in, and we want this helper to
   // give back a working row without hitting that branch.
   const { provider } = await admin.sendJson<{ provider: LdapProvider }>(
@@ -92,7 +92,7 @@ describe("/api/admin/ldap-providers", () => {
     expect(body.provider["slug"]).toBe(slug);
     expect(body.provider).not.toHaveProperty("bindPasswordEncrypted");
     expect(body.provider).not.toHaveProperty("bindPassword");
-    // The CA cert bytes are never returned either — operators see only the
+    // The CA cert bytes are never returned either - operators see only the
     // "is one set" flag.
     expect(body.provider).not.toHaveProperty("tlsCaCert");
     expect(body.provider).toHaveProperty("tlsCaCertSet", false);
@@ -160,7 +160,7 @@ describe("/api/admin/ldap-providers", () => {
     const slug = uniqueLdapSlug("releaseable");
     const created = await createProvider(admin, { slug });
     await admin.sendJson("DELETE", `/api/admin/ldap-providers/${created.id}`);
-    // Re-create under the SAME slug — only works if the cross-type
+    // Re-create under the SAME slug - only works if the cross-type
     // reservation was released.
     const recreated = await createProvider(admin, { slug });
     expect(recreated.slug).toBe(slug);

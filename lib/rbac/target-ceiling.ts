@@ -7,7 +7,7 @@
  * `user.reset-password` and `user.update` (MFA removal) holders can act on any
  * user. Without this ceiling a mid-tier operator could reset a Super Admin's
  * password (then read it via the single-use `/reveal` route) or strip their
- * TOTP — a full takeover of an account holding permissions the actor lacks. So
+ * TOTP - a full takeover of an account holding permissions the actor lacks. So
  * before such an operation we require that the target holds no GLOBAL permission
  * the actor doesn't also hold globally; otherwise the actor would be acquiring
  * control over privileges above their own authority.
@@ -19,7 +19,7 @@
  * Self-target is inherently safe: an actor's own permission set is a subset of
  * itself, so this returns [] when actor and target are the same user.
  *
- * Pure by design — no DB import, so it lives in the rbac layer and is unit-
+ * Pure by design - no DB import, so it lives in the rbac layer and is unit-
  * testable. Permission values are typed as bare strings here (the structural
  * shape of the DB column) to keep this free of a lib/db dependency; callers cast
  * their loaded sets at the boundary.

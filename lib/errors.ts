@@ -3,7 +3,7 @@
  *
  * Typed error hierarchy. Throwing one of these from anywhere in the app lets the
  * HTTP layer (`app/api/**` route handlers, server actions) map errors to status
- * codes in exactly one place — `httpStatusForError` below.
+ * codes in exactly one place - `httpStatusForError` below.
  *
  * Why a hierarchy: branching on string error messages is the kind of thing that
  * looks fine until your locale changes or a library updates its wording. Types
@@ -51,28 +51,28 @@ export class AppError extends Error {
   }
 }
 
-/** 400 — the request was malformed or failed validation. */
+/** 400 - the request was malformed or failed validation. */
 export class ValidationError extends AppError {
   public constructor(message: string, details?: Record<string, unknown>) {
     super("VALIDATION_ERROR", message, 400, details ? { details } : undefined);
   }
 }
 
-/** 401 — the request is unauthenticated. Do not use for "logged in but lacks permission". */
+/** 401 - the request is unauthenticated. Do not use for "logged in but lacks permission". */
 export class UnauthorizedError extends AppError {
   public constructor(message = "Authentication required.") {
     super("UNAUTHORIZED", message, 401);
   }
 }
 
-/** 403 — the actor is authenticated but lacks permission for this resource/action. */
+/** 403 - the actor is authenticated but lacks permission for this resource/action. */
 export class ForbiddenError extends AppError {
   public constructor(message = "You do not have permission to perform this action.") {
     super("FORBIDDEN", message, 403);
   }
 }
 
-/** 404 — the requested resource does not exist (or, for security, the actor cannot see it). */
+/** 404 - the requested resource does not exist (or, for security, the actor cannot see it). */
 export class NotFoundError extends AppError {
   public constructor(message = "Resource not found.") {
     super("NOT_FOUND", message, 404);
@@ -80,7 +80,7 @@ export class NotFoundError extends AppError {
 }
 
 /**
- * 409 — the request conflicts with current state. Used for optimistic-concurrency
+ * 409 - the request conflicts with current state. Used for optimistic-concurrency
  * failures (the zone changed since you started editing) and unique-constraint
  * collisions (an account with that email already exists).
  */
@@ -90,7 +90,7 @@ export class ConflictError extends AppError {
   }
 }
 
-/** 429 — rate-limited. The middleware sets `Retry-After`; this carries the value. */
+/** 429 - rate-limited. The middleware sets `Retry-After`; this carries the value. */
 export class RateLimitedError extends AppError {
   public readonly retryAfterSeconds: number;
   public constructor(retryAfterSeconds: number) {
@@ -101,7 +101,7 @@ export class RateLimitedError extends AppError {
   }
 }
 
-/** 502 — an upstream dependency (PowerDNS, OIDC IdP) is unreachable or returning errors. */
+/** 502 - an upstream dependency (PowerDNS, OIDC IdP) is unreachable or returning errors. */
 export class UpstreamError extends AppError {
   public constructor(message: string, options?: { cause?: unknown }) {
     super("UPSTREAM_ERROR", message, 502, options);
@@ -109,7 +109,7 @@ export class UpstreamError extends AppError {
 }
 
 /**
- * 500 — an internal invariant was violated. These should never reach a user; if they
+ * 500 - an internal invariant was violated. These should never reach a user; if they
  * do, it's a bug. The HTTP layer redacts the message and logs the original.
  */
 export class InternalError extends AppError {

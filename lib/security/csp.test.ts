@@ -22,8 +22,8 @@ function parse(csp: string): Record<string, string[]> {
   return out;
 }
 
-describe("buildCsp — script-src under strict-dynamic", () => {
-  it("does NOT include 'self' in script-src (it's ignored under strict-dynamic — issue #28)", () => {
+describe("buildCsp - script-src under strict-dynamic", () => {
+  it("does NOT include 'self' in script-src (it's ignored under strict-dynamic - issue #28)", () => {
     for (const dev of [false, true]) {
       for (const turnstile of [false, true]) {
         const d = parse(buildCsp(NONCE, dev, turnstile));
@@ -45,12 +45,12 @@ describe("buildCsp — script-src under strict-dynamic", () => {
   });
 
   it("never puts the Turnstile origin in script-src (ignored under strict-dynamic)", () => {
-    // Even with the captcha enabled — the loader carries the nonce instead.
+    // Even with the captcha enabled - the loader carries the nonce instead.
     expect(parse(buildCsp(NONCE, false, true))["script-src"]).not.toContain(TURNSTILE);
   });
 });
 
-describe("buildCsp — Turnstile origin on honored directives", () => {
+describe("buildCsp - Turnstile origin on honored directives", () => {
   it("adds the Turnstile origin to frame-src + connect-src when enabled", () => {
     const d = parse(buildCsp(NONCE, false, true));
     expect(d["frame-src"]).toContain(TURNSTILE);
@@ -63,7 +63,7 @@ describe("buildCsp — Turnstile origin on honored directives", () => {
   });
 });
 
-describe("buildCsp — baseline hardening stays intact", () => {
+describe("buildCsp - baseline hardening stays intact", () => {
   it("keeps the strict non-script directives", () => {
     const d = parse(buildCsp(NONCE, false, false));
     expect(d["default-src"]).toEqual(["'self'"]);

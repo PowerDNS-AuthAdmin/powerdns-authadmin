@@ -7,7 +7,7 @@
  * Naming convention: `<resource>.<verb>` matches `lib/rbac/permissions.ts`
  * where there's a 1:1 mapping (`zone.delete` action ↔ `zone.delete` perm),
  * with additional state-change actions that don't have a corresponding
- * permission (e.g. `auth.login` — anyone can attempt to log in).
+ * permission (e.g. `auth.login` - anyone can attempt to log in).
  */
 
 import "server-only";
@@ -26,14 +26,14 @@ export const AUDIT_ACTIONS = [
   "auth.session.revoked",
   "auth.token.issued",
   "auth.token.revoked",
-  // External IdP events — emitted by OIDC, SAML, and LDAP sign-in paths.
+  // External IdP events - emitted by OIDC, SAML, and LDAP sign-in paths.
   // The `after` snapshot carries `method: "oidc" | "saml" | "ldap"` and
   // `provider: "<slug>"` so audit search can filter by protocol or by
   // specific provider without needing per-protocol action names.
   "auth.idp.linked",
   "auth.idp.rejected_provisioning",
   // Self-service signup (SIGNUP_ENABLED) refused before any user row is
-  // created — currently only the email-domain allow-list rejection. The
+  // created - currently only the email-domain allow-list rejection. The
   // successful-signup path reuses `user.create` (source: signup).
   "auth.signup.rejected",
   "auth.password.reset.requested",
@@ -94,7 +94,7 @@ export const AUDIT_ACTIONS = [
   "ldap.provider.updated",
   "ldap.provider.deleted",
   // Fleet-level refresh of every enabled provider's discovery cache
-  // (T-107). One audit row per operator click — per-provider cache
+  // (T-107). One audit row per operator click - per-provider cache
   // writes don't audit individually (would dwarf the signal).
   "oidc.provider.refresh-all",
 
@@ -160,7 +160,7 @@ export const AUDIT_ACTIONS = [
   // `after` snapshot.
   "auth.group_sync.mapping_unresolved",
   // Live recompute of IdP-derived permissions on the token-auth path.
-  // One row per cache miss — at most one per user per
+  // One row per cache miss - at most one per user per
   // `IDP_PERMS_CACHE_TTL_SECONDS` window. `after` carries the provider
   // slug + type and the count of derived ability sources, so audit
   // search can spot "a user's perms shifted under them" patterns.
@@ -168,7 +168,7 @@ export const AUDIT_ACTIONS = [
 
   // Super-admin-gated app-DB backup. Excludes PDNS zone data and
   // symmetric secrets. The `after` snapshot carries row counts per
-  // table — useful for audit search to spot empty / partial exports.
+  // table - useful for audit search to spot empty / partial exports.
   "system.backup.exported",
   "system.backup.restored",
 ] as const;

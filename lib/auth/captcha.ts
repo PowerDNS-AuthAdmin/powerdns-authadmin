@@ -13,7 +13,7 @@
  * be redeemed once. We rely on the upstream's enforcement rather than
  * tracking redemption ourselves.
  *
- * This module does NOT read env — callers pass the secret. That keeps the
+ * This module does NOT read env - callers pass the secret. That keeps the
  * verifier easy to unit-test (no module-level state, no boot-time
  * coupling) and lets the route decide when captcha is required (e.g.
  * "skip in dev when secret isn't configured").
@@ -23,12 +23,12 @@ import "server-only";
 
 const TURNSTILE_SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
-/** Successful verification — Cloudflare attests the token came from a human. */
+/** Successful verification - Cloudflare attests the token came from a human. */
 export interface CaptchaOk {
   ok: true;
 }
 
-/** Failed verification — provider rejected the token or transport failed. */
+/** Failed verification - provider rejected the token or transport failed. */
 export interface CaptchaFail {
   ok: false;
   /** `siteverify` error-codes (or `transport-error` for fetch/parse failures). */
@@ -40,11 +40,11 @@ export type CaptchaResult = CaptchaOk | CaptchaFail;
 /**
  * Verify a Turnstile token. Returns `{ ok: true }` on success.
  *
- * @param secret    — TURNSTILE_SECRET_KEY from env
- * @param token     — the `cf-turnstile-response` value from the form
- * @param remoteIp  — optional client IP (from the proxy's forwarded
+ * @param secret    - TURNSTILE_SECRET_KEY from env
+ * @param token     - the `cf-turnstile-response` value from the form
+ * @param remoteIp  - optional client IP (from the proxy's forwarded
  *                    headers), hardens the verification; safe to omit
- * @param fetchImpl — overridable for tests; defaults to global `fetch`
+ * @param fetchImpl - overridable for tests; defaults to global `fetch`
  */
 export async function verifyTurnstile(input: {
   secret: string;
@@ -68,7 +68,7 @@ export async function verifyTurnstile(input: {
     res = await fetcher(TURNSTILE_SITEVERIFY_URL, {
       method: "POST",
       body,
-      // No `Content-Type` header set — `URLSearchParams` auto-encodes as
+      // No `Content-Type` header set - `URLSearchParams` auto-encodes as
       // application/x-www-form-urlencoded, which is what siteverify expects.
     });
   } catch {

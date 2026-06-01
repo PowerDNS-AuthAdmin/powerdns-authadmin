@@ -17,16 +17,16 @@ export interface SshfpStruct {
 }
 
 const ALGORITHMS: Array<{ value: number; label: string }> = [
-  { value: 1, label: "1 — RSA" },
-  { value: 2, label: "2 — DSA" },
-  { value: 3, label: "3 — ECDSA" },
-  { value: 4, label: "4 — Ed25519" },
-  { value: 6, label: "6 — Ed448" },
+  { value: 1, label: "1 - RSA" },
+  { value: 2, label: "2 - DSA" },
+  { value: 3, label: "3 - ECDSA" },
+  { value: 4, label: "4 - Ed25519" },
+  { value: 6, label: "6 - Ed448" },
 ];
 
 const FP_TYPES: Array<{ value: number; label: string }> = [
-  { value: 1, label: "1 — SHA-1" },
-  { value: 2, label: "2 — SHA-256" },
+  { value: 1, label: "1 - SHA-1" },
+  { value: 2, label: "2 - SHA-256" },
 ];
 
 export const sshfpEditor: RREditor<SshfpStruct> = {

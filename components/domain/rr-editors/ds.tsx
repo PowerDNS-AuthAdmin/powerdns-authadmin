@@ -18,17 +18,17 @@ export interface DsStruct {
 }
 
 const ALGORITHMS: Array<{ value: number; label: string }> = [
-  { value: 8, label: "8 — RSA/SHA-256" },
-  { value: 10, label: "10 — RSA/SHA-512" },
-  { value: 13, label: "13 — ECDSA P-256/SHA-256" },
-  { value: 14, label: "14 — ECDSA P-384/SHA-384" },
-  { value: 15, label: "15 — Ed25519" },
-  { value: 16, label: "16 — Ed448" },
+  { value: 8, label: "8 - RSA/SHA-256" },
+  { value: 10, label: "10 - RSA/SHA-512" },
+  { value: 13, label: "13 - ECDSA P-256/SHA-256" },
+  { value: 14, label: "14 - ECDSA P-384/SHA-384" },
+  { value: 15, label: "15 - Ed25519" },
+  { value: 16, label: "16 - Ed448" },
 ];
 const DIGEST_TYPES: Array<{ value: number; label: string }> = [
-  { value: 1, label: "1 — SHA-1" },
-  { value: 2, label: "2 — SHA-256" },
-  { value: 4, label: "4 — SHA-384" },
+  { value: 1, label: "1 - SHA-1" },
+  { value: 2, label: "2 - SHA-256" },
+  { value: 4, label: "4 - SHA-384" },
 ];
 
 export const dsEditor: RREditor<DsStruct> = {

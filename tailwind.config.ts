@@ -1,10 +1,10 @@
 /**
- * tailwind.config.ts — Tailwind v3 configuration.
+ * tailwind.config.ts - Tailwind v3 configuration.
  *
  * Design tokens (colors, font stack, radii) live in `app/globals.css` as CSS
  * variables on `:root` and `.dark`. Components reference them via Tailwind's
- * arbitrary-value syntax — `text-[color:var(--color-fg)]`,
- * `bg-[color:var(--color-bg-subtle)]` — which works without registering the
+ * arbitrary-value syntax - `text-[color:var(--color-fg)]`,
+ * `bg-[color:var(--color-bg-subtle)]` - which works without registering the
  * tokens in this config.
  *
  * That choice puts the design system next to the CSS that consumes it and
@@ -22,7 +22,7 @@ const config: Config = {
   theme: {
     extend: {
       /**
-       * App type scale — Tailwind's default sizes (and their line-heights)
+       * App type scale - Tailwind's default sizes (and their line-heights)
        * scaled by 1.2×. This replaces the former `html { font-size: 120% }`
        * hack, which bumped *every* rem (padding, gap, radius) and made the UI
        * feel zoomed. Scaling only the font-size utilities keeps text at the

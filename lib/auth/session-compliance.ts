@@ -4,16 +4,16 @@
  * Pure decision: is a SESSION-authenticated user allowed to perform actions,
  * or must they first self-remediate? Two gates, in order:
  *
- *   1. MFA enrollment — when a user's role policy (or per-user override)
+ *   1. MFA enrollment - when a user's role policy (or per-user override)
  *      requires MFA but they haven't enrolled TOTP. Delegates to
  *      `checkMfaCompliance` so the rule stays in one place.
- *   2. mustChangePassword — a temp/expired password that must be rotated
+ *   2. mustChangePassword - a temp/expired password that must be rotated
  *      before the account can do anything else.
  *
  * This is the single source of truth for the compliance gate that both the
  * `(app)` layout (page renders) and `requireUser` (route handlers) enforce.
  * Kept free of any DB import so it's unit-testable without `pg`/`better-sqlite3`
- * — callers pass the already-fetched role MFA states + user flags.
+ * - callers pass the already-fetched role MFA states + user flags.
  *
  * The MFA gate matters only when a non-compliant user can still hold a live
  * session: TOTP enrollment is confirmed AFTER login, and the
@@ -29,7 +29,7 @@ export interface SessionComplianceInput {
   totpEnrolled: boolean;
   /** Has at least one WebAuthn credential (user.webauthnCredentials.length > 0). */
   webauthnEnrolled: boolean;
-  /** SSO-only account — no local password hash (passwordHash === null). */
+  /** SSO-only account - no local password hash (passwordHash === null). */
   ssoOnly: boolean;
   /**
    * Per-user MFA override that supersedes roles + the SSO exemption

@@ -3,10 +3,10 @@
  *
  * Zone import/export hub. Three flows, one page:
  *
- *   1. Import — paste a single zone or a multi-zone BIND file. The
+ *   1. Import - paste a single zone or a multi-zone BIND file. The
  *      parser auto-splits zones at `$ORIGIN` boundaries; each becomes
  *      one createZone call with its rrsets pre-populated.
- *   2. Export — pick zones from a backend, download them as a single
+ *   2. Export - pick zones from a backend, download them as a single
  *      BIND-format text bundle.
  *
  * Permission: `zone.read` to load, plus `zone.create` enforced on the

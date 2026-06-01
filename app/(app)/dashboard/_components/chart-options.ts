@@ -2,7 +2,7 @@
  * app/(app)/dashboard/_components/chart-options.ts
  *
  * Pure ECharts option builders for the dashboard. Server-rendered and
- * serializable — each takes already-fetched rows and returns a plain option
+ * serializable - each takes already-fetched rows and returns a plain option
  * object shipped as a prop to the `<Chart>` client wrapper. Extracted from
  * page.tsx to keep the page focused on data-fetching + layout.
  */
@@ -37,12 +37,12 @@ export function hourlyLineOption(rows: HourlyBucket[], hours: number, label: str
   return {
     tooltip: { trigger: "axis" as const },
     // `type: "time"` lets ECharts format every tick label in the
-    // BROWSER's local timezone — the server is upstream of timezone
+    // BROWSER's local timezone - the server is upstream of timezone
     // decisions and shouldn't be baking "08:00" into category labels.
     // Data points are [iso-string, count] pairs; the browser places
     // them on the time axis and produces local-zone tick labels.
     xAxis: {
-      // No `boundaryGap` on a time axis — it isn't a category axis, and
+      // No `boundaryGap` on a time axis - it isn't a category axis, and
       // echarts 6 types it as a tuple there. Time axes place points exactly.
       type: "time" as const,
       splitLine: { show: false },

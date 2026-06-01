@@ -1,7 +1,7 @@
 /**
  * tests/integration/admin/tsig-keys.test.ts
  *
- * /api/admin/pdns/tsig-keys — POST creates a TSIG key on the default
+ * /api/admin/pdns/tsig-keys - POST creates a TSIG key on the default
  * PDNS backend and returns a single-use revealToken instead of the raw
  * secret. The sibling /reveal endpoint redeems the token for the
  * plaintext as text/plain. DELETE removes the key from the backend. No
@@ -76,7 +76,7 @@ describe("/api/admin/pdns/tsig-keys", () => {
     );
   });
 
-  it("DELETE removes the key — a follow-up DELETE returns 404", async () => {
+  it("DELETE removes the key - a follow-up DELETE returns 404", async () => {
     const admin = await loginAsBootstrap();
     const name = uniqueTsigName("del");
     const created = await admin.sendJson<TsigCreateResponse>("POST", "/api/admin/pdns/tsig-keys", {
@@ -150,7 +150,7 @@ interface ZoneTransferResponse {
   secondaries: Array<{ serverSlug: string; hosted: boolean; ok: boolean }>;
 }
 
-/** Raw PDNS getZone — reads the writable TSIG key-id fields the app sets,
+/** Raw PDNS getZone - reads the writable TSIG key-id fields the app sets,
  *  trailing dots stripped so they compare equal to the dot-less key name. */
 async function backendZone(
   b: PdnsBackend,
@@ -170,7 +170,7 @@ async function backendZone(
   };
 }
 
-/** Raw PDNS getTsigKey — returns the base64 secret (for replication-fidelity checks). */
+/** Raw PDNS getTsigKey - returns the base64 secret (for replication-fidelity checks). */
 async function backendTsigSecret(b: PdnsBackend, id: string): Promise<string | null> {
   const res = await fetch(`${b.baseUrl}/servers/localhost/tsigkeys/${encodeURIComponent(id)}`, {
     headers: { "X-API-Key": b.apiKey },
@@ -243,7 +243,7 @@ describe("/api/admin/pdns/tsig-keys/[id]/install", () => {
       const secKey = onSecondary.find((k) => k.name === name);
       expect(secKey).toBeTruthy();
 
-      // …and the SECRET matches the primary's exactly — a same-named key with a
+      // …and the SECRET matches the primary's exactly - a same-named key with a
       // different secret would silently break AXFR, so verify replication fidelity.
       const [primarySecret, secondarySecret] = await Promise.all([
         backendTsigSecret(PDNS_BY_TOPOLOGY.psPrimary, created.tsigKey.id),
@@ -252,7 +252,7 @@ describe("/api/admin/pdns/tsig-keys/[id]/install", () => {
       expect(secondarySecret).toBeTruthy();
       expect(secondarySecret).toBe(primarySecret);
 
-      // Re-running is idempotent — same secret already present.
+      // Re-running is idempotent - same secret already present.
       const again = await admin.sendJson<InstallResponse>(
         "POST",
         `/api/admin/pdns/tsig-keys/${encodeURIComponent(created.tsigKey.id)}/install`,
@@ -305,7 +305,7 @@ describe("/api/admin/pdns/zones/[zoneId]/tsig-transfer", () => {
           { serverSlug: primary.slug, keyName, mode },
         );
 
-      // Add k1 — this is the path that 422'd against the read-only metadata API;
+      // Add k1 - this is the path that 422'd against the read-only metadata API;
       // via master_tsig_key_ids it must now succeed.
       const add1 = await transfer(k1, "add");
       expect(add1.ok).toBe(true);
@@ -313,12 +313,12 @@ describe("/api/admin/pdns/zones/[zoneId]/tsig-transfer", () => {
       let z = await backendZone(primary, zone);
       expect(z?.master_tsig_key_ids ?? []).toContain(k1);
 
-      // Add k2 — k1 must be preserved (non-clobber).
+      // Add k2 - k1 must be preserved (non-clobber).
       await transfer(k2, "add");
       z = await backendZone(primary, zone);
       expect(z?.master_tsig_key_ids ?? []).toEqual(expect.arrayContaining([k1, k2]));
 
-      // Remove k1 — k2 stays.
+      // Remove k1 - k2 stays.
       await transfer(k1, "remove");
       z = await backendZone(primary, zone);
       const ids = z?.master_tsig_key_ids ?? [];
@@ -431,7 +431,7 @@ describe("DELETE /api/admin/pdns/tsig-keys/[id]?cascade=true", () => {
         { serverSlug: primary.slug, keyName: name, mode: "add" },
       );
 
-      // Opt OUT of the cleanup — the unchecked-checkbox path: key-only delete.
+      // Opt OUT of the cleanup - the unchecked-checkbox path: key-only delete.
       await admin.sendJson(
         "DELETE",
         `/api/admin/pdns/tsig-keys/${encodeURIComponent(created.tsigKey.id)}` +
@@ -439,7 +439,7 @@ describe("DELETE /api/admin/pdns/tsig-keys/[id]?cascade=true", () => {
       );
 
       // Gone from the primary, but the secondary copy AND the zone reference are
-      // left in place — exactly what opting out means.
+      // left in place - exactly what opting out means.
       expect((await backendTsigKeys(primary)).some((k) => k.name === name)).toBe(false);
       expect((await backendTsigKeys(secondary)).some((k) => k.name === name)).toBe(true);
       expect((await backendZone(primary, zone))?.master_tsig_key_ids ?? []).toContain(name);

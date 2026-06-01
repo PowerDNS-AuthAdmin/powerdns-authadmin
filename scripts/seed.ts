@@ -65,11 +65,11 @@ async function seedBootstrapAdmin(): Promise<void> {
   const existing = await findUserByEmail(bootstrapEmail);
 
   if (existing) {
-    // User already exists — leave the password alone (it's the env's
+    // User already exists - leave the password alone (it's the env's
     // INITIAL value, not an ongoing source of truth). Make sure the
     // super-admin global assignment is present; grant it if not. Idempotent
     // across restarts so an operator who manually demoted the bootstrap
-    // admin can't accidentally re-grant by restart — but a fresh bootstrap
+    // admin can't accidentally re-grant by restart - but a fresh bootstrap
     // email never seen before is created end-to-end below.
     const existingAssignments = await db
       .select({ id: roleAssignments.id })
@@ -124,7 +124,11 @@ async function seedBootstrapAdmin(): Promise<void> {
         name: "Bootstrap Admin",
         passwordHash,
         emailVerifiedAt: new Date(),
-        mustChangePassword: true,
+        // Normally we force a password change on first login. But under the RO
+        // demo lock the account *can't* change its password (the change-password
+        // route is frozen), so the compliance gate would trap it on a screen it
+        // can never clear - seed it already-compliant instead.
+        mustChangePassword: !env.BOOTSTRAP_ADMIN_RO,
       })
       .returning();
     const user = userRows[0];
@@ -161,7 +165,7 @@ async function seedBootstrapAdmin(): Promise<void> {
  * Boot-time guard for self-service signup (`SIGNUP_ENABLED`). Runs after the
  * system roles are upserted so a default pointing at a seeded role resolves.
  *
- * Refuses to boot — same loud-failure contract as the env/SMTP checks — when
+ * Refuses to boot - same loud-failure contract as the env/SMTP checks - when
  * `SIGNUP_DEFAULT_ROLE` either doesn't exist or is admin-equivalent. Without
  * this, a typo'd or over-privileged default would turn public signup into a
  * silent admin-account vending machine. Only enforced when signup is on; when
@@ -182,8 +186,8 @@ async function validateSignupDefaultRole(): Promise<void> {
   const detail =
     check.reason === "missing"
       ? `SIGNUP_DEFAULT_ROLE="${slug}" does not match any role. Create the role first, or point it at a seeded low-privilege role (e.g. "read-only").`
-      : `SIGNUP_DEFAULT_ROLE="${slug}" is admin-equivalent. Self-service signup must only grant a low-privilege role — pick one without user/role/settings/server/audit permissions (e.g. "read-only").`;
-  throw new Error(`seed.signup: refusing to boot — ${detail}`);
+      : `SIGNUP_DEFAULT_ROLE="${slug}" is admin-equivalent. Self-service signup must only grant a low-privilege role - pick one without user/role/settings/server/audit permissions (e.g. "read-only").`;
+  throw new Error(`seed.signup: refusing to boot - ${detail}`);
 }
 
 async function main(): Promise<void> {
@@ -202,7 +206,7 @@ async function main(): Promise<void> {
 // via spawnSync, which blocks until the process exits. Relying on the event
 // loop draining is unsafe here: a connection-pool socket and the pino-pretty
 // transport worker can linger after the work is done, leaving the process
-// alive forever — which would hang the entrypoint and the server would never
+// alive forever - which would hang the entrypoint and the server would never
 // start. `migrate.ts` avoids this by owning a short-lived pool; the seed uses
 // the app singleton, so it must exit on its own.
 main()

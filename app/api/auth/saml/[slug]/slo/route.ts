@@ -5,11 +5,11 @@
  *
  * Single-logout endpoint. We end the local session (revoke the row + clear
  * the cookie) and set the `pda_just_logged_out` cookie the OIDC SLO flow
- * also sets — the login page reads it to suppress the "auto-redirect to
+ * also sets - the login page reads it to suppress the "auto-redirect to
  * default provider" behavior on the post-logout visit.
  *
  * IdP-initiated SLO (the IdP signs a LogoutRequest and POSTs it here) is
- * left as a follow-up — the current path covers SP-initiated SLO via the
+ * left as a follow-up - the current path covers SP-initiated SLO via the
  * logout link on the user menu.
  */
 

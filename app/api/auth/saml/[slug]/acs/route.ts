@@ -1,13 +1,13 @@
 /**
  * app/api/auth/saml/[slug]/acs/route.ts
  *
- * POST /api/auth/saml/<slug>/acs — Assertion Consumer Service.
+ * POST /api/auth/saml/<slug>/acs - Assertion Consumer Service.
  *
  * The IdP form-POSTs `SAMLResponse` here (and optionally `RelayState`) after
  * the user authenticates. We:
  *
  *   1. Validate the URL slug against the cookie value the /login handler set.
- *   2. Hand the response XML to `verifyResponse` — signature + InResponseTo
+ *   2. Hand the response XML to `verifyResponse` - signature + InResponseTo
  *      + encrypted-assertion decryption all happen inside.
  *   3. Find-or-create the local `users` row keyed on the email attribute
  *      (with the same email-domain gate OIDC has).
@@ -71,7 +71,7 @@ export async function POST(
     return failRedirect("saml-state-missing");
   }
 
-  // Read the form body — the IdP POSTs application/x-www-form-urlencoded.
+  // Read the form body - the IdP POSTs application/x-www-form-urlencoded.
   let samlResponse: string;
   try {
     const form = await request.formData();
@@ -143,7 +143,7 @@ export async function POST(
     user = await insertUser({
       email: identity.email,
       name: identity.name ?? null,
-      // SAML has no `email_verified` analogue — we treat the IdP's
+      // SAML has no `email_verified` analogue - we treat the IdP's
       // attestation as trust by default. Operators that don't trust the IdP
       // should restrict it via the per-provider email-domain allow-list.
       emailVerifiedAt: new Date(),

@@ -1,12 +1,12 @@
 /**
  * app/api/auth/change-password/route.ts
  *
- * POST — change the signed-in user's password. Verifies the current password
+ * POST - change the signed-in user's password. Verifies the current password
  * (constant-time on the no-password / SSO-only path), hashes the new one
  * with current Argon2 params, clears the `mustChangePassword` flag, and
  * audit-logs the action.
  *
- * Does NOT revoke other sessions — that's a separate action on /profile so
+ * Does NOT revoke other sessions - that's a separate action on /profile so
  * the operator decides. The current session stays valid.
  */
 
@@ -16,6 +16,7 @@ import { appendAudit } from "@/lib/audit/log";
 import { getClientIp, getRequestId } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { assertBootstrapAdminMutable } from "@/lib/auth/bootstrap-admin";
 import { verifyTurnstile } from "@/lib/auth/captcha";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { sensitiveLimiter } from "@/lib/auth/rate-limit";
@@ -30,10 +31,11 @@ import { errorResponse } from "@/lib/http/error-response";
 export async function POST(request: Request): Promise<Response> {
   try {
     // Self-remediation endpoint: a `mustChangePassword`-flagged operator must
-    // be able to change their password, so skip the compliance gate here —
+    // be able to change their password, so skip the compliance gate here -
     // otherwise the gate would block the action that clears the flag.
     const { user } = await requireUser({ skipComplianceGate: true });
     await requireCsrf(request);
+    assertBootstrapAdminMutable(user.email);
 
     let input;
     try {

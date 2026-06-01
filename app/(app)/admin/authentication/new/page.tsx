@@ -9,7 +9,7 @@
  * dropdowns without a runtime fetch round-trip). The actual type-toggle +
  * form switch lives in the client wrapper (`./_components/new-provider-client`).
  *
- * Permission: `oidc.manage` — even though SAML and LDAP aren't built yet,
+ * Permission: `oidc.manage` - even though SAML and LDAP aren't built yet,
  * those will gate on the same provider-management permission. Operators
  * without it can't reach this page at all.
  */

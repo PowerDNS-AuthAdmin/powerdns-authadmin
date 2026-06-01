@@ -2,22 +2,22 @@
  * lib/realtime/backend-health.ts
  *
  * THE central per-backend health operation. Every explicit, user-initiated
- * refresh — the admin "Test", "Refresh all", add-server, and first-boot
- * provisioning — goes through here instead of each re-implementing its own PDNS
+ * refresh - the admin "Test", "Refresh all", add-server, and first-boot
+ * provisioning - goes through here instead of each re-implementing its own PDNS
  * calls. One probe path means the Test button, the status badge, and the bell
  * can never disagree.
  *
  * It mirrors exactly what the background poll observes per backend, but runs
  * synchronously and authoritatively:
  *
- *   1. listZones — the reachability probe + zone inventory (the SAME signal the
+ *   1. listZones - the reachability probe + zone inventory (the SAME signal the
  *      poll keys reachability off, so a Test and the poll never diverge).
  *   2. (reachable) force a live version re-probe + /config + /autoprimaries,
  *      persist both, write the zone-state cache, mark last-seen.
  *   3. evaluate + sync the advisory set, publishing a health nudge when the
  *      visible set moves.
  *
- * `immediate` (the default — every caller here is user-initiated) makes the
+ * `immediate` (the default - every caller here is user-initiated) makes the
  * advisory authoritative: it bypasses the ≥2-poll debounce so the badge + bell
  * reflect the click at once. The background poll evaluates/syncs directly
  * (debounced) so a single failed poll never rings the bell.
@@ -53,7 +53,7 @@ const MIRROR_KINDS = new Set(["slave", "secondary", "consumer"]);
  * The shared daemon-meta probe: force a live version re-probe + read /config +
  * /autoprimaries, persist both, and update `backend.capabilities` in place so a
  * same-cycle advisory eval sees the fresh snapshot. The ONE place these PDNS
- * calls live — used by both the background poll's 60 s daemon refresh and the
+ * calls live - used by both the background poll's 60 s daemon refresh and the
  * explicit `refreshBackendHealth` below. Best-effort: each sub-probe is
  * independent (the caller has already proven reachability), so a failure just
  * leaves the last-known value. Returns the observed version (or last-known).
@@ -79,7 +79,7 @@ export async function probeDaemonMeta(
   }
   try {
     const config = await client.getConfig();
-    // Cache the display-safe rows for the server-detail page (brokered — that
+    // Cache the display-safe rows for the server-detail page (brokered - that
     // page reads the store instead of fetching /config itself).
     writeDaemonConfig(backend.id, safeConfigSettings(config));
     let autoprimaryCount: number | undefined;
@@ -101,7 +101,7 @@ export async function probeDaemonMeta(
 }
 
 export interface BackendHealthOutcome {
-  /** listZones succeeded — the API is reachable and usable. */
+  /** listZones succeeded - the API is reachable and usable. */
   reachable: boolean;
   /** Network reached but the API rejected the key (401/403). */
   authError: boolean;
@@ -111,7 +111,7 @@ export interface BackendHealthOutcome {
 
 /**
  * Probe one backend's health now and persist what we observed. See file header.
- * Never throws for an unreachable backend — that's a return value, not an error;
+ * Never throws for an unreachable backend - that's a return value, not an error;
  * callers (the Test route) report it. Truly unexpected faults propagate.
  */
 export async function refreshBackendHealth(
@@ -128,7 +128,7 @@ export async function refreshBackendHealth(
   let snapshots: CachedZoneSnapshot[] | null = null;
   let version: string | null = backend.versionCache?.version ?? null;
 
-  // listZones is the reachability probe — same as the poll. A 401/403 is the
+  // listZones is the reachability probe - same as the poll. A 401/403 is the
   // auth variant; any other failure (down, API disabled, bad server-id,
   // network) reads as unreachable.
   try {
@@ -152,7 +152,7 @@ export async function refreshBackendHealth(
     );
   }
 
-  // The single live reachability signal — read by every status surface.
+  // The single live reachability signal - read by every status surface.
   recordBackendStatus(backend.id, reachable, authError);
 
   if (reachable && snapshots) {
@@ -202,7 +202,7 @@ export async function refreshBackendHealth(
 }
 
 /**
- * Refresh every active backend's health in parallel — the "Refresh all" action
+ * Refresh every active backend's health in parallel - the "Refresh all" action
  * and first-boot provisioning. `failed` counts backends that aren't reachable
  * (so the toast reports outages), plus any that threw unexpectedly.
  */

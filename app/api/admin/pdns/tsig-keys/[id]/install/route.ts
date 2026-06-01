@@ -1,9 +1,9 @@
 /**
  * app/api/admin/pdns/tsig-keys/[id]/install/route.ts
  *
- * POST — replicate this TSIG key (by id, on the primary given by `serverSlug`)
+ * POST - replicate this TSIG key (by id, on the primary given by `serverSlug`)
  *        onto the primary's secondaries via their TSIG API. The secret is
- *        fetched server-side and POSTed to each secondary — it NEVER reaches the
+ *        fetched server-side and POSTed to each secondary - it NEVER reaches the
  *        browser. Per-backend version-gated (`supportsTsigApi`); older daemons
  *        report `unsupported` and the UI shows the manual pdnsutil path instead.
  *        Conflicts (same name, different secret) are reported, not overwritten.
@@ -68,7 +68,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       actor: { type: "user", id: actor.id },
       action: "tsig.install-secondaries",
       resource: { type: "tsig", id: `${primary.slug}:${keyId}` },
-      // No secret in the audit row — just per-secondary outcomes.
+      // No secret in the audit row - just per-secondary outcomes.
       after: {
         keyName: result.keyName,
         results: result.results.map((r) => ({ server: r.serverSlug, outcome: r.outcome })),

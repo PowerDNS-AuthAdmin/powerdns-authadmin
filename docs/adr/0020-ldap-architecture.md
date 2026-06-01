@@ -1,4 +1,4 @@
-# ADR 0020 — LDAP authentication architecture
+# ADR 0020 - LDAP authentication architecture
 
 - **Status:** Accepted
 - **Date:** 2026-05-28
@@ -10,7 +10,7 @@ A meaningful fraction of self-hosted DNS operators still run Active Directory or
 authoritative identity store. Forcing them through an OIDC bridge (Authentik, Keycloak, ADFS in
 OIDC mode) is a real lift for a single-app deployment, and many of them simply turn on a separate
 sign-in tool rather than introduce a federation tier they don't otherwise need. PR 2 of
-`feat/auth-providers-ldap-saml-webauthn` therefore adds first-class LDAP support — direct bind
+`feat/auth-providers-ldap-saml-webauthn` therefore adds first-class LDAP support - direct bind
 against the directory, no broker in the middle.
 
 We've already got the heterogeneous-provider plumbing (`auth_provider_slugs` for cross-type
@@ -20,13 +20,13 @@ typed-prefix slugs). LDAP slots into that frame; this ADR records the LDAP-speci
 ## Decision
 
 **Library.** Use `ldapts@^8.1.8` for all LDAP traffic. It's TypeScript-first, ESM, dual-exports,
-maintained, and handles StartTLS / TLS pinning cleanly. We will NOT use `ldapjs` — its main
+maintained, and handles StartTLS / TLS pinning cleanly. We will NOT use `ldapjs` - its main
 package is archived and the maintained forks haven't converged.
 
 **Bind model.** Bind-then-search-then-rebind. The admin-configured service account binds first,
 runs a search for the user by username under a configured base + filter, then we re-bind as the
 returned user DN with the password the operator typed. This is the standard pattern for AD and
-OpenLDAP alike — it keeps the user-search filter operator-controlled (so RFC 4515 escaping and
+OpenLDAP alike - it keeps the user-search filter operator-controlled (so RFC 4515 escaping and
 attribute-pinning don't get pushed to the user) and lets us use the SAME flow for both directory
 flavors.
 
@@ -43,11 +43,11 @@ the operator configures a second search (`group_search_base` + `group_search_fil
 materialise the groups (OpenLDAP with the `memberof` overlay disabled, or `groupOfUniqueNames`
 needing a `member={{userDn}}` filter). We always read `group_attr` from the user entry first; the
 second search is the fallback. The materialised group set goes through the same
-`applyGroupSync` from `lib/auth/providers/oidc-group-sync.ts` — that pure differ doesn't care
+`applyGroupSync` from `lib/auth/providers/oidc-group-sync.ts` - that pure differ doesn't care
 which protocol produced the groups, only that there's a set + a list of mappings.
 
 **Filter substitution.** The `user_search_filter` contains a `{{username}}` placeholder. The
-substituted value is LDAP-escaped (RFC 4515) before splicing — never the raw input. Same posture
+substituted value is LDAP-escaped (RFC 4515) before splicing - never the raw input. Same posture
 as parameterised SQL.
 
 **Secrets at rest.** Bind password + any CA cert PEM go through `lib/crypto/encryption.ts` (the
@@ -56,14 +56,14 @@ existing AES-256-GCM envelope; same usage tag is `ldap-bind-password`).
 ## Rationale
 
 Bind-then-search is the only model that works for both AD and OpenLDAP without operator-side
-contortions. The alternative — bind directly as `uid=<typed-username>,ou=Users,...` — works for
+contortions. The alternative - bind directly as `uid=<typed-username>,ou=Users,...` - works for
 OpenLDAP-style directories but breaks the moment users live in nested OUs or the DN convention
 isn't `uid=`. AD doesn't support `uid` binding at all; it wants the full DN or the userPrincipalName.
 The two-bind flow handles every shape we've seen.
 
 Strict TLS by default keeps an off-by-one operator from sending bind passwords in cleartext over
-their LAN. The two opt-outs are deliberately loud — env-level for the homelab case,
-`start_tls: true` for the upgraded-connection case — so a real-world deploy stays encrypted
+their LAN. The two opt-outs are deliberately loud - env-level for the homelab case,
+`start_tls: true` for the upgraded-connection case - so a real-world deploy stays encrypted
 without operator vigilance.
 
 Reusing `applyGroupSync` is a small ergonomic win for operators: same mental model whether their
@@ -86,7 +86,7 @@ group set differs.
 
 - New table `ldap_providers` mirrors `oidc_providers`. Two migrations land
   (`drizzle/00NN_*.sql` for PG and the matching SQLite file).
-- New route at `POST /api/auth/ldap/<slug>/login` — same captcha + rate-limit middleware as the
+- New route at `POST /api/auth/ldap/<slug>/login` - same captcha + rate-limit middleware as the
   local login route.
 - `/admin/authentication/new` LDAP card flips from "Lands in PR 2" to live. The form lives in
   `app/(app)/admin/ldap-providers/_components/ldap-provider-form.tsx`; the edit page at
@@ -102,7 +102,7 @@ group set differs.
 ## References
 
 - [ldapts on npm](https://www.npmjs.com/package/ldapts)
-- [RFC 4515 — LDAP search filters](https://datatracker.ietf.org/doc/html/rfc4515)
-- [RFC 4511 — LDAP protocol (StartTLS in §4.14)](https://datatracker.ietf.org/doc/html/rfc4511)
+- [RFC 4515 - LDAP search filters](https://datatracker.ietf.org/doc/html/rfc4515)
+- [RFC 4511 - LDAP protocol (StartTLS in §4.14)](https://datatracker.ietf.org/doc/html/rfc4511)
 - ADR-0018 (separate per-protocol provider tables + a cross-type slug guard).
 - ADR-0019 (`auth_default_provider` typed-prefix value semantics).

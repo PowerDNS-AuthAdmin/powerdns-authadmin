@@ -1,7 +1,7 @@
 /**
  * lib/validators/rr-types/mx.ts
  *
- * MX content — RFC 1035 § 3.3.9: `<preference> <exchange>`, where
+ * MX content - RFC 1035 § 3.3.9: `<preference> <exchange>`, where
  * preference is a 16-bit unsigned integer and exchange is a domain name.
  *
  * RFC 7505 (Null MX): a single MX of `0 .` says "this name accepts no mail".
@@ -53,7 +53,7 @@ export const mxValidator: RRTypeValidator = {
       }
     }
 
-    // RFC 7505: Null MX is `0 .` — a literal dot exchange. Accept without
+    // RFC 7505: Null MX is `0 .` - a literal dot exchange. Accept without
     // running the hostname validator (which would emit warnings).
     if (exchange === ".") {
       if (prefStr !== "0") {

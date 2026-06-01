@@ -1,18 +1,18 @@
 /**
  * lib/dns/zonefile.ts
  *
- * RFC 1035-style BIND zonefile serializer. Pure — given a list of
+ * RFC 1035-style BIND zonefile serializer. Pure - given a list of
  * rrsets, returns a string that BIND, NSD, and PowerDNS (`pdnsutil
  * load-zone`) all accept.
  *
  * Issue #9: export side. The parser (import side) ships later;
- * exporting first because it's read-only — operators get
+ * exporting first because it's read-only - operators get
  * "download zonefile" for DR / migration / external review with no
  * risk of a half-baked parser corrupting a zone on import.
  *
  * Output format follows RFC 1035 § 5 + the de-facto BIND extensions:
  *   - `$TTL <seconds>` directive at the top (the zone's default).
- *   - `$ORIGIN <zone-name>.` directive — sets owner expansion.
+ *   - `$ORIGIN <zone-name>.` directive - sets owner expansion.
  *   - One rrset per text block, columns left-aligned for readability.
  *   - SOA serialised as a multi-line parenthesised expression (also
  *     RFC 1035 § 5; every tool accepts it).
@@ -20,7 +20,7 @@
  *
  * Owner names are relativised to the origin: `www.example.com.`
  * becomes `www` when the origin is `example.com.`. The zone apex is
- * `@`. This is BIND's idiomatic form — `pdnsutil load-zone` and `nsd`
+ * `@`. This is BIND's idiomatic form - `pdnsutil load-zone` and `nsd`
  * both parse it without complaint.
  */
 
@@ -38,7 +38,7 @@ export interface ZonefileRRSet {
 }
 
 interface SerializeInput {
-  /** Canonical zone name (lowercase, trailing dot — `example.com.`). */
+  /** Canonical zone name (lowercase, trailing dot - `example.com.`). */
   zoneName: string;
   rrsets: readonly ZonefileRRSet[];
   /** Default TTL for the `$TTL` directive. */
@@ -58,7 +58,7 @@ export function serializeZonefile(input: SerializeInput): string {
   const lines: string[] = [];
 
   for (const c of input.headerComments ?? []) {
-    // Comment lines per RFC 1035 § 5.1 — split if the operator passed
+    // Comment lines per RFC 1035 § 5.1 - split if the operator passed
     // a multi-line block.
     for (const sub of c.split(/\r?\n/)) lines.push(`; ${sub}`);
   }
@@ -92,7 +92,7 @@ function serializeRRSet(rr: ZonefileRRSet, origin: string, defaultTtl: number): 
   const owner = relativise(rr.name, origin);
   const ttl = rr.ttl === defaultTtl ? "" : String(rr.ttl);
   // Column widths picked to look right in a typical 80-col terminal;
-  // these aren't load-bearing — every parser tokenises on whitespace.
+  // these aren't load-bearing - every parser tokenises on whitespace.
   const ownerCol = owner.padEnd(20, " ");
   const ttlCol = ttl.padEnd(8, " ");
   const typeCol = rr.type.padEnd(8, " ");
@@ -102,7 +102,7 @@ function serializeRRSet(rr: ZonefileRRSet, origin: string, defaultTtl: number): 
     const prefix = record.disabled ? "; (disabled) " : "";
     const rdata = formatRdata(rr.type, record.content);
     if (rr.type === "SOA" && rdata.includes("\n")) {
-      // Multi-line parenthesised SOA — emit the first line with the
+      // Multi-line parenthesised SOA - emit the first line with the
       // standard prefix, then continuation lines indented.
       const [first, ...rest] = rdata.split("\n");
       out.push(`${prefix}${ownerCol}${ttlCol}IN      ${typeCol}${first}`);
@@ -174,7 +174,7 @@ function formatRdata(type: string, content: string): string {
  *   )
  *
  * Returns the inline form if the content isn't a 7-field tuple
- * — defensive against unusual SOA strings that might come through.
+ * - defensive against unusual SOA strings that might come through.
  */
 function formatSoa(content: string): string {
   const parts = content.trim().split(/\s+/);

@@ -10,7 +10,7 @@
  *   - "local"
  *   - "oidc:<slug>" / "saml:<slug>" / "ldap:<slug>"
  *
- * Save is a single-key PATCH to /api/admin/settings — same endpoint the
+ * Save is a single-key PATCH to /api/admin/settings - same endpoint the
  * site-wide Settings form uses. The dropdown is themed via <SelectMenu>
  * (no native <select>) for consistency with the rest of the admin UI.
  */
@@ -28,7 +28,7 @@ export interface DefaultProviderOption {
   label: string;
   /** Issuer URL / human description (secondary line). */
   description: string;
-  /** Local / OIDC / SAML / LDAP — surfaced as a small chip in the label. */
+  /** Local / OIDC / SAML / LDAP - surfaced as a small chip in the label. */
   protocol: string;
 }
 

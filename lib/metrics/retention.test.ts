@@ -11,7 +11,7 @@ import {
 
 describe("retention windows", () => {
   it("metric_samples retention is exactly the dashboard's display window (1:1)", () => {
-    // Wired to the same constant the dashboard reads — change one, both follow.
+    // Wired to the same constant the dashboard reads - change one, both follow.
     // We keep nothing the dashboard doesn't show.
     expect(METRIC_SAMPLES_RETENTION_MS).toBe(DASHBOARD_METRIC_SAMPLES_WINDOW_MS);
   });

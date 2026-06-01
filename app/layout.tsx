@@ -1,17 +1,17 @@
 /**
  * app/layout.tsx
  *
- * The root layout — wraps every page in the app. Sets up:
+ * The root layout - wraps every page in the app. Sets up:
  *   - The <html> element (lang, suppressHydrationWarning for theme-swapping)
  *   - Global CSS import (Tailwind + design tokens)
  *   - Default metadata (overridden per-page)
  *   - A pre-hydration script that applies the user's saved theme BEFORE
- *     React mounts — prevents flash-of-wrong-theme.
+ *     React mounts - prevents flash-of-wrong-theme.
  *
  * Per-page or per-route-group concerns (auth requirement, dashboard chrome) live
  * in nested `layout.tsx` files inside `(app)/`, `(auth)/`, etc.
  *
- * Default export is required by Next.js App Router — see eslint.config.mjs for
+ * Default export is required by Next.js App Router - see eslint.config.mjs for
  * the exception this file is granted.
  */
 
@@ -28,9 +28,9 @@ import "./globals.css";
 export async function generateMetadata(): Promise<Metadata> {
   const { siteName } = await getAppSettings();
   return {
-    title: { default: siteName, template: `%s — ${siteName}` },
+    title: { default: siteName, template: `%s - ${siteName}` },
     description: "Self-hosted DNS administration UI for PowerDNS.",
-    // No external favicon file — `app/icon.tsx` generates one inline.
+    // No external favicon file - `app/icon.tsx` generates one inline.
     robots: { index: false, follow: false },
   };
 }

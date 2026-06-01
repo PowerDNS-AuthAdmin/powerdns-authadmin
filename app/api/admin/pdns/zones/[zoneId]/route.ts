@@ -1,11 +1,11 @@
 /**
  * app/api/admin/pdns/zones/[zoneId]/route.ts
  *
- * DELETE — drop the zone on the PDNS backend entirely. Permission:
+ * DELETE - drop the zone on the PDNS backend entirely. Permission:
  *          `zone.delete` (type-level OR a per-zone grant).
  *
  * The web UI gates this behind a download-backup + type-to-confirm
- * flow; the API does NOT (per the user's call — programmatic clients
+ * flow; the API does NOT (per the user's call - programmatic clients
  * shouldn't be asked to type a phrase). The API still requires CSRF
  * + the right permission.
  */
@@ -76,7 +76,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     }
 
     // Snapshot for the audit before-state. Capture the zone meta and
-    // a record count — full rrsets are too large for the audit row and
+    // a record count - full rrsets are too large for the audit row and
     // the operator has the download for forensics anyway.
     const before = await client.getZone(zoneName).catch(() => null);
 

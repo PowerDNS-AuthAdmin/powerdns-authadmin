@@ -4,10 +4,10 @@
  * Pure helper mapping an audit action string to a Tailwind className
  * tinted by intent (create=green, delete=red, update/set=blue, other=
  * muted gray). Used by every audit-feed surface so chip colors stay
- * consistent — the zone change-log header chip (`<ActionChip>`) and the
+ * consistent - the zone change-log header chip (`<ActionChip>`) and the
  * admin-detail recent-activity panel (`<AdminAuditPanel>`).
  *
- * Suffix matching only — no per-action table. New actions get sensible
+ * Suffix matching only - no per-action table. New actions get sensible
  * colors automatically as long as they end in one of the known verbs.
  * Anything else falls through to the muted variant, which is the right
  * default for opaque or operational events (e.g. `auth.login.success`).

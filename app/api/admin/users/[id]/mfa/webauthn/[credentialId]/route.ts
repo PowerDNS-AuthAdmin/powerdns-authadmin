@@ -1,11 +1,11 @@
 /**
  * app/api/admin/users/[id]/mfa/webauthn/[credentialId]/route.ts
  *
- * DELETE — admin removes ONE WebAuthn credential from a target user's
+ * DELETE - admin removes ONE WebAuthn credential from a target user's
  * account. Use case: user lost a physical security key and can't reach
  * the self-service profile page (e.g. it was their only factor).
  *
- * Gate: `user.update`. TARGET-privilege ceiling enforced — same as the
+ * Gate: `user.update`. TARGET-privilege ceiling enforced - same as the
  * TOTP admin reset (lib/rbac/target-ceiling) so a low-privilege
  * `user.update` holder can't strip a credential from an account that
  * holds permissions they don't.

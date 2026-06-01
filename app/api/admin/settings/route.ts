@@ -1,8 +1,8 @@
 /**
  * app/api/admin/settings/route.ts
  *
- * GET   — read all known runtime-mutable app settings (settings.read).
- * PATCH — update one or more settings; passing `null` deletes the row
+ * GET   - read all known runtime-mutable app settings (settings.read).
+ * PATCH - update one or more settings; passing `null` deletes the row
  *         (settings.write).
  *
  * Each known key has its own Zod validator in `lib/validators/settings.ts`.
@@ -72,7 +72,7 @@ export async function PATCH(request: Request): Promise<Response> {
     const auditRequest = getRequestContext(hdrs);
 
     // Every setting write in this request commits together with its single
-    // audit row — a crash mid-loop can't leave some keys persisted and the
+    // audit row - a crash mid-loop can't leave some keys persisted and the
     // audit (or the rest of the keys) missing.
     const changed = await db.transaction(async (tx) => {
       const acc: Record<string, unknown> = {};
@@ -115,7 +115,7 @@ export async function PATCH(request: Request): Promise<Response> {
 /**
  * Compress unwieldy values before they hit the audit log. A 1.5 MB data
  * URI doesn't help an auditor understand "the operator changed the brand
- * logo" — a short summary does, and keeps `audit_log.after` from
+ * logo" - a short summary does, and keeps `audit_log.after` from
  * ballooning into a multi-megabyte row.
  */
 function redactForAudit(values: Record<string, unknown>): Record<string, unknown> {

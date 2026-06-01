@@ -1,7 +1,7 @@
 # Reusable PowerDNS-compatibility run: boots the full end-to-end stack against
 # ONE official PowerDNS Authoritative image and runs the integration suite.
 # Invoked by the per-version caller workflows (pdns-compat-<ver>.yml) so each
-# version gets its own native workflow-status badge (badge.svg) — no committed
+# version gets its own native workflow-status badge (badge.svg) - no committed
 # JSON, no badge commit-back. See the callers for the trigger schedule.
 
 name: PDNS compat (reusable)

@@ -3,7 +3,7 @@
 /**
  * components/ui/checkbox.tsx
  *
- * Themed checkbox — the project's replacement for the default browser checkbox.
+ * Themed checkbox - the project's replacement for the default browser checkbox.
  * A `role="checkbox"` button that fills with the accent colour + a checkmark when
  * checked, so it matches the app's design language (dark-mode aware) instead of
  * the OS control. Keyboard-operable (Space/Enter via the native button).

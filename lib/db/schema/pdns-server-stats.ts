@@ -44,7 +44,7 @@ export const pdnsServerStats = pgTable(
      */
     value: bigint("value", { mode: "number" }),
     /**
-     * Map/ring metrics — array-of-objects with `name` / `value` pairs.
+     * Map/ring metrics - array-of-objects with `name` / `value` pairs.
      * Used by `response-by-qtype`, `response-by-rcode`, `response-sizes`,
      * and the various `RingStatisticItem` rolling tops.
      */

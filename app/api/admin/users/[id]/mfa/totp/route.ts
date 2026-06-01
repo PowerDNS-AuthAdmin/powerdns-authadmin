@@ -1,7 +1,7 @@
 /**
  * app/api/admin/users/[id]/mfa/totp/route.ts
  *
- * DELETE — admin removes a target user's TOTP enrollment. Use case:
+ * DELETE - admin removes a target user's TOTP enrollment. Use case:
  * the user lost their authenticator device and can't sign in. Before
  * this endpoint existed the operator had to `UPDATE users SET
  * totp_secret_encrypted = NULL` directly; that's both bad UX and
@@ -10,7 +10,7 @@
  * Gate: `user.update`. If the target's role(s) require MFA the user
  * will land on the forced-enrollment flow on their next request
  * (`(app)/layout.tsx` runs `checkMfaCompliance`), so removing the
- * enrollment doesn't leave them in a non-compliant state forever — it
+ * enrollment doesn't leave them in a non-compliant state forever - it
  * just shunts them back to /profile to re-enroll.
  *
  * Self-target intentionally permitted: if an admin is fighting their
@@ -50,7 +50,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     // TARGET-privilege ceiling: stripping a user's TOTP weakens their account
     // security, so a `user.update` holder must not be able to do it to an
     // account holding global permissions the actor lacks. Self-target passes
-    // (identical sets) — the lost-device self-service case stays open. Cast: the
+    // (identical sets) - the lost-device self-service case stays open. Cast: the
     // DB column is structurally string[]; values are validated at write time.
     const actorGlobal = globalPermissionsOf(
       (await loadUserAssignmentsForAbility(actor.id)) as readonly AbilitySource[],

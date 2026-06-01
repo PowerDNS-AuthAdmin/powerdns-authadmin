@@ -2,7 +2,7 @@
  * lib/auth/providers/group-sync.ts
  *
  * Compute the IdP-group → permission set for a sign-in. Used by every
- * provider type (OIDC, SAML, LDAP) — the input differs (which claim
+ * provider type (OIDC, SAML, LDAP) - the input differs (which claim
  * carries the groups) but the resolution is identical. Protocol-
  * agnostic by design.
  *
@@ -15,7 +15,7 @@
  *     effective permission set alongside admin-issued `role_assignments`.
  *
  * No DB writes happen here. Provider-derived permissions don't persist on
- * the user — they live and die with the session, and tokens re-check at
+ * the user - they live and die with the session, and tokens re-check at
  * use time via `getCurrentUser`'s token path.
  *
  * Unresolvable mappings (missing role slug, missing team / server)
@@ -35,7 +35,7 @@ export { diffGroupSync } from "./group-sync-pure";
 
 /**
  * One entry in `computeGroupSync`'s output. Matches the `AbilitySource`
- * shape (`lib/rbac/ability.ts`) — the permissions list is the role's
+ * shape (`lib/rbac/ability.ts`) - the permissions list is the role's
  * permissions inlined at compute time. We inline at sign-in so the
  * session snapshot is self-contained: an admin renaming a role doesn't
  * silently change what an active session is allowed to do, and the
@@ -71,7 +71,7 @@ interface ComputeGroupSyncInput {
  * inline the role's permissions per matched mapping.
  *
  * Returns `{ derived: [], unresolved: [] }` when the provider has no
- * mappings configured — the groups claim is irrelevant in that case
+ * mappings configured - the groups claim is irrelevant in that case
  * (admin issues every assignment).
  */
 export async function computeGroupSync(input: ComputeGroupSyncInput): Promise<GroupSyncResult> {

@@ -69,7 +69,7 @@ describe("TokenBucketLimiter refill over time", () => {
 
     // Idle for far longer than it takes to refill the whole bucket.
     vi.advanceTimersByTime(60_000);
-    // Only `capacity` tokens are available — not 60.
+    // Only `capacity` tokens are available - not 60.
     expect(lim.take("k").allowed).toBe(true);
     expect(lim.take("k").allowed).toBe(true);
     expect(lim.take("k").allowed).toBe(false);

@@ -7,11 +7,11 @@
  *   1. User enters the new email + current password. We POST to
  *      /api/profile/email/change which mints a `pde_` token and
  *      records the confirm URL in the audit log (until SMTP lands).
- *   2. We surface a "Check your email — or ask your admin for the
+ *   2. We surface a "Check your email - or ask your admin for the
  *      link from the audit log" message. The user opens the link
  *      and lands on /change-email?token=... to confirm.
  *
- * Hidden when the account is SSO-only (no local password) — those
+ * Hidden when the account is SSO-only (no local password) - those
  * users must change their email via the IdP.
  */
 

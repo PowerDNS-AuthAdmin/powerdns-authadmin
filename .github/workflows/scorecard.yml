@@ -1,5 +1,5 @@
 # =============================================================================
-# OpenSSF Scorecard — supply-chain security posture audit.
+# OpenSSF Scorecard - supply-chain security posture audit.
 #
 # Scores the repo against the OpenSSF checks (branch protection, pinned
 # dependencies, token permissions, dangerous workflow patterns, signed
@@ -8,7 +8,7 @@
 # `publish_results: true` the score also feeds the public Scorecard badge.
 #
 # Runs weekly and whenever a branch-protection rule changes (the event
-# Scorecard recommends). No secrets — uses GITHUB_TOKEN + OIDC.
+# Scorecard recommends). No secrets - uses GITHUB_TOKEN + OIDC.
 # =============================================================================
 
 name: Scorecard supply-chain
@@ -48,7 +48,7 @@ jobs:
           results_format: sarif
           publish_results: true
           # A read-only PAT (Administration:read + Contents:read) lets Scorecard
-          # read branch-protection settings, which the default GITHUB_TOKEN can't —
+          # read branch-protection settings, which the default GITHUB_TOKEN can't -
           # without it the Branch-Protection check is inconclusive. Falls back to
           # the default token until the SCORECARD_TOKEN secret is set, so the run
           # never breaks.

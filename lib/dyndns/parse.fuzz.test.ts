@@ -1,7 +1,7 @@
 /**
  * lib/dyndns/parse.fuzz.test.ts
  *
- * Property-based (fuzz) tests for the DynDNS request parsers — the code path
+ * Property-based (fuzz) tests for the DynDNS request parsers - the code path
  * that turns an untrusted HTTP request (query string + Basic-auth header)
  * into a structured update. Adversarial input here comes straight off the
  * wire, so "never throw, always return a well-formed result" matters.
@@ -13,7 +13,7 @@ import { parseDynDnsRequest, parseBasicAuth, findLongestZoneMatch } from "./pars
 
 const RUNS = { numRuns: 1000 };
 
-describe("dyndns parsers — fuzz", () => {
+describe("dyndns parsers - fuzz", () => {
   it("parseBasicAuth never throws; returns null or {user, pass}", () => {
     fc.assert(
       fc.property(fc.option(fc.string({ unit: "binary" }), { nil: null }), (header) => {

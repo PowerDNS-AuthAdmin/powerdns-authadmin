@@ -1,8 +1,8 @@
 /**
  * app/api/admin/pdns/clusters/route.ts
  *
- * GET  — list every cluster (server.read).
- * POST — create a cluster (server.create). Slug collisions return 409.
+ * GET  - list every cluster (server.read).
+ * POST - create a cluster (server.create). Slug collisions return 409.
  */
 
 import { headers } from "next/headers";
@@ -56,7 +56,7 @@ export async function POST(request: Request): Promise<Response> {
 
     // Resolve any initial members up front so we can reject bad picks with a
     // clean field error instead of a half-created group. Each must exist and be
-    // ungrouped — assigning a server already in a group would silently move it.
+    // ungrouped - assigning a server already in a group would silently move it.
     const memberIds = [...new Set(input.memberServerIds ?? [])];
     const members = await Promise.all(memberIds.map((id) => findPdnsServerById(id)));
     const missing = memberIds.filter((_, i) => members[i] === null);
@@ -126,7 +126,7 @@ export async function POST(request: Request): Promise<Response> {
       return created;
     });
 
-    // New group memberships shift the derived replication topology — re-derive
+    // New group memberships shift the derived replication topology - re-derive
     // for the post-create render and schedule a poll for any other open views.
     if (resolvedMembers.length > 0) {
       invalidateBackendObservation();

@@ -1,9 +1,9 @@
 /**
  * lib/validators/rr-types/openpgpkey.ts
  *
- * OPENPGPKEY content — RFC 7929: a single base64-encoded OpenPGP
+ * OPENPGPKEY content - RFC 7929: a single base64-encoded OpenPGP
  * transferable public key (the "key packet"). No delimiters, no
- * sub-fields — the entire RDATA is one base64 blob.
+ * sub-fields - the entire RDATA is one base64 blob.
  *
  * Owner-name semantics live at the RRset level (per RFC 7929 § 3,
  * the local-part of an email is SHA-256-hashed + truncated to 56
@@ -63,7 +63,7 @@ export const openpgpkeyValidator: RRTypeValidator = {
     } else if (compact.length % 4 !== 0) {
       // RFC 4648 § 4: base64 output length is always a multiple of 4
       // (padded with `=`). A non-multiple-of-4 length means missing
-      // or stripped padding — likely a copy-paste truncation.
+      // or stripped padding - likely a copy-paste truncation.
       issues.push({
         level: "error",
         message: `Base64 length (${compact.length}) is not a multiple of 4. Padding '=' is likely missing or the value was truncated.`,

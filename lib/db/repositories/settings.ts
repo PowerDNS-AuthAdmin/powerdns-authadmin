@@ -4,7 +4,7 @@
  * Read + upsert for the runtime-mutable app settings store. Values are stored
  * as `jsonb`; callers narrow with `lib/validators/settings.ts` before use.
  *
- * No team-scope yet — see `lib/db/schema/settings.ts` for the Phase-2 ALTER
+ * No team-scope yet - see `lib/db/schema/settings.ts` for the Phase-2 ALTER
  * path.
  */
 

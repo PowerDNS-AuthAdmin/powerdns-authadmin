@@ -41,7 +41,7 @@ export async function startSession(input: {
   ip: string | null;
   userAgent: string | null;
   /**
-   * OIDC RP-initiated-logout payload — captured by the callback
+   * OIDC RP-initiated-logout payload - captured by the callback
    * handler when the IdP advertised `end_session_endpoint` at
    * discovery. Logout reads these to build the post-logout redirect.
    * Optional / null for local sessions.
@@ -54,7 +54,7 @@ export async function startSession(input: {
      * Encrypted refresh token (caller encrypts via
      * `lib/crypto/encryption.ts`; the column stores ciphertext). Used
      * by the token-auth path to re-fetch groups at API token use time
-     * — the basis for the "tokens follow real permissions" model.
+     * - the basis for the "tokens follow real permissions" model.
      * Null when the IdP didn't issue a refresh token.
      */
     refreshTokenEncrypted?: string | null;
@@ -62,7 +62,7 @@ export async function startSession(input: {
   /**
    * Permissions derived from the user's IdP groups at sign-in. The
    * compute path lives in `lib/auth/providers/group-sync.ts`
-   * (`computeGroupSync`) — pure, returns this array. Empty for local
+   * (`computeGroupSync`) - pure, returns this array. Empty for local
    * sessions and IdP sessions with no configured group mappings.
    * Persisted into `sessions.derived_permissions`; the ability builder
    * folds them into the user's effective permission set per request.
@@ -87,7 +87,7 @@ export async function startSession(input: {
   // session cookie (e.g. an anonymous-but-tracked state, or a user
   // re-authenticating into a different account from the same browser), kill
   // the existing session row before minting a new one. The cookie is then
-  // unconditionally overwritten below — no stale id can survive a login.
+  // unconditionally overwritten below - no stale id can survive a login.
   const cookieStore = await cookies();
   const existingCookie = cookieStore.get(SESSION_COOKIE)?.value;
   if (existingCookie) {
@@ -95,7 +95,7 @@ export async function startSession(input: {
       const existingId = decrypt(existingCookie, "session-cookie");
       await revokeSession(existingId);
     } catch {
-      // Bad / unknown-version cookie — nothing to revoke; the overwrite
+      // Bad / unknown-version cookie - nothing to revoke; the overwrite
       // below replaces it regardless.
     }
   }
@@ -129,7 +129,7 @@ export async function startSession(input: {
     expires: expiresAt,
   });
 
-  // CSRF half — non-encrypted, readable by JS so the SPA layer can copy it
+  // CSRF half - non-encrypted, readable by JS so the SPA layer can copy it
   // into a header on state-changing requests. The pairing happens in
   // `lib/auth/csrf.ts`.
   cookieStore.set(CSRF_COOKIE, csrfSecret, {
@@ -172,7 +172,7 @@ export async function readSession(): Promise<Session | null> {
 }
 
 /**
- * Revoke the current session row and clear cookies. Idempotent — safe to
+ * Revoke the current session row and clear cookies. Idempotent - safe to
  * call even when no session exists.
  */
 export async function endSession(): Promise<void> {
@@ -183,7 +183,7 @@ export async function endSession(): Promise<void> {
       const id = decrypt(cookieValue, "session-cookie");
       await revokeSession(id);
     } catch {
-      // Bad cookie — still clear it client-side below.
+      // Bad cookie - still clear it client-side below.
     }
   }
   cookieStore.delete(SESSION_COOKIE);

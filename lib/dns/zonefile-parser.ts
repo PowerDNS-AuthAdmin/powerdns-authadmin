@@ -1,7 +1,7 @@
 /**
  * lib/dns/zonefile-parser.ts
  *
- * RFC 1035-style BIND zonefile parser. Pure — given a string of one or
+ * RFC 1035-style BIND zonefile parser. Pure - given a string of one or
  * more zonefiles, returns a list of zones with their rrsets.
  *
  * Multi-zone parse: a single input may contain several zones separated by
@@ -16,7 +16,7 @@
  *     fully-qualified name with trailing dot (= as-is).
  *   - Class: optional `IN` (anything else rejected).
  *   - TTL: optional integer (falls back to `$TTL` then a 3600 default).
- *   - Type: any non-pseudo type — A, AAAA, NS, MX, CNAME, SOA, TXT,
+ *   - Type: any non-pseudo type - A, AAAA, NS, MX, CNAME, SOA, TXT,
  *     SRV, PTR, CAA, NAPTR, SPF, etc. Pseudo-types (RRSIG, NSEC, …)
  *     are skipped silently since DNSSEC records are managed by PDNS
  *     itself, not operator-imported.
@@ -60,7 +60,7 @@ export interface ParseResult {
 const DEFAULT_TTL = 3600;
 
 /**
- * Skipped record types — PDNS manages DNSSEC and related signing material
+ * Skipped record types - PDNS manages DNSSEC and related signing material
  * via its own `cryptokeys` API; importing them through a zonefile would
  * collide with that. We log a `skipped` warning but don't fail the parse.
  */
@@ -121,7 +121,7 @@ export function parseZonefile(input: string): ParseResult {
   }
 
   for (const { line, text } of logicalLines) {
-    // Directives — $-prefixed.
+    // Directives - $-prefixed.
     if (text.startsWith("$")) {
       const m = /^\$(\w+)\s+(.*)$/.exec(text);
       if (!m) {
@@ -164,7 +164,7 @@ export function parseZonefile(input: string): ParseResult {
       diagnostics.push({
         line,
         level: "error",
-        message: "Record before any $ORIGIN — add `$ORIGIN <zone>.` at the top of the file.",
+        message: "Record before any $ORIGIN - add `$ORIGIN <zone>.` at the top of the file.",
       });
       continue;
     }
@@ -197,7 +197,7 @@ export function parseZonefile(input: string): ParseResult {
       diagnostics.push({
         line,
         level: "warning",
-        message: `Skipping ${type} record — DNSSEC material is managed by PowerDNS, not imported.`,
+        message: `Skipping ${type} record - DNSSEC material is managed by PowerDNS, not imported.`,
       });
       continue;
     }
@@ -258,7 +258,7 @@ function pushRRSet(
   content: string,
 ): void {
   // Identical (name, type) entries collapse into one rrset with multiple
-  // records — PDNS' API expects rrsets at that granularity.
+  // records - PDNS' API expects rrsets at that granularity.
   const existing = zone.rrsets.find((rr) => rr.name === name && rr.type === type);
   if (existing) {
     existing.records.push({ content });

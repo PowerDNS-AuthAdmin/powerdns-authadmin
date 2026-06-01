@@ -2,7 +2,7 @@
  * lib/validators/settings.ts
  *
  * Schema for the runtime-mutable app settings. The settings table is `jsonb`
- * per-key, so each known key has its own typed shape — listed in
+ * per-key, so each known key has its own typed shape - listed in
  * `KNOWN_SETTING_KEYS` below.
  *
  * Adding a setting:
@@ -12,7 +12,7 @@
  *   4. Surface the form field in the admin Settings page.
  *
  * Unknown keys are rejected at the route boundary, so adding storage isn't
- * enough — you have to wire the schema here too.
+ * enough - you have to wire the schema here too.
  */
 
 import "server-only";
@@ -32,7 +32,7 @@ export const KNOWN_SETTING_KEYS = [
   "login_lockout_seconds",
   // Self-service password reset (the "Forgot password?" flow). Off hides the
   // login-page link and makes the forgot-password endpoint a no-op. Local
-  // accounts only — SSO users reset through their IdP.
+  // accounts only - SSO users reset through their IdP.
   "allow_password_reset",
   // Default sign-in method. When set to anything other than "local", `/login`
   // auto-redirects to the matching provider's initiate URL on a fresh visit
@@ -50,19 +50,19 @@ export type KnownSettingKey = (typeof KNOWN_SETTING_KEYS)[number];
  * `brand_logo_url` accepts either an absolute `https://` URL or an inline
  * `data:image/...` URI (so the upload widget in the settings form can stash
  * the image directly in the row without us needing object storage yet).
- * The size cap below covers a ~1.5 MB raw image — generous for a logo,
+ * The size cap below covers a ~1.5 MB raw image - generous for a logo,
  * small enough to keep the row from bloating the audit `before`/`after`
  * snapshots when settings change.
  *
  * Allowed data: MIME types are png/jpeg/gif/webp and svg+xml. The logo is only
- * ever rendered via `<img src>` (secure static mode — the browser disables
+ * ever rendered via `<img src>` (secure static mode - the browser disables
  * scripts/handlers/external loads for inline AND hosted SVG alike), so an inline
  * SVG is no more dangerous than a hosted one. As defense-in-depth for any future
  * inline-render path, inline SVGs are sanitized server-side before storage (see
  * `sanitizeBrandLogoValue` in `lib/security/svg.ts`, called from the settings
- * route) — `<script>`, `<foreignObject>`, `on*` handlers, and javascript:/
+ * route) - `<script>`, `<foreignObject>`, `on*` handlers, and javascript:/
  * external refs are stripped. (This module is also imported client-side, so the
- * sanitizer — which uses Node `Buffer` — lives in the route, not here.)
+ * sanitizer - which uses Node `Buffer` - lives in the route, not here.)
  */
 const MAX_BRAND_LOGO_LENGTH = 2 * 1024 * 1024;
 
@@ -116,7 +116,7 @@ export const SETTING_VALUE_SCHEMAS = {
 } satisfies Record<KnownSettingKey, z.ZodTypeAny>;
 
 /**
- * Full shape returned by `GET /api/admin/settings`. Every key is optional —
+ * Full shape returned by `GET /api/admin/settings`. Every key is optional -
  * absent means "use the default at render time".
  */
 export const settingsResponseSchema = z.object({

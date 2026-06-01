@@ -55,7 +55,7 @@ export function NameEdit({ initialName }: { initialName: string | null }) {
   if (!editing) {
     return (
       <span className="flex items-center gap-2">
-        <span className="truncate">{initialName ?? "—"}</span>
+        <span className="truncate">{initialName ?? "-"}</span>
         <button
           type="button"
           onClick={() => setEditing(true)}

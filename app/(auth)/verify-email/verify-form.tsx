@@ -45,7 +45,7 @@ export function VerifyEmailForm({ token }: { token: string }) {
     setTimeout(() => router.push("/login"), 1200);
   }
 
-  // The link click IS the confirmation — verify automatically on mount, with
+  // The link click IS the confirmation - verify automatically on mount, with
   // no second button to press. The ref guards against React's double-invoke.
   useEffect(() => {
     if (started.current) return;
@@ -76,7 +76,7 @@ export function VerifyEmailForm({ token }: { token: string }) {
       className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-3 text-sm"
       role="status"
     >
-      {status === "done" ? "Email verified — redirecting to sign in…" : "Verifying your email…"}
+      {status === "done" ? "Email verified - redirecting to sign in…" : "Verifying your email…"}
     </p>
   );
 }

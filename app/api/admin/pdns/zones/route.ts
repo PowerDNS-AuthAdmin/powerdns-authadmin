@@ -1,7 +1,7 @@
 /**
  * app/api/admin/pdns/zones/route.ts
  *
- * POST — create a zone on a PDNS backend, optionally seeded from a zone
+ * POST - create a zone on a PDNS backend, optionally seeded from a zone
  *        template. Permission: `zone.create`. CSRF-guarded + audited.
  *
  * The route is the single place that:
@@ -11,7 +11,7 @@
  *   3. Lets the operator override NS / masters at creation time.
  *   4. Calls `pdnsClient.createZone()` with the resolved payload.
  *
- * The new zone's records (including SOA) are owned by PDNS once created —
+ * The new zone's records (including SOA) are owned by PDNS once created -
  * the SOA panel and record editor take over from there.
  */
 
@@ -54,9 +54,9 @@ const ipLite = z
   .regex(/^[0-9a-fA-F:.]+$/, "Master must be an IPv4 or IPv6 address.");
 
 const createZoneSchema = z.object({
-  /** Concrete server slug — for standalone primaries OR primary+secondaries. */
+  /** Concrete server slug - for standalone primaries OR primary+secondaries. */
   serverSlug: z.string().optional(),
-  /** Cluster slug — the write_strategy picks the peer at apply time. */
+  /** Cluster slug - the write_strategy picks the peer at apply time. */
   clusterSlug: z.string().optional(),
   /** Zone name, with or without trailing dot. */
   name: z
@@ -71,7 +71,7 @@ const createZoneSchema = z.object({
   /** Operator-supplied NS list. If empty AND a template is selected, the
    *  template's `nameservers` field is used. */
   nameservers: z.array(hostnameLite).max(13).default([]),
-  /** Primary master IPs — required for Slave/Secondary, ignored otherwise. */
+  /** Primary master IPs - required for Slave/Secondary, ignored otherwise. */
   masters: z.array(ipLite).max(10).default([]),
   templateId: z.string().uuid().optional(),
   /** Email for the SOA responsible mailbox; defaults to hostmaster@<zone>. */
@@ -103,10 +103,10 @@ export async function POST(request: Request): Promise<Response> {
     // ── Backend resolution ─────────────────────────────────────────────────
     // Cluster targets resolve to a peer via the cluster's write_strategy;
     // server targets resolve directly. Exactly one of serverSlug /
-    // clusterSlug should be set — the form sends a discriminated value.
+    // clusterSlug should be set - the form sends a discriminated value.
     if (input.serverSlug && input.clusterSlug) {
       throw new ValidationError(
-        "Provide either serverSlug or clusterSlug, not both — they're mutually exclusive.",
+        "Provide either serverSlug or clusterSlug, not both - they're mutually exclusive.",
       );
     }
     let server;
@@ -117,7 +117,7 @@ export async function POST(request: Request): Promise<Response> {
       }
       const peers = await listActivePeersForCluster(cluster.id);
       if (peers.length === 0) {
-        throw new ValidationError("Cluster has no active peers — add or re-enable a peer first.");
+        throw new ValidationError("Cluster has no active peers - add or re-enable a peer first.");
       }
       const chosen = await choosePeer(cluster, peers);
       if (!chosen) {
@@ -146,7 +146,7 @@ export async function POST(request: Request): Promise<Response> {
     }
     if (!isSecondary && input.masters.length > 0) {
       throw new ValidationError(
-        "Master / Primary / Native zones can't have a `masters` list — that field is only meaningful for Secondary.",
+        "Master / Primary / Native zones can't have a `masters` list - that field is only meaningful for Secondary.",
       );
     }
 
@@ -171,7 +171,7 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
     if (!isSecondary && normalizedNs.length < 2) {
-      // RFC 2182 § 5 recommends ≥ 2. We treat one-NS as a soft warning —
+      // RFC 2182 § 5 recommends ≥ 2. We treat one-NS as a soft warning -
       // surface it in the audit log but don't block.
       logger.warn({ zone: zoneName, nsCount: normalizedNs.length }, "zone.create.single-ns");
     }
@@ -206,7 +206,7 @@ export async function POST(request: Request): Promise<Response> {
       }
     };
 
-    // SOA — only meaningful for non-Secondary zones (Secondary fetches it from
+    // SOA - only meaningful for non-Secondary zones (Secondary fetches it from
     // primary). PDNS will synthesize a SOA if we don't supply one for
     // Master/Native, but pre-seeding lets us honor the template's timers.
     if (!isSecondary && normalizedNs.length > 0) {
@@ -287,7 +287,7 @@ export async function POST(request: Request): Promise<Response> {
         try {
           await client.updateZoneSettings(zoneName, settings);
         } catch (err) {
-          // Settings failure mustn't roll back the zone — the zone is
+          // Settings failure mustn't roll back the zone - the zone is
           // already created; the operator can fix settings later.
           logger.warn(
             {
@@ -301,7 +301,7 @@ export async function POST(request: Request): Promise<Response> {
       }
       // Apply template metadata bag via per-kind PUTs. We swallow
       // individual failures so a single unsupported kind doesn't break
-      // the rest — PDNS' metadata allowlist varies across versions.
+      // the rest - PDNS' metadata allowlist varies across versions.
       for (const [kind, values] of Object.entries(template.metadata)) {
         try {
           await client.setZoneMetadata(zoneName, kind, values);
@@ -337,7 +337,7 @@ export async function POST(request: Request): Promise<Response> {
 
     // Auto-NOTIFY freshly-created Master/Primary zones so secondaries
     // pick up the new zone immediately instead of waiting for refresh.
-    // Same best-effort pattern as the rrsets PATCH route — failures are
+    // Same best-effort pattern as the rrsets PATCH route - failures are
     // logged + audited but never fail the user's create.
     if (input.kind === "Master" || input.kind === "Primary") {
       let notified = false;
@@ -361,7 +361,7 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
 
-    // Realtime fan-out — both the zone-detail and zones-list pages
+    // Realtime fan-out - both the zone-detail and zones-list pages
     // subscribe and refresh on this.
     publishZoneEvent({
       type: "zone.updated",

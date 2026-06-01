@@ -2,11 +2,11 @@
  * lib/pdns/config-advice.ts
  *
  * Renders a small read-only "Daemon settings" view from a PowerDNS daemon's
- * `/config`. (Capability-vs-config advisories now live in the health bell —
- * `lib/health/evaluator.ts`, ADR-0015 — keyed off observed capabilities, not
+ * `/config`. (Capability-vs-config advisories now live in the health bell -
+ * `lib/health/evaluator.ts`, ADR-0015 - keyed off observed capabilities, not
  * the retired `role`.)
  *
- * SECURITY: display is ALLOWLIST-only — we surface a curated set of
+ * SECURITY: display is ALLOWLIST-only - we surface a curated set of
  * replication/operational settings and never the full config, so the
  * secret-shaped values `/config` exposes (api-key, gmysql-password, …) are
  * never rendered. A name-pattern denylist is a second line of defence.
@@ -15,7 +15,7 @@
 import type { PdnsConfigSetting } from "./types";
 
 /** Settings useful to show, in display order. Secret-shaped ones (api-key) are
- *  rendered as `<redacted>`, never as plaintext — see `safeConfigSettings`. */
+ *  rendered as `<redacted>`, never as plaintext - see `safeConfigSettings`. */
 const DISPLAY_SETTINGS: readonly string[] = [
   "launch",
   "primary",
@@ -41,10 +41,10 @@ const DISPLAY_SETTINGS: readonly string[] = [
   "gpgsql-dnssec",
 ];
 
-/** Settings whose name smells secret — shown as `<redacted>`, never plaintext. */
+/** Settings whose name smells secret - shown as `<redacted>`, never plaintext. */
 const SECRET_NAME = /key|password|secret|passwd|credential/i;
 
-/** Display token for a redacted secret value — matches the request log. */
+/** Display token for a redacted secret value - matches the request log. */
 const REDACTED = "<redacted>";
 
 export interface SafeConfigRow {
@@ -60,7 +60,7 @@ function toMap(config: readonly PdnsConfigSetting[]): Map<string, string> {
 
 /**
  * Display-safe subset of the daemon config (the allowlist). Secret-shaped values
- * (api-key, *-password) are shown as `<redacted>` — present so the operator sees
+ * (api-key, *-password) are shown as `<redacted>` - present so the operator sees
  * the setting exists, but never the plaintext.
  */
 export function safeConfigSettings(config: readonly PdnsConfigSetting[]): SafeConfigRow[] {

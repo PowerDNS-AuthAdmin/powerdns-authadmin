@@ -1,19 +1,19 @@
 /**
  * lib/app-meta.ts
  *
- * App identity surfaced in the UI — running version + canonical links.
+ * App identity surfaced in the UI - running version + canonical links.
  * package.json is the single source of truth for the semver, so cutting a
  * release only has to bump one file.
  *
  * Three build kinds, distinguished by the build env the image carries:
  *
- *   • release — image built from a `vX.Y.Z` tag (CI sets APP_RELEASE=true).
+ *   • release - image built from a `vX.Y.Z` tag (CI sets APP_RELEASE=true).
  *     Chip shows "1.1.0"; links point at the GitHub release + the tag's docs.
- *   • commit  — non-release image past the last tag (every push to `main`).
+ *   • commit  - non-release image past the last tag (every push to `main`).
  *     CI injects the commit SHA (Dockerfile `runner` stage + the docker job),
  *     so the chip shows "1.1.0+abc1234" and links resolve to that exact commit
- *     — never claiming to be a release it isn't.
- *   • dev     — no VCS info at all: `npm run dev`, `npm run build && start`, or
+ *     - never claiming to be a release it isn't.
+ *   • dev     - no VCS info at all: `npm run dev`, `npm run build && start`, or
  *     a plain `docker build` with no build-args. The running code isn't on the
  *     remote at any known ref, so we mark the chip "1.1.0-dev" and link to
  *     `main` rather than masquerade as a release or invent a 404-ing commit URL.
@@ -67,7 +67,7 @@ export const APP_SOURCE_URL: string =
       : `${pkg.homepage}/tree/main`;
 
 /**
- * Documentation for THIS build — the matching tag's docs for a release, the
+ * Documentation for THIS build - the matching tag's docs for a release, the
  * running commit's docs tree for a commit build, or `main`'s docs for a dev
  * build, so the link always resolves to docs that actually exist for the
  * running code. (For a release the tag must exist on the remote; it's created
@@ -80,10 +80,10 @@ export const APP_DOCS_URL: string =
       ? `${pkg.homepage}/tree/${shortSha}/docs`
       : `${pkg.homepage}/tree/main/docs`;
 
-/** `title` attribute for the version chip — phrased to match the link target. */
+/** `title` attribute for the version chip - phrased to match the link target. */
 export const APP_SOURCE_TITLE: string =
   buildKind === "release"
-    ? `PowerDNS-AuthAdmin v${APP_VERSION_LABEL} — view this release on GitHub`
+    ? `PowerDNS-AuthAdmin v${APP_VERSION_LABEL} - view this release on GitHub`
     : buildKind === "commit"
-      ? `PowerDNS-AuthAdmin v${APP_VERSION_LABEL} — view this commit on GitHub`
-      : `PowerDNS-AuthAdmin v${APP_VERSION_LABEL} — local build, view the main branch on GitHub`;
+      ? `PowerDNS-AuthAdmin v${APP_VERSION_LABEL} - view this commit on GitHub`
+      : `PowerDNS-AuthAdmin v${APP_VERSION_LABEL} - local build, view the main branch on GitHub`;

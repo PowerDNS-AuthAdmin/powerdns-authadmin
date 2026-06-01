@@ -5,16 +5,16 @@
  * references a hostname: CNAME, NS, PTR, MX (exchange), SRV (target).
  *
  * RFCs:
- *   - RFC 1035 § 2.3.1: label syntax — letter | digit | hyphen, no leading
+ *   - RFC 1035 § 2.3.1: label syntax - letter | digit | hyphen, no leading
  *     or trailing hyphen, 1–63 octets per label, 255 octets total.
  *   - RFC 1123 § 2.1: relaxes 1035 to allow digits as the first character of
  *     a label (so "10.example.com" is legal).
- *   - RFC 2181 § 11: DNS labels can technically be any binary octet — but
+ *   - RFC 2181 § 11: DNS labels can technically be any binary octet - but
  *     "preferred name syntax" remains 1035/1123 for compatibility. We warn,
  *     not error, on out-of-preferred-syntax labels so the operator can still
  *     override for non-host use cases (e.g. underscored SRV targets).
- *   - RFC 4592: wildcard labels (`*.`) — accepted at first label only.
- *   - RFC 5891: IDNA / punycode — we accept ASCII-only output (i.e.
+ *   - RFC 4592: wildcard labels (`*.`) - accepted at first label only.
+ *   - RFC 5891: IDNA / punycode - we accept ASCII-only output (i.e.
  *     `xn--…`). Unicode at the boundary should be encoded by the caller.
  */
 
@@ -71,7 +71,7 @@ export function validateHostname(raw: string, opts: HostnameOptions = {}): RRVal
     issues.push({
       level: opts.requireTrailingDot ? "warning" : "warning",
       message:
-        "Missing trailing dot — added at save time. Hostnames in zone content should be fully qualified (RFC 1035 § 5.1).",
+        "Missing trailing dot - added at save time. Hostnames in zone content should be fully qualified (RFC 1035 § 5.1).",
     });
   }
 
@@ -95,7 +95,7 @@ export function validateHostname(raw: string, opts: HostnameOptions = {}): RRVal
         issues.push({
           level: "warning",
           message:
-            "Wildcard label encountered — accepted by RFC 4592 but unusual for this record type.",
+            "Wildcard label encountered - accepted by RFC 4592 but unusual for this record type.",
         });
       } else if (idx !== 0) {
         issues.push({
@@ -110,7 +110,7 @@ export function validateHostname(raw: string, opts: HostnameOptions = {}): RRVal
     if (label.includes("_") && !opts.allowUnderscore) {
       issues.push({
         level: "warning",
-        message: `Label "${label}" uses underscore — only the "preferred name syntax" of RFC 1035 + 1123 is letters / digits / hyphens. Override if this is a service label (DKIM, DMARC, SRV target, etc.).`,
+        message: `Label "${label}" uses underscore - only the "preferred name syntax" of RFC 1035 + 1123 is letters / digits / hyphens. Override if this is a service label (DKIM, DMARC, SRV target, etc.).`,
       });
     }
     if (!PREFERRED_LABEL_RE.test(label)) {
@@ -119,7 +119,7 @@ export function validateHostname(raw: string, opts: HostnameOptions = {}): RRVal
         if (!label.includes("_")) {
           issues.push({
             level: "warning",
-            message: `Label "${label}" has leading or trailing hyphen — outside preferred syntax (RFC 1123 § 2.1).`,
+            message: `Label "${label}" has leading or trailing hyphen - outside preferred syntax (RFC 1123 § 2.1).`,
           });
         }
       } else {

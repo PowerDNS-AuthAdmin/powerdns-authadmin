@@ -26,7 +26,7 @@ import {
 } from "./saml";
 import { makeTestProvider } from "./saml.test-fixtures";
 
-describe("saml — buildAuthnRequest", () => {
+describe("saml - buildAuthnRequest", () => {
   it("returns a redirect URL + RequestID, request URL points at the IdP SSO endpoint", async () => {
     const provider = makeTestProvider();
     const { redirectUrl, requestId } = await buildAuthnRequest(
@@ -53,7 +53,7 @@ describe("saml — buildAuthnRequest", () => {
   });
 });
 
-describe("saml — buildSpMetadata", () => {
+describe("saml - buildSpMetadata", () => {
   it("emits well-formed XML with the SP entityID + ACS + signing cert", () => {
     const provider = makeTestProvider();
     const xml = buildSpMetadata(provider, "https://app.example.test");
@@ -80,7 +80,7 @@ describe("saml — buildSpMetadata", () => {
   });
 });
 
-describe("saml — verifyResponse", () => {
+describe("saml - verifyResponse", () => {
   it("rejects an obviously malformed Response", async () => {
     const provider = makeTestProvider();
     const callbackUrl = "https://app.example.test/api/auth/saml/test/acs";
@@ -92,14 +92,14 @@ describe("saml — verifyResponse", () => {
   it("rejects a Response that isn't base64-encoded SAML", async () => {
     const provider = makeTestProvider();
     const callbackUrl = "https://app.example.test/api/auth/saml/test/acs";
-    // Base64 of a non-SAML XML payload — the library parses the XML but
+    // Base64 of a non-SAML XML payload - the library parses the XML but
     // fails the spec-required signature verification.
     const garbage = Buffer.from('<?xml version="1.0"?><not-saml/>').toString("base64");
     await expect(verifyResponse(provider, garbage, "_req-123", callbackUrl)).rejects.toThrow();
   });
 });
 
-describe("saml — email-domain gate", () => {
+describe("saml - email-domain gate", () => {
   it("accepts emails inside the allow-list", () => {
     const r = emailDomainAllowed("alice@example.com", ["example.com"]);
     expect(r.ok).toBe(true);
@@ -128,7 +128,7 @@ describe("saml — email-domain gate", () => {
   });
 });
 
-describe("saml — describeSamlError", () => {
+describe("saml - describeSamlError", () => {
   it("extracts message + name from a real Error", () => {
     const detail = describeSamlError(new Error("InResponseTo mismatch"));
     expect(detail.message).toBe("InResponseTo mismatch");

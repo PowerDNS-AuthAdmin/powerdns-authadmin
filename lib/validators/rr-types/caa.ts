@@ -1,7 +1,7 @@
 /**
  * lib/validators/rr-types/caa.ts
  *
- * CAA content — RFC 8659: `<flags> <tag> <value>` where:
+ * CAA content - RFC 8659: `<flags> <tag> <value>` where:
  *   - flags  : 8-bit unsigned (only bit 7, the "Issuer Critical" flag, is
  *              defined as of RFC 8659 § 4.1).
  *   - tag    : 1–15 octets, [a-z0-9] only (case-insensitive matching but
@@ -26,7 +26,7 @@ const KNOWN_TAGS = new Set([
 export const caaValidator: RRTypeValidator = {
   type: "CAA",
   label: "Certification Authority Authorization",
-  description: 'flags tag "value" — e.g. `0 issue "letsencrypt.org"` (RFC 8659).',
+  description: 'flags tag "value" - e.g. `0 issue "letsencrypt.org"` (RFC 8659).',
   placeholder: '0 issue "letsencrypt.org"',
   rfc: "RFC 8659",
   validate(content: string) {
@@ -65,7 +65,7 @@ export const caaValidator: RRTypeValidator = {
         issues.push({
           level: "warning",
           message:
-            "Only bit 7 (`128` — Issuer Critical) is defined in RFC 8659; other flag bits are reserved.",
+            "Only bit 7 (`128` - Issuer Critical) is defined in RFC 8659; other flag bits are reserved.",
         });
       }
     }
@@ -93,7 +93,7 @@ export const caaValidator: RRTypeValidator = {
 
     // Only pass the value through verbatim when it is already a balanced
     // quoted string (starts AND ends with '"', length ≥ 2). A leading-only
-    // quote (e.g. `"letsencrypt.org`) is unbalanced — re-quoting it prevents
+    // quote (e.g. `"letsencrypt.org`) is unbalanced - re-quoting it prevents
     // emitting malformed wire data.
     const isBalancedQuoted = value.startsWith('"') && value.endsWith('"') && value.length >= 2;
     // Escape `\` before `"` (RFC 1035 § 5.1 character-string rules): doing it

@@ -3,19 +3,19 @@
 /**
  * app/(app)/admin/tsig-keys/_components/tsig-key-wizard.tsx
  *
- * The "create / set up a TSIG key" wizard — a themed modal that replaces the old
+ * The "create / set up a TSIG key" wizard - a themed modal that replaces the old
  * always-on "add key" form + install panel. Steps:
  *
- *   1. Generate — name + algorithm (themed dropdown). PDNS mints the secret
+ *   1. Generate - name + algorithm (themed dropdown). PDNS mints the secret
  *      server-side; the plaintext never reaches the browser on this path.
- *   2. Install — pick a method via a themed dropdown:
+ *   2. Install - pick a method via a themed dropdown:
  *        • Automatic (API): server pushes the secret to each secondary. No
  *          secret shown. Per-secondary outcome chips.
  *        • Manual (pdnsutil): fetch a version-agnostic copy-paste script (the
  *          secret rides back as text/plain, re-fetched server-side) to run on
  *          each box.
  *   3. Secure zones (only when the backend is a primary with zones): select the
- *      zones this key should authenticate AXFR for. Additive — never clobbers
+ *      zones this key should authenticate AXFR for. Additive - never clobbers
  *      keys already on a zone.
  *
  * Re-used for an EXISTING key (skips step 1) so a key can be (re)installed after,
@@ -66,7 +66,7 @@ interface InstallResult {
 const OUTCOME_LABEL: Record<InstallResult["outcome"], string> = {
   created: "installed",
   unchanged: "already present",
-  conflict: "conflict — different secret exists",
+  conflict: "conflict - different secret exists",
   unsupported: "no TSIG API (use manual)",
   unreachable: "unreachable",
   error: "failed",
@@ -83,9 +83,9 @@ type Step = "generate" | "install" | "zones";
 interface Props {
   serverSlug: string;
   secondaries: InstallSecondary[];
-  /** The primary's authoritative zone names (Master/Primary) — for activation. */
+  /** The primary's authoritative zone names (Master/Primary) - for activation. */
   zones: string[];
-  /** Set to (re)install an existing key — the wizard skips the Generate step. */
+  /** Set to (re)install an existing key - the wizard skips the Generate step. */
   existing?: { keyId: string; keyName: string };
   onClose: () => void;
   /** Called after a key is created so the table refreshes behind the modal. */
@@ -107,19 +107,19 @@ export function TsigKeyWizard({
     existing ? { id: existing.keyId, name: existing.keyName } : null,
   );
 
-  // Step 1 — generate.
+  // Step 1 - generate.
   const [name, setName] = useState("");
   const [algorithm, setAlgorithm] = useState("hmac-sha256");
   const [creating, setCreating] = useState(false);
 
-  // Step 2 — install.
+  // Step 2 - install.
   const [method, setMethod] = useState<Method>("auto");
   const [installing, setInstalling] = useState(false);
   const [results, setResults] = useState<InstallResult[] | null>(null);
   const [script, setScript] = useState<string | null>(null);
   const [loadingScript, setLoadingScript] = useState(false);
 
-  // Step 3 — zones.
+  // Step 3 - zones.
   const [selectedZones, setSelectedZones] = useState<Set<string>>(new Set());
   const [activating, setActivating] = useState(false);
 
@@ -127,7 +127,7 @@ export function TsigKeyWizard({
   const path = (suffix: string) =>
     key ? `/api/admin/pdns/tsig-keys/${encodeURIComponent(key.id)}/${suffix}` : "";
 
-  // Close on Escape + lock body scroll while open — matches the dialog system.
+  // Close on Escape + lock body scroll while open - matches the dialog system.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -217,7 +217,7 @@ export function TsigKeyWizard({
         title: bad > 0 ? "Installed with issues" : "Installed on secondaries",
         description:
           bad > 0
-            ? `${data.results.length - bad} ok, ${bad} need attention — see below.`
+            ? `${data.results.length - bad} ok, ${bad} need attention - see below.`
             : `Replicated to ${data.results.length} secondary(ies).`,
       });
     } finally {
@@ -237,7 +237,7 @@ export function TsigKeyWizard({
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            // Additive — never drops other keys already securing the zone.
+            // Additive - never drops other keys already securing the zone.
             body: JSON.stringify({ serverSlug, keyName: key.name, mode: "add" }),
           },
         );
@@ -356,7 +356,7 @@ export function TsigKeyWizard({
                     <p className="text-xs text-[color:var(--color-fg-muted)]">
                       {secondaries.length > 0
                         ? `${managed} of ${secondaries.length} secondaries support API install. The same secret is pushed to each; conflicts are reported, never overwritten.`
-                        : "No app-managed secondaries — switch to manual and run the script on each box."}
+                        : "No app-managed secondaries - switch to manual and run the script on each box."}
                     </p>
                     {managed > 0 ? (
                       <button
@@ -374,7 +374,7 @@ export function TsigKeyWizard({
                           <li key={r.serverSlug} className="flex items-center gap-2">
                             <span className="font-mono">{r.serverName}</span>
                             <span className={outcomeClass(r.outcome)}>
-                              — {OUTCOME_LABEL[r.outcome]}
+                              - {OUTCOME_LABEL[r.outcome]}
                             </span>
                           </li>
                         ))}
@@ -385,7 +385,7 @@ export function TsigKeyWizard({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-[color:var(--color-fg-muted)]">
-                        Run on each secondary (contains the secret — handle carefully):
+                        Run on each secondary (contains the secret - handle carefully):
                       </span>
                       {script ? (
                         <button

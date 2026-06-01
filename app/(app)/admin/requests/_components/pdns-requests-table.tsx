@@ -6,11 +6,11 @@
  * Loads the most recent window of rows from the server (already
  * filtered server-side if there are URL params). All in-window
  * filtering, sorting, and pagination is then client-only via the
- * shared `<DataTable>` — same UX shape as the records table on the
+ * shared `<DataTable>` - same UX shape as the records table on the
  * zone detail page.
  *
  * Filter changes update URL params via `router.replace({scroll:false})`
- * so the page re-fetches data WITHOUT a full navigation — keeps the
+ * so the page re-fetches data WITHOUT a full navigation - keeps the
  * app-wide SSE connection (and its "Live" chip) intact instead of
  * flashing through offline / connecting / live on every Apply.
  *
@@ -50,11 +50,11 @@ export interface PdnsRequestRowClient {
 interface Props {
   /** Already filtered-and-windowed at the server, newest first. */
   rows: PdnsRequestRowClient[];
-  /** Available op values for the dropdown — top-N most recent. */
+  /** Available op values for the dropdown - top-N most recent. */
   opChoices: string[];
   /** Available server slugs for the dropdown. */
   slugChoices: string[];
-  /** True when the window was capped — operator should narrow filters. */
+  /** True when the window was capped - operator should narrow filters. */
   windowCapped: boolean;
   initial: {
     serverSlug: string;
@@ -69,7 +69,7 @@ interface Props {
 export function PdnsRequestsTable(props: Props) {
   const router = useRouter();
 
-  // Local form state — controlled inputs. Apply (or auto-debounce)
+  // Local form state - controlled inputs. Apply (or auto-debounce)
   // pushes them to the URL via router.replace, which re-runs the
   // server component WITHOUT a full navigation.
   const [serverSlug, setServerSlug] = useState(props.initial.serverSlug);
@@ -81,7 +81,7 @@ export function PdnsRequestsTable(props: Props) {
 
   // Sync inputs with the URL. Outside links (e.g. clicking a row's `req` cell,
   // or arriving from the audit log's req: link) update the URL but useState
-  // only takes the first value — without this the form inputs stay blank
+  // only takes the first value - without this the form inputs stay blank
   // even though the URL is filtered, making it look like nothing happened.
   const initKey = JSON.stringify(props.initial);
   useEffect(() => {
@@ -124,7 +124,7 @@ export function PdnsRequestsTable(props: Props) {
     router.replace("/admin/requests", { scroll: false });
   }
 
-  // Live updates — refresh server data when new PDNS-request rows
+  // Live updates - refresh server data when new PDNS-request rows
   // get written. Debounced to one refresh per 1.5 s so a burst of
   // requests doesn't refetch on every single one.
   const lastRefreshAt = useRef<number>(0);
@@ -200,7 +200,7 @@ export function PdnsRequestsTable(props: Props) {
             row.error !== null || (row.responseStatus !== null && row.responseStatus >= 400);
           return (
             <span className={`font-mono ${isFailure ? "text-[color:var(--color-error)]" : ""}`}>
-              {row.responseStatus ?? (row.error ? "ERR" : "—")}
+              {row.responseStatus ?? (row.error ? "ERR" : "-")}
             </span>
           );
         },
@@ -262,7 +262,7 @@ export function PdnsRequestsTable(props: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Filter form — controlled, never auto-submits. */}
+      {/* Filter form - controlled, never auto-submits. */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -339,7 +339,7 @@ export function PdnsRequestsTable(props: Props) {
           </button>
           {props.windowCapped ? (
             <span className="ml-auto text-[0.625rem] text-[color:var(--color-warn)]">
-              Showing the most recent {props.rows.length} rows — narrow with filters to see older
+              Showing the most recent {props.rows.length} rows - narrow with filters to see older
               entries.
             </span>
           ) : null}
@@ -373,7 +373,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function shortenUrl(u: string): string {
-  // Strip the scheme + host for readability — the operator is already
+  // Strip the scheme + host for readability - the operator is already
   // scoped to one (or a few) PDNS hosts and the path is the load-
   // bearing part.
   return u.replace(/^https?:\/\/[^/]+/, "");

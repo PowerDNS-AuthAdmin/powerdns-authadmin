@@ -8,7 +8,7 @@
  * trust boundary (parsing the upstream response), we validate; past that,
  * the inferred type is the contract.
  *
- * Schemas are intentionally loose — PDNS has added fields between versions,
+ * Schemas are intentionally loose - PDNS has added fields between versions,
  * and a stricter `.strict()` would reject newer-server responses without
  * cause. We pin exactly the fields the app reads.
  */
@@ -17,7 +17,7 @@ import "server-only";
 import { z } from "zod";
 
 // =============================================================================
-// Server info — GET /api/v1/servers/{id}
+// Server info - GET /api/v1/servers/{id}
 // =============================================================================
 
 export const pdnsServerInfoSchema = z.object({
@@ -35,7 +35,7 @@ export type PdnsServerInfo = z.infer<typeof pdnsServerInfoSchema>;
 
 /**
  * Statistics from `GET /servers/{id}/statistics`. PDNS returns a
- * mixed-shape array — most are simple cumulative counters, a handful
+ * mixed-shape array - most are simple cumulative counters, a handful
  * are bucketed maps, the rest are rolling "top N" rings. The schema
  * preserves the discriminator via Zod's union so callers can switch
  * on `type`.
@@ -62,26 +62,26 @@ export const pdnsStatisticsSchema = z.array(
 export type PdnsStatisticsEntry = z.infer<typeof pdnsStatisticsSchema>[number];
 
 // =============================================================================
-// Zones — GET /api/v1/servers/{id}/zones (list) and .../zones/{zoneId} (detail)
+// Zones - GET /api/v1/servers/{id}/zones (list) and .../zones/{zoneId} (detail)
 // =============================================================================
 
 /**
  * Zone kinds PowerDNS recognizes. PDNS 4.7+ adds `Producer` / `Consumer`
  * (catalog). Unknown kinds returned by a future PDNS pass through as the
- * raw string — we use `z.string()` rather than an enum so we don't fail on
+ * raw string - we use `z.string()` rather than an enum so we don't fail on
  * a new value.
  */
 export const pdnsZoneKindSchema = z.string();
 
 export const pdnsZoneSummarySchema = z.object({
   /**
-   * PDNS-assigned id used in the URL — the zone name URL-encoded (with the
+   * PDNS-assigned id used in the URL - the zone name URL-encoded (with the
    * trailing dot), e.g. `example.com.`. Always present on list responses.
    */
   id: z.string(),
   /** Canonical zone name including the trailing dot. */
   name: z.string(),
-  /** "Zone" — discriminator the API includes on every record-bearing object. */
+  /** "Zone" - discriminator the API includes on every record-bearing object. */
   type: z.literal("Zone").optional(),
   url: z.string().optional(),
   kind: pdnsZoneKindSchema,
@@ -96,7 +96,7 @@ export const pdnsZoneSummarySchema = z.object({
   catalog: z.string().optional(),
   /**
    * Zone-object metadata fields. PDNS surfaces SOA-EDIT, SOA-EDIT-API and
-   * API-RECTIFY as fields on the zone object — they're NOT writable via
+   * API-RECTIFY as fields on the zone object - they're NOT writable via
    * `/metadata/{kind}` in 4.9 (the per-kind endpoint's allowlist rejects
    * them with "Unsupported metadata kind"). The right write path is
    * `PUT /zones/{id}` with these body fields.
@@ -110,7 +110,7 @@ export const pdnsZoneSummarySchema = z.object({
    * rejects). `master_tsig_key_ids` = keys allowed to AXFR when this server is
    * primary; `slave_tsig_key_ids` = the key it signs AXFR with when secondary.
    * Values are TSIG key ids (= the key name on the gsqlite3/gmysql/gpgsql
-   * backends). Set via `PUT /zones/{id}`. Optional — absent on older list rows.
+   * backends). Set via `PUT /zones/{id}`. Optional - absent on older list rows.
    */
   master_tsig_key_ids: z.array(z.string()).optional(),
   slave_tsig_key_ids: z.array(z.string()).optional(),
@@ -122,7 +122,7 @@ export const pdnsZoneListSchema = z.array(pdnsZoneSummarySchema);
 
 /**
  * Detail response adds the `rrsets` array. We don't validate the RRsets at
- * the type layer here —(record editing) introduces a per-RRset
+ * the type layer here -(record editing) introduces a per-RRset
  * schema with per-type record validation.
  */
 export const pdnsZoneDetailSchema = pdnsZoneSummarySchema.extend({
@@ -147,12 +147,12 @@ export const pdnsZoneDetailSchema = pdnsZoneSummarySchema.extend({
 export type PdnsZoneDetail = z.infer<typeof pdnsZoneDetailSchema>;
 
 // =============================================================================
-// Cryptokeys — GET /api/v1/servers/{id}/zones/{zone_id}/cryptokeys
+// Cryptokeys - GET /api/v1/servers/{id}/zones/{zone_id}/cryptokeys
 // =============================================================================
 //
 // DNSSEC keys for a zone. The list response omits `privatekey` (it's only
 // returned on POST or when `includeprivate=true` is set on the detail
-// endpoint — which we don't do here for at-rest-secret hygiene). PDNS
+// endpoint - which we don't do here for at-rest-secret hygiene). PDNS
 // uses snake_case for all field names; we keep that convention rather
 // than re-mapping, so consumers reading the schemas know exactly what
 // the wire shape looks like.
@@ -161,12 +161,12 @@ export const pdnsCryptokeyTypeSchema = z.literal("Cryptokey");
 
 /**
  * Key types per the PDNS docs:
- *   - "ksk" — Key Signing Key (signs the DNSKEY rrset only)
- *   - "zsk" — Zone Signing Key (signs other rrsets)
- *   - "csk" — Combined Signing Key (does both; common with modern algos)
+ *   - "ksk" - Key Signing Key (signs the DNSKEY rrset only)
+ *   - "zsk" - Zone Signing Key (signs other rrsets)
+ *   - "csk" - Combined Signing Key (does both; common with modern algos)
  *
  * Unknown values returned by a future PDNS pass through as the raw
- * string rather than failing parse — same pattern as zone kinds.
+ * string rather than failing parse - same pattern as zone kinds.
  */
 export const pdnsKeyTypeSchema = z.string();
 
@@ -177,14 +177,14 @@ export const pdnsCryptokeySummarySchema = z.object({
   active: z.boolean(),
   /**
    * Whether the key's DNSKEY record is published in the zone. PDNS adds
-   * this in 4.5+; older servers may omit it — treat absence as
+   * this in 4.5+; older servers may omit it - treat absence as
    * "unknown, assume published if active".
    */
   published: z.boolean().optional(),
   /** The DNSKEY record body (RDATA). */
   dnskey: z.string(),
   /**
-   * Delegation Signer records — present for KSK/CSK so the operator can
+   * Delegation Signer records - present for KSK/CSK so the operator can
    * hand them to their registrar. Empty for ZSKs (they're not at the
    * delegation point). Older PDNS servers may omit the field entirely.
    */
@@ -203,25 +203,25 @@ export const pdnsCryptokeyListSchema = z.array(pdnsCryptokeySummarySchema);
 
 // The detail endpoint returns the same fields. `privatekey` would
 // appear here if we ever passed `includeprivate=true`, which we
-// intentionally do not — handling the key material would require
+// intentionally do not - handling the key material would require
 // extending the at-rest secret pipeline beyond the rest of the design.
 export const pdnsCryptokeyDetailSchema = pdnsCryptokeySummarySchema;
 
 export type PdnsCryptokeyDetail = z.infer<typeof pdnsCryptokeyDetailSchema>;
 
 // =============================================================================
-// Zone metadata — GET /api/v1/servers/{id}/zones/{zone_id}/metadata
+// Zone metadata - GET /api/v1/servers/{id}/zones/{zone_id}/metadata
 // =============================================================================
 //
 // Per-zone configuration the PDNS daemon honors at lookup / transfer time.
 // Common kinds: ALSO-NOTIFY, ALLOW-AXFR-FROM, ALLOW-DNSUPDATE-FROM,
 // TSIG-ALLOW-AXFR, AXFR-MASTER-TSIG, API-RECTIFY, NSEC3PARAM, SOA-EDIT,
 // SOA-EDIT-API, PUBLISH-CDS, PUBLISH-CDNSKEY. Newer PDNS releases add
-// more — we keep `kind` as a free `z.string()` so an unrecognized name
+// more - we keep `kind` as a free `z.string()` so an unrecognized name
 // returned by a future PDNS doesn't make the parse blow up.
 //
 // PDNS uses singular `kind` and plural `metadata` (array of strings)
-// consistently — even when the conceptual value is a single string,
+// consistently - even when the conceptual value is a single string,
 // it's still wrapped in a one-element array.
 
 export const pdnsMetadataKindSchema = z.string();
@@ -237,7 +237,7 @@ export type PdnsMetadata = z.infer<typeof pdnsMetadataSchema>;
 export const pdnsMetadataListSchema = z.array(pdnsMetadataSchema);
 
 // =============================================================================
-// TSIG keys — GET /api/v1/servers/{id}/tsigkeys
+// TSIG keys - GET /api/v1/servers/{id}/tsigkeys
 // =============================================================================
 //
 // Shared-secret keys used to authenticate AXFR / IXFR / NOTIFY between
@@ -246,7 +246,7 @@ export const pdnsMetadataListSchema = z.array(pdnsMetadataSchema);
 // includes `key` (the base64-encoded HMAC secret).
 //
 // We model the two shapes separately so the type system enforces
-// "secret is not present in list rows" — preventing accidental log
+// "secret is not present in list rows" - preventing accidental log
 // statements that try to read `row.key` on a list element.
 
 const TSIG_ALGORITHMS = [
@@ -277,7 +277,7 @@ export type PdnsTsigKeySummary = z.infer<typeof pdnsTsigKeySummarySchema>;
 export const pdnsTsigKeyListSchema = z.array(pdnsTsigKeySummarySchema);
 
 /**
- * Detail shape. Includes `key` — the base64-encoded shared secret.
+ * Detail shape. Includes `key` - the base64-encoded shared secret.
  * This MUST NOT be logged, returned to non-privileged actors, or
  * persisted anywhere outside PDNS itself. The audit-log redactor
  * already covers field names like `key` / `secret`; callers that
@@ -291,7 +291,7 @@ export const pdnsTsigKeyDetailSchema = pdnsTsigKeySummarySchema.extend({
 export type PdnsTsigKeyDetail = z.infer<typeof pdnsTsigKeyDetailSchema>;
 
 // =============================================================================
-// Autoprimaries — GET /api/v1/servers/{id}/autoprimaries
+// Autoprimaries - GET /api/v1/servers/{id}/autoprimaries
 // =============================================================================
 //
 // Trusted upstream primaries from which this PDNS server will accept
@@ -299,7 +299,7 @@ export type PdnsTsigKeyDetail = z.infer<typeof pdnsTsigKeyDetailSchema>;
 // tuple (ip, nameserver, account?). PDNS deduplicates by (ip,
 // nameserver) so the delete path keys on that pair, not a synthetic
 // id. `account` is an operator-supplied free-form label PDNS records
-// for grouping/billing — never authoritative DNS data.
+// for grouping/billing - never authoritative DNS data.
 
 export const pdnsAutoprimarySchema = z.object({
   ip: z.string(),
@@ -312,7 +312,7 @@ export type PdnsAutoprimary = z.infer<typeof pdnsAutoprimarySchema>;
 export const pdnsAutoprimaryListSchema = z.array(pdnsAutoprimarySchema);
 
 // =============================================================================
-// Daemon config (read-only) — GET /servers/{id}/config
+// Daemon config (read-only) - GET /servers/{id}/config
 // =============================================================================
 
 /**
@@ -340,13 +340,13 @@ export const pdnsConfigSchema = z.array(pdnsConfigSettingSchema);
  * `lib/pdns → lib/db` boundary.
  */
 export interface PdnsDaemonCapabilities {
-  /** `api=yes` — the HTTP API is enabled (definitionally true if we read this). */
+  /** `api=yes` - the HTTP API is enabled (definitionally true if we read this). */
   api: boolean;
-  /** `primary`/`master`=yes — sends NOTIFY + serves AXFR for its master zones. */
+  /** `primary`/`master`=yes - sends NOTIFY + serves AXFR for its master zones. */
   primary: boolean;
-  /** `secondary`/`slave`=yes — initiates AXFR for its slave zones. */
+  /** `secondary`/`slave`=yes - initiates AXFR for its slave zones. */
   secondary: boolean;
-  /** `autosecondary`/`superslave`=yes — auto-creates slave zones from NOTIFY. */
+  /** `autosecondary`/`superslave`=yes - auto-creates slave zones from NOTIFY. */
   autosecondary: boolean;
   /** Storage backends parsed from `launch`, e.g. ["gsqlite3", "lmdb"]. */
   backends: string[];
@@ -376,13 +376,13 @@ export interface PdnsDaemonCapabilities {
  * Lives in this file (the PDNS protocol layer) rather than in
  * `lib/db/schema/pdns-servers.ts` so the protocol adapter doesn't have
  * to cross the `lib/pdns → lib/db` import-boundary rule. The DB schema
- * imports it from here for its `.$type<>()` annotation — the reverse
+ * imports it from here for its `.$type<>()` annotation - the reverse
  * direction is allowed.
  */
 export interface PdnsVersionCache {
   /** Free-form version string as reported by PDNS, e.g. "5.0.4". */
   version: string;
-  /** Server-id within the PDNS API surface — almost always "localhost". */
+  /** Server-id within the PDNS API surface - almost always "localhost". */
   serverId: string;
   /** Parsed semantic-version triple for capability comparisons. */
   parsed: { major: number; minor: number; patch: number };
@@ -395,7 +395,7 @@ export interface PdnsVersionCache {
     /** Views / Networks split-horizon (≥ 5.0). */
     supportsViews: boolean;
     /**
-     * TSIG-key management over the HTTP API — list/get (incl. the secret),
+     * TSIG-key management over the HTTP API - list/get (incl. the secret),
      * create with an imported `key`, delete (≥ 4.1). Gates the API-driven
      * "install on secondaries" flow; older daemons fall back to manual pdnsutil.
      */

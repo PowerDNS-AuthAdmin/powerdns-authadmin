@@ -1,12 +1,12 @@
 # =============================================================================
-# docker-compose-multi-primary.yml — full demo stack with a 3-peer
+# docker-compose-multi-primary.yml - full demo stack with a 3-peer
 # multi-primary PowerDNS cluster.
 #
 # Topology:
 #   * One MariaDB container hosts the gmysql backend tables (the PDNS
 #     schema is dropped into /docker-entrypoint-initdb.d so it runs once
 #     on first boot).
-#   * Three PDNS containers all point at the SAME MariaDB — they're
+#   * Three PDNS containers all point at the SAME MariaDB - they're
 #     equivalent peers. A write via any peer's HTTP API is visible to the
 #     other peers' APIs on the next read (no replication lag because the
 #     backend is shared).
@@ -199,7 +199,7 @@ services:
       SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
       PROVISIONING_FILE: /etc/powerdns-authadmin/provisioning.yaml
       PROVISION_ON_BOOT: ${PROVISION_ON_BOOT:-true}
-      # Demo peers expose only http:// — explicit opt-out of the
+      # Demo peers expose only http:// - explicit opt-out of the
       # https-in-production scheme check. APP_PDNS_ALLOW_PRIVATE_NETWORKS
       # above still governs the IP-range guard.
       APP_PDNS_ALLOW_INSECURE_HTTP: ${APP_PDNS_ALLOW_INSECURE_HTTP:-true}

@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/zone-grants.ts — SQLite mirror of `../schema/zone-grants.ts`.
+ * lib/db/schema-sqlite/zone-grants.ts - SQLite mirror of `../schema/zone-grants.ts`.
  *
  * See the PG schema for the design rationale (principal split, exactly-one
  * principal, partial unique indexes, zone-name canonicalization).

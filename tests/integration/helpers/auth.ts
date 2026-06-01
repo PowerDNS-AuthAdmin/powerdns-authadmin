@@ -4,7 +4,7 @@
  * Login / user-creation fixtures.
  *
  * `loginAsBootstrap()` returns a TestHttp client carrying the bootstrap
- * admin's session — the canonical "do everything" actor. Use it for setup
+ * admin's session - the canonical "do everything" actor. Use it for setup
  * and for tests that need super-admin privileges.
  *
  * `createUser()` + `loginAs()` model the common "create an operator-scoped
@@ -99,7 +99,7 @@ export async function createUser(
   }>("POST", "/api/admin/users", body);
   // The create-user route sets must_change_password when a password is given.
   // Route handlers now enforce that flag (the compliance gate), so clear it so
-  // the actor is immediately usable for `loginAs` — tests that exercise the
+  // the actor is immediately usable for `loginAs` - tests that exercise the
   // must-change flow set it explicitly.
   await dbQuery("UPDATE users SET must_change_password = false WHERE id = $1", [user.id]);
   return {

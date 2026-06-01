@@ -3,15 +3,15 @@
  *
  * Self-service personal access token issuance.
  *
- * GET  — list the caller's own tokens (newest first).
- * POST — issue a new token. Permission: any authenticated user. The
+ * GET  - list the caller's own tokens (newest first).
+ * POST - issue a new token. Permission: any authenticated user. The
  *        operator-supplied `scopes` array is clamped to the user's
- *        current effective permissions — operators can't grant a
+ *        current effective permissions - operators can't grant a
  *        token a permission they don't themselves hold (which would
  *        defeat scope-narrowing on the auth path).
  *
  * The freshly-generated plaintext is never returned in the JSON body
- * — same temp-reveal-store pattern as S-8 / TSIG. The POST response
+ * - same temp-reveal-store pattern as S-8 / TSIG. The POST response
  * carries a one-time reveal token; the operator's browser POSTs it
  * to `/tokens/[id]/reveal` to get the plaintext as text/plain
  * exactly once.
@@ -62,7 +62,7 @@ export async function GET(): Promise<Response> {
   try {
     const { user } = await requireUser();
     const rows = await listApiTokensForUser(user.id);
-    // Strip tokenHash — it's an Argon2 hash but exposing it serves no
+    // Strip tokenHash - it's an Argon2 hash but exposing it serves no
     // legitimate purpose and could feed offline cracking. Strip
     // lastUsedIp from the payload too; we display "last used N ago"
     // not the IP itself in the UI.
@@ -102,7 +102,7 @@ export async function POST(request: Request): Promise<Response> {
 
     // Clamp scopes to the user's effective permissions. A user who
     // doesn't currently hold `zone.delete` cannot mint a token with
-    // `zone.delete` in its scopes — defeating that would be a
+    // `zone.delete` in its scopes - defeating that would be a
     // privilege-escalation oracle.
     const effective = new Set<string>();
     const assignments = await loadUserAssignmentsForAbility(user.id);

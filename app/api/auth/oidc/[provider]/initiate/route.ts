@@ -7,7 +7,7 @@
  * URL, stores `state`, the PKCE `code_verifier`, and the `nonce` in short-lived
  * HttpOnly cookies, and redirects to the IdP.
  *
- * The provider config is resolved via `lib/auth/providers/oidc.ts` —
+ * The provider config is resolved via `lib/auth/providers/oidc.ts` -
  * `oidc_providers` table first, env fallback when no DB providers exist.
  */
 
@@ -52,9 +52,9 @@ export async function GET(
   cookieStore.set(OIDC_STATE_COOKIE, state, cookieOpts);
   cookieStore.set(OIDC_PKCE_COOKIE, codeVerifier, cookieOpts);
   // The callback echoes this back to openid-client as `expectedNonce` so the
-  // library can confirm the ID token's `nonce` claim matches — replay defense.
+  // library can confirm the ID token's `nonce` claim matches - replay defense.
   cookieStore.set(OIDC_NONCE_COOKIE, nonce, cookieOpts);
-  // The callback handler reads this to know which provider it's continuing —
+  // The callback handler reads this to know which provider it's continuing -
   // the route segment is already authoritative, but storing the slug
   // separately defends against URL tampering during the round-trip.
   cookieStore.set(OIDC_SLUG_COOKIE, provider.slug, cookieOpts);

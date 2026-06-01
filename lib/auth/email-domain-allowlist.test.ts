@@ -59,7 +59,7 @@ describe("emailDomainAllowed", () => {
 
   it("uses the rightmost @ to extract the domain", () => {
     // Per RFC 5321 the local part can contain quoted @-signs. We're
-    // pragmatic here — pick the last @ — which is what every IdP we care
+    // pragmatic here - pick the last @ - which is what every IdP we care
     // about parses too.
     expect(emailDomainAllowed('"weird@local"@example.com', ["example.com"])).toEqual({
       ok: true,
@@ -81,7 +81,7 @@ describe("resolveAllowedDomains", () => {
   });
 
   it("returns an explicit empty override even when env imposes a list", () => {
-    // "[]" at the provider level means "no restriction here" — used
+    // "[]" at the provider level means "no restriction here" - used
     // for a public-signup provider on an otherwise-locked-down
     // server. Distinct from `null` (inherit env).
     expect(resolveAllowedDomains([], ["env.example"])).toEqual([]);

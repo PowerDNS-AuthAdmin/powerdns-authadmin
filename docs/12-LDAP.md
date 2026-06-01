@@ -1,7 +1,7 @@
 # LDAP authentication
 
 PowerDNS-AuthAdmin can authenticate users by direct bind against **Active
-Directory** or **OpenLDAP**. There's no federation broker in the path — the app
+Directory** or **OpenLDAP**. There's no federation broker in the path - the app
 binds with a service account, looks the user up, and re-binds as that user with
 the password they typed. Groups feed the same `applyGroupSync` machinery as the
 OIDC path, so the operator's mental model is consistent across both protocols.
@@ -17,17 +17,17 @@ document is the operator guide.
 3. If start_tls=true on the provider row → upgrade with StartTLS (RFC 4511 §4.14)
 4. App binds as `bind_dn` / `bind_password`
 5. App searches `user_search_base` with `user_search_filter`
-       ({{username}} is replaced by the LDAP-escaped login — RFC 4515)
+       ({{username}} is replaced by the LDAP-escaped login - RFC 4515)
 6. App re-binds as the user's DN + their typed password
 7. App reads email + display name + group memberships
-       (group_attr first — typically `memberOf`; second search if empty
+       (group_attr first - typically `memberOf`; second search if empty
         AND group_search_base + group_search_filter are configured)
 8. App provisions the local users row (if absent) and applies group → role
    mappings via the shared applyGroupSync differ.
 ```
 
 A failed step 6 (user-password bind) is "invalid credentials"; failure at any
-earlier step is "transport" or "tls" — the operator sees a different log line
+earlier step is "transport" or "tls" - the operator sees a different log line
 than the user.
 
 ## Configuration
@@ -37,8 +37,8 @@ The form has these sections.
 
 ### Connection
 
-- **Server URL** — `ldaps://host:636` (preferred) or `ldap://host:389`.
-- **StartTLS** — when on, the app upgrades a plain `ldap://` connection after
+- **Server URL** - `ldaps://host:636` (preferred) or `ldap://host:389`.
+- **StartTLS** - when on, the app upgrades a plain `ldap://` connection after
   connecting. Has no effect on `ldaps://` URLs; the validator refuses the
   redundant pair.
 
@@ -46,7 +46,7 @@ Strict TLS by default. Plain `ldap://` is **refused** unless either:
 
 - the row sets `start_tls: true`, OR
 - the env knob `LDAP_ALLOW_INSECURE_PORT_389=true` is set (env-level opt-in for
-  a trusted LAN — see `.env.example`).
+  a trusted LAN - see `.env.example`).
 
 Self-signed / mismatched certs are **refused** unless the loud opt-in
 `LDAP_TLS_INSECURE_SKIP_VERIFY=true` is set. Prefer pinning the internal CA on
@@ -54,24 +54,24 @@ the provider row (PEM textarea) over disabling verification.
 
 ### Bind
 
-- **Service-account DN** — the DN the app binds with for the user lookup.
+- **Service-account DN** - the DN the app binds with for the user lookup.
   Operators typically create a dedicated read-only account.
-- **Bind password** — encrypted at rest (AES-256-GCM envelope). Shown only at
-  creation time; on the edit page it's a "rotate" field — leave blank to keep.
+- **Bind password** - encrypted at rest (AES-256-GCM envelope). Shown only at
+  creation time; on the edit page it's a "rotate" field - leave blank to keep.
 
 ### User search
 
-- **User search base** — DN under which user records live. The search is `sub`,
+- **User search base** - DN under which user records live. The search is `sub`,
   so nested OUs are fine.
-- **User search filter** — the RFC 4515 filter applied at the search step. The
+- **User search filter** - the RFC 4515 filter applied at the search step. The
   literal string `{{username}}` is replaced with the LDAP-escaped form of what
   the user typed. Operators commonly need to match against several attributes:
 
   ```text
-  # Active Directory — matches sAMAccountName, userPrincipalName, or mail:
+  # Active Directory - matches sAMAccountName, userPrincipalName, or mail:
   (|(sAMAccountName={{username}})(userPrincipalName={{username}})(mail={{username}}))
 
-  # OpenLDAP — uid or mail:
+  # OpenLDAP - uid or mail:
   (|(uid={{username}})(mail={{username}}))
   ```
 
@@ -79,13 +79,13 @@ the provider row (PEM textarea) over disabling verification.
 
 ### Group resolution
 
-Two paths. The app reads `group_attr` from the user record **first** — the
+Two paths. The app reads `group_attr` from the user record **first** - the
 common case (AD's `memberOf` is fully resolved by the DC at query time). If the
 attribute is absent or empty AND the second search is configured, the app does
 a second search:
 
-- **Group search base** — DN under which group records live.
-- **Group search filter** — RFC 4515 filter with a `{{userDn}}` placeholder
+- **Group search base** - DN under which group records live.
+- **Group search filter** - RFC 4515 filter with a `{{userDn}}` placeholder
   (replaced with the LDAP-escaped DN of the just-authenticated user).
 
 For AD, leave the second-search pair blank. For OpenLDAP without the `memberof`
@@ -97,15 +97,15 @@ overlay, use something like:
 
 ### Claims
 
-- **Email attribute** — defaults to `mail`. The app keys user accounts by the
+- **Email attribute** - defaults to `mail`. The app keys user accounts by the
   email returned here, so it must be a stable identifier for the directory.
-- **Display name attribute** — defaults to `displayName`.
+- **Display name attribute** - defaults to `displayName`.
 
 ### Email-domain allow-list (optional)
 
 When set, the app refuses to **auto-provision** a new local account for an
 email outside the list. Existing accounts keep signing in regardless. The
-field is per-provider and **has no env-level default** — leave it off for
+field is per-provider and **has no env-level default** - leave it off for
 "any directory user with a valid email gets an account."
 
 ### Group → role mappings
@@ -117,9 +117,9 @@ revoked. Admin-issued role assignments are never touched.
 
 Group strings are **case-sensitive**. For AD, use the **full DN** of the group
 (that's what `memberOf` returns). For OpenLDAP via the second search, the
-strings are the DNs returned from the group search — also DN-shaped.
+strings are the DNs returned from the group search - also DN-shaped.
 
-## Worked example — Active Directory
+## Worked example - Active Directory
 
 Tested on Windows Server 2022 + the default `Domain Users` OU layout.
 
@@ -127,13 +127,13 @@ Tested on Windows Server 2022 + the default `Domain Users` OU layout.
    Services" CA the first time you promote a domain controller. The DC's
    service cert is on port 636 (LDAPS) by default. Issue a cert from your
    internal CA (no public WebPKI involvement) and pin the CA's PEM on the
-   provider row — that's the most operator-friendly path. **Note:** make
+   provider row - that's the most operator-friendly path. **Note:** make
    sure [LDAP signing](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/enable-ldap-signing-in-windows-server)
    (KB4520412) doesn't block unsigned connections from your subnet; LDAPS or
    StartTLS satisfies the channel-binding requirement.
 2. **Service account.** Create a regular user (no admin rights), reset their
    password, and store it in the bind-password field. They need read-only
-   access to your user OUs — no domain-admin equivalent.
+   access to your user OUs - no domain-admin equivalent.
 3. **Settings:**
 
    ```yaml
@@ -158,7 +158,7 @@ Tested on Windows Server 2022 + the default `Domain Users` OU layout.
        scope: global
    ```
 
-## Worked example — OpenLDAP 2.6
+## Worked example - OpenLDAP 2.6
 
 Tested on Debian 12's `slapd` package.
 
@@ -218,13 +218,13 @@ Tested on Debian 12's `slapd` package.
 
 ## Provisioning (YAML)
 
-The `ldap:` block under `provisioning.yaml` has the same shape as `oidc:` —
+The `ldap:` block under `provisioning.yaml` has the same shape as `oidc:` -
 slugs reserve in the cross-type `auth_provider_slugs` table, bind passwords are
 encrypted before write, group mappings are validated against your `roles` /
 `teams` / `pdns_servers` sections. See the worked AD + OpenLDAP examples in
 [`provisioning.example.yaml`](../provisioning.example.yaml).
 
-A bare-slug `auth_default_provider` resolves to LDAP transparently — the
+A bare-slug `auth_default_provider` resolves to LDAP transparently - the
 applier consults `auth_provider_slugs` and persists the canonical
 `ldap:<slug>` form.
 
@@ -232,7 +232,7 @@ applier consults `auth_provider_slugs` and persists the canonical
 
 On **Admin → Authentication**, the "Default sign-in method" dropdown lists
 every enabled provider. Pick an LDAP entry and `/login` will skip the OIDC
-buttons and local form on a fresh visit — it bounces through
+buttons and local form on a fresh visit - it bounces through
 `/login?ldap=<slug>` so only the chosen provider's form is shown.
 
 Operators with a wedged IdP can always reach the full page with
@@ -247,7 +247,7 @@ misconfigured default.
 - **SASL / Kerberos binds.** Simple binds only. Most operators using
   AuthAdmin from a non-Windows host won't have the Kerberos ticket
   machinery wired up anyway; if you need it, open an issue.
-- **Group write-back.** Group memberships are read-only — AuthAdmin doesn't
+- **Group write-back.** Group memberships are read-only - AuthAdmin doesn't
   write group changes back to the directory.
 
 ## Troubleshooting
@@ -259,6 +259,6 @@ misconfigured default.
 | `ldap.user-search.multiple-matches`                    | The filter is too broad and matches more than one record. Tighten it (e.g. add `(objectClass=person)`). |
 | `ldap.starttls.failed`                                 | The server doesn't speak StartTLS on the configured port. Use `ldaps://636` instead.                    |
 | `ldap.claim.email-missing`                             | The user record has no `mail` attribute (or whatever `claim_email` is set to). Pick a different attr.   |
-| Sign-in works but no role assignments materialised     | The `group_attr` is empty and the second search isn't configured — set `group_search_base/filter`.      |
+| Sign-in works but no role assignments materialised     | The `group_attr` is empty and the second search isn't configured - set `group_search_base/filter`.      |
 | AD rejects every bind with `LDAP_UNWILLING_TO_PERFORM` | LDAP signing / channel-binding is required (KB4520412). Switch to LDAPS.                                |
 | `ldap.authenticate.insecure-transport` warning in logs | You're running plain `ldap://` without StartTLS. Either pin LDAPS or set `start_tls: true`.             |

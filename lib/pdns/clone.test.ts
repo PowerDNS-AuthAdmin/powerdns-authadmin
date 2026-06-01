@@ -80,7 +80,7 @@ describe("rewriteRRsetsForClone", () => {
     expect(www?.records).toEqual([{ content: "192.0.2.10" }]);
   });
 
-  it("returns a deep copy — does not share record objects with the input", () => {
+  it("returns a deep copy - does not share record objects with the input", () => {
     const out = rewriteRRsetsForClone(sample, "example.com.", "new.example.");
     const inputWww = sample.find((r) => r.name === "www.example.com.")!;
     const outputWww = out.find((r) => r.type === "A" && r.records[0]?.content === "192.0.2.10")!;

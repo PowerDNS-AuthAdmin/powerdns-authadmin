@@ -32,7 +32,7 @@ describe("isAdminEquivalentRole", () => {
   it("flags team-owner (holds tsig.manage + member mgmt but also team mgmt? check perms)", () => {
     // team-owner does NOT hold any ADMIN_EQUIVALENT permission per the denylist
     // (no user/role/settings/server/audit/team.create/team.delete/token.*.all).
-    // Confirm it is therefore treated as low-privilege — a deliberate choice so
+    // Confirm it is therefore treated as low-privilege - a deliberate choice so
     // an operator could in principle use it, though read-only is the default.
     expect(isAdminEquivalentRole(role("team-owner"))).toBe(false);
   });

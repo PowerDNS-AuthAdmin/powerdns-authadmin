@@ -6,12 +6,12 @@
  * connect, so undici cannot independently re-resolve the hostname to a
  * different (blocked) IP between the guard's lookup and the socket connect.
  *
- * Strategy — fully hermetic, no network:
+ * Strategy - fully hermetic, no network:
  *   - Stub `node:dns` so the guard's resolution and a hypothetical second
  *     resolution return DIFFERENT addresses (a public IP first, a loopback IP
- *     after — the classic 0-TTL rebind).
+ *     after - the classic 0-TTL rebind).
  *   - Capture the `connect.lookup` undici is handed (via the Agent ctor) and
- *     prove it returns the FIRST (guard-validated) address — i.e. the connect
+ *     prove it returns the FIRST (guard-validated) address - i.e. the connect
  *     is pinned and never consults DNS a second time.
  *   - A second test drives the guard to reject when the (single) current
  *     resolution lands in a blocked range, confirming the request never fires.
@@ -22,7 +22,7 @@ import type { LookupFunction } from "node:net";
 import type * as EnvModule from "@/lib/env";
 
 const PUBLIC_IP = "203.0.113.10"; // TEST-NET-3, globally routable + guard-safe
-const REBIND_IP = "127.0.0.1"; // loopback — blocked unless private allowed
+const REBIND_IP = "127.0.0.1"; // loopback - blocked unless private allowed
 
 // A resolver that hands out a different answer on each call: the guard sees the
 // safe public IP; any *later* independent lookup (what undici would do without
@@ -66,7 +66,7 @@ vi.mock("undici", () => {
 vi.mock("./request-log", () => ({ recordPdnsRequest: vi.fn() }));
 
 // Force the permissive-private policy off so a rebind to loopback is "blocked"
-// — the harder, security-relevant configuration.
+// - the harder, security-relevant configuration.
 vi.mock("@/lib/env", async (importOriginal) => {
   const actual = await importOriginal<typeof EnvModule>();
   return {
@@ -88,7 +88,7 @@ function lookupResultFor(): Array<{ address: string; family: number }> {
     : [{ address: REBIND_IP, family: 4 }];
 }
 
-describe("pdns http transport — DNS-rebinding pinning (issue #10)", () => {
+describe("pdns http transport - DNS-rebinding pinning (issue #10)", () => {
   beforeEach(() => {
     dnsCallCount = 0;
     agentCtor.mockClear();
@@ -124,7 +124,7 @@ describe("pdns http transport — DNS-rebinding pinning (issue #10)", () => {
     expect(typeof lookup).toBe("function");
 
     // Invoking the pinned lookup (what undici does at connect time) must return
-    // the guard-validated PUBLIC IP — NOT trigger a fresh DNS query that would
+    // the guard-validated PUBLIC IP - NOT trigger a fresh DNS query that would
     // hand back the rebind loopback address.
     const before = dnsCallCount;
 
@@ -155,7 +155,7 @@ describe("pdns http transport — DNS-rebinding pinning (issue #10)", () => {
     expect(pinnedSingle.address).toBe(PUBLIC_IP);
     expect(pinnedSingle.family).toBe(4);
 
-    // No second resolution happened — the address is pinned, not re-fetched.
+    // No second resolution happened - the address is pinned, not re-fetched.
     expect(dnsCallCount).toBe(before);
 
     // The fetch itself targeted the original hostname (Host header / SNI stay

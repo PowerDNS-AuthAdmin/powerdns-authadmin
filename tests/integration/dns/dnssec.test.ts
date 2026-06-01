@@ -3,12 +3,12 @@
  *
  * Proves DNSSEC works end-to-end through the app:
  *
- *   1. Standalone primary — the app secures a zone via the cryptokeys API
+ *   1. Standalone primary - the app secures a zone via the cryptokeys API
  *      (a CSK), and the zone is then served SIGNED: a DNSKEY at the apex and
  *      an RRSIG over the A/SOA answers (online signing), while plain
  *      resolution still works.
  *
- *   2. Primary + Secondary — a secured primary's zone transfers to a
+ *   2. Primary + Secondary - a secured primary's zone transfers to a
  *      supermaster Secondary via AXFR as a *presigned* zone, so the Secondary
  *      serves the same record WITH its RRSIG (it holds no keys of its own).
  *

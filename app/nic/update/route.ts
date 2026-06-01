@@ -1,7 +1,7 @@
 /**
  * app/nic/update/route.ts
  *
- * GET /nic/update — DynDNS 2 endpoint (https://help.dyn.com/remote-access-api/perform-update/).
+ * GET /nic/update - DynDNS 2 endpoint (https://help.dyn.com/remote-access-api/perform-update/).
  * Operators bringing over a DynDNS setup use this with `ddclient` or
  * router firmware; the contract is fixed text strings (see
  * `lib/dyndns/parse.ts` for the vocab).
@@ -63,7 +63,7 @@ function plain(code: DynDnsCode, ip?: string): Response {
 }
 
 function plainWithChallenge(code: DynDnsCode): Response {
-  // For `badauth` we attach a Basic challenge — some clients (ddclient
+  // For `badauth` we attach a Basic challenge - some clients (ddclient
   // especially) re-prompt for credentials on first auth failure when
   // the server volunteers a realm.
   return new Response(formatResponse(code), {
@@ -90,7 +90,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const user = await findUserByEmail(basic.user);
   if (!user || user.disabledAt) {
-    // Don't distinguish missing-user from disabled — both map to badauth.
+    // Don't distinguish missing-user from disabled - both map to badauth.
     return plainWithChallenge("badauth");
   }
 
@@ -109,7 +109,7 @@ export async function GET(request: Request): Promise<Response> {
 
   // Narrow assignments + zone grants to the token's stored scopes, then
   // derive the user's global permissions. The DynDNS update needs
-  // `record.update` — held either at GLOBAL scope OR via a zone_grant for
+  // `record.update` - held either at GLOBAL scope OR via a zone_grant for
   // the specific zone the hostname falls under (checked per-zone below).
   const rawAssignments = await loadUserAssignmentsForAbility(user.id);
   const narrowed = narrowAssignmentsByTokenScopes(
@@ -138,10 +138,10 @@ export async function GET(request: Request): Promise<Response> {
       ? narrowedGrants
       : expandGrantsAcrossClusters(narrowedGrants, clusterPeers);
 
-  // ── Source IP — use the explicit param when given, else derive ──────────
+  // ── Source IP - use the explicit param when given, else derive ──────────
   const sourceIp = myip ?? getClientIp(hdrs);
   if (!sourceIp) {
-    // The client didn't supply `myip` and we don't trust XFF — there's
+    // The client didn't supply `myip` and we don't trust XFF - there's
     // nothing safe to write. dnserr is the closest DynDNS code for
     // "server can't fulfill the request right now."
     return plain("dnserr");
@@ -169,7 +169,7 @@ export async function GET(request: Request): Promise<Response> {
 
     // record.update held at GLOBAL scope OR via a zone_grant for THIS
     // (server, zone). A type-level CASL check would let a token with any
-    // scoped record.update rewrite every zone — see
+    // scoped record.update rewrite every zone - see
     // lib/rbac/ability.ts:globalPermissionsOf.
     const allowed =
       globalPermissions.has("record.update") ||

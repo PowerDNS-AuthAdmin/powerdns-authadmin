@@ -1,7 +1,7 @@
 /**
  * lib/db/repositories/zone-grants.ts
  *
- * Read path for zone_grants — the lookups the ability-builder uses (via a
+ * Read path for zone_grants - the lookups the ability-builder uses (via a
  * wrapper at the auth layer). Grant create/revoke runs in the admin route
  * handlers, not here.
  *
@@ -10,7 +10,7 @@
  * to every member of the team via `team_members`). Exactly one is non-null,
  * enforced at the DB by `zone_grants_principal_check`.
  *
- * Zone-name canonicalization lives at the route layer — readers
+ * Zone-name canonicalization lives at the route layer - readers
  * here trust the DB column to be lowercase + trailing-dot already.
  */
 
@@ -22,7 +22,7 @@ import type { ZoneGrant } from "@/lib/db/schema";
 
 /**
  * Every zone grant the given user effectively holds, across all backends
- * — direct user grants UNION'd with team grants from every team the user
+ * - direct user grants UNION'd with team grants from every team the user
  * is a member of. This is what the ability-builder folds into the request
  * ability via `canActOnZone`; a record-write on a zone owned by team T is
  * authorized when *either* a direct user grant *or* a team-T grant covers
@@ -30,7 +30,7 @@ import type { ZoneGrant } from "@/lib/db/schema";
  *
  * Ordered by (server_id, zone_name) so callers building lookup maps get
  * stable iteration. Duplicates can occur (the same user holds a direct
- * grant AND inherits a team grant on the same zone) — the ability-builder
+ * grant AND inherits a team grant on the same zone) - the ability-builder
  * already UNIONs permission sets so this is harmless.
  */
 export async function listGrantsForUser(userId: string): Promise<ZoneGrant[]> {
@@ -50,7 +50,7 @@ export async function listGrantsForUser(userId: string): Promise<ZoneGrant[]> {
 }
 
 /**
- * Direct user grants only — no team-inherited rows. Used by the admin user-
+ * Direct user grants only - no team-inherited rows. Used by the admin user-
  * detail UI, which lets the operator edit *this user's own* grants and must
  * not show inherited rows as if they were editable on this page.
  */
@@ -64,7 +64,7 @@ export async function listDirectGrantsForUser(userId: string): Promise<ZoneGrant
 
 /**
  * Every grant attached to a team. Used by the admin team-detail UI's
- * "Zone grants" tab — the operator edits team grants from there.
+ * "Zone grants" tab - the operator edits team grants from there.
  */
 export async function listGrantsForTeam(teamId: string): Promise<ZoneGrant[]> {
   return db
@@ -75,7 +75,7 @@ export async function listGrantsForTeam(teamId: string): Promise<ZoneGrant[]> {
 }
 
 /**
- * A grant row enriched with its principal (user OR team) — used by the
+ * A grant row enriched with its principal (user OR team) - used by the
  * zone-detail "Access" tab to render a single combined list without an
  * N+1 lookup per row.
  */
@@ -180,7 +180,7 @@ export async function findTeamGrant(input: {
 /**
  * For each of the given server ids that belongs to a cluster, the full set of
  * server ids in that cluster (including itself). Servers not in a cluster
- * (standalone primaries, primary+secondaries groups) are omitted — callers
+ * (standalone primaries, primary+secondaries groups) are omitted - callers
  * treat an absent key as "just this server".
  *
  * Feeds `expandGrantsAcrossClusters` (lib/rbac/zone-permissions): a zone grant

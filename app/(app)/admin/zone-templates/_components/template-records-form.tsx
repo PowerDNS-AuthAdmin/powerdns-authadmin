@@ -136,7 +136,7 @@ export function TemplateRecordsForm({ templateId, initial, canEdit }: Props) {
         <div className="space-y-3">
           {records.length === 0 ? (
             <p className="text-xs text-[color:var(--color-fg-muted)]">
-              No prelude records — zones from this template start with just SOA + NS.
+              No prelude records - zones from this template start with just SOA + NS.
             </p>
           ) : null}
           {records.map((r, i) => {

@@ -1,8 +1,8 @@
 # First-boot provisioning
 
-Provisioning brings up a **fully-configured install from a single YAML file** —
+Provisioning brings up a **fully-configured install from a single YAML file** -
 settings, custom roles, teams, zone templates, PowerDNS clusters and servers,
-demo zones, and OIDC providers — with no clicking. It's infrastructure-as-code
+demo zones, and OIDC providers - with no clicking. It's infrastructure-as-code
 for the app's own configuration, ideal for reproducible deployments.
 
 The canonical, every-field reference is
@@ -18,9 +18,9 @@ keys.
 → clusters → pdns_servers → oidc → demo_zones`. References resolve by slug, so
    an `oidc` group mapping can point at a role defined earlier in the same file.
 3. On success it writes `settings.provisioned_at = <timestamp>`. **Subsequent
-   boots skip the file** — from then on the admin UI is the source of truth.
+   boots skip the file** - from then on the admin UI is the source of truth.
 4. **Parse errors abort the boot.** A malformed file means the app refuses to
-   start rather than half-applying — fail loud, fix the YAML, retry. Unknown keys
+   start rather than half-applying - fail loud, fix the YAML, retry. Unknown keys
    at any level are rejected, so typos fail fast instead of silently no-op'ing.
 
 ```sh
@@ -35,7 +35,7 @@ volumes:
   - ./provisioning.yaml:/etc/powerdns-authadmin/provisioning.yaml:ro
 ```
 
-## It runs once — how to re-apply
+## It runs once - how to re-apply
 
 The `provisioned_at` sentinel makes provisioning a one-shot. To force a re-apply,
 delete the sentinel row and restart:
@@ -48,7 +48,7 @@ psql "$DATABASE_URL" -c "DELETE FROM settings WHERE key='provisioned_at';"
 sqlite3 /data/powerdns_authadmin.db "DELETE FROM settings WHERE key='provisioned_at';"
 ```
 
-On re-apply, providers/servers/roles are **created or updated by slug** — the
+On re-apply, providers/servers/roles are **created or updated by slug** - the
 applier never deletes. Anything you added in the UI that isn't in the file stays.
 
 ## Secrets in the file
@@ -62,7 +62,7 @@ the file as sensitive:
 
 ## The blocks at a glance
 
-Every block is optional — drop what you don't need.
+Every block is optional - drop what you don't need.
 
 | Block            | What it creates                   | Notes                                                                                           |
 | ---------------- | --------------------------------- | ----------------------------------------------------------------------------------------------- |
@@ -81,7 +81,7 @@ Every block is optional — drop what you don't need.
 - `pdns_servers`: `role: secondary` requires `primary_slug` (resolving in-file or
   to an existing DB primary); a primary must **not** set `primary_slug`; a
   secondary must **not** set `cluster_slug`; exactly one row should be `is_default`.
-- `clusters`: only primaries can be cluster peers — putting `cluster_slug` on a
+- `clusters`: only primaries can be cluster peers - putting `cluster_slug` on a
   secondary is a parse error.
 - `oidc`: this is the **same mechanism as the Admin UI** (rows in
   `oidc_providers`). It coexists with the read-only env (`OIDC_*`) provider; a DB

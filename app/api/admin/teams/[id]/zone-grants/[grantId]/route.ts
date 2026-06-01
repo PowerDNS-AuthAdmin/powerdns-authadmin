@@ -1,7 +1,7 @@
 /**
  * app/api/admin/teams/[id]/zone-grants/[grantId]/route.ts
  *
- * DELETE — revoke a single team zone grant. Permission: `team.update`,
+ * DELETE - revoke a single team zone grant. Permission: `team.update`,
  *          instance-scoped to the team. The grant id is matched against
  *          the team_id in the path so a mis-routed call can't revoke a
  *          grant on a different team.

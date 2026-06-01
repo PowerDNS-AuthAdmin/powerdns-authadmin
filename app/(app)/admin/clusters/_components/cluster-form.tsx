@@ -40,7 +40,7 @@ export interface ClusterFormProps {
   /**
    * Show the peer-selection strategy. Only meaningful for a multi-primary
    * cluster (≥2 writable peers); hidden for a primary+secondaries group, which
-   * has a single write target (ADR-0014). Defaults off — the create form has no
+   * has a single write target (ADR-0014). Defaults off - the create form has no
    * members yet, so it can't be a multi-primary cluster.
    */
   showStrategy?: boolean;
@@ -302,7 +302,7 @@ interface ServerMultiSelectProps {
 }
 
 /**
- * Themed multi-select list of backends — clickable rows with a custom check
+ * Themed multi-select list of backends - clickable rows with a custom check
  * indicator (no native checkbox, per the project's form-control conventions).
  * The whole row is the hit target; select-all / clear live in the header.
  */

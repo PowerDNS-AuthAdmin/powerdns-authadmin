@@ -6,13 +6,13 @@
  * Client wrapper around the shared `<DataTable>` for the admin
  * users list. Adds sortable columns + global search; the filter
  * chips (URL-driven, server-rendered) live on the page above us
- * and compose without overlap — chips narrow the dataset, search
+ * and compose without overlap - chips narrow the dataset, search
  * narrows further within the chip selection.
  *
  * Rows arrive pre-formatted: dates are server-side
  * `toLocaleString()` strings (project-hydration-locale-dates rule)
  * AND ISO strings (for stable sorting). The Status / Security cells
- * are renderers that map structured props to chips/dots — no Date
+ * are renderers that map structured props to chips/dots - no Date
  * math on the client.
  */
 
@@ -33,13 +33,13 @@ export interface UserRow {
   lastSignInIso: string | null;
   /**
    * ISO timestamp of the latest admin edit to this user row (Tick
-   * 89). Distinct from `lastSignInIso` — that's the USER signing
+   * 89). Distinct from `lastSignInIso` - that's the USER signing
    * in; this is an ADMIN editing the row. Null when no admin edits
    * recorded, or when the actor lacks `audit.read`.
    */
   lastAdminEditIso: string | null;
   rolesCount: number;
-  // Structured signals — rendered as Status / Security cells, not
+  // Structured signals - rendered as Status / Security cells, not
   // pre-rendered strings, so the chips stay JSX (and the cell
   // renderer functions stay reusable).
   disabledAt: string | null;
@@ -58,7 +58,7 @@ export function UsersTable({
   rows: UserRow[];
   /**
    * Whether to render the "Last admin edit" column. When false the
-   * column is omitted entirely (not just blanked) — keeps the table
+   * column is omitted entirely (not just blanked) - keeps the table
    * compact for actors without `audit.read`, matching the
    * /admin/servers (T-88) and /zones (T-87) approach.
    */
@@ -74,7 +74,7 @@ export function UsersTable({
       {
         accessorKey: "name",
         header: "Name",
-        cell: (ctx) => ctx.getValue<string | null>() ?? "—",
+        cell: (ctx) => ctx.getValue<string | null>() ?? "-",
       },
       {
         id: "status",
@@ -105,7 +105,7 @@ export function UsersTable({
       {
         // Sort by the ISO string so it orders correctly. Render the
         // value via <LocalTime> so the browser shows it in the local
-        // zone — "Never" falls through when iso is null.
+        // zone - "Never" falls through when iso is null.
         accessorKey: "lastSignInIso",
         header: "Last sign-in",
         sortUndefined: "last",
@@ -130,7 +130,7 @@ export function UsersTable({
         sortUndefined: "last",
         cell: (ctx) => {
           const iso = ctx.getValue<string | null>();
-          if (!iso) return <span className="text-xs text-[color:var(--color-fg-muted)]">—</span>;
+          if (!iso) return <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>;
           return (
             <span className="text-xs text-[color:var(--color-fg-muted)]" title={iso}>
               {freshnessOf(iso).label}
@@ -191,7 +191,7 @@ function UserStatus({
     );
   }
   // Compare via Date.parse to keep the client out of Date math
-  // beyond what's strictly needed — ISO parsing is well-defined.
+  // beyond what's strictly needed - ISO parsing is well-defined.
   if (lockedUntilIso && Date.parse(lockedUntilIso) > Date.now()) {
     return (
       <span
@@ -238,13 +238,13 @@ function SecurityChips({
   ssoOnly: boolean;
   failedLoginCount: number;
 }) {
-  // SSO accounts authenticate through the identity provider — MFA and email
+  // SSO accounts authenticate through the identity provider - MFA and email
   // verification are the IdP's responsibility, so the app-level flags don't
   // apply. Show a placeholder instead of a misleading "MFA ✗".
   if (ssoOnly) {
     return (
       <span
-        title="Single sign-on account — authentication, MFA, and email verification are handled by the identity provider."
+        title="Single sign-on account - authentication, MFA, and email verification are handled by the identity provider."
         className="text-[0.6875rem] tracking-wide text-[color:var(--color-fg-subtle)]"
       >
         SSO · managed by IdP

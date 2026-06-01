@@ -2,7 +2,7 @@
  * lib/pdns/capabilities.ts
  *
  * Derives a backend's OBSERVED daemon capabilities from its read-only `/config`
- * (ADR-0014). Pure — no I/O. The daemon's file-based flags are the truth about
+ * (ADR-0014). Pure - no I/O. The daemon's file-based flags are the truth about
  * what it can do, and a single daemon can be primary AND secondary at once,
  * which is why this replaces the operator-declared `role`.
  */
@@ -25,7 +25,7 @@ function parseLaunch(value: string | undefined): string[] {
 /**
  * Reduce a daemon's full `/config` to the capability flags ADR-0014 reasons
  * about. Accepts the 4.5+ names and their legacy aliases (`master`/`slave`/
- * `superslave`) interchangeably — either being `yes` counts.
+ * `superslave`) interchangeably - either being `yes` counts.
  */
 export function deriveCapabilities(
   config: readonly PdnsConfigSetting[],
@@ -55,18 +55,18 @@ export function deriveCapabilities(
 }
 
 /**
- * Whether a backend is a write target — the ADR-0014 classification that
+ * Whether a backend is a write target - the ADR-0014 classification that
  * replaces the old `role`. An unprobed backend (no capability snapshot yet) is
  * treated as writable so a freshly-added one is usable until its first probe;
  * once observed, anything that isn't a pure read-only AXFR mirror is a write
  * target. That covers the three usable shapes a PDNS Auth daemon can take:
  *
- *   - **standalone** (`primary=no, secondary=no`) — the *default* PDNS Auth
+ *   - **standalone** (`primary=no, secondary=no`) - the *default* PDNS Auth
  *     config; no DNS-protocol replication, but the API still accepts zone
  *     creates. This is the case the previous `caps.primary` check incorrectly
  *     excluded (#57).
- *   - **primary** (`primary=yes`) — write target plus AXFR primary.
- *   - **dual-role** (`primary=yes, secondary=yes`) — primary for some zones,
+ *   - **primary** (`primary=yes`) - write target plus AXFR primary.
+ *   - **dual-role** (`primary=yes, secondary=yes`) - primary for some zones,
  *     secondary for others; the per-zone `kind` decides which.
  *
  * Only a pure mirror (`secondary=yes && !primary`) returns false here.
@@ -76,7 +76,7 @@ export function isWriteCapable(caps: PdnsDaemonCapabilities | null | undefined):
 }
 
 /**
- * Whether a backend is purely a read-only mirror — observed secondary, not
+ * Whether a backend is purely a read-only mirror - observed secondary, not
  * primary. Unprobed backends are NOT mirrors (they default to writable).
  */
 export function isReadOnlyMirror(caps: PdnsDaemonCapabilities | null | undefined): boolean {
@@ -90,7 +90,7 @@ export interface GroupComposition {
   /** Read-only mirror members. */
   mirrors: number;
   /**
-   * A true multi-primary cluster — ≥2 writable peers sharing storage. Only
+   * A true multi-primary cluster - ≥2 writable peers sharing storage. Only
    * these have a meaningful peer-selection strategy; a primary+secondaries
    * group has a single write target, so the strategy is irrelevant there.
    */
@@ -119,12 +119,12 @@ export function classifyGroup(
 }
 
 /**
- * Capability summary for the servers UI — the literal daemon `/config` flags that
+ * Capability summary for the servers UI - the literal daemon `/config` flags that
  * are `yes`, verbatim ("primary", "secondary", "autosecondary"), joined with
  * " + ". NOT paraphrased: the badge shows exactly the capability the API reports,
  * so it never invents a label like "Secondary (auto)". With no replication flag
  * set it falls back to "standalone" (the daemon hosts zones over the API but does
- * no DNS-protocol replication — the default PDNS Auth shape); "unknown" when the
+ * no DNS-protocol replication - the default PDNS Auth shape); "unknown" when the
  * daemon has never been observed, "unreachable" when the API itself is down.
  */
 export function summarizeCapabilities(caps: PdnsDaemonCapabilities | null): string {

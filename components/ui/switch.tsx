@@ -3,7 +3,7 @@
 /**
  * components/ui/switch.tsx
  *
- * Themed on/off toggle (`role="switch"`) — the project's standard boolean
+ * Themed on/off toggle (`role="switch"`) - the project's standard boolean
  * control, replacing the three hand-rolled copies of the same 11×6 pill. Pair it
  * with a separate text label/state span at the call site.
  */

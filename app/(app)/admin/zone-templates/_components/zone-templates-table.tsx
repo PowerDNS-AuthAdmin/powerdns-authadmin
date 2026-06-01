@@ -76,7 +76,7 @@ export function ZoneTemplatesTable({
         header: "Nameservers",
         cell: (ctx) => {
           const n = ctx.getValue<number>();
-          if (n === 0) return <span className="text-[color:var(--color-fg-muted)]">—</span>;
+          if (n === 0) return <span className="text-[color:var(--color-fg-muted)]">-</span>;
           return (
             <span className="font-mono text-xs">
               {n} {n === 1 ? "NS" : "NSs"}
@@ -98,7 +98,7 @@ export function ZoneTemplatesTable({
         sortUndefined: "last",
         cell: (ctx) => {
           const iso = ctx.getValue<string | null>();
-          if (!iso) return <span className="text-xs text-[color:var(--color-fg-muted)]">—</span>;
+          if (!iso) return <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>;
           return (
             <span className="text-xs text-[color:var(--color-fg-muted)]" title={iso}>
               {freshnessOf(iso).label}

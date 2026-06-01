@@ -6,7 +6,7 @@
  * Username + password form for an LDAP provider. Posts to
  * /api/auth/ldap/<slug>/login, which runs the bind-then-search-
  * then-rebind flow server-side. Same captcha contract as the local
- * form — when `turnstileSiteKey` is provided the Cloudflare widget
+ * form - when `turnstileSiteKey` is provided the Cloudflare widget
  * renders and its token is included in the body.
  */
 

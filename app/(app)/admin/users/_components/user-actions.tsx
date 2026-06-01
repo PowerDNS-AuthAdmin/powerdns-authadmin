@@ -22,6 +22,12 @@ interface UserActionsProps {
   canReset: boolean;
   canDelete: boolean;
   isSelf: boolean;
+  /**
+   * This row is the RO-locked demo bootstrap admin. The caller already folds
+   * the lock into canUpdate/canReset/canDelete (so the buttons hide); this flag
+   * just lets us explain why instead of showing an empty Actions box.
+   */
+  readonlyDemo: boolean;
 }
 
 export function UserActions(props: UserActionsProps) {
@@ -183,6 +189,13 @@ export function UserActions(props: UserActionsProps) {
       <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
         Actions
       </h2>
+
+      {props.readonlyDemo ? (
+        <p className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-3 py-2.5 text-xs text-[color:var(--color-fg-muted)]">
+          This is the shared, read-only demo account. Its identity, credentials, roles, and status
+          are locked and can&apos;t be changed.
+        </p>
+      ) : null}
 
       {props.canUpdate ? (
         <div className="space-y-2">

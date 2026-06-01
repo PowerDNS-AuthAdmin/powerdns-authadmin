@@ -1,10 +1,10 @@
 /**
  * app/api/admin/pdns/clusters/[id]/route.ts
  *
- * GET    — cluster detail + members (server.read).
- * PATCH  — update name/description/writeStrategy (server.update).
- * DELETE — drop the cluster (server.delete). Peers in the cluster have
- *          their cluster_id NULLed by the FK ON DELETE SET NULL — they
+ * GET    - cluster detail + members (server.read).
+ * PATCH  - update name/description/writeStrategy (server.update).
+ * DELETE - drop the cluster (server.delete). Peers in the cluster have
+ *          their cluster_id NULLed by the FK ON DELETE SET NULL - they
  *          become standalone primaries.
  */
 

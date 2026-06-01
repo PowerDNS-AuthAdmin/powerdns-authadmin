@@ -5,7 +5,7 @@
  *
  * Clone-zone affordance. Uses the DialogProvider's `prompt()`
  * primitive  so the operator interaction matches
- * every other in-app modal — no native window.prompt.
+ * every other in-app modal - no native window.prompt.
  *
  * Conditional on `zone.create` (parent passes `canCreate`).
  */
@@ -85,7 +85,7 @@ export function CloneZoneButton({ sourceName, serverSlug }: Props) {
 }
 
 function suggestTargetName(source: string): string {
-  // Drop the trailing dot for the prompt — operators usually type
+  // Drop the trailing dot for the prompt - operators usually type
   // without it. The API canonicalizes either way.
   const stripped = source.replace(/\.$/, "");
   return `clone-${stripped}`;

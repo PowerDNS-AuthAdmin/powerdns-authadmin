@@ -1,7 +1,7 @@
 /**
  * app/api/admin/users/[id]/zone-grants/[grantId]/route.ts
  *
- * DELETE — revoke a single zone grant. Permission: `user.update`.
+ * DELETE - revoke a single zone grant. Permission: `user.update`.
  *          The grant is keyed by its UUID id; the path's `[id]` is
  *          the user id and is validated to match for safety (a
  *          mis-routed call shouldn't be able to revoke a grant on a

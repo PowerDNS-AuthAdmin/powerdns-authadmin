@@ -1,8 +1,8 @@
 # Screenshots
 
 A visual tour of **PowerDNS-AuthAdmin**. Every page is captured at four
-parities — **desktop + light**, **desktop + dark**, **mobile + light**,
-**mobile + dark** — and rendered below with `<picture>` so the images
+parities - **desktop + light**, **desktop + dark**, **mobile + light**,
+**mobile + dark** - and rendered below with `<picture>` so the images
 auto-switch to match your GitHub / browser theme. Mobile shots are
 real screenshots wrapped in an iPhone 16 Pro bezel.
 
@@ -43,7 +43,7 @@ every primary and secondary.
 
 ## Backend health · alert bell
 
-The bell in the top-right surfaces active **backend advisories** —
+The bell in the top-right surfaces active **backend advisories** -
 unreachable hosts, API-key rejections, replication drift, missing TSIG
 keys, config drift between peers. One click reveals the popover with
 acknowledge + jump-to-source actions; cleared advisories disappear
@@ -66,7 +66,7 @@ automatically.
 
 ---
 
-## Zones — amalgamated list
+## Zones - amalgamated list
 
 Every backend's zones merged into one searchable list, with kind, serial,
 DNSSEC status, last-edit timestamp, and a **per-row sync chip** showing
@@ -139,11 +139,11 @@ checkbox so risky edits are intentional, not accidental.
 
 ---
 
-## Review changes — diff before apply
+## Review changes - diff before apply
 
 Every record change is previewed as a BIND-style **before / after diff**
 before it's written. The Save button stays disabled until the operator
-confirms — no accidental mutations, full audit trail (the diff is what
+confirms - no accidental mutations, full audit trail (the diff is what
 lands in [Audit log](#audit-log)).
 
 <picture>
@@ -213,7 +213,7 @@ explicit group membership **or** poller-derived topology.
 
 ## Users
 
-User management — security column per mechanism (TOTP, email
+User management - security column per mechanism (TOTP, email
 verification), account status, last sign-in. Per-user detail page
 manages role assignments (global / team-scoped / server-scoped),
 MFA enrolment, password reset, and active sessions.
@@ -311,7 +311,7 @@ admin changes, session revocations).
 
 Every HTTP call the app makes to PowerDNS, recorded with method, URL,
 status, error, request body, and the audit `requestId` that triggered
-it. Inline expandable HTTP detail (request + response) — useful when an
+it. Inline expandable HTTP detail (request + response) - useful when an
 audit row points at a PDNS failure and you need the raw exchange.
 
 <picture>
@@ -360,7 +360,7 @@ and a one-click Test discovery probe.
 
 ## TSIG keys
 
-Per-backend inventory of TSIG keys — name + algorithm only (never the
+Per-backend inventory of TSIG keys - name + algorithm only (never the
 shared secret). The wizard walks operators through generate → install
 on peer secondaries → activate for zones, in one flow.
 
@@ -405,7 +405,7 @@ from for auto-creation of secondary zones.
 
 Reusable record-set bundles applied to new zones at create-time or to
 existing zones in-place. Parameterised by zone name (and operator-
-supplied vars) — turn a 30-row apex/MX/SPF/DKIM/DMARC bundle into a
+supplied vars) - turn a 30-row apex/MX/SPF/DKIM/DMARC bundle into a
 one-click apply.
 
 <picture>
@@ -426,7 +426,7 @@ one-click apply.
 
 ## Settings
 
-Site-wide configuration — display name, brand logo, signup policy,
+Site-wide configuration - display name, brand logo, signup policy,
 operator-visible email defaults, rate-limit knobs. Everything writable
 from the UI is also reachable through the first-boot YAML provisioner
 so a fresh deploy lands on the same configuration each time.

@@ -18,7 +18,7 @@ interface Props {
  *   list   → textarea (one per line) + per-line validation
  *   string → single-line text input
  *
- * Anything not in `KIND_SPECS` falls through to a textarea — covers
+ * Anything not in `KIND_SPECS` falls through to a textarea - covers
  * X-prefixed custom kinds and any new PDNS kinds we don't know yet.
  */
 export function MetadataValuesInput({ kind, values, onChange }: Props) {

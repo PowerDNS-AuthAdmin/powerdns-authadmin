@@ -24,7 +24,7 @@ interface FormInitial {
   claimName: string;
   enabled: boolean;
   /** Per-provider opt-out of the email_verified claim check. Default
-   *  true — secure-by-default. */
+   *  true - secure-by-default. */
   requireEmailVerified: boolean;
   /**
    * Null = inherit env. Array (possibly empty) = override env.
@@ -88,7 +88,7 @@ const DEFAULTS: FormInitial = {
   claimEmail: "email",
   claimName: "name",
   enabled: true,
-  // Trust the IdP by default — see the schema comment. Operators
+  // Trust the IdP by default - see the schema comment. Operators
   // can flip on per-provider via the form checkbox.
   requireEmailVerified: false,
   allowedEmailDomains: null,
@@ -202,7 +202,7 @@ export function OidcProviderForm(props: Props) {
       // Empty string → null clears the icon back to text-only
       // button. Trimmed value otherwise. Server re-validates.
       iconUrl: iconUrl.trim() === "" ? null : iconUrl.trim(),
-      // Strip rows where required fields are blank — the user added
+      // Strip rows where required fields are blank - the user added
       // a row then walked away. The server's Zod refine would reject
       // these anyway, but the better UX is to silently drop them
       // (they're empty placeholders, not malformed data).
@@ -238,7 +238,7 @@ export function OidcProviderForm(props: Props) {
         if (data?.details?.fieldErrors) setFieldErrors(data.details.fieldErrors);
         return;
       }
-      // Land on the unified Authentication index — `/admin/authentication/oidc`
+      // Land on the unified Authentication index - `/admin/authentication/oidc`
       // also redirects there now, but pushing directly avoids the extra hop.
       router.push("/admin/authentication");
       router.refresh();
@@ -254,7 +254,7 @@ export function OidcProviderForm(props: Props) {
       <Field
         id="name"
         label="Display name"
-        hint="Shown on the login button — e.g. 'Continue with Google'."
+        hint="Shown on the login button - e.g. 'Continue with Google'."
         errors={fieldErrors["name"]}
       >
         <input
@@ -289,7 +289,7 @@ export function OidcProviderForm(props: Props) {
       <Field
         id="issuerUrl"
         label="Issuer URL"
-        hint="OIDC discovery base — the app fetches /.well-known/openid-configuration below this."
+        hint="OIDC discovery base - the app fetches /.well-known/openid-configuration below this."
         errors={fieldErrors["issuerUrl"]}
       >
         <input
@@ -431,7 +431,7 @@ export function OidcProviderForm(props: Props) {
           <span>
             Override <code>OIDC_ALLOWED_EMAIL_DOMAINS</code> for this provider
             <span className="block text-xs text-[color:var(--color-fg-muted)]">
-              Off: inherit the env allow-list. On: use the list below instead (REPLACES env — leave
+              Off: inherit the env allow-list. On: use the list below instead (REPLACES env - leave
               empty to allow any email).
             </span>
           </span>
@@ -462,7 +462,7 @@ export function OidcProviderForm(props: Props) {
           On every successful sign-in, the user&apos;s{" "}
           <code>{initial.scopes && claimEmail ? "claim_groups" : "groups"}</code> claim is matched
           against the rules below. Each matching row materialises a role assignment tagged with this
-          provider — the NEXT sign-in revokes it if the user is no longer in the group. Admin-issued
+          provider - the NEXT sign-in revokes it if the user is no longer in the group. Admin-issued
           assignments are never touched.
         </p>
         {groupMappings.length === 0 ? (
@@ -523,7 +523,7 @@ export function OidcProviderForm(props: Props) {
                 <label className="text-xs">
                   Target
                   {m.scopeType === "global" ? (
-                    <input value="" disabled placeholder="—" className={`${inputClass} text-xs`} />
+                    <input value="" disabled placeholder="-" className={`${inputClass} text-xs`} />
                   ) : m.scopeType === "team" ? (
                     <SelectMenu
                       value={m.scopeId ?? ""}
@@ -617,7 +617,7 @@ export function OidcProviderForm(props: Props) {
           Require <code>email_verified</code> claim from the IdP
           <span className="block text-xs text-[color:var(--color-fg-muted)]">
             On by default. Blocks sign-in for an existing local account unless the IdP attests the
-            email is verified — the account-takeover guard for IdPs that let users set arbitrary
+            email is verified - the account-takeover guard for IdPs that let users set arbitrary
             unverified emails. Turn off only for IdPs that don&apos;t emit the claim at all (some
             custom OIDC bridges, SAML→OIDC translators).
           </span>

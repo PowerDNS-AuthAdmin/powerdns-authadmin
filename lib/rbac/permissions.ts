@@ -46,7 +46,7 @@ export const PERMISSIONS = [
   "metadata.write",
 
   // === TSIG keys ===
-  // `tsig.read` gates the listing (name + algorithm only — never
+  // `tsig.read` gates the listing (name + algorithm only - never
   // the secret). `tsig.manage` gates create / regenerate / delete
   // AND reveal-secret. Splitting them lets operators audit the
   // configured key inventory without granting access to the

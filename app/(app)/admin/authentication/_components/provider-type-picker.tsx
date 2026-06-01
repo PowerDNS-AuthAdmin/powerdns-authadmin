@@ -7,7 +7,7 @@
  * protocol first; the parent (`<NewProviderClient/>`) then renders the
  * relevant form below. SAML and LDAP cards are visible-but-disabled with
  * a "Lands in PR N" chip so operators see the road map without false
- * affordance — clicking does nothing until those PRs ship.
+ * affordance - clicking does nothing until those PRs ship.
  *
  * Selected state is URL-driven (`?type=oidc`). Clicking a card pushes the
  * query param via the parent's `onSelect`; back/forward + reload preserve
@@ -35,7 +35,7 @@ const CARDS: readonly CardSpec[] = [
   {
     type: "oidc",
     title: "OIDC",
-    blurb: "OpenID Connect — Keycloak, Authentik, Microsoft Entra ID, Google, Okta.",
+    blurb: "OpenID Connect - Keycloak, Authentik, Microsoft Entra ID, Google, Okta.",
     icon: <CircleDot className="h-5 w-5" aria-hidden />,
     available: true,
     comingChip: null,

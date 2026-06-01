@@ -8,7 +8,7 @@
  *   action picker  →  Backup branch  →  Download
  *                  →  Restore branch →  Upload → Confirm → Run → Result
  *
- * No modal — every step renders inline on the page with a back button.
+ * No modal - every step renders inline on the page with a back button.
  * Backup is one click; restore is gated behind a typed confirmation
  * because it's a destructive operation against the live DB.
  *
@@ -276,7 +276,7 @@ function BackupStep({ onToast }: { onToast: (text: string) => void }) {
       <Panel title="Excluded" tone="warn">
         <ul className="space-y-2 text-sm leading-relaxed">
           <li>
-            <strong>Zone data</strong> — PDNS owns it. Use AXFR or per-zone zonefile export for
+            <strong>Zone data</strong> - PDNS owns it. Use AXFR or per-zone zonefile export for
             that.
           </li>
           <li>
@@ -287,7 +287,7 @@ function BackupStep({ onToast }: { onToast: (text: string) => void }) {
             <strong>
               <Code>APP_ENCRYPTION_KEY</Code>
             </strong>{" "}
-            — these stay environment-side. Encrypted columns ride through as ciphertext, useless
+            - these stay environment-side. Encrypted columns ride through as ciphertext, useless
             without the encryption key on the restore target.
           </li>
         </ul>
@@ -333,7 +333,7 @@ function RestoreUploadStep({
     <div className="space-y-5">
       <Hero icon={<Upload />} title="Restore from backup" tone="warn">
         Upload a JSON file produced by this app's <Code>Download backup</Code>. Restore is{" "}
-        <strong>merge-only</strong> — existing rows are kept; only missing rows are inserted.
+        <strong>merge-only</strong> - existing rows are kept; only missing rows are inserted.
       </Hero>
 
       <Panel title="Upload the export">
@@ -441,7 +441,7 @@ function RestoreConfirmStep({
       <Hero icon={<AlertTriangle />} title="Confirm restore" tone="warn">
         About to merge <strong>{bundlePreview?.totalRows.toLocaleString() ?? "0"}</strong> rows into
         the live database in a single transaction. Existing rows with the same primary key are{" "}
-        <em>not</em> overwritten — operators preserving prod state can restore on top safely.
+        <em>not</em> overwritten - operators preserving prod state can restore on top safely.
       </Hero>
 
       <Panel title="What will happen" tone="warn">

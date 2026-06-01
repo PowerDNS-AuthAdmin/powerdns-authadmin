@@ -17,7 +17,7 @@
  * Serialization: one SQLite connection cannot hold two overlapping
  * transactions, and the callbacks are async, so two requests could otherwise
  * interleave their BEGIN/COMMIT across `await` points. Top-level transactions
- * are therefore queued through a promise chain and run strictly one at a time —
+ * are therefore queued through a promise chain and run strictly one at a time -
  * which is also SQLite's real concurrency model (a single writer). In practice
  * the callbacks only `await` better-sqlite3 queries, which resolve
  * synchronously, so nothing interleaves mid-transaction anyway; the chain is
@@ -55,7 +55,7 @@ export function createSqliteTransactionRunner<TDb>(
   return (callback) => {
     // Nested: we're already inside a transaction callback on this connection
     // (the BEGIN is open). Use a SAVEPOINT for partial-rollback semantics and
-    // skip the chain — re-entering it would deadlock.
+    // skip the chain - re-entering it would deadlock.
     if (depth > 0) {
       const savepoint = `app_sp_${depth}`;
       depth += 1;

@@ -1,10 +1,10 @@
 /**
  * app/api/admin/pdns/zones/[zoneId]/rrsets/route.ts
  *
- * PATCH — apply one or more RRset changes to a zone.
+ * PATCH - apply one or more RRset changes to a zone.
  *
  * Flow:
- *   1. Permission check (record.* — discriminated per change kind).
+ *   1. Permission check (record.* - discriminated per change kind).
  *   2. Resolve the backend (by `serverSlug` in the body).
  *   3. Fetch the zone via PdnsClient (current RRsets for the audit snapshot).
  *   4. Build a single PATCH body that bundles every change:
@@ -55,8 +55,8 @@ interface RouteContext {
  * Drop duplicate-content records from an RRset. PowerDNS rejects an RRset that
  * carries the same content twice ("Duplicate record in RRset …"), which happens
  * naturally when an operator edits one record to a value another record in the
- * same RRset already holds. Deduping makes that edit MERGE — the same net result
- * the Review-changes diff already shows — instead of failing on apply. First
+ * same RRset already holds. Deduping makes that edit MERGE - the same net result
+ * the Review-changes diff already shows - instead of failing on apply. First
  * occurrence wins (preserves order); a present `disabled:false` beats a later
  * disabled duplicate so a merge doesn't silently disable the record.
  */
@@ -145,7 +145,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     // role (a primary box can still host mirror zones).
     assertEditableZoneKind(zoneBefore.kind);
 
-    // NOTE: zone-level edited_serial concurrency check was removed — it had
+    // NOTE: zone-level edited_serial concurrency check was removed - it had
     // the wrong granularity (every successful edit advances the zone's serial
     // so consecutive edits in the same session falsely 409'd against the
     // user's own prior write, since router.refresh() is async and the page's
@@ -153,7 +153,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     // the original RRset content; server only 409s if THIS rrset was actually
     // modified by someone else) is the correct long-term fix and is queued
     // forUntil then we let conflicts fall back to last-write-wins
-    // — the audit log captures every change for post-hoc reconciliation.
+    // - the audit log captures every change for post-hoc reconciliation.
 
     const beforeMap = new Map((zoneBefore.rrsets ?? []).map((rr) => [`${rr.name}|${rr.type}`, rr]));
 
@@ -161,7 +161,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     // `detectRRsetConflicts` walks the changes, computes structural
     // hashes against the just-fetched zoneBefore (no extra PDNS
     // round-trip), and returns per-change conflicts. Any conflict in
-    // the batch blocks ALL changes (transactional all-or-nothing —
+    // the batch blocks ALL changes (transactional all-or-nothing -
     // a partial apply would leave the zone in a state the operator
     // didn't intend). Old clients that don't send `expected` fall
     // through unchanged (last-write-wins).
@@ -205,7 +205,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       const before = beforeMap.get(key) ?? null;
       // Always carry comments through the PATCH. If the operator
       // edited the comment, `change.comment` is a string (possibly
-      // empty — meaning "clear"); otherwise we keep whatever PDNS
+      // empty - meaning "clear"); otherwise we keep whatever PDNS
       // already has so the round-trip doesn't wipe operator notes.
       const liveComments = readComments(before);
       const outgoingComments =
@@ -282,7 +282,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     const hdrs = await headers();
     const reqInfo = getRequestContext(hdrs);
 
-    // Audit inserts run in parallel — one DB round-trip's worth of
+    // Audit inserts run in parallel - one DB round-trip's worth of
     // latency total, not N × round-trip. The PDNS edit has ALREADY been
     // applied at this point, so a failed audit write must NOT fail the
     // request (that would 500 an edit that succeeded on the backend,
@@ -334,7 +334,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       "rrsets.patch.ok",
     );
 
-    // Auto-NOTIFY Master/Primary zones — pushed to background so the
+    // Auto-NOTIFY Master/Primary zones - pushed to background so the
     // response returns the moment audits are flushed. The NOTIFY call
     // itself is async telemetry; the operator doesn't need to wait for
     // PDNS to acknowledge it.
@@ -393,7 +393,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
 /**
  * Pull a comments array off a PDNS rrset snapshot. PDNS returns the
  * field as an array of `{ content, account, modified_at }` objects, but
- * older / proxied responses may omit it. We don't reshape the entries —
+ * older / proxied responses may omit it. We don't reshape the entries -
  * we forward whatever PDNS gave us so the PATCH round-trip preserves
  * them byte-for-byte.
  */
@@ -426,7 +426,7 @@ function readComments(rrset: unknown): Array<Record<string, unknown>> {
 }
 
 /**
- * Normalize a PDNS rrset shape for the audit `before` snapshot — always
+ * Normalize a PDNS rrset shape for the audit `before` snapshot - always
  * including `comments: []` when PDNS didn't supply the field, so the
  * before/after diff doesn't show a spurious "comments removed" line.
  */

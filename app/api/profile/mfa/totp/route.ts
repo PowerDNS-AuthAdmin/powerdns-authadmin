@@ -3,7 +3,7 @@
  *
  * Self-service TOTP enrollment and removal.
  *
- * POST   — start enrollment. Generates a fresh secret, stashes it in
+ * POST   - start enrollment. Generates a fresh secret, stashes it in
  *          the temp-reveal-store keyed by a single-use token bound
  *          to the operator, and returns the `otpauth://` URI for the
  *          authenticator QR scan + the reveal token the operator's
@@ -11,11 +11,11 @@
  *          NOT persisted to the user row until the operator proves
  *          they scanned it correctly via the confirm step.
  *
- * PUT    — confirm enrollment. Body: { revealToken, code }. Redeems
+ * PUT    - confirm enrollment. Body: { revealToken, code }. Redeems
  *          the secret from the reveal-store, verifies the 6-digit
  *          code, encrypts + writes to `user.totpSecretEncrypted`.
  *
- * DELETE — disable MFA. Clears the encrypted secret. Audit row notes
+ * DELETE - disable MFA. Clears the encrypted secret. Audit row notes
  *          the actor (in case the operator's account is later
  *          compromised, audit shows when MFA was removed).
  */
@@ -27,6 +27,7 @@ import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { assertBootstrapAdminMutable } from "@/lib/auth/bootstrap-admin";
 import { mint, redeem } from "@/lib/auth/temp-reveal-store";
 import { generateSecret, provisioningUri, verifyTotp } from "@/lib/auth/totp";
 import { renderOtpAuthQrSvg } from "@/lib/auth/totp-qr";
@@ -43,14 +44,15 @@ const confirmSchema = z.object({
   code: z.string().regex(/^\d{6}$/, "Code must be 6 digits."),
 });
 
-/** POST — start enrollment. */
+/** POST - start enrollment. */
 export async function POST(request: Request): Promise<Response> {
   try {
     // Self-remediation endpoint: a forced-MFA-non-compliant operator must be
-    // able to enroll/confirm/disable TOTP, so skip the compliance gate here —
+    // able to enroll/confirm/disable TOTP, so skip the compliance gate here -
     // otherwise the gate would block the very action that clears it.
     const { user } = await requireUser({ skipComplianceGate: true });
     await requireCsrf(request);
+    assertBootstrapAdminMutable(user.email);
     if (user.totpSecretEncrypted) {
       throw new ConflictError(
         "TOTP is already enabled. Disable it first to re-enroll with a new authenticator.",
@@ -81,14 +83,15 @@ export async function POST(request: Request): Promise<Response> {
   }
 }
 
-/** PUT — confirm with code. */
+/** PUT - confirm with code. */
 export async function PUT(request: Request): Promise<Response> {
   try {
     // Self-remediation endpoint: a forced-MFA-non-compliant operator must be
-    // able to enroll/confirm/disable TOTP, so skip the compliance gate here —
+    // able to enroll/confirm/disable TOTP, so skip the compliance gate here -
     // otherwise the gate would block the very action that clears it.
     const { user } = await requireUser({ skipComplianceGate: true });
     await requireCsrf(request);
+    assertBootstrapAdminMutable(user.email);
     if (user.totpSecretEncrypted) {
       throw new ConflictError("TOTP is already enabled.");
     }
@@ -112,7 +115,7 @@ export async function PUT(request: Request): Promise<Response> {
     const secret = revealed.plaintext;
 
     if (!verifyTotp(secret, input.code)) {
-      // The reveal-store entry was already burned by `redeem` — the
+      // The reveal-store entry was already burned by `redeem` - the
       // operator has to start over. That's intentional: it prevents
       // brute-forcing the 6-digit code against the same stashed
       // secret. The cost is one extra round-trip to start; the
@@ -152,14 +155,15 @@ export async function PUT(request: Request): Promise<Response> {
   }
 }
 
-/** DELETE — disable. */
+/** DELETE - disable. */
 export async function DELETE(request: Request): Promise<Response> {
   try {
     // Self-remediation endpoint: a forced-MFA-non-compliant operator must be
-    // able to enroll/confirm/disable TOTP, so skip the compliance gate here —
+    // able to enroll/confirm/disable TOTP, so skip the compliance gate here -
     // otherwise the gate would block the very action that clears it.
     const { user } = await requireUser({ skipComplianceGate: true });
     await requireCsrf(request);
+    assertBootstrapAdminMutable(user.email);
     if (!user.totpSecretEncrypted) {
       throw new NotFoundError("TOTP is not enabled on this account.");
     }

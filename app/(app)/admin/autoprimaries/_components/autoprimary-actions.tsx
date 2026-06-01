@@ -37,7 +37,7 @@ export function AutoprimaryActions({ serverSlug, rows }: Props) {
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
 
   function rowKey(r: Row): string {
-    // Unique enough for keying the per-row state — the (ip, nameserver)
+    // Unique enough for keying the per-row state - the (ip, nameserver)
     // pair is the PDNS-side compound primary key.
     return `${r.ip}|${r.nameserver}`;
   }
@@ -207,7 +207,7 @@ function AutoprimariesTable({
         header: "Account",
         cell: (ctx) => (
           <span className="text-xs text-[color:var(--color-fg-muted)]">
-            {ctx.getValue<string | undefined>() ?? "—"}
+            {ctx.getValue<string | undefined>() ?? "-"}
           </span>
         ),
       },

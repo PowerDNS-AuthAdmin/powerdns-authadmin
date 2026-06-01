@@ -15,7 +15,7 @@
 
 ## Format
 
-Copy `0000-template.md`. Keep ADRs short — one page is the target, two is the max. The point is
+Copy `0000-template.md`. Keep ADRs short - one page is the target, two is the max. The point is
 durability, not exhaustiveness.
 
 ## Index
@@ -43,7 +43,7 @@ durability, not exhaustiveness.
 | 0020 | [LDAP authentication architecture](./0020-ldap-architecture.md)                                                  | Accepted                   |
 | 0021 | [SAML 2.0 service-provider architecture](./0021-saml-architecture.md)                                            | Accepted                   |
 
-> **Numbering note:** there is no ADR 0003 — that number was reserved for a decision that was
+> **Numbering note:** there is no ADR 0003 - that number was reserved for a decision that was
 > withdrawn before it was written. The gap is intentional; numbers are never reused.
 
 > **Note:** ADR-0001 records the original choice of Next.js 15; the project has since upgraded to

@@ -17,7 +17,7 @@ const DEFAULT_DESTINATION = "/dashboard";
 export function safeNextPath(next: string | null | undefined): string {
   if (!next) return DEFAULT_DESTINATION;
   // Must be a root-relative path. Reject absolute URLs, protocol-relative
-  // ("//evil.com"), and backslash smuggling ("/\evil.com" — some parsers treat
+  // ("//evil.com"), and backslash smuggling ("/\evil.com" - some parsers treat
   // backslash as a slash).
   if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
     return DEFAULT_DESTINATION;

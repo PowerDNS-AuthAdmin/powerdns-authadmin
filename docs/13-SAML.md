@@ -1,7 +1,7 @@
 # SAML 2.0 single sign-on
 
 PowerDNS-AuthAdmin can authenticate users against any SAML 2.0 identity
-provider — AD FS, Authentik SAML, Keycloak SAML, Okta SAML, Azure AD SAML,
+provider - AD FS, Authentik SAML, Keycloak SAML, Okta SAML, Azure AD SAML,
 PingFederate, Shibboleth. Signed assertions are required by default; encrypted
 assertions are optional. Group → role mapping mirrors the OIDC equivalent.
 
@@ -42,17 +42,17 @@ The private key is encrypted at rest by AES-256-GCM via
 
 1. Navigate to **Admin → Authentication → Add provider** and pick **SAML 2.0**.
 2. Fill in:
-   - **Display name** — shown on the login button.
-   - **Slug** — URL-safe identifier (lowercase, dashes; e.g. `corp-sso`).
-   - **IdP entityID** — the IdP's Issuer URI.
-   - **IdP SSO URL** — the IdP's SAML 2.0 sign-in endpoint (HTTP-Redirect
+   - **Display name** - shown on the login button.
+   - **Slug** - URL-safe identifier (lowercase, dashes; e.g. `corp-sso`).
+   - **IdP entityID** - the IdP's Issuer URI.
+   - **IdP SSO URL** - the IdP's SAML 2.0 sign-in endpoint (HTTP-Redirect
      binding).
-   - **IdP SLO URL** _(optional)_ — Single Logout endpoint.
-   - **IdP signing certificate** — paste the public PEM cert the IdP uses to
+   - **IdP SLO URL** _(optional)_ - Single Logout endpoint.
+   - **IdP signing certificate** - paste the public PEM cert the IdP uses to
      sign Responses.
-   - **SP private key + cert** — paste the PEMs you generated above.
-3. Save. Copy the SP metadata URL from the provider detail page —
-   `/api/auth/saml/<slug>/metadata` — and register it in your IdP.
+   - **SP private key + cert** - paste the PEMs you generated above.
+3. Save. Copy the SP metadata URL from the provider detail page -
+   `/api/auth/saml/<slug>/metadata` - and register it in your IdP.
 
 ### 3. Register the SP with the IdP
 
@@ -68,7 +68,7 @@ Most IdPs accept SP metadata via URL or uploaded XML file. Worked examples:
 5. **Signing key/certificate:** select the keypair Authentik should sign with.
    Then go back to PowerDNS-AuthAdmin and paste that public cert into
    **IdP signing certificate**.
-6. **Property mappings** — at minimum: an `email` mapping for the user's
+6. **Property mappings** - at minimum: an `email` mapping for the user's
    email. Optional: `groups` mapping for group → role assignments.
 7. Create an **Application** bound to this Provider and assign the relevant
    users / groups.
@@ -83,7 +83,7 @@ Most IdPs accept SP metadata via URL or uploaded XML file. Worked examples:
    `https://<app-url>/api/auth/saml/<slug>/acs`.
 6. **Signing keys → Client signing key:** import the SP public cert
    (`sp.crt`).
-7. **Client scopes → Mappers** — add at minimum:
+7. **Client scopes → Mappers** - add at minimum:
    - User Property `email` → SAML Attribute `email`.
    - User Property `firstName` → SAML Attribute `name` (or compose).
    - (Optional) Group List → SAML Attribute `groups`.
@@ -94,7 +94,7 @@ Then in PowerDNS-AuthAdmin paste Keycloak's IdP signing certificate
 #### AD FS
 
 1. **AD FS Management → Relying Party Trusts → Add Relying Party Trust**.
-2. **Import data about the relying party from a file** — point at the SP
+2. **Import data about the relying party from a file** - point at the SP
    metadata XML (download from `/api/auth/saml/<slug>/metadata`).
 3. **Access Control Policy:** Permit everyone (or scope as required).
 4. **Edit Claim Issuance Policy → Add Rule → Send LDAP Attributes as Claims:**
@@ -164,17 +164,17 @@ schema.
 
 ## Troubleshooting
 
-- **`saml-state-missing`** — the `pda_saml_state` cookie wasn't set when the
+- **`saml-state-missing`** - the `pda_saml_state` cookie wasn't set when the
   ACS handler ran. Usually means the user's session expired between /login
   and the IdP round-trip (10-minute TTL), they switched browsers, or their
   browser blocked third-party cookies on the IdP origin.
-- **`saml-exchange-failed`** — the assertion failed verification. Check the
+- **`saml-exchange-failed`** - the assertion failed verification. Check the
   app logs for the specific `saml.acs.verify-failed` line; common causes:
-  - **InResponseTo mismatch** — the IdP replied to a different RequestID
+  - **InResponseTo mismatch** - the IdP replied to a different RequestID
     (sometimes happens when the IdP holds onto a stale session).
-  - **Signature verification failed** — the IdP's signing cert changed
+  - **Signature verification failed** - the IdP's signing cert changed
     and you haven't updated the **IdP signing certificate** field.
-  - **`wantAuthnResponseSigned` failed** — the IdP signs only the inner
+  - **`wantAuthnResponseSigned` failed** - the IdP signs only the inner
     assertion; turn off **Require signed Response** on the provider.
-- **`saml-not-authorized`** — the email domain wasn't in the allow-list.
+- **`saml-not-authorized`** - the email domain wasn't in the allow-list.
   Check the provider's **Override OIDC_ALLOWED_EMAIL_DOMAINS** setting.

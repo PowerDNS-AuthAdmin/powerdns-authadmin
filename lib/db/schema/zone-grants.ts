@@ -6,7 +6,7 @@
  * a `zone_grants` row says "this principal, on this backend, has this
  * permission set for this specific zone."
  *
- * "Principal" is either a user OR a team — exactly one, never both,
+ * "Principal" is either a user OR a team - exactly one, never both,
  * never neither. The principal split lets operators express the two
  * shapes operators actually want: "Alice has DNSSEC on example.com.",
  * and "the noc team has record-write on internal.example.com.". A
@@ -17,7 +17,7 @@
  * Why a separate table from `role_assignments`:
  *   - `role_assignments` carries a `scope_id` that's a UUID into one
  *     of our local tables (`teams`, `pdns_servers`). Zones don't live
- *     in our DB — PDNS owns them. Using `scope_id` for a zone name
+ *     in our DB - PDNS owns them. Using `scope_id` for a zone name
  *     would require either a parallel local `zones` table (cost: every
  *     PDNS write needs a mirror write here, with reconciliation when
  *     PDNS drops a zone) or stuffing a non-UUID string into a UUID
@@ -30,12 +30,12 @@
  *
  * Effective permissions for a (user, server, zone) are the UNION of:
  *   - role_assignments at global / team / server scopes (existing path)
- *   - zone_grants rows matching (user, server, zone) — direct user grants
+ *   - zone_grants rows matching (user, server, zone) - direct user grants
  *   - zone_grants rows matching (team, server, zone) for every team the
  *     user is a member of via `team_members`
  *
  * `zone_name` is canonical: lowercase, trailing dot. The grant route
- * canonicalizes before write — readers should not re-canonicalize.
+ * canonicalizes before write - readers should not re-canonicalize.
  */
 
 import { sql } from "drizzle-orm";
@@ -48,7 +48,7 @@ import { pk, timestamps } from "./_helpers";
 // Same rationale as `lib/db/schema/api-tokens.ts` (and `roles.ts`):
 // the column stores values from the master permission vocabulary in
 // `lib/rbac/permissions.ts`, but we don't import the `Permission`
-// type here — the `lib/db → lib/rbac` direction is forbidden by the
+// type here - the `lib/db → lib/rbac` direction is forbidden by the
 // architecture. Validation that the strings match the vocabulary
 // happens at the route layer above the DB.
 type StoredPermission = string;
@@ -74,7 +74,7 @@ export const zoneGrants = pgTable(
 
     /**
      * PDNS backend the zone lives on. Cascade-deleted with the backend
-     * row — grants are meaningless when the server is gone.
+     * row - grants are meaningless when the server is gone.
      */
     serverId: uuid("server_id")
       .notNull()
@@ -82,7 +82,7 @@ export const zoneGrants = pgTable(
 
     /**
      * Canonical zone name (lowercase, trailing dot). NOT a foreign key
-     * — PDNS owns zone identity; if the operator deletes the zone on
+     * - PDNS owns zone identity; if the operator deletes the zone on
      * PDNS the grant lingers harmlessly until cleaned up by the admin
      * UI. The orphan grant is no security risk (the zone doesn't exist
      * to act on).
@@ -92,7 +92,7 @@ export const zoneGrants = pgTable(
     /**
      * Subset of the master permission vocabulary
      * (`lib/rbac/permissions.ts`). Empty array means "no
-     * permissions" — the row exists but grants nothing, useful as a
+     * permissions" - the row exists but grants nothing, useful as a
      * placeholder while an operator builds up a grant.
      */
     permissions: jsonb("permissions").$type<StoredPermission[]>().notNull().default([]),
@@ -111,7 +111,7 @@ export const zoneGrants = pgTable(
   (t) => ({
     userIdx: index("zone_grants_user_idx").on(t.userId),
     teamIdx: index("zone_grants_team_idx").on(t.teamId),
-    // Reverse-lookup: "who has access to (server, zone)?" — used by
+    // Reverse-lookup: "who has access to (server, zone)?" - used by
     // the per-zone Access tab.
     zoneIdx: index("zone_grants_zone_idx").on(t.serverId, t.zoneName),
     // Partial unique: a user has at most one grant per (server, zone).

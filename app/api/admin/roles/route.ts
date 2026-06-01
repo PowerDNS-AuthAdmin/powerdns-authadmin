@@ -1,9 +1,9 @@
 /**
  * app/api/admin/roles/route.ts
  *
- * GET  — list every role (system + custom). Reuses `role.read` since the
+ * GET  - list every role (system + custom). Reuses `role.read` since the
  *        list page already requires it.
- * POST — create a custom role (`role.create`). System roles are never
+ * POST - create a custom role (`role.create`). System roles are never
  *        created via this route; `is_system = false` is hard-coded by
  *        `insertRole`.
  *

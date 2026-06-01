@@ -5,7 +5,7 @@
  * raw SQL. Each helper returns a Drizzle `sql` fragment composed with the
  * active dialect's syntax.
  *
- * Prefer the high-level Drizzle query API where possible — these helpers are
+ * Prefer the high-level Drizzle query API where possible - these helpers are
  * for cases where the API surfaces a dialect quirk (`::text` cast, JSON
  * extract operators, hour-bucket truncation, etc.).
  */
@@ -25,7 +25,7 @@ export function castToText(col: AnyColumn | SQL): SQL<string> {
 }
 
 /**
- * Cast nullable column/expression to text — preserves nullability in the type.
+ * Cast nullable column/expression to text - preserves nullability in the type.
  */
 export function castToNullableText(col: AnyColumn | SQL): SQL<string | null> {
   return isSqlite ? sql<string | null>`CAST(${col} AS TEXT)` : sql<string | null>`${col}::text`;
@@ -35,11 +35,11 @@ export function castToNullableText(col: AnyColumn | SQL): SQL<string | null> {
  * `count(*)` projected as a JS number.
  *
  * Postgres returns `count(*)` as `bigint`, which the pg-types parser hands
- * back as a string — we cast to `int` so the driver decodes to a JS number.
+ * back as a string - we cast to `int` so the driver decodes to a JS number.
  * SQLite returns counts natively as numbers, so no cast is needed.
  *
  * Callers must still `Number(row.count)` if the column might end up larger
- * than `int4` (unlikely for the use cases here — admin-table counts).
+ * than `int4` (unlikely for the use cases here - admin-table counts).
  */
 export function countStar(): SQL<number> {
   return isSqlite ? sql<number>`count(*)` : sql<number>`count(*)::int`;
@@ -60,7 +60,7 @@ export function jsonStringField(col: AnyColumn, key: string): SQL<string | null>
 
 /**
  * Extract a top-level boolean field from a JSON column. Returns 0/1 in
- * SQLite, true/false in Postgres — both compare-against-true work.
+ * SQLite, true/false in Postgres - both compare-against-true work.
  */
 export function jsonBoolField(col: AnyColumn, key: string): SQL<boolean> {
   if (isSqlite) {
@@ -73,12 +73,12 @@ export function jsonBoolField(col: AnyColumn, key: string): SQL<boolean> {
  * Truncate a timestamp column to a unit (hour / day) for bucketing. Returns
  * a SQL fragment whose JS-decoded value is a `Date`.
  *
- * Postgres: `date_trunc('hour', ts)` — yields a UTC timestamptz.
+ * Postgres: `date_trunc('hour', ts)` - yields a UTC timestamptz.
  * SQLite (timestamp_ms storage): convert to seconds and truncate via
  *   strftime under `'unixepoch'`, which interprets the epoch as UTC and
  *   formats UTC wall-clock components. We emit an ISO-8601 string with a
  *   'T' separator and a trailing 'Z' so `new Date(string)` parses it back
- *   as UTC — without the 'Z', a space/`'YYYY-MM-DD HH:00:00'` string is
+ *   as UTC - without the 'Z', a space/`'YYYY-MM-DD HH:00:00'` string is
  *   parsed as LOCAL time, skewing every SQLite bucket by the server's
  *   offset relative to the Postgres path.
  */

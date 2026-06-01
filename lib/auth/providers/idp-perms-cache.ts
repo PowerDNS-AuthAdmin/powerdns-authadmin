@@ -16,7 +16,7 @@
  * TTL of any group change at the IdP. The complexity of a shared cache
  * isn't worth the marginal accuracy improvement.
  *
- * Eviction: lazy — we check `expiresAt` on each read. A pathological
+ * Eviction: lazy - we check `expiresAt` on each read. A pathological
  * workload (large user count, all signed in via LDAP/OIDC) could let
  * the map grow without bound; in practice the user population is
  * small and the entries are tiny. If that ever changes, plug in a
@@ -40,7 +40,7 @@ function keyFor(userId: string, providerType: string, providerSlug: string): str
 
 /**
  * Read a cached snapshot. Returns null when missing OR when the entry
- * is past its TTL — caller treats both the same: recompute via the
+ * is past its TTL - caller treats both the same: recompute via the
  * provider's live path, then `putIdpPerms` the result.
  */
 export function getIdpPerms(
@@ -61,7 +61,7 @@ export function getIdpPerms(
 /**
  * Insert a fresh recompute result. TTL is `IDP_PERMS_CACHE_TTL_SECONDS`
  * from now. Pass an empty array to record a "no group memberships /
- * no mappings matched" result — that's a valid cache entry, not the
+ * no mappings matched" result - that's a valid cache entry, not the
  * absence of one.
  */
 export function putIdpPerms(
@@ -80,7 +80,7 @@ export function putIdpPerms(
 /**
  * Drop one user's cache entry (any provider). Called when admin
  * actions intentionally diverge a user's perms (force re-sync, sign
- * out everywhere, etc) — without this the in-memory snapshot would
+ * out everywhere, etc) - without this the in-memory snapshot would
  * keep serving stale rows for up to `IDP_PERMS_CACHE_TTL_SECONDS`.
  */
 export function invalidateIdpPermsForUser(userId: string): void {

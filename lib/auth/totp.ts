@@ -2,8 +2,8 @@
  * lib/auth/totp.ts
  *
  * Time-based one-time passwords per RFC 6238 (TOTP) atop RFC 4226
- * (HOTP). Implemented locally — about 60 lines of HMAC + bit
- * arithmetic — so we avoid taking a dep on `otplib` (which bundles
+ * (HOTP). Implemented locally - about 60 lines of HMAC + bit
+ * arithmetic - so we avoid taking a dep on `otplib` (which bundles
  * an algorithm registry + url parser + base32 helpers we don't need).
  *
  * Defaults follow what authenticator apps expect:
@@ -12,7 +12,7 @@
  *   - Step:      30 seconds
  *   - Window:    ±1 step (60-second clock-skew tolerance)
  *
- * Pure module — no DB, no HTTP. The caller provides the secret. Tests
+ * Pure module - no DB, no HTTP. The caller provides the secret. Tests
  * stub `Date.now` directly.
  */
 
@@ -101,7 +101,7 @@ export function verifyTotp(secret: string, presented: string, opts: TotpOptions 
 }
 
 // =============================================================================
-// HOTP — the underlying construction (RFC 4226). Per-counter HMAC.
+// HOTP - the underlying construction (RFC 4226). Per-counter HMAC.
 // =============================================================================
 
 function hotp(secret: string, counter: number, digits: number): string {
@@ -129,7 +129,7 @@ function hotp(secret: string, counter: number, digits: number): string {
 }
 
 // =============================================================================
-// Base32 (RFC 4648) — authenticator apps speak base32, so do we.
+// Base32 (RFC 4648) - authenticator apps speak base32, so do we.
 // =============================================================================
 
 const B32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -151,7 +151,7 @@ export function base32Encode(buf: Uint8Array): string {
 }
 
 export function base32Decode(s: string): Buffer {
-  // Strip whitespace + lowercase the input — many authenticators
+  // Strip whitespace + lowercase the input - many authenticators
   // emit lowercase or spaced base32 when sharing secrets.
   const clean = s.replace(/[\s=]/g, "").toUpperCase();
   let bits = 0;

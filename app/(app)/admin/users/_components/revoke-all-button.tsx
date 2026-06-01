@@ -5,7 +5,7 @@
  *
  * Incident-response button: wipe every session in the database,
  * forcing every signed-in user to re-authenticate. Lives at the
- * top of /admin/users next to "Add user" — visible only when the
+ * top of /admin/users next to "Add user" - visible only when the
  * operator has `user.update`, since the route gates on that.
  *
  * Two confirm steps:
@@ -16,7 +16,7 @@
  *      needing window.prompt (feedback-no-native-dialogs).
  *
  * "Include my own session" is offered via a separate follow-up
- * prompt rather than packed into one dialog — keeps each step
+ * prompt rather than packed into one dialog - keeps each step
  * focused on a single decision.
  */
 
@@ -41,7 +41,7 @@ export function RevokeAllSessionsButton() {
     if (!okConfirm) return;
 
     // Type-to-confirm gate. Refuses anything other than the exact
-    // string "REVOKE" (case-sensitive — the all-caps signals
+    // string "REVOKE" (case-sensitive - the all-caps signals
     // "you're about to do something destructive").
     const typed = await prompt({
       title: "Type REVOKE to confirm",
@@ -58,7 +58,7 @@ export function RevokeAllSessionsButton() {
     }
 
     // Final question: include the operator's own session, or
-    // spare it (default — keeps the audit-log window open mid-IR).
+    // spare it (default - keeps the audit-log window open mid-IR).
     const includeSelfChoice = await confirm({
       title: "Include your own session?",
       description:
@@ -87,7 +87,7 @@ export function RevokeAllSessionsButton() {
         description: `${data.revoked} session${data.revoked === 1 ? "" : "s"} cleared.`,
       });
       if (includeSelfChoice) {
-        // The operator just signed themselves out — bounce to login
+        // The operator just signed themselves out - bounce to login
         // after a beat so they see the toast first.
         setTimeout(() => {
           window.location.assign("/login?flash=session-required");

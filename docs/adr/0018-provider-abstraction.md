@@ -1,4 +1,4 @@
-# ADR 0018 — Multi-provider auth: keep OIDC where it is, layer SAML + LDAP as siblings
+# ADR 0018 - Multi-provider auth: keep OIDC where it is, layer SAML + LDAP as siblings
 
 - **Status:** Accepted
 - **Date:** 2026-05-28
@@ -58,14 +58,14 @@ through a unified protocol abstraction:
   `startSession()` is exactly the seam. SAML's verify-assertion path
   produces a `VerifiedIdentity`; LDAP's bind+search path produces one.
   Group → role materialisation via `applyGroupSync()` is already
-  provider-agnostic — it works against any `provider.groupMappings`
+  provider-agnostic - it works against any `provider.groupMappings`
   list and tags assignments with `provider_id`.
 - **Logout material is heterogeneous and small.** Rather than rename
   `oidc_end_session_url` etc. to a generic JSONB now, extend
   `VerifiedIdentity` with an optional `providerLogoutMeta?: unknown` field
   that the session layer can stash per-protocol. SAML stores
   `saml_session_index`; LDAP stores nothing. The migration to a fully
-  generic shape can happen later if the heterogeneity bites — today it
+  generic shape can happen later if the heterogeneity bites - today it
   doesn't.
 
 ## Alternatives considered
@@ -83,7 +83,7 @@ through a unified protocol abstraction:
 
 - PR 2 (LDAP) and PR 3 (SAML) each ship their own table + admin UI + plumbing
   module. Roughly the same code volume as `oidc-providers.ts` for each.
-- WebAuthn sits **above** this layer — it's not an identity provider; it's
+- WebAuthn sits **above** this layer - it's not an identity provider; it's
   a credential / second factor. ADR-0019 covers its design.
 - A future "one admin page that lists all configured providers regardless
   of type" is a UI overlay over three list pages; the underlying tables
@@ -93,6 +93,6 @@ through a unified protocol abstraction:
 
 ## References
 
-- `lib/auth/providers/types.ts` — `VerifiedIdentity` interface.
-- `lib/auth/providers/oidc.ts` — current OIDC concretion.
+- `lib/auth/providers/types.ts` - `VerifiedIdentity` interface.
+- `lib/auth/providers/oidc.ts` - current OIDC concretion.
 - ADR-0019 (WebAuthn), ADR-0020 (LDAP), ADR-0021 (SAML).

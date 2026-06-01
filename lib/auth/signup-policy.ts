@@ -19,23 +19,23 @@ import type { Permission } from "@/lib/rbac/permissions";
  * Permissions that, if held, make a role admin-equivalent for the purposes of
  * the signup guard. These are the cross-tenant / identity / infrastructure
  * capabilities that must never be reachable by self-registration. The list is
- * intentionally conservative — anything that lets the holder grant themselves
+ * intentionally conservative - anything that lets the holder grant themselves
  * more power, manage other identities, change app-wide settings, or read the
  * audit trail counts.
  *
  * This is a denylist (rather than "must be a subset of read-only") so an
  * operator can safely point `SIGNUP_DEFAULT_ROLE` at a bespoke low-privilege
- * role that, say, also grants `zone.create` — without us blocking a perfectly
+ * role that, say, also grants `zone.create` - without us blocking a perfectly
  * reasonable choice. We only block the genuinely dangerous capabilities.
  */
 export const ADMIN_EQUIVALENT_PERMISSIONS: readonly Permission[] = [
-  // Identity management — could create/alter/disable other users.
+  // Identity management - could create/alter/disable other users.
   "user.create",
   "user.update",
   "user.delete",
   "user.disable",
   "user.reset-password",
-  // Role management + assignment — the privilege-escalation vector.
+  // Role management + assignment - the privilege-escalation vector.
   "role.create",
   "role.update",
   "role.delete",

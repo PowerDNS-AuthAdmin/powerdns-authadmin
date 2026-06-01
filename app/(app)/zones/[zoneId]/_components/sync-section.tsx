@@ -1,5 +1,5 @@
 /**
- * Sync tab body — replication / consistency view for one zone.
+ * Sync tab body - replication / consistency view for one zone.
  *
  * Two modes, identical layout, different wording:
  *
@@ -31,7 +31,7 @@ type Props =
   | {
       mode: "cluster";
       /** All active peers, including the one this view is reading from.
-       *  The helper picks the highest-serial peer as the anchor — it
+       *  The helper picks the highest-serial peer as the anchor - it
        *  doesn't have to be the one we currently render via. */
       peers: PdnsServer[];
       zoneName: string;
@@ -74,7 +74,7 @@ async function PrimarySecondariesSync({
       diffs={diffs.map((d) => ({
         ...d,
         // For the primary/secondaries mode the labels match what was
-        // there before — primary serial / secondary serial.
+        // there before - primary serial / secondary serial.
         leftLabel: "primary serial",
         rightLabel: "secondary serial",
         synopsis: "All records match between primary and secondary.",
@@ -95,7 +95,7 @@ async function ClusterSync({
   if (peers.length < 2) {
     return (
       <div className="rounded-md border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-6 text-center text-sm text-[color:var(--color-fg-muted)]">
-        Cluster <code className="font-mono">{cluster.name}</code> has fewer than two active peers —
+        Cluster <code className="font-mono">{cluster.name}</code> has fewer than two active peers -
         nothing to compare. Add a peer on the{" "}
         <Link href={`/admin/clusters/${cluster.slug}`} className="underline">
           cluster admin page
@@ -184,10 +184,10 @@ function DiffList({
                 </div>
                 <div className="flex flex-wrap items-baseline gap-3 text-xs">
                   <span>
-                    {d.leftLabel}: <code className="font-mono">{d.primarySerial ?? "—"}</code>
+                    {d.leftLabel}: <code className="font-mono">{d.primarySerial ?? "-"}</code>
                   </span>
                   <span>
-                    {d.rightLabel}: <code className="font-mono">{d.secondarySerial ?? "—"}</code>
+                    {d.rightLabel}: <code className="font-mono">{d.secondarySerial ?? "-"}</code>
                   </span>
                   <Badge
                     text={d.error ? "error" : inSync ? "synced" : "desynced"}

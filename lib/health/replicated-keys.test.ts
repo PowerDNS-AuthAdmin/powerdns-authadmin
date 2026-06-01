@@ -16,7 +16,7 @@ describe("missingReplicatedKeys", () => {
   });
 
   it("does NOT flag primary-only keys (never replicated)", () => {
-    // k-local lives only on the primary — not pushed to any secondary, so absent
+    // k-local lives only on the primary - not pushed to any secondary, so absent
     // there is fine. k-shared is replicated and present on both → nothing missing.
     const out = missingReplicatedKeys(
       ["k-local", "k-shared"],

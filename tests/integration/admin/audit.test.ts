@@ -1,7 +1,7 @@
 /**
  * tests/integration/admin/audit.test.ts
  *
- * /api/admin/audit/export — CSV export of audit rows. Tests verify a
+ * /api/admin/audit/export - CSV export of audit rows. Tests verify a
  * just-generated user.create event appears in the export, that the
  * action= filter narrows results, and that a non-auditor caller is 403.
  */
@@ -54,7 +54,7 @@ describe("/api/admin/audit/export", () => {
     expect(res.status).toBe(400);
   });
 
-  it("non-admin (operator) cannot export — 403", async () => {
+  it("non-admin (operator) cannot export - 403", async () => {
     const admin = await loginAsBootstrap();
     const op = await createUser(admin, {
       email: uniqueEmail("op-audit"),

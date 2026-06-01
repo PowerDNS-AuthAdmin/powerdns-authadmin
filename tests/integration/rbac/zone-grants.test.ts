@@ -6,7 +6,7 @@
  * (server, zone) only. Zones outside the grant remain 403. The grant
  * is revocable.
  *
- * No team-membership wiring is required — `zone_grants` is a direct
+ * No team-membership wiring is required - `zone_grants` is a direct
  * (user, server, zone, permissions) tuple. The team-scope assignment
  * step in the brief is folded into the zone_grant itself.
  */
@@ -43,7 +43,7 @@ async function getStandaloneId(admin: TestHttp): Promise<string> {
   return standalone.id;
 }
 
-describe("zone grants — per-zone permission grants", () => {
+describe("zone grants - per-zone permission grants", () => {
   beforeEach(async () => {
     await resetState();
   });
@@ -120,7 +120,7 @@ describe("zone grants — per-zone permission grants", () => {
     expect(denied.status).toBe(403);
   }, 30_000);
 
-  it("DELETE on the grant revokes access — the user loses PATCH on the zone", async () => {
+  it("DELETE on the grant revokes access - the user loses PATCH on the zone", async () => {
     const admin = await loginAsBootstrap();
     const standaloneId = await getStandaloneId(admin);
     const zone = randomZone("revoke");
@@ -262,7 +262,7 @@ describe("zone grants — per-zone permission grants", () => {
     });
 
     // The acting operator can manage users (reaches the route) and holds
-    // zone.read globally — but NOT record.delete anywhere.
+    // zone.read globally - but NOT record.delete anywhere.
     const password = "limited-granter-pw-123456";
     const granter = await createUser(admin, {
       email: uniqueEmail("granter"),

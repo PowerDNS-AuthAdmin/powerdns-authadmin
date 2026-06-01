@@ -11,7 +11,7 @@ describe("isDiscoveryCacheStale", () => {
   });
 
   it("returns false when the cache is fresh", () => {
-    // 10 minutes ago — well under 15-minute staleness.
+    // 10 minutes ago - well under 15-minute staleness.
     const cache = {
       fetchedAt: new Date(NOW - 10 * 60 * 1000).toISOString(),
       ok: true,
@@ -37,7 +37,7 @@ describe("isDiscoveryCacheStale", () => {
   });
 
   it("treats a failed-probe cache the same as a successful one for freshness", () => {
-    // The freshness predicate doesn't care about ok=true/false —
+    // The freshness predicate doesn't care about ok=true/false -
     // a failed attempt 5 minutes ago is still "we tried 5m ago"
     // and shouldn't be re-probed before staleness elapses. This
     // pins the design choice and prevents a future "re-probe

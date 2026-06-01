@@ -42,7 +42,7 @@ export async function dbQuery<R extends Record<string, unknown> = Record<string,
  * pdns_servers/clusters, oidc_providers, zone_templates) are kept intact
  * so tests don't have to re-create them every time.
  *
- * Order matters where FKs aren't ON DELETE CASCADE — but every test-data
+ * Order matters where FKs aren't ON DELETE CASCADE - but every test-data
  * table here either has cascading FKs onto users/teams, or is itself a
  * leaf. The single TRUNCATE statement with CASCADE handles the rest.
  */
@@ -80,7 +80,7 @@ export async function resetUserData(opts: { bootstrapEmail: string }): Promise<v
       // 5. The seed creates the bootstrap admin with must_change_password=true.
       //    Route handlers now enforce that flag (the compliance gate in
       //    requireUser), so the canonical "do everything" actor must be in a
-      //    compliant state — model an admin who has completed first-login.
+      //    compliant state - model an admin who has completed first-login.
       await c.query(
         `UPDATE users SET must_change_password = false WHERE lower(email) = lower($1)`,
         [opts.bootstrapEmail],

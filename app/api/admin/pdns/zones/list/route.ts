@@ -1,7 +1,7 @@
 /**
  * app/api/admin/pdns/zones/list/route.ts
  *
- * GET /api/admin/pdns/zones/list?serverSlug=<slug> — return the zones a
+ * GET /api/admin/pdns/zones/list?serverSlug=<slug> - return the zones a
  * specific backend knows about, in the shape the export picker wants.
  * Permission: `zone.read`. No audit row (it's a UI list-fill).
  *

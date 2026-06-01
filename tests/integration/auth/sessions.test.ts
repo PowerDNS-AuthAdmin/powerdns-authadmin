@@ -2,7 +2,7 @@
  * tests/integration/auth/sessions.test.ts
  *
  * Session revocation contracts. GET endpoints for listing sessions
- * aren't exposed by the app today — sessions are read via DB queries.
+ * aren't exposed by the app today - sessions are read via DB queries.
  * Covers admin per-user revoke, admin per-session revoke, self-revoke
  * via /api/auth/sessions/[id], and the cross-client invalidation that
  * follows revocation.

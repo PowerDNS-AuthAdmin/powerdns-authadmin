@@ -30,7 +30,7 @@ interface TokenRow {
 interface Props {
   initialTokens: TokenRow[];
   /**
-   * Subset of the master vocab the user actually holds today —
+   * Subset of the master vocab the user actually holds today -
    * computed on the server so the client doesn't import
    * `lib/rbac/permissions`. Used to render the checkbox list.
    */
@@ -179,7 +179,7 @@ export function ApiTokensSection({ initialTokens, availablePermissions }: Props)
 
       <p className="mb-3 text-xs text-[color:var(--color-fg-muted)]">
         Tokens authenticate API calls via <code>Authorization: Bearer pda_pat_…</code>. Scope a
-        token to the minimum permissions the consumer needs — empty scopes inherit your full current
+        token to the minimum permissions the consumer needs - empty scopes inherit your full current
         permission set.
       </p>
 
@@ -187,7 +187,7 @@ export function ApiTokensSection({ initialTokens, availablePermissions }: Props)
         <div className="mb-3 rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 p-3 text-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="font-medium">Token — shown once</p>
+              <p className="font-medium">Token - shown once</p>
               <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
                 Copy now; the secret won't be shown again. Reloading the page loses access to it.
               </p>

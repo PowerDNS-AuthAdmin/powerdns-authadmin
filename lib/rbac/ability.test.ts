@@ -4,7 +4,7 @@
  * Regression tests for the scoping fix: a type-level CASL check
  * (`ability.can(action, "Type")`) returns true for a conditionally-scoped
  * rule, so it must NOT be used as a blanket authorization decision.
- * `globalPermissionsOf` is the safe "any resource of this type" signal — it
+ * `globalPermissionsOf` is the safe "any resource of this type" signal - it
  * counts ONLY global-scope grants. These tests pin that contract so the
  * team/zone/server-scoping guarantee can't silently regress.
  */
@@ -132,7 +132,7 @@ describe("groupMappingsExceedingGrant (OIDC group→role ceiling, GHSA-wf29-rmhc
 });
 
 describe("buildAbility (documents the type-level CASL hazard this guards against)", () => {
-  it("type-level can() returns TRUE for a team-scoped rule — why globalPermissionsOf exists", () => {
+  it("type-level can() returns TRUE for a team-scoped rule - why globalPermissionsOf exists", () => {
     const ability = buildAbility([
       { permissions: ["record.update"], scopeType: "team", scopeId: "team-a" },
     ]);

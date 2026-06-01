@@ -1,7 +1,7 @@
 /**
  * lib/db/repositories/teams.ts
  *
- * Data access for `teams` + `team_members`. Pure queries — no auth, no
+ * Data access for `teams` + `team_members`. Pure queries - no auth, no
  * permission checks; the admin route handlers gate the calls.
  */
 
@@ -53,7 +53,7 @@ export async function deleteTeam(id: string, executor: DbExecutor = db): Promise
 
 /**
  * Members of a team joined with the user row's display fields. Empty array
- * for an unknown team — callers should check team existence separately.
+ * for an unknown team - callers should check team existence separately.
  */
 export async function listTeamMembers(teamId: string): Promise<
   Array<{
@@ -114,7 +114,7 @@ export async function removeTeamMember(
     .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
 }
 
-/** Member counts keyed by team id — used by the team list view. */
+/** Member counts keyed by team id - used by the team list view. */
 export async function countMembersByTeam(teamIds: string[]): Promise<Map<string, number>> {
   if (teamIds.length === 0) return new Map();
   const rows = await db

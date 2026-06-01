@@ -1,7 +1,7 @@
 /**
  * app/api/admin/pdns/zones/[zoneId]/settings/route.ts
  *
- * PUT — set zone-object fields PDNS exposes outside the `/metadata/{kind}`
+ * PUT - set zone-object fields PDNS exposes outside the `/metadata/{kind}`
  *       allowlist: kind (Native/Primary/Secondary), masters (for
  *       secondaries), soa_edit, soa_edit_api, api_rectify. Routed through
  *       `PUT /zones/{id}` so PDNS' direct-to-backend writer is used,
@@ -9,7 +9,7 @@
  *       SOA-EDIT, SOA-EDIT-API and API-RECTIFY on 4.9.
  *
  * Permission: `zone.update` (gated by the EITHER-OR pattern shared with the
- * metadata route — type-level role OR a per-zone grant).
+ * metadata route - type-level role OR a per-zone grant).
  */
 
 import { headers } from "next/headers";

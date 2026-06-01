@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/role-assignments.ts — SQLite mirror of `../schema/role-assignments.ts`.
+ * lib/db/schema-sqlite/role-assignments.ts - SQLite mirror of `../schema/role-assignments.ts`.
  */
 
 import { sql } from "drizzle-orm";

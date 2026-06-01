@@ -56,7 +56,7 @@ function isPlausibleIp(s: string): boolean {
 
 /**
  * Request-ID set by `proxy.ts`. Returns null only when the proxy
- * didn't run (e.g. /_next/static paths that the matcher skips — those
+ * didn't run (e.g. /_next/static paths that the matcher skips - those
  * never hit audit-writing routes, so the null is fine in practice).
  */
 export function getRequestId(headers: Headers): string | null {

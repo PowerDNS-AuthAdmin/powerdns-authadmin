@@ -18,7 +18,7 @@ describe("safeConfigSettings", () => {
       }),
     );
     const byName = new Map(rows.map((r) => [r.name, r.value]));
-    // api-key is allowlisted so the operator sees the setting exists — but redacted.
+    // api-key is allowlisted so the operator sees the setting exists - but redacted.
     expect(byName.get("api-key")).toBe("<redacted>");
     // Non-allowlisted secrets (gmysql-password) don't appear at all.
     expect(byName.has("gmysql-password")).toBe(false);

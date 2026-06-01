@@ -1,12 +1,12 @@
 /**
  * app/api/admin/pdns/tsig-keys/route.ts
  *
- * POST — generate a TSIG key on the selected PDNS backend.
+ * POST - generate a TSIG key on the selected PDNS backend.
  *        Permission: `tsig.manage`. Response carries a one-time reveal
  *        token (the actual HMAC secret is held in the in-memory
  *        temp-reveal-store from S-8 and retrieved via the sibling
  *        `/reveal` endpoint as `text/plain`). The plaintext secret
- *        NEVER appears in the JSON body of this response — the same
+ *        NEVER appears in the JSON body of this response - the same
  *        threat model as S-8's admin password reset.
  *
  * The PDNS-assigned `id` is returned so the UI can re-fetch the
@@ -73,7 +73,7 @@ export async function POST(request: Request): Promise<Response> {
 
     // The created detail carries the freshly generated secret in `key`.
     // We destructure it out before any audit / log / response path
-    // touches the rest of the object — the audit redactor *also*
+    // touches the rest of the object - the audit redactor *also*
     // catches it, but destructuring is the primary defense.
     const created = await client.createTsigKey({
       name: body.name,
@@ -94,7 +94,7 @@ export async function POST(request: Request): Promise<Response> {
       action: "tsig.create",
       resource: { type: "tsig", id: created.id },
       after: {
-        // No `key` — the audit log persists name/algorithm/id only.
+        // No `key` - the audit log persists name/algorithm/id only.
         ...safeDetail,
         revealTokenIssued: true,
         revealExpiresInSec: expiresInSec,

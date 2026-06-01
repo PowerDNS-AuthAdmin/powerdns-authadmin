@@ -19,15 +19,15 @@
 # script (`tests/integration/run.sh`) handles that.
 #
 # Test-mode env differences vs. the dev compose:
-#   - NODE_ENV=test           — exposes test-only behaviors (none today; pinned
+#   - NODE_ENV=test           - exposes test-only behaviors (none today; pinned
 #                               for future feature flags)
-#   - LOG_LEVEL=warn          — quiets info-level chatter during runs
-#   - Deterministic secrets   — APP_SECRET_KEY / APP_ENCRYPTION_KEY hardcoded
+#   - LOG_LEVEL=warn          - quiets info-level chatter during runs
+#   - Deterministic secrets   - APP_SECRET_KEY / APP_ENCRYPTION_KEY hardcoded
 #                               to known test values so any leak in CI logs
 #                               is obviously a test value
-#   - BOOTSTRAP_ADMIN_*       — pinned to admin@test.local for deterministic
+#   - BOOTSTRAP_ADMIN_*       - pinned to admin@test.local for deterministic
 #                               first-login from the suite
-#   - PROVISION_ON_BOOT=true  — the suite assumes the provisioning YAML's
+#   - PROVISION_ON_BOOT=true  - the suite assumes the provisioning YAML's
 #                               PDNS servers/clusters + zone templates exist
 # =============================================================================
 

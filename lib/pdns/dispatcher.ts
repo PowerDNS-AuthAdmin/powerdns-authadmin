@@ -14,7 +14,7 @@
  *     the same PDNS backend reuse a TLS session and an H2 stream.
  *
  *   - **Generous per-request timeouts** at the dispatcher level. The client's
- *     own `AbortController` is the authoritative timeout — these are belt-
+ *     own `AbortController` is the authoritative timeout - these are belt-
  *     and-braces.
  *
  * `http.ts` builds a per-request Agent from {@link PDNS_AGENT_OPTIONS} with a
@@ -31,7 +31,7 @@ let dispatcher: Agent | null = null;
 /**
  * Shared timeout/protocol options for every PDNS-facing Agent. Exported so the
  * per-request DNS-rebinding-pinned Agent in `http.ts` inherits the exact same
- * TLS/H2 negotiation and timeout behavior as the shared pool — the only
+ * TLS/H2 negotiation and timeout behavior as the shared pool - the only
  * difference between the two is the pinned `connect.lookup`.
  */
 export const PDNS_AGENT_OPTIONS: Agent.Options = {

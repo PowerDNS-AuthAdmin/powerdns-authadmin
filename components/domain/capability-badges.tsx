@@ -1,13 +1,13 @@
 /**
  * components/domain/capability-badges.tsx
  *
- * Tinted badges for a backend's observed PDNS capabilities — one per role the
+ * Tinted badges for a backend's observed PDNS capabilities - one per role the
  * daemon reports ON. Colour-coded by role so the page can be skimmed at a glance:
- *   • primary       → accent (indigo) — write target
- *   • secondary     → warn   (yellow) — read-only mirror
- *   • autosecondary → orange — accepts NOTIFY-from-anyone auto-create
- *   • standalone    → neutral — no replication flag set (default PDNS Auth
- *                     config; API still accepts zone creates — fully usable).
+ *   • primary       → accent (indigo) - write target
+ *   • secondary     → warn   (yellow) - read-only mirror
+ *   • autosecondary → orange - accepts NOTIFY-from-anyone auto-create
+ *   • standalone    → neutral - no replication flag set (default PDNS Auth
+ *                     config; API still accepts zone creates - fully usable).
  *
  * Renders nothing fancy: a small rounded badge per active flag, joined by a
  * narrow gap. Use anywhere a backend row shows its role (server lists, group
@@ -24,7 +24,7 @@ interface Capabilities {
 }
 
 // Same recipe as the CLUSTER badge in the zones list and the DEFAULT badge in
-// the servers list — rounded, mono, tracking-wide, uppercase, bg-<tone>/15 —
+// the servers list - rounded, mono, tracking-wide, uppercase, bg-<tone>/15 -
 // so every inline role/state badge in the app reads as one family. Yellow and
 // orange need a darker -fg variant for the text (their semantic hue is too
 // light to read on top of a /15 tint of itself; accent indigo is dark enough
@@ -47,7 +47,7 @@ export function CapabilityBadges({ capabilities }: { capabilities: Capabilities 
   if (capabilities.autosecondary) flags.push("autosecondary");
   if (flags.length === 0) return <span className={NEUTRAL}>standalone</span>;
   // Plain inline <span> wrapper (no flex) so each badge renders exactly like
-  // the CLUSTER badge in the zones list — inherited line-height and no
+  // the CLUSTER badge in the zones list - inherited line-height and no
   // cross-axis stretching from a flex container.
   return (
     <span className="whitespace-nowrap">

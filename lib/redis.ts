@@ -10,7 +10,7 @@
  *
  * Each of those degrades gracefully to its in-process implementation if Redis
  * is unset OR a command fails, so a single-node deploy needs no Redis and a
- * transient Redis outage never takes the app down — it just loses cross-replica
+ * transient Redis outage never takes the app down - it just loses cross-replica
  * coordination until Redis returns.
  *
  * Two connections: a `main` client for commands and a dedicated `subscriber`
@@ -39,7 +39,7 @@ function makeClient(role: "main" | "subscriber"): Redis {
   // env.REDIS_URL is guaranteed defined at the call sites (isRedisEnabled gate).
   const client = new Redis(env.REDIS_URL!, {
     connectionName: `pda-${role}`,
-    // Don't hang a request on a dead Redis — fail the command fast so the caller
+    // Don't hang a request on a dead Redis - fail the command fast so the caller
     // falls back to its in-process path. ioredis keeps reconnecting in the
     // background per retryStrategy.
     maxRetriesPerRequest: 2,
@@ -47,7 +47,7 @@ function makeClient(role: "main" | "subscriber"): Redis {
     enableReadyCheck: true,
   });
   client.on("error", (err: Error) => {
-    // Logged at warn (not error) — a Redis blip is a degraded-coordination
+    // Logged at warn (not error) - a Redis blip is a degraded-coordination
     // event, not an app fault; the callers carry on in-process.
     logger.warn({ role, err: err.message }, "redis.connection.error");
   });

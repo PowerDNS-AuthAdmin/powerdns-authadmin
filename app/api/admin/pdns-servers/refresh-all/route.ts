@@ -1,19 +1,19 @@
 /**
  * app/api/admin/pdns-servers/refresh-all/route.ts
  *
- * POST — operator forces a version-cache refresh of every active
+ * POST - operator forces a version-cache refresh of every active
  * PDNS backend in parallel. Sister of
  * `/api/admin/oidc-providers/refresh-all` (T-107). Useful after a
  * fleet upgrade or DNS migration when the operator wants every
  * backend's version_cache + capability flags to reflect the new
  * state immediately, without clicking Test on each row.
  *
- * Wraps `refreshAllBackendsHealth()` — the central per-backend health op run for
+ * Wraps `refreshAllBackendsHealth()` - the central per-backend health op run for
  * every backend in parallel (live probe + advisory re-sync, debounce bypassed),
  * so the inline status badges + bell reflect the fleet's true state at once.
  * This route owns auth / CSRF / audit / response shape.
  *
- * Permission: `server.read` — same as the per-server Test route.
+ * Permission: `server.read` - same as the per-server Test route.
  */
 
 import { headers } from "next/headers";
@@ -35,7 +35,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const { probed, failed } = await refreshAllBackendsHealth();
 
-    // One fleet-level audit row — per-server cache writes don't
+    // One fleet-level audit row - per-server cache writes don't
     // audit individually (same reasoning as T-107).
     await appendAudit({
       actor: { type: "user", id: user.id },

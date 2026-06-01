@@ -8,7 +8,7 @@
  * is the floor of "what the user can do" and "what the token may do".
  *
  * Lives in its own module so it can be unit-tested without dragging in
- * the database or CASL — both are heavy modules whose imports surface
+ * the database or CASL - both are heavy modules whose imports surface
  * environment dependencies (postgres pool, JSX/server-only marker)
  * that the test runner doesn't always have.
  *
@@ -33,7 +33,7 @@ import type { Permission } from "@/lib/rbac/permissions";
 /**
  * Same shape as `AbilitySource` from `lib/rbac/ability.ts`, redeclared
  * here so this module doesn't pull in CASL. The two stay in sync by
- * convention — when `AbilitySource` changes, mirror it here.
+ * convention - when `AbilitySource` changes, mirror it here.
  */
 export interface NarrowableAssignment {
   permissions: readonly Permission[];
@@ -44,7 +44,7 @@ export interface NarrowableAssignment {
 export function narrowAssignmentsByTokenScopes(
   assignments: readonly NarrowableAssignment[],
   // Accepts `readonly string[]` rather than `readonly Permission[]`
-  // because the DB-stored scopes column is structurally string[] —
+  // because the DB-stored scopes column is structurally string[] -
   // `lib/db/schema/*` deliberately doesn't import the typed
   // `Permission` from `lib/rbac/permissions` (cross-layer import
   // forbidden). At runtime this is a pure string-set intersection;

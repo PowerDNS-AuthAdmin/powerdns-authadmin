@@ -87,7 +87,7 @@ describe("currentTotp + verifyTotp", () => {
   it("respects a custom window option", () => {
     const t0 = 1_700_000_000_000;
     const code = currentTotp(RFC_SECRET, { now: () => t0 });
-    // 90s = 3 steps later — passes only with window ≥ 3.
+    // 90s = 3 steps later - passes only with window ≥ 3.
     expect(verifyTotp(RFC_SECRET, code, { now: () => t0 + 90_000, window: 3 })).toBe(true);
     expect(verifyTotp(RFC_SECRET, code, { now: () => t0 + 90_000, window: 1 })).toBe(false);
   });

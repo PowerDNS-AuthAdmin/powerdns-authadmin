@@ -1,7 +1,7 @@
 /**
  * app/api/admin/users/[id]/reset-password/route.ts
  *
- * POST — generate a fresh temporary password for the target user, set
+ * POST - generate a fresh temporary password for the target user, set
  * `mustChangePassword=true`, revoke their sessions, and return a
  * short-lived single-use reveal token. The plaintext NEVER appears in
  * this response body; the operator's UI calls the sibling `/reveal`
@@ -19,6 +19,7 @@ import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { assertBootstrapAdminMutable } from "@/lib/auth/bootstrap-admin";
 import { hashPassword } from "@/lib/auth/password";
 import { mint } from "@/lib/auth/temp-reveal-store";
 import { db } from "@/lib/db";
@@ -41,10 +42,11 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
 
     const target = await findUserById(id);
     if (!target) throw new NotFoundError("User not found.");
+    assertBootstrapAdminMutable(target.email);
 
     // TARGET-privilege ceiling: a `user.reset-password` holder must not be able
     // to reset the password of (then, via the sibling /reveal route, read) an
-    // account holding global permissions the actor lacks — that's a takeover of
+    // account holding global permissions the actor lacks - that's a takeover of
     // privileges above the actor's own. Self-target passes (identical sets).
     // Cast: the DB column is structurally string[]; values are validated at
     // write time. Keeps this free of a lib/db → lib/rbac import.
@@ -69,7 +71,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     // and only this operator's session can redeem it (see temp-reveal-store).
     // Minted before the tx so its `expiresInSec` can ride the audit snapshot;
     // if the tx rolls back the operator gets a 500 and the unused token simply
-    // expires — it reveals a password that was never persisted.
+    // expires - it reveals a password that was never persisted.
     const { token: revealToken, expiresInSec } = await mint({
       plaintext: temporary,
       allowedActorId: actor.id,

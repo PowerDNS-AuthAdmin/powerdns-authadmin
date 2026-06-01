@@ -1,4 +1,4 @@
-# ADR 0008 — Argon2id for password hashing
+# ADR 0008 - Argon2id for password hashing
 
 - **Status:** Accepted
 - **Date:** 2026-05-16
@@ -40,13 +40,13 @@ Initial parameters (OWASP Cheat Sheet 2024):
 - **bcrypt.** Still safe, but Argon2id has clearly surpassed it on the OWASP guidance.
 - **scrypt.** Also memory-hard, also good. Rejected because Argon2id is the more recent design
   and has the OWASP endorsement.
-- **PBKDF2.** Still common in regulated industries. Rejected — CPU-bound only, weaker against
+- **PBKDF2.** Still common in regulated industries. Rejected - CPU-bound only, weaker against
   GPU attacks.
 
 ## Consequences
 
 - **API tokens use the same hashing scheme.** A `pda_pat_...` token is stored as an Argon2id
-  hash with the same parameters. Verification cost is the same as a password — acceptable
+  hash with the same parameters. Verification cost is the same as a password - acceptable
   because API token verification is rate-limited at the route layer.
 - **Verify cost is non-trivial.** A typical verify takes 50–100ms on commodity hardware. Login
   endpoints absorb this without complaint. Bulk verification (e.g., importing users from another

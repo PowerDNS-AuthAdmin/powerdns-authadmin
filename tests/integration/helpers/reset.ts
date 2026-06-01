@@ -2,7 +2,7 @@
  * tests/integration/helpers/reset.ts
  *
  * Glue between db.ts + pdns.ts. Most tests want both DB user-data and
- * upstream PDNS zone state wiped between cases — `resetState()` does both
+ * upstream PDNS zone state wiped between cases - `resetState()` does both
  * in parallel.
  *
  * Per-test usage:

@@ -24,7 +24,7 @@ export function NumberInput({ value, onChange, min = 0, max, disabled, className
   const [draft, setDraft] = useState<string>(() => String(value));
   // Tracks whether the input is currently focused. While focused, we
   // don't overwrite the operator's in-flight typing with whatever the
-  // parent re-rendered with — that's how leading-zero "0" bleeds in.
+  // parent re-rendered with - that's how leading-zero "0" bleeds in.
   const focusedRef = useRef(false);
 
   useEffect(() => {

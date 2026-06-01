@@ -1,7 +1,7 @@
 /**
  * tests/integration/zones/export.test.ts
  *
- * GET /api/admin/pdns/zones/[zoneId]/export — render the zone as a
+ * GET /api/admin/pdns/zones/[zoneId]/export - render the zone as a
  * BIND-format text file. We seed a couple of RRsets via the rrsets
  * route, then export and check the output contains the SOA, NS, and
  * the records we added.
@@ -72,7 +72,7 @@ describe("GET /api/admin/pdns/zones/[zoneId]/export", () => {
     expect(res.status).toBe(200);
     const body = await res.text();
     expect(body).toContain("192.0.2.42");
-    // Owner is relativised against $ORIGIN — `www.<zone>` becomes `www`,
+    // Owner is relativised against $ORIGIN - `www.<zone>` becomes `www`,
     // with `$ORIGIN <zone>` above. Assert both halves so a future
     // regression that omits $ORIGIN would still be caught.
     expect(body).toContain(`$ORIGIN ${zone}`);

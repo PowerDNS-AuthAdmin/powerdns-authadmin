@@ -1,13 +1,13 @@
 # Dev setup
 
-The path from "fresh `git clone`" to "I broke a test, what now?" — every command is meant to
+The path from "fresh `git clone`" to "I broke a test, what now?" - every command is meant to
 be safe to copy-paste.
 
 ## Prerequisites
 
 - **Node.js 24 LTS.** The `.nvmrc` pins the major version; `nvm use` picks it up.
 - **npm 10+.** Ships with Node 24.
-- **Docker** with Compose v2 — runs a local PowerDNS backend to develop against.
+- **Docker** with Compose v2 - runs a local PowerDNS backend to develop against.
 
 ## One-time setup
 
@@ -24,10 +24,10 @@ cp .env.example .env.local
 Then edit `.env.local`:
 
 - Set `APP_SECRET_KEY` and `APP_ENCRYPTION_KEY` (generate each with `openssl rand -base64 32`).
-- Point `DATABASE_URL` at a local SQLite file the dev server can write — e.g.
+- Point `DATABASE_URL` at a local SQLite file the dev server can write - e.g.
   `DATABASE_URL=file:./dev.db` (the shipped default `file:/data/...` is the in-container path).
 
-Redis is optional in dev — everything falls back to an in-process path when `REDIS_URL` is unset.
+Redis is optional in dev - everything falls back to an in-process path when `REDIS_URL` is unset.
 
 ## Daily loop
 
@@ -35,14 +35,14 @@ Redis is optional in dev — everything falls back to an in-process path when `R
 # A local PowerDNS to talk to (just the pdns service from the demo stack)
 docker compose up -d pdns
 
-# Dev server with hot reload — migrations run on app boot (ADR 0011)
+# Dev server with hot reload - migrations run on app boot (ADR 0011)
 npm run dev        # → http://localhost:3000
 ```
 
 Health endpoints to confirm everything's wired:
 
-- `GET /healthz` — `{"status":"ok",...}` 200.
-- `GET /readyz` — `{"status":"ok","checks":{"database":"ok"}}` 200 when the database is reachable,
+- `GET /healthz` - `{"status":"ok",...}` 200.
+- `GET /readyz` - `{"status":"ok","checks":{"database":"ok"}}` 200 when the database is reachable,
   503 otherwise.
 
 ## Before opening a PR
@@ -63,11 +63,11 @@ job directly with `act -j static-checks` or `act -j test` if you prefer.
   `npm run lint` directly. First run pulls the ~1 GB runner image.
 - For a fast inner loop, `npm run test` / `npm run typecheck` run natively too.
 - `npm run test:integration` boots the stack in Docker for the HTTP integration
-  suite — run it **natively, not under `act`** (the job nests docker-compose,
+  suite - run it **natively, not under `act`** (the job nests docker-compose,
   which act can't do; it publishes ports to the host, not into act's container).
 
 `act` does **not** stand in for GitHub-hosted CodeQL, the Docker build/publish,
-Scorecard, or dependency-review (those need GitHub runners / tokens) — they
+Scorecard, or dependency-review (those need GitHub runners / tokens) - they
 remain the authority on the PR.
 
 ## Commonly-needed commands
@@ -81,14 +81,14 @@ remain the authority on the PR.
 | `npm run format` / `format:check` | Prettier.                                                              |
 | `npm run typecheck`               | `tsc --noEmit` against the whole tree.                                 |
 | `npm run test` / `test:watch`     | Vitest unit tests.                                                     |
-| `npm run test:integration`        | HTTP integration tests — builds + boots the test stack via Docker.     |
+| `npm run test:integration`        | HTTP integration tests - builds + boots the test stack via Docker.     |
 | `npm run test:integration:bare`   | Same vitest pass, but assumes the test stack is already up.            |
 | `npm run db:generate`             | Generate a new Drizzle migration from PG schema changes.               |
 | `npm run db:generate:sqlite`      | Generate a new Drizzle migration from SQLite schema changes.           |
 | `npm run db:migrate`              | Apply pending migrations.                                              |
 | `npm run db:studio`               | Drizzle Studio (browser UI for the DB).                                |
 | `npm run audit:strict`            | `npm audit` gating on high/critical CVEs in prod deps.                 |
-| `npm run validate`                | Lint + typecheck + format check + unit tests — the CI-equivalent gate. |
+| `npm run validate`                | Lint + typecheck + format check + unit tests - the CI-equivalent gate. |
 
 ## Troubleshooting
 
@@ -109,30 +109,30 @@ Confirm `pdns` shows `(healthy)`. If not, `docker compose up -d --force-recreate
 ### "Cannot find module 'server-only'"
 
 Add `import "server-only"` to the top of any module that uses environment secrets, the DB, or
-the PDNS client. The directive is enforced at build time — see Next.js docs.
+the PDNS client. The directive is enforced at build time - see Next.js docs.
 
 ### `invalid_client` from an OIDC provider
 
 The two log lines `oidc.discovery.loaded` and `oidc.callback.failure` carry the diagnostic
 fields (`secret_fp`, `auth_method_used`, `auth_methods_supported`). The most common cause is a
-clipboard whitespace mismatch in the client secret — re-save the secret on the provider edit
+clipboard whitespace mismatch in the client secret - re-save the secret on the provider edit
 page and the validator's trim will normalize it.
 
 ## Demo stacks
 
 For exercising multi-backend topologies side-by-side:
 
-- `docker-compose-primary-secondaries.yml` — one primary + three secondaries with auto-secondary
+- `docker-compose-primary-secondaries.yml` - one primary + three secondaries with auto-secondary
   registration via supermaster.
-- `docker-compose-multi-primary.yml` — three writable peers sharing a MariaDB backend (cluster
+- `docker-compose-multi-primary.yml` - three writable peers sharing a MariaDB backend (cluster
   shape).
-- `docker-compose-combined.yml` — all three topologies in one stack, plus generated demo zones
+- `docker-compose-combined.yml` - all three topologies in one stack, plus generated demo zones
   via the provisioning file.
 
 ## Regenerating screenshots
 
-Every page in [`screenshots/`](../screenshots/README.md) is shot four ways —
-desktop+light, desktop+dark, mobile+light, mobile+dark — by
+Every page in [`screenshots/`](../screenshots/README.md) is shot four ways -
+desktop+light, desktop+dark, mobile+light, mobile+dark - by
 [`scripts/screenshots.mjs`](../scripts/screenshots.mjs). Mobile shots are
 wrapped in a CSS-rendered iPhone 16 Pro bezel; pure Playwright, no extra
 deps.
@@ -153,18 +153,27 @@ npx playwright install chromium
 APP_SECRET_KEY="$(openssl rand -base64 32)" \
 APP_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
   docker compose -f docker-compose-combined.yml up -d --build
+```
 
-# Demo admin is locked behind `must_change_password=true` on first boot —
-# clear it so the script can navigate freely:
+The combined stack sets `BOOTSTRAP_ADMIN_RO=true`, so the seed creates the demo
+admin with `must_change_password=false` - it can log in and the script can
+navigate freely with no manual SQL. (If you instead run with
+`BOOTSTRAP_ADMIN_RO=false`, the admin boots behind `must_change_password=true`;
+clear it first so the script isn't trapped on the change-password screen:)
+
+```sh
 docker exec powerdns-authadmin-combined-postgres-1 \
   psql -U pdns -d powerdns_authadmin \
   -c "UPDATE users SET must_change_password=false WHERE email='admin@example.com';"
 ```
 
+To populate the dashboard graphs with realistic data before shooting, run the
+demo seed script against the stack's Postgres (see "Demo graph data" below).
+
 ### Shoot
 
 ```sh
-npm run screenshots                              # full sweep — every page × 4 variants
+npm run screenshots                              # full sweep - every page × 4 variants
 node scripts/screenshots.mjs zones-list audit    # subset (positional)
 node scripts/screenshots.mjs --pages=dashboard,profile
 PAGES_FILTER=audit-log npm run screenshots       # subset (env)
@@ -177,6 +186,29 @@ SHOWCASE_ZONE="ps-6.demo." SHOWCASE_CLUSTER=ps-group \
 Output lands in `screenshots/{light,dark}/<page>{-mobile}.png`. The post-pass
 runs `pngquant` + `oxipng` if both are on PATH and shrinks the gallery by
 ~70 %; `SKIP_OPTIMIZE=1` bypasses it.
+
+### Demo graph data
+
+A freshly-booted stack has empty dashboard graphs (no metric history yet).
+`scripts/demo-seed-graphs.ts` backfills realistic time-series into
+`metric_samples`, `pdns_server_stats`, and `audit_log` so the dashboard renders
+full charts. It writes rows the dashboard already reads - no app code changes -
+and is **demo/screenshots only**. Run it against the stack's Postgres from the
+host (the combined stack publishes 5432):
+
+```sh
+DATABASE_URL=postgres://pdns:pdns@localhost:5432/powerdns_authadmin \
+  DEMO_SEED=1 npm run demo:seed:graphs
+```
+
+It's re-runnable (it clears its own prior rows first - audit rows are tagged with
+a `demo-seed:` request-id so real history is untouched). The PDNS-statistics tab
+charts need `PDNS_BACKGROUND_POLLING=true` (the combined compose sets it). Then
+shoot just the dashboard:
+
+```sh
+node scripts/screenshots.mjs dashboard            # all 4 variants
+```
 
 ### Adding a new page
 
@@ -200,16 +232,16 @@ Then add a section to [`screenshots/README.md`](../screenshots/README.md) with
 the `<picture>` block (auto dark/light) + a cross-link into `docs/FEATURES.md`.
 
 If your `prepare` clicks elements that share a generic selector with chrome
-controls (hamburger, alert bell — both use `aria-expanded`), add a scoped
-`data-…` attribute on the target component and use it in the selector — see
+controls (hamburger, alert bell - both use `aria-expanded`), add a scoped
+`data-…` attribute on the target component and use it in the selector - see
 how `data-change-entry-toggle` is used by the change-log shot.
 
 ## What's where
 
-- `app/` — Next.js routes.
-- `lib/` — domain logic. Read `CLAUDE.md` or `docs/FEATURES.md` for the layout.
-- `components/` — React components.
-- `docs/adr/` — architecture decisions. Read these before changing the parts of the codebase
+- `app/` - Next.js routes.
+- `lib/` - domain logic. Read `CLAUDE.md` or `docs/FEATURES.md` for the layout.
+- `components/` - React components.
+- `docs/adr/` - architecture decisions. Read these before changing the parts of the codebase
   they describe.
 
 ## Where to ask

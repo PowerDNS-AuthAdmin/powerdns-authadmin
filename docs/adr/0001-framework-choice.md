@@ -1,10 +1,10 @@
-# ADR 0001 — Choose Next.js 15 + React Server Components as the framework
+# ADR 0001 - Choose Next.js 15 + React Server Components as the framework
 
 - **Status:** Accepted
 - **Date:** 2026-05-16
 - **Deciders:** @jseifeddine
 - **Update (2026-05-22):** the project has since upgraded to **Next.js 16** (still App Router +
-  React 19 Server Components — the decision stands; only the minor version moved).
+  React 19 Server Components - the decision stands; only the minor version moved).
 
 ## Context
 
@@ -39,14 +39,14 @@ framework, with TypeScript 5.x strict mode throughout.
 - **SvelteKit.** Best DX, smallest bundles, but the smallest community of the three. Picking it
   would optimize for the maintainer at the expense of contributors.
 - **NestJS + standalone React SPA.** Two deploys, parallel auth flows to defend, more
-  infrastructure to teach a new contributor. Rejected — server-rendered admin UIs are simpler.
+  infrastructure to teach a new contributor. Rejected - server-rendered admin UIs are simpler.
 
 ## Consequences
 
 - Every contributor needs to understand the App Router model: server vs client components, route
   handlers, server actions, the `"use client"` boundary, the `import "server-only"` directive.
 - We adopt Next.js' opinionated structure (the `app/` directory layout, file-based routing,
-  built-in middleware). This is largely a benefit — the structure is well-understood — but it
+  built-in middleware). This is largely a benefit - the structure is well-understood - but it
   limits some kinds of customization.
 - The Docker image uses Next's `output: "standalone"` mode for a small, focused bundle.
 - We're tied to Vercel-adjacent release cadence; major Next.js updates land every ~6 months and we

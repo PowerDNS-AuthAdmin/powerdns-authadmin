@@ -1,7 +1,7 @@
 /**
  * tests/integration/admin/oidc-group-mapping-ceiling.test.ts
  *
- * GHSA-wf29-rmhc-rqc9 — the OIDC group→role mapping privilege ceiling, driven
+ * GHSA-wf29-rmhc-rqc9 - the OIDC group→role mapping privilege ceiling, driven
  * over HTTP. A holder of `oidc.manage` must not be able to wire a group to a
  * role granting permissions they don't hold globally (which would let them
  * escalate by signing in through that group / handing the group to a confederate).

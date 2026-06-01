@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Dashboard live-feed listener — refreshes the page whenever an audit row or
+ * Dashboard live-feed listener - refreshes the page whenever an audit row or
  * PDNS request is appended (both feed the dashboard's KPI cards + charts).
  *
  * Renders nothing: the visible "LIVE" chip moved to the shared HeaderStatusChip

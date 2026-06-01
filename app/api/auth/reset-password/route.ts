@@ -1,7 +1,7 @@
 /**
  * app/api/auth/reset-password/route.ts
  *
- * POST { token, password } — consume a signed reset token and set a
+ * POST { token, password } - consume a signed reset token and set a
  * new password. CSRF-gated (the reset page sends the cookie); rate
  * limited by IP via the same login bucket.
  *
@@ -54,7 +54,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     await requireCsrf(request);
   } catch {
-    // CSRF rejection still gets the generic message — don't leak
+    // CSRF rejection still gets the generic message - don't leak
     // that the token itself was valid.
     return Response.json({ error: GENERIC_REJECT }, { status: 400 });
   }

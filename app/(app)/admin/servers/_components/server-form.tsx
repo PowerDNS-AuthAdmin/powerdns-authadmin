@@ -38,7 +38,7 @@ interface GroupOption {
 interface CreateProps {
   mode: "create";
   initial?: undefined;
-  /** Existing groups (multi-primary clusters / primary+secondary groups) —
+  /** Existing groups (multi-primary clusters / primary+secondary groups) -
    *  populates the optional "Group" picker. */
   groups: GroupOption[];
   /** If set, pre-selects this group. Used by the "Add secondary"
@@ -88,7 +88,7 @@ export function ServerForm(props: ServerFormProps) {
     props.mode === "edit" ? initial.clusterId : (props.forGroup ?? null),
   );
   // Explicit AXFR/DNS address overrides. Empty = derive from the API host (sent
-  // as null); a non-empty list overrides. No auto-sync magic — when the list is
+  // as null); a non-empty list overrides. No auto-sync magic - when the list is
   // empty we just SHOW the derived default below the field.
   const [addresses, setAddresses] = useState<string[]>(initial.advertisedAddresses ?? []);
 
@@ -211,7 +211,7 @@ export function ServerForm(props: ServerFormProps) {
         label="Description (optional)"
         id="description"
         errors={fieldErrors["description"]}
-        hint="Free-text note for operators — 'dev box in eu-west', 'prod cluster, do not edit'. Shown on the servers list. Up to 500 characters."
+        hint="Free-text note for operators - 'dev box in eu-west', 'prod cluster, do not edit'. Shown on the servers list. Up to 500 characters."
       >
         <textarea
           id="description"
@@ -228,7 +228,7 @@ export function ServerForm(props: ServerFormProps) {
         label="Base URL"
         id="baseUrl"
         errors={fieldErrors["baseUrl"]}
-        hint="Just the host + port — '/api/v1' is appended automatically. Provide a custom path only if your reverse proxy mounts PDNS under a prefix."
+        hint="Just the host + port - '/api/v1' is appended automatically. Provide a custom path only if your reverse proxy mounts PDNS under a prefix."
       >
         <input
           id="baseUrl"
@@ -281,7 +281,7 @@ export function ServerForm(props: ServerFormProps) {
         id="clusterId"
         label="Group (optional)"
         errors={fieldErrors["clusterId"]}
-        hint="Group related backends — the writable peers of a multi-primary cluster, or a primary together with its secondaries. Grouped backends are polled together and their sync state is compared. Leave as “None” for a standalone backend. Create groups under Admin → Groups."
+        hint="Group related backends - the writable peers of a multi-primary cluster, or a primary together with its secondaries. Grouped backends are polled together and their sync state is compared. Leave as “None” for a standalone backend. Create groups under Admin → Groups."
       >
         <SelectMenu
           value={clusterId ?? ""}
@@ -289,7 +289,7 @@ export function ServerForm(props: ServerFormProps) {
           ariaLabel="Group (optional)"
           className="mt-1 w-full"
           options={[
-            { value: "", label: "None — standalone backend" },
+            { value: "", label: "None - standalone backend" },
             ...props.groups.map((g) => ({
               value: g.id,
               label: `${g.name} (${g.slug})`,
@@ -302,7 +302,7 @@ export function ServerForm(props: ServerFormProps) {
         id="advertisedAddresses"
         label="AXFR / DNS address(es) (optional)"
         errors={fieldErrors["advertisedAddresses"]}
-        hint="How peers reach this server for AXFR — what a secondary lists in its zone's masters[]. On a primary, used to match a secondary's masters[] back to this server (sync, drift, metrics). Defaults to the API host; override only when the DNS address differs."
+        hint="How peers reach this server for AXFR - what a secondary lists in its zone's masters[]. On a primary, used to match a secondary's masters[] back to this server (sync, drift, metrics). Defaults to the API host; override only when the DNS address differs."
       >
         <AddressList
           value={addresses}
@@ -391,7 +391,7 @@ function Field({
 
 /**
  * Add/remove editor for the AXFR/DNS address overrides. An empty list means
- * "derive from the API host" — surfaced as the muted default note rather than a
+ * "derive from the API host" - surfaced as the muted default note rather than a
  * blank textarea. Each row is validated as a host or IP (optional `:port`).
  */
 function AddressList({
@@ -471,12 +471,12 @@ function AddressList({
   );
 }
 
-/** A host or IP with an optional `:port` — the shape a `masters[]` entry takes. */
+/** A host or IP with an optional `:port` - the shape a `masters[]` entry takes. */
 function isValidAddress(raw: string): boolean {
   const s = raw.trim();
   if (s.length === 0 || s.length > 255) return false;
 
-  // Bracketed IPv6, optional :port — e.g. [2001:db8::1]:53
+  // Bracketed IPv6, optional :port - e.g. [2001:db8::1]:53
   const bracket = /^\[([0-9a-fA-F:]+)\](?::\d{1,5})?$/.exec(s);
   if (bracket) return isIpv6(bracket[1]!);
 
@@ -496,7 +496,7 @@ function isIpv4(s: string): boolean {
 }
 
 function isIpv6(s: string): boolean {
-  // Lenient — enough to catch typos without re-implementing RFC 4291.
+  // Lenient - enough to catch typos without re-implementing RFC 4291.
   return /^[0-9a-fA-F:]+$/.test(s) && (s.includes("::") || s.split(":").length === 8);
 }
 

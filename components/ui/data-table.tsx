@@ -3,7 +3,7 @@
 /**
  * components/ui/data-table.tsx
  *
- * Reusable data table built on TanStack Table v8 — the library  §3
+ * Reusable data table built on TanStack Table v8 - the library  §3
  * picks for every row-based view in the app. Adds the affordances every list
  * in PowerDNS-AuthAdmin needs:
  *
@@ -22,7 +22,7 @@
  * `sticky top-0` on `<thead>` would stick to the inner div (which
  * has no scroll) instead of the page. Implementing it properly
  * requires either bounding the container with a max-height (adds an
- * inner scrollbar — operator-hostile for short lists) or moving the
+ * inner scrollbar - operator-hostile for short lists) or moving the
  * rounded-corner styling off the wrapper so the table can scroll with
  * the page. Filed for revisit once the largest list (zones, possibly
  * 100s of rows) proves it needs it.
@@ -86,7 +86,7 @@ export interface DataTableProps<TData> {
   pageSizeOptions?: number[];
   /** Render when there are zero rows AFTER filtering. */
   emptyMessage?: string;
-  /** Override for the "no rows AT ALL" state — separate from "filter matched nothing". */
+  /** Override for the "no rows AT ALL" state - separate from "filter matched nothing". */
   noDataMessage?: string;
   /** Optional className for the root container. */
   className?: string;
@@ -95,7 +95,7 @@ export interface DataTableProps<TData> {
   /** When true, hide pagination (useful for fixed-size lists). */
   hidePagination?: boolean;
   /**
-   * `auto` (default) lets the browser size columns to fit content — the
+   * `auto` (default) lets the browser size columns to fit content - the
    * wider-is-better default for most lists. `fixed` switches to
    * `table-layout: fixed` so columns respect the widths declared via each
    * column's `meta.className` (`w-[…]`) and long unbroken content (TXT
@@ -117,7 +117,7 @@ export interface DataTableProps<TData> {
   /**
    * Sync the page-size choice to a URL search-param of this name.
    * Read on mount, written on every page-size change. Validated to
-   * be a positive integer that appears in `pageSizeOptions` — values
+   * be a positive integer that appears in `pageSizeOptions` - values
    * outside the allowed set are ignored and the `pageSize` default
    * applies. operator's row-density choice survives
    * navigation.
@@ -132,13 +132,13 @@ export interface DataTableProps<TData> {
    * wins over `initialSort` / `pageSize` props. The user-facing
    * effect is "my row-density and sort choice stick across visits."
    *
-   * Pick a stable key per table — e.g. "zones", "records:<zone>",
+   * Pick a stable key per table - e.g. "zones", "records:<zone>",
    * "users". Tables with no key persist nothing (default behavior).
    */
   stateKey?: string;
   /**
    * Render an inline detail row directly beneath a given row, spanning all
-   * columns. Return `null`/`undefined` to render nothing — the caller owns
+   * columns. Return `null`/`undefined` to render nothing - the caller owns
    * expansion state (e.g. return the panel only for expanded row ids). Used by
    * the PDNS-requests viewer to expand a request's full HTTP log in place.
    */
@@ -207,7 +207,7 @@ export function DataTable<TData>({
 
   // localStorage hydration. Runs once on mount. Skipped on SSR
   // (typeof window is undefined). URL params, when present, always
-  // win — `urlSort` / `pageSizeParam`-derived initial states are
+  // win - `urlSort` / `pageSizeParam`-derived initial states are
   // already in the state above; we only restore when the URL is
   // silent on that axis.
   useEffect(() => {
@@ -242,7 +242,7 @@ export function DataTable<TData>({
 
   // Persist on every change to sort or page-size. Both axes go in
   // one row keyed off `stateKey`. pageIndex is intentionally NOT
-  // persisted — it changes every Next/Prev click and shouldn't
+  // persisted - it changes every Next/Prev click and shouldn't
   // outlive the page visit.
   useEffect(() => {
     if (!stateKey || typeof window === "undefined") return;
@@ -253,7 +253,7 @@ export function DataTable<TData>({
       );
     } catch {
       // Storage quota exceeded / blocked. Lose persistence; don't
-      // surface the error — non-essential UX nicety.
+      // surface the error - non-essential UX nicety.
     }
   }, [stateKey, sorting, pagination.pageSize]);
 
@@ -287,7 +287,7 @@ export function DataTable<TData>({
       });
       // jump to page 1 on every sort change. Without this
       // the operator on page 7 clicks a header and stays on page 7
-      // of a now-reordered dataset — confusing, and the rows that
+      // of a now-reordered dataset - confusing, and the rows that
       // sorted to the top are invisible. Same default as the
       // global-filter input above, which also resets page-index on
       // input. Direct setState bypasses onPaginationChange so the
@@ -326,7 +326,7 @@ export function DataTable<TData>({
   const showingTo = pagination.pageIndex * pagination.pageSize + rows.length;
 
   // Leaf header cells, used to label fields in the mobile card view. A column
-  // with no header text (action columns) gets no label — its cell renders
+  // with no header text (action columns) gets no label - its cell renders
   // full-width at the foot of the card instead.
   const leafHeaders = table.getHeaderGroups().at(-1)?.headers ?? [];
   const headerLabel = (columnId: string): React.ReactNode | null => {
@@ -373,7 +373,7 @@ export function DataTable<TData>({
         </div>
       ) : null}
 
-      {/* Pagination at the top of the table too — a long list shouldn't
+      {/* Pagination at the top of the table too - a long list shouldn't
           force the operator to scroll all the way down to flip pages or
           change the page size. The same controls render again at the
           bottom for the reverse flow. */}
@@ -390,7 +390,7 @@ export function DataTable<TData>({
         />
       ) : null}
 
-      {/* Mobile (< md): a card per row. Avoids horizontal scrolling — each
+      {/* Mobile (< md): a card per row. Avoids horizontal scrolling - each
           column becomes a labelled field, the first cell is the card title. */}
       <div className="space-y-3 md:hidden">
         {rows.length === 0 ? (
@@ -448,7 +448,7 @@ export function DataTable<TData>({
       </div>
 
       {/* Desktop (md+): the dense table. overflow-x-auto only kicks in when a
-          table genuinely can't fit — the common case stays scroll-free. */}
+          table genuinely can't fit - the common case stays scroll-free. */}
       <div className="hidden overflow-hidden rounded-lg border border-[color:var(--color-border)] md:block">
         <div className="overflow-x-auto">
           <table className={`w-full text-sm ${layout === "fixed" ? "table-fixed" : ""}`}>
@@ -589,7 +589,7 @@ export function DataTable<TData>({
 }
 
 /**
- * Pagination row — extracted so the same controls render at the top
+ * Pagination row - extracted so the same controls render at the top
  * AND the bottom of the table without duplicating markup. A long
  * list shouldn't force the operator to scroll to the bottom just to
  * advance a page, and a paged-down operator shouldn't have to scroll

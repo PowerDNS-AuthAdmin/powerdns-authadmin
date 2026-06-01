@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/sessions.ts — SQLite mirror of `../schema/sessions.ts`.
+ * lib/db/schema-sqlite/sessions.ts - SQLite mirror of `../schema/sessions.ts`.
  */
 
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
@@ -47,7 +47,7 @@ export const sessions = sqliteTable(
     // didn't include offline_access. See PG mirror for the full rationale.
     oidcRefreshTokenEncrypted: text("oidc_refresh_token_encrypted"),
 
-    // IdP family + slug — the token-auth path reads these to pick
+    // IdP family + slug - the token-auth path reads these to pick
     // the right recompute strategy (LDAP / OIDC / SAML-fallback).
     // See PG mirror for the full rationale.
     idpProviderType: text("idp_provider_type"),

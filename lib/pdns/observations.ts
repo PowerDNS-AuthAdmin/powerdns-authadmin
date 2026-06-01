@@ -7,7 +7,7 @@
  *
  * Why module-scoped: we don't want a separate buffer per HTTP request, and
  * the HTTP layer is already module-scoped. The buffer is bounded to keep
- * memory tame under heavy traffic. On process restart it resets — fine,
+ * memory tame under heavy traffic. On process restart it resets - fine,
  * the dashboard just shows a brief gap.
  *
  * The HTTP layer (`lib/pdns/http.ts`) pushes after every *successful* request

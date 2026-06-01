@@ -3,7 +3,7 @@
  *
  * Server-side session row CRUD. ADR 0007 explains why these rows exist.
  *
- * The session ID is opaque — clients see only an encrypted form. The "key"
+ * The session ID is opaque - clients see only an encrypted form. The "key"
  * a route handler authenticates with is the decrypted session-row UUID, which
  * we then load and validate here.
  */
@@ -35,7 +35,7 @@ export async function findValidSessionById(id: string): Promise<Session | null> 
   return rows[0] ?? null;
 }
 
-/** Bump `lastSeenAt` on a session — call once per request. */
+/** Bump `lastSeenAt` on a session - call once per request. */
 export async function touchSession(id: string): Promise<void> {
   await db
     .update(sessions)
@@ -43,12 +43,12 @@ export async function touchSession(id: string): Promise<void> {
     .where(eq(sessions.id, id));
 }
 
-/** Delete a single session — used for logout. */
+/** Delete a single session - used for logout. */
 export async function revokeSession(id: string, executor: DbExecutor = db): Promise<void> {
   await executor.delete(sessions).where(eq(sessions.id, id));
 }
 
-/** Delete all sessions for a user — used for "log out everywhere". */
+/** Delete all sessions for a user - used for "log out everywhere". */
 export async function revokeSessionsForUser(
   userId: string,
   executor: DbExecutor = db,
@@ -61,10 +61,10 @@ export async function revokeSessionsForUser(
 }
 
 /**
- * Count active sessions app-wide — the metric sampler's source for the
+ * Count active sessions app-wide - the metric sampler's source for the
  * dashboard "Active sessions" KPI + 7-day chart. "Active" == not expired;
  * revocation is a row DELETE (there is no revoked flag), so a present,
- * unexpired row is the whole definition — same predicate as
+ * unexpired row is the whole definition - same predicate as
  * `listSessionsForUser`. The optional executor keeps this unit-testable
  * without a live DB, mirroring the write helpers above.
  */
@@ -93,7 +93,7 @@ export async function listSessionsForUser(userId: string): Promise<Session[]> {
  *
  * Returns null when the user has never signed in (no session row
  * exists). Caller is responsible for the `lastSeenAt` staleness check
- * — `TOKEN_IDP_FALLBACK_TTL` (env) bounds how old a snapshot is
+ * - `TOKEN_IDP_FALLBACK_TTL` (env) bounds how old a snapshot is
  * allowed to be before IdP-derived perms drop off the token.
  */
 export async function latestSessionForUser(userId: string): Promise<Session | null> {
@@ -107,7 +107,7 @@ export async function latestSessionForUser(userId: string): Promise<Session | nu
 }
 
 /**
- * Wipe every session in the table. Incident-response action — used
+ * Wipe every session in the table. Incident-response action - used
  * when the operator decides "everyone needs to re-authenticate"
  * (config leak, infrastructure compromise, suspected credential
  * dump). When `exceptSessionId` is passed, that one row is spared

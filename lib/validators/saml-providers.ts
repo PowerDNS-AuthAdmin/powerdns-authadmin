@@ -5,7 +5,7 @@
  * (`lib/validators/oidc-providers.ts`) so the route + form code can stay
  * structurally parallel.
  *
- * PEM material is validated lazily — we accept anything that looks like a
+ * PEM material is validated lazily - we accept anything that looks like a
  * PEM block (BEGIN/END markers + base64 body). The deep cryptographic check
  * runs at first use (`@node-saml/node-saml` rejects malformed keys when the
  * SAML class is constructed), which is the right place to surface "this key
@@ -95,7 +95,7 @@ export const createSamlProviderSchema = z.object({
   idpSloUrl: urlSchema.optional().nullable(),
   idpSigningCert: pemSchema,
 
-  /** SP signing keypair (PEM). Required at create time — operators generate
+  /** SP signing keypair (PEM). Required at create time - operators generate
    *  one with `openssl req -x509 -newkey rsa:2048 -keyout sp.key -out sp.crt
    *  -nodes -days 1825 -subj "/CN=<slug>"` and paste it in. */
   spSigningKey: pemSchema,

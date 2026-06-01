@@ -1,13 +1,13 @@
 /**
  * app/metrics/route.ts
  *
- * GET /metrics — Prometheus exposition. Pulls the latest sample row
+ * GET /metrics - Prometheus exposition. Pulls the latest sample row
  * per backend + the latest app-wide row from `metric_samples` and
  * formats them as text-format gauges.
  *
  * Gating:
- *   - `env.METRICS_ENABLED` (default true) — when false, returns 404.
- *   - `env.METRICS_TOKEN` — required `Authorization: Bearer <token>`.
+ *   - `env.METRICS_ENABLED` (default true) - when false, returns 404.
+ *   - `env.METRICS_TOKEN` - required `Authorization: Bearer <token>`.
  *     Always present at runtime: the operator pins one in env, or
  *     `lib/env.ts` auto-generates a random 32-char token on every boot
  *     (logged once at startup) so /metrics is never accidentally open
@@ -16,7 +16,7 @@
  *
  * Cache control: `no-store`. Prometheus scrapers won't honor it
  * either way, but reverse proxies caching `/metrics` is a known
- * incident shape — explicit `no-store` keeps the path clean.
+ * incident shape - explicit `no-store` keeps the path clean.
  */
 
 import { timingSafeEqual } from "node:crypto";
@@ -63,7 +63,7 @@ export async function GET(request: Request): Promise<Response> {
 async function collectFamilies(): Promise<MetricFamily[]> {
   const [perServer, appWide] = await Promise.all([latestPerServer(), latestAppWide()]);
 
-  // Up gauge — always 1 when the handler executes (Prometheus scrape
+  // Up gauge - always 1 when the handler executes (Prometheus scrape
   // failure surfaces as `up{job=...}=0` on the scraper side).
   const up: MetricFamily = {
     name: "pdnsauthadmin_up",
@@ -173,7 +173,7 @@ async function latestAppWide(): Promise<{ activeSessions: number | null } | null
 }
 
 function constantTimeEqualString(a: string, b: string): boolean {
-  // `timingSafeEqual` requires equal-length buffers — wrap in an
+  // `timingSafeEqual` requires equal-length buffers - wrap in an
   // outer length check that's deliberately *not* constant-time
   // because length-leak is acceptable here (the token is fixed
   // length per deployment).

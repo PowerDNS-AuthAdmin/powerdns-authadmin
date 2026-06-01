@@ -36,7 +36,7 @@ interface RecordTableProps {
 }
 
 export function RecordTable({ zoneName, rrsets }: RecordTableProps) {
-  // SOA is intentionally hidden from the records table — operators see and
+  // SOA is intentionally hidden from the records table - operators see and
   // edit it through the SOA panel above instead.
   const nonSoa = useMemo(() => rrsets.filter((rr) => rr.type !== "SOA"), [rrsets]);
   const sorted = useMemo(() => sortRRsets(nonSoa, zoneName), [nonSoa, zoneName]);
@@ -99,7 +99,7 @@ export function RecordTable({ zoneName, rrsets }: RecordTableProps) {
           return text ? (
             <span className="text-xs text-[color:var(--color-fg-muted)] italic">{text}</span>
           ) : (
-            <span className="text-xs text-[color:var(--color-fg-subtle)]">—</span>
+            <span className="text-xs text-[color:var(--color-fg-subtle)]">-</span>
           );
         },
         meta: { className: "w-[20%]" },

@@ -4,7 +4,7 @@
  * The Redis cross-replica fan-out path (ADR-0016), with `@/lib/redis` stubbed so
  * no real connection is opened. Regression cover for issue #4: a transient
  * `subscribe()` failure resets `redisSubscribed` to permit a retry, and the
- * earlier code re-attached the `message` handler on every retry — so each Redis
+ * earlier code re-attached the `message` handler on every retry - so each Redis
  * blip permanently added another listener and remote events fanned out N+1×.
  * The handler must register EXACTLY ONCE for the subscriber's lifetime.
  *

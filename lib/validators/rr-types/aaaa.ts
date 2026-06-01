@@ -46,7 +46,7 @@ export const aaaaValidator: RRTypeValidator = {
     if (parsed.every((g) => g === 0)) {
       issues.push({
         level: "warning",
-        message: ":: (unspecified) — legal but unusual as a published AAAA value.",
+        message: ":: (unspecified) - legal but unusual as a published AAAA value.",
       });
     } else if (parsed.slice(0, 7).every((g) => g === 0) && parsed[7] === 1) {
       issues.push({
@@ -57,17 +57,17 @@ export const aaaaValidator: RRTypeValidator = {
     } else if ((g0! & 0xffc0) === 0xfe80) {
       issues.push({
         level: "warning",
-        message: "fe80::/10 is link-local — not routable beyond a single L2 segment.",
+        message: "fe80::/10 is link-local - not routable beyond a single L2 segment.",
       });
     } else if ((g0! & 0xfe00) === 0xfc00) {
       issues.push({
         level: "warning",
-        message: "fc00::/7 is Unique Local (RFC 4193) — private, not globally routable.",
+        message: "fc00::/7 is Unique Local (RFC 4193) - private, not globally routable.",
       });
     } else if ((g0! & 0xff00) === 0xff00) {
       issues.push({
         level: "warning",
-        message: "ff00::/8 is multicast — uncommon as an AAAA-record value.",
+        message: "ff00::/8 is multicast - uncommon as an AAAA-record value.",
       });
     } else if (
       g0 === 0 &&
@@ -80,7 +80,7 @@ export const aaaaValidator: RRTypeValidator = {
       issues.push({
         level: "warning",
         message:
-          "IPv4-mapped IPv6 address (::ffff:0:0/96). Most resolvers won't treat this as an IPv4 fallback — publish an A record instead (RFC 4038 § 4.2).",
+          "IPv4-mapped IPv6 address (::ffff:0:0/96). Most resolvers won't treat this as an IPv4 fallback - publish an A record instead (RFC 4038 § 4.2).",
       });
     }
 
@@ -99,7 +99,7 @@ function parseIpv6(input: string): number[] | null {
   let s = input;
   if (s.startsWith("[") && s.endsWith("]")) s = s.slice(1, -1);
 
-  // Zone IDs (`%eth0`) aren't valid in zone data — reject.
+  // Zone IDs (`%eth0`) aren't valid in zone data - reject.
   if (s.includes("%")) return null;
 
   // IPv4-mapped tail: split on the last colon if the tail looks like dotted-quad.
@@ -129,7 +129,7 @@ function parseIpv6(input: string): number[] | null {
     const missing = 8 - left.length - right.length;
     // RFC 4291 § 2.2.2: '::' must represent one or more all-zero groups.
     // missing === 0 means the address is fully specified yet still contains
-    // '::' (e.g. 1:2:3:4:5:6:7:8::), which is malformed — reject it.
+    // '::' (e.g. 1:2:3:4:5:6:7:8::), which is malformed - reject it.
     if (missing < 1) return null;
     groups = [...left, ...Array.from({ length: missing }, () => "0"), ...right];
   }

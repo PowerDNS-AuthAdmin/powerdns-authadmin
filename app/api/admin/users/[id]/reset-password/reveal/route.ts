@@ -1,7 +1,7 @@
 /**
  * app/api/admin/users/[id]/reset-password/reveal/route.ts
  *
- * POST — redeem a single-use reveal token issued by the sibling
+ * POST - redeem a single-use reveal token issued by the sibling
  * reset-password POST and return the plaintext as `text/plain` exactly
  * once. See `lib/auth/temp-reveal-store.ts` for the store semantics
  * (single-use deletion, actor binding, TTL).
@@ -12,7 +12,7 @@
  * surrounding JSON shape that could later be re-rendered in logs or dev
  * tools as structured data.
  *
- * The `[id]` path segment is decorative — it has to match a user-id-shaped
+ * The `[id]` path segment is decorative - it has to match a user-id-shaped
  * value but the actual user-mapping lives inside the reveal-store entry,
  * keyed by the token. We still call `requireUser({ can: "user.reset-password" })`
  * so an operator who lost that permission between the POST and this call
@@ -56,7 +56,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     if (!result) {
       // Audit the failed/late reveal so a leaked-token redemption attempt is
       // visible even though it returned nothing. Don't include the token
-      // value — useless once redeemed and pointless to retain.
+      // value - useless once redeemed and pointless to retain.
       await appendAudit({
         actor: { type: "user", id: actor.id },
         action: "user.password.reset",

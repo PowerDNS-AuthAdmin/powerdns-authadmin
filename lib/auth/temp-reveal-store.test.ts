@@ -25,7 +25,7 @@ describe("temp-reveal-store", () => {
       allowedActorId: "actor-a",
     });
     expect(await redeem({ token, actorId: "actor-b" })).toBeNull();
-    // Even the legitimate actor cannot redeem afterwards — wrong-actor lookup
+    // Even the legitimate actor cannot redeem afterwards - wrong-actor lookup
     // burns the entry to prevent retry-after-failed-steal.
     expect(await redeem({ token, actorId: "actor-a" })).toBeNull();
   });

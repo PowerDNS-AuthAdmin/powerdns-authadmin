@@ -50,7 +50,7 @@ export function ForgotPasswordForm({ turnstileSiteKey }: { turnstileSiteKey?: st
       // matched or not (so this isn't an existence oracle) and
       // whether captcha verified or not (so misconfigured client
       // captchas don't help bots distinguish). Either way, the
-      // token is burned upstream — refresh so the user can resubmit.
+      // token is burned upstream - refresh so the user can resubmit.
       setCaptchaResetKey((n) => n + 1);
     } catch {
       setError("Network error. Please try again.");

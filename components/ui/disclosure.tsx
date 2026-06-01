@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Disclosure — the one collapsible "summary" affordance used across the app
+ * Disclosure - the one collapsible "summary" affordance used across the app
  * (audit-log before/after diffs, the PowerDNS HTTP-request logs, …) so every
  * expand/collapse reads the same: a rotating ▸/▾ marker, an accent label, and
  * an optional trailing accessory (e.g. a "N failed" badge).

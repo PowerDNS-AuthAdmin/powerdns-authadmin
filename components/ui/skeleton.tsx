@@ -7,7 +7,7 @@
  *
  * Use in two ways:
  *
- *   1. As `loading.tsx` siblings of slow pages — Next.js automatically
+ *   1. As `loading.tsx` siblings of slow pages - Next.js automatically
  *      shows them while the server component resolves. See
  *      `app/(app)/zones/loading.tsx` etc.
  *
@@ -68,7 +68,7 @@ export function SkeletonLines({
   );
 }
 
-/** Card frame with a label + value placeholder — matches the dashboard KPI card. */
+/** Card frame with a label + value placeholder - matches the dashboard KPI card. */
 export function SkeletonKpi() {
   return (
     <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-4">

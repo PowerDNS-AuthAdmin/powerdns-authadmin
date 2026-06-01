@@ -1,7 +1,7 @@
 /**
  * app/(app)/admin/settings/page.tsx
  *
- * Runtime-mutable app settings — site name, branding, login intro text,
+ * Runtime-mutable app settings - site name, branding, login intro text,
  * support contact. The values are stored in the `settings` table; static
  * config (DATABASE_URL, encryption keys, OIDC env fallback) stays env-only
  * and is intentionally not exposed here.

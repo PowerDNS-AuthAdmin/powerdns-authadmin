@@ -1,9 +1,9 @@
 /**
  * app/api/profile/name/route.ts
  *
- * PATCH { name } — let the signed-in user edit their own display
+ * PATCH { name } - let the signed-in user edit their own display
  * name. Empty string is treated as a clear (null). No permission
- * gate — this is self-service; auth is the only requirement.
+ * gate - this is self-service; auth is the only requirement.
  *
  * Kept narrow to the name field. A future "edit my profile" route
  * for multiple fields would deserve a separate body schema; the
@@ -17,6 +17,7 @@ import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { assertBootstrapAdminMutable } from "@/lib/auth/bootstrap-admin";
 import { db } from "@/lib/db";
 import { findUserById, updateUser } from "@/lib/db/repositories/users";
 import { profileNameSchema } from "@/lib/validators/users";
@@ -26,6 +27,7 @@ export async function PATCH(request: Request): Promise<Response> {
   try {
     const { user } = await requireUser();
     await requireCsrf(request);
+    assertBootstrapAdminMutable(user.email);
 
     let input;
     try {

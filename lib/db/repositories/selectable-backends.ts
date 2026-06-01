@@ -10,13 +10,13 @@
  *
  *   • Standalone primary  → { kind: "server", server }
  *   • Primary + Secondaries → { kind: "server", server } (the primary)
- *                              Secondaries don't appear — they're read
+ *                              Secondaries don't appear - they're read
  *                              mirrors of the primary's zone set.
  *   • Multi-primary cluster → { kind: "cluster", cluster, peers }
  *                              The cluster is ONE entry; individual peers
  *                              are not selectable on their own.
  *
- * Each entry carries a single `representativeServer` — a stable
+ * Each entry carries a single `representativeServer` - a stable
  * identity (alphabetical first) used for things that need to be
  * consistent across requests, like audit-log lookups keyed on a
  * server slug. The actual peer to TALK to (read OR write) is picked
@@ -68,7 +68,7 @@ export async function listSelectableBackends(): Promise<SelectableBackend[]> {
   const seenClusters = new Set<string>();
 
   // Each group collapses to ONE entry. Peers are its WRITABLE members
-  // (primaries) — never secondaries, so a write is never routed to a mirror.
+  // (primaries) - never secondaries, so a write is never routed to a mirror.
   // Secondary members ride along for topology display.
   for (const c of clusters) {
     const members = allServers.filter((s) => s.clusterId === c.id);

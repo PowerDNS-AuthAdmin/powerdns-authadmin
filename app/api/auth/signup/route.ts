@@ -1,11 +1,11 @@
 /**
  * app/api/auth/signup/route.ts
  *
- * POST /api/auth/signup — public self-service registration, gated by
+ * POST /api/auth/signup - public self-service registration, gated by
  * `SIGNUP_ENABLED`. Off by default; when disabled the route is a 404 (the
  * feature simply does not exist for that deployment).
  *
- * Security model (every property here is load-bearing — see issue #32):
+ * Security model (every property here is load-bearing - see issue #32):
  *   - Disabled → 404, before anything else runs.
  *   - Per-IP rate limit (same `sensitiveLimiter` tier as forgot-password).
  *   - CSRF handled like the other unauthenticated auth POSTs (no-op pre-session;
@@ -19,7 +19,7 @@
  *     existing UNVERIFIED local account) and never reveals that the account is
  *     there. We do NOT touch an already-verified account or an SSO/admin one.
  *   - The new account is created UNVERIFIED and assigned exactly the
- *     low-privilege `SIGNUP_DEFAULT_ROLE` — never an admin role (boot guard in
+ *     low-privilege `SIGNUP_DEFAULT_ROLE` - never an admin role (boot guard in
  *     `scripts/seed.ts` refuses to start otherwise). The user can't log in until
  *     they verify (see the gate in /api/auth/login).
  *   - User insert + role assignment + both audit rows commit in one
@@ -55,7 +55,7 @@ import { ValidationError } from "@/lib/errors";
 const GENERIC_OK = {
   ok: true,
   message:
-    "Thanks for signing up. If the address is eligible, a verification link is on its way — check your inbox (or ask your administrator if email isn't configured) and verify before signing in.",
+    "Thanks for signing up. If the address is eligible, a verification link is on its way - check your inbox (or ask your administrator if email isn't configured) and verify before signing in.",
 };
 
 function jsonError(status: number, message: string, extra: Record<string, unknown> = {}) {
@@ -70,7 +70,7 @@ function ok() {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  // 1. Feature gate. A disabled deployment returns 404 — the route is invisible.
+  // 1. Feature gate. A disabled deployment returns 404 - the route is invisible.
   if (!env.SIGNUP_ENABLED) {
     return jsonError(404, "Not found.");
   }
@@ -79,7 +79,7 @@ export async function POST(request: Request): Promise<Response> {
   const ip = getClientIp(hdrs);
   const reqContext = getRequestContext(hdrs);
 
-  // 2. CSRF — consistent with the other unauthenticated auth POSTs. No-op when
+  // 2. CSRF - consistent with the other unauthenticated auth POSTs. No-op when
   //    there's no session (the normal signup case); enforced if a session
   //    cookie happens to be present so it can't be forged into an existing one.
   try {
@@ -94,7 +94,7 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError(429, "Too many requests.", { retryAfterSeconds: limit.retryAfterSeconds });
   }
 
-  // 4. Validate + enforce the password policy. Invalid input is a real 400 —
+  // 4. Validate + enforce the password policy. Invalid input is a real 400 -
   //    it carries no account-existence signal (the address hasn't been looked
   //    up yet), so a precise validation error is safe and improves UX. We
   //    return the response inline (rather than throwing) because this handler
@@ -133,7 +133,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // 6. Email-domain allow-list. Empty list = any domain. Rejection audits the
-  //    domain only (never the full address) — PII minimisation, like OIDC's gate.
+  //    domain only (never the full address) - PII minimisation, like OIDC's gate.
   const domainCheck = emailDomainAllowed(body.email, env.SIGNUP_ALLOWED_EMAIL_DOMAINS);
   if (!domainCheck.ok) {
     await appendAudit({
@@ -149,14 +149,14 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  // 7. Existing-account handling — the no-enumeration core. We never reveal
+  // 7. Existing-account handling - the no-enumeration core. We never reveal
   //    whether the email is taken; both branches return the SAME GENERIC_OK.
   const existing = await findUserByEmail(body.email);
   if (existing) {
-    // Re-send verification ONLY for a still-unverified LOCAL account — i.e. a
+    // Re-send verification ONLY for a still-unverified LOCAL account - i.e. a
     // user who signed up but never finished. We do NOT touch:
     //   - verified accounts (already onboarded);
-    //   - SSO-only accounts (no passwordHash — they verify via the IdP);
+    //   - SSO-only accounts (no passwordHash - they verify via the IdP);
     //   - disabled accounts.
     // In all those cases we silently no-op so the response is indistinguishable
     // from a fresh signup, and we never reset/rotate an existing credential.
@@ -172,12 +172,12 @@ export async function POST(request: Request): Promise<Response> {
 
   // 8. Resolve the default role up-front. Boot validated it exists + is
   //    low-privilege; if it's somehow gone now, fail closed (500) rather than
-  //    create an unroled user — and stay non-enumerating about it.
+  //    create an unroled user - and stay non-enumerating about it.
   const defaultRole = await findRoleBySlug(env.SIGNUP_DEFAULT_ROLE);
   if (!defaultRole) {
     logger.error(
       { role: env.SIGNUP_DEFAULT_ROLE },
-      "auth.signup.default-role-missing — refusing to create user without a role",
+      "auth.signup.default-role-missing - refusing to create user without a role",
     );
     return jsonError(500, "Sign-up is temporarily unavailable.");
   }
@@ -193,7 +193,7 @@ export async function POST(request: Request): Promise<Response> {
           email: body.email,
           name: body.name ?? null,
           passwordHash,
-          // Unverified by construction — the login gate keeps them out until
+          // Unverified by construction - the login gate keeps them out until
           // they redeem the verification link.
           emailVerifiedAt: null,
           // Self-service users pick their own password; no forced change.
@@ -224,7 +224,7 @@ export async function POST(request: Request): Promise<Response> {
           roleId: defaultRole.id,
           scopeType: "global",
           scopeId: null,
-          // No human actor — self-service. Null mirrors the bootstrap-seed grant.
+          // No human actor - self-service. Null mirrors the bootstrap-seed grant.
           createdBy: null,
         },
         tx,
@@ -261,7 +261,7 @@ export async function POST(request: Request): Promise<Response> {
     return ok();
   }
 
-  // 10. Send the verification link (outside the tx — email is best-effort and
+  // 10. Send the verification link (outside the tx - email is best-effort and
   //     must not roll back a committed user). SMTP-off falls back to the audit
   //     log, exactly like forgot-password / send-verification.
   await issueVerification(createdUserId, createdEmail, reqContext, "signup");
@@ -274,7 +274,7 @@ export async function POST(request: Request): Promise<Response> {
  * Mint a `pde_…` verification token for a user and deliver it: email when SMTP
  * is configured, otherwise record the link in the audit log so an operator can
  * share it out-of-band. Mirrors `/api/auth/email/send-verification`. Best-effort
- * — failures are logged, never surfaced (keeps the response non-enumerating).
+ * - failures are logged, never surfaced (keeps the response non-enumerating).
  */
 async function issueVerification(
   userId: string,
@@ -308,7 +308,7 @@ async function issueVerification(
   if (mail.skipped) {
     logger.warn(
       { userId, verifyUrl },
-      "auth.signup.verify-sent — SMTP disabled; share this URL with the user out-of-band",
+      "auth.signup.verify-sent - SMTP disabled; share this URL with the user out-of-band",
     );
   } else if (!mail.ok) {
     logger.error({ userId, error: mail.error }, "auth.signup.verify-send-failed");

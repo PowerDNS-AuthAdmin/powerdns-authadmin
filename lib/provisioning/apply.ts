@@ -9,7 +9,7 @@
  *   2. roles           (referenced by oidc.group_mappings and teams)
  *   3. teams           (referenced by oidc.group_mappings scope=team:<slug>)
  *   4. zone_templates  (no FKs to anything we provision)
- *   5. pdns_servers    — primaries first, then secondaries (which reference
+ *   5. pdns_servers    - primaries first, then secondaries (which reference
  *                        primaries by slug → looked up post-insert)
  *   6. oidc            (group_mappings hold slugs that resolve to roles/
  *                        teams/servers above; zone scope is a literal name)
@@ -19,7 +19,7 @@
  * bumps. Sections the operator omitted are not touched.
  *
  * Audit: a single `provisioning.applied` row is written at the end with a
- * summary of what changed. Individual upserts are NOT audited — the file
+ * summary of what changed. Individual upserts are NOT audited - the file
  * itself is the source of truth, and the row count would be noisy.
  */
 
@@ -75,7 +75,7 @@ export interface ProvisioningResult {
   ldapProvidersUpserted: number;
   /** Unresolvable scope references in group mappings (logged + audited; the
    *  rest of the mapping list is still persisted, with the bad entries
-   *  filtered out). Covers both OIDC and LDAP mappings — the shape is
+   *  filtered out). Covers both OIDC and LDAP mappings - the shape is
    *  identical. */
   unresolvedGroupMappings: Array<{ provider: string; group: string; scope: string }>;
 }
@@ -111,7 +111,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
   if (config.settings) {
     for (const [key, value] of Object.entries(config.settings)) {
       if (value === undefined) continue;
-      if (key === "auth_default_provider") continue; // deferred — see step 7
+      if (key === "auth_default_provider") continue; // deferred - see step 7
       await db
         .insert(settings)
         .values({ key, value, updatedAt: new Date() })
@@ -235,7 +235,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
     }
   }
 
-  // 4b. pdns_clusters — must come before pdns_servers so server entries
+  // 4b. pdns_clusters - must come before pdns_servers so server entries
   // can reference clusters by slug.
   const clusterIdsBySlug = new Map<string, string>();
   if (config.clusters) {
@@ -272,7 +272,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
     for (const c of existing) clusterIdsBySlug.set(c.slug, c.id);
   }
 
-  // 5. pdns_servers — any role joins a group via cluster_slug (ADR-0014).
+  // 5. pdns_servers - any role joins a group via cluster_slug (ADR-0014).
   const serverIdsBySlug = new Map<string, string>();
   if (config.pdns_servers) {
     for (const s of config.pdns_servers) {
@@ -366,7 +366,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
 
     // Legacy per-provider `force_default: true` is retired in favour of the
     // single `auth_default_provider` setting. If any OIDC entry still carries
-    // the flag, pick the LAST one mentioned in the YAML — same tie-break
+    // the flag, pick the LAST one mentioned in the YAML - same tie-break
     // semantics as the schema migration (last-wins on the storage layer is
     // most recent created; here last-listed approximates that). Log a
     // deprecation so operators clean up their files.
@@ -432,7 +432,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
           }
           scopeId = id;
         } else if (parsed.scopeType === "zone") {
-          // Zone names live in PDNS, not our DB — store verbatim.
+          // Zone names live in PDNS, not our DB - store verbatim.
           scopeId = parsed.scopeRef;
         }
         resolvedMappings.push({
@@ -491,7 +491,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
     }
   }
 
-  // 6b. saml providers (ADR-0021) — same slug-reservation + upsert pattern
+  // 6b. saml providers (ADR-0021) - same slug-reservation + upsert pattern
   // as OIDC. Mappings re-use the shared `parseScopeString` resolver.
   if (config.saml) {
     const teamsBySlug = new Map(
@@ -618,7 +618,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
     }
   }
 
-  // 6c. ldap providers (ADR-0020). Same shape as the OIDC block — slug
+  // 6c. ldap providers (ADR-0020). Same shape as the OIDC block - slug
   // reservation in `auth_provider_slugs` then a per-provider upsert.
   // Mappings re-use the shared `parseScopeString` resolver because the
   // group-mapping shape is identical to OIDC's.
@@ -730,7 +730,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
   // file has been upserted (and reserved its slug in auth_provider_slugs),
   // we can resolve a bare-slug shorthand like `auth_default_provider: "company-sso"`
   // to its canonical typed-prefix form (`oidc:company-sso`). Skipping the
-  // setting silently when the slug is unknown — provisioning shouldn't
+  // setting silently when the slug is unknown - provisioning shouldn't
   // crash the apply over an operator typo; the admin UI surfaces "(provider
   // no longer exists)" in the picker if the value ends up dangling.
   if (config.settings?.auth_default_provider !== undefined) {
@@ -739,10 +739,10 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
     if (raw === "local") {
       canonical = "local";
     } else if (/^(oidc|saml|ldap):/.test(raw)) {
-      // Caller already gave us the typed form — trust it.
+      // Caller already gave us the typed form - trust it.
       canonical = raw;
     } else {
-      // Bare slug. Resolve via the reservation table — this picks up rows
+      // Bare slug. Resolve via the reservation table - this picks up rows
       // freshly inserted in step 6 above.
       const type = await lookupProviderTypeBySlug(raw);
       if (type) {
@@ -800,13 +800,13 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
     );
   }
 
-  // 7. demo_zones — create synthetic zones on PDNS via the HTTP API. Runs
+  // 7. demo_zones - create synthetic zones on PDNS via the HTTP API. Runs
   // BEFORE the version refresh so the version-cache also reflects the
   // newly-created zone count on first boot. Failures are per-zone; the
   // overall provisioning still succeeds.
   //
   // `touchedPrimaries` accumulates every primary we wrote demo zones to,
-  // so the post-loop sweep below can re-NOTIFY their full zone set —
+  // so the post-loop sweep below can re-NOTIFY their full zone set -
   // catches the docker-compose race where the first zones land on the
   // primary BEFORE the secondaries have registered themselves as
   // supermasters, so the initial NOTIFY had no listener and the demo
@@ -819,7 +819,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
     }
   }
 
-  // Convergence sweep — fire one NOTIFY pass per primary we wrote to.
+  // Convergence sweep - fire one NOTIFY pass per primary we wrote to.
   // Idempotent; PDNS dedupes by serial so a duplicate NOTIFY just no-ops
   // if the secondary is already current. Best-effort: per-zone failures
   // are logged inside `notifyEveryZoneBestEffort` and never bubble.
@@ -959,7 +959,7 @@ async function applyDemoZonesEntry(
       });
       result.demoZonesCreated += 1;
       // Track which primaries we wrote to so the post-loop sweep
-      // below can NOTIFY their entire zone set — handles the race
+      // below can NOTIFY their entire zone set - handles the race
       // where the first few zones got created BEFORE the secondaries
       // had registered themselves as supermasters and so missed the
       // initial NOTIFY.
@@ -975,7 +975,7 @@ async function applyDemoZonesEntry(
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      // PDNS returns 409 (Conflict) for an existing zone — the message
+      // PDNS returns 409 (Conflict) for an existing zone - the message
       // contains "already exists" or similar. Treat as skipped so a
       // re-run is silent rather than alarming.
       if (/already exists|conflict|409/i.test(msg)) {

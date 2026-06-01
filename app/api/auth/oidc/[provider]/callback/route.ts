@@ -68,7 +68,7 @@ export async function GET(
   cookieStore.delete(OIDC_NEXT_COOKIE);
 
   // The slug we trust is the one we stored at initiate-time, not the path
-  // segment — defends against an attacker swapping `<provider>` in the URL
+  // segment - defends against an attacker swapping `<provider>` in the URL
   // during the round-trip to point our token exchange at a different IdP.
   if (slugFromCookie && slugFromCookie !== slugFromUrl) {
     return failRedirect("oidc-unknown-provider");
@@ -89,8 +89,8 @@ export async function GET(
     // openid-client v6 derives the `redirect_uri` it sends in the
     // token-exchange request from `callbackUrl.origin + pathname`. In
     // a containerized deploy behind a reverse proxy, `request.url` is
-    // what the Node process sees — typically the INTERNAL URL
-    // (http://app:3000/...) — and that does NOT match what was sent
+    // what the Node process sees - typically the INTERNAL URL
+    // (http://app:3000/...) - and that does NOT match what was sent
     // to authentik at /authorize OR what's registered as the
     // Redirect URI on the IdP. authentik then rejects the exchange
     // as `invalid_client` (its name for "redirect_uri mismatch").
@@ -125,7 +125,7 @@ export async function GET(
         http_status: detail.status,
         oidc_code: detail.code,
         body: detail.body,
-        // Auth-method context — invaluable when the IdP returns
+        // Auth-method context - invaluable when the IdP returns
         // `invalid_client` because we picked the wrong method or
         // because the secret stored in the DB is stale.
         auth_method_used: authChoice?.chosen,
@@ -182,7 +182,7 @@ export async function GET(
     // Provisioning gate: when OIDC_ALLOWED_EMAIL_DOMAINS is set, refuse to
     // auto-create a local user for an email outside the allow-list. Existing
     // users are unaffected (they hit the branch above). The audit row stores
-    // the *domain* only — never the full rejected address — so a misdirected
+    // the *domain* only - never the full rejected address - so a misdirected
     // login attempt doesn't leak the would-be username into our retention.
     // Per-provider override (S-7 follow-up): when `provider.allowedEmailDomains`
     // is non-null it REPLACES the env list for this provider; null inherits env.
@@ -237,7 +237,7 @@ export async function GET(
   await recordSuccessfulLogin(user.id, ip ?? null);
 
   // Compute the IdP-derived permission set for this sign-in. The result
-  // gets persisted onto the session row in `startSession` below — not
+  // gets persisted onto the session row in `startSession` below - not
   // into `role_assignments`. Env-source providers (no id, no mappings)
   // produce an empty array.
   let derivedPermissions: Awaited<ReturnType<typeof computeGroupSync>>["derived"] = [];

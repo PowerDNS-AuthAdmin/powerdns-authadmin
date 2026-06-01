@@ -2,7 +2,7 @@
  * lib/auth/require-user.ts
  *
  * Server-component / route-handler guard. Throws `UnauthorizedError` when
- * there's no authenticated user — the HTTP layer maps that to 401, the App
+ * there's no authenticated user - the HTTP layer maps that to 401, the App
  * Router maps it to a redirect to /login (via `app/(app)/layout.tsx`).
  *
  * Usage from a server component:
@@ -29,7 +29,7 @@ import { getCurrentUser, type AuthenticatedRequest } from "./get-current-user";
 
 /** Routes a non-compliant user (forced-MFA-not-enrolled, mustChangePassword) is
  *  allowed to reach so they can self-remediate. Anything else triggers a
- *  redirect to /profile. Match by prefix. Mirrors the (app) layout's list — see
+ *  redirect to /profile. Match by prefix. Mirrors the (app) layout's list - see
  *  `requireUserForPage` for why we duplicate the gate per page. */
 const COMPLIANCE_ALLOWLIST: readonly string[] = [
   "/profile",
@@ -55,7 +55,7 @@ export interface RequireUserOptions {
    * Skip the post-authorization compliance gate (forced MFA enrollment +
    * mustChangePassword). Set this ONLY on the self-remediation endpoints a
    * non-compliant operator must reach to fix their state (TOTP enrollment,
-   * password change) — otherwise they'd deadlock — and on page renders, which
+   * password change) - otherwise they'd deadlock - and on page renders, which
    * `requireUserForPage` already gates via the `(app)` layout redirect.
    */
   skipComplianceGate?: boolean;
@@ -73,14 +73,14 @@ export async function requireUser(opts: RequireUserOptions = {}): Promise<Authen
     const action = opts.can.slice(dotIdx + 1);
 
     if (opts.on) {
-      // A concrete resource instance was supplied — do a properly scoped
+      // A concrete resource instance was supplied - do a properly scoped
       // CASL check. A team/zone/server-scoped rule grants the action only
       // when the instance matches the scope's conditions.
       if (!result.ability.can(action, opts.on)) {
         throw new ForbiddenError(`Missing permission: ${opts.can}`);
       }
     } else {
-      // No instance — this is an "any resource of this type" decision (list
+      // No instance - this is an "any resource of this type" decision (list
       // endpoints, creation, admin-wide actions). Only a GLOBAL grant
       // satisfies it. We deliberately do NOT use a type-level
       // `ability.can(action, "Type")` here: CASL returns true for a
@@ -93,7 +93,7 @@ export async function requireUser(opts: RequireUserOptions = {}): Promise<Authen
   }
 
   // Compliance gate (security): a session can be FULLY authenticated yet
-  // non-compliant — a role requires MFA but the operator never enrolled TOTP,
+  // non-compliant - a role requires MFA but the operator never enrolled TOTP,
   // or they signed in with a temp password flagged `mustChangePassword`. The
   // `(app)` layout already redirects browser page loads, but route handlers
   // bypass the layout entirely, so without this check a non-compliant user
@@ -126,14 +126,14 @@ export async function requireUser(opts: RequireUserOptions = {}): Promise<Authen
 
 /**
  * Page-level variant of `requireUser`. Where the base helper *throws*
- * (route handlers want that — they catch and return a JSON 401/403), this
+ * (route handlers want that - they catch and return a JSON 401/403), this
  * one *redirects*:
  *
  *   - No session → `/login`
  *   - Authenticated but missing a permission → `/dashboard?flash=forbidden&need=<perm>`
  *
  * The `(app)` layout mounts a `<FlashListener>` that reads the `flash`
- * query param and surfaces a toast — far better UX than the default Next
+ * query param and surfaces a toast - far better UX than the default Next
  * error overlay when a user clicks a nav link they don't actually have
  * access to (e.g. an OIDC-provisioned user with no roles assigned).
  *
@@ -146,7 +146,7 @@ export async function requireUserForPage(
 ): Promise<AuthenticatedRequest> {
   try {
     // The (app) layout enforces compliance on the *initial* server render, but
-    // App Router doesn't re-run a sibling layout on soft client navigations —
+    // App Router doesn't re-run a sibling layout on soft client navigations -
     // so without re-checking here, a forced-MFA / must-change-password user
     // could click around freely until the next full reload. We rerun the same
     // gate at the page level (cheap; `requireUser` already loaded the user).
@@ -156,7 +156,7 @@ export async function requireUserForPage(
       const pathname = hdrs.get("x-pathname") ?? "/";
       const allowed = COMPLIANCE_ALLOWLIST.some((p) => pathname.startsWith(p));
       if (!allowed) {
-        // MFA gate is checked first to match `evaluateSessionCompliance` —
+        // MFA gate is checked first to match `evaluateSessionCompliance` -
         // an operator who is both non-enrolled AND flagged for a password
         // change is sent to the more security-critical remediation first.
         const roleMfaStates = await listRoleMfaStatesForUser(result.user.id);

@@ -4,7 +4,7 @@
  * Verifies the multi-primary write picker:
  *   1. Repeated creates against `prod-cluster` distribute across more
  *      than one peer (sharding is real, not "always-peer-1").
- *   2. Stopping a peer is survivable — the picker either skips the
+ *   2. Stopping a peer is survivable - the picker either skips the
  *      dead peer (response 2xx) or surfaces a clean error (response
  *      4xx/5xx, no hang). The peer is restarted in afterAll so the
  *      rest of the suite isn't damaged.
@@ -34,7 +34,7 @@ async function tolerantClusterWipe(): Promise<void> {
         headers: { "x-api-key": peer.apiKey },
       });
       if (!res.ok && res.status !== 404 && res.status !== 422) {
-        // 422 → "DNSSEC keys present" — ignored; test doesn't care.
+        // 422 → "DNSSEC keys present" - ignored; test doesn't care.
       }
     }
   } catch {
@@ -134,7 +134,7 @@ describe("multi-primary cluster picker", () => {
         const res = await createOnCluster(admin, zone);
         results.push(res.status);
       }
-      // We want to see at least one 201 — the picker either avoided
+      // We want to see at least one 201 - the picker either avoided
       // the dead peer or retried. If every attempt 5xx'd, that's a
       // real regression.
       expect(
@@ -143,7 +143,7 @@ describe("multi-primary cluster picker", () => {
       ).toBe(true);
     } finally {
       await compose("start", STOPPED_PEER);
-      // Briefly wait for the peer to become reachable again — the
+      // Briefly wait for the peer to become reachable again - the
       // suite that runs after this one will assume all peers are up.
       const peer = PDNS_BACKENDS.find((b) => b.slug === "peer-2")!;
       const deadline = Date.now() + 15_000;

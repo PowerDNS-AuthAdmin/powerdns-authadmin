@@ -1,4 +1,4 @@
-# ADR 0004 — Three-layer architecture (auth → RBAC → business logic)
+# ADR 0004 - Three-layer architecture (auth → RBAC → business logic)
 
 - **Status:** Accepted
 - **Date:** 2026-05-16
@@ -37,17 +37,17 @@ violation fails CI.
 
 ## Alternatives considered
 
-- **Single-tier monolith.** Rejected — mixed concerns are exactly the regression class we're
+- **Single-tier monolith.** Rejected - mixed concerns are exactly the regression class we're
   trying to prevent.
 - **More than three layers** (controllers / services / repositories / DTOs / mappers / …). Common
-  in enterprise Java patterns. Rejected as over-engineering for an app of this size — adds
+  in enterprise Java patterns. Rejected as over-engineering for an app of this size - adds
   ceremony without preventing real bugs.
 - **Event-driven / CQRS.** Powerful but rarely necessary. Considered for the audit log; ended up
   using a simple synchronous write because the volume doesn't justify the complexity.
 
 ## Consequences
 
-- Every route handler is short — input validation, auth, RBAC, business call, audit, response.
+- Every route handler is short - input validation, auth, RBAC, business call, audit, response.
   Most are 20–30 lines.
 - Cross-cutting concerns that span layers (request IDs, logging) flow through context-attached
   bindings rather than module imports.

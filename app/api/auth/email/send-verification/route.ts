@@ -1,7 +1,7 @@
 /**
  * app/api/auth/email/send-verification/route.ts
  *
- * POST — mint a `pde_…` email-verification token for the
+ * POST - mint a `pde_…` email-verification token for the
  * authenticated user and record the link in the audit log. Until
  * transactional email lands, the audit row's `after.url` is where
  * the operator finds the link to share with the user out-of-band
@@ -78,7 +78,7 @@ export async function POST(request: Request): Promise<Response> {
     if (mail.skipped) {
       logger.warn(
         { userId: user.id, verifyUrl },
-        "auth.email.verify.sent — SMTP disabled; share this URL with the user out-of-band",
+        "auth.email.verify.sent - SMTP disabled; share this URL with the user out-of-band",
       );
     } else if (!mail.ok) {
       logger.error({ userId: user.id, error: mail.error }, "auth.email.verify.send-failed");

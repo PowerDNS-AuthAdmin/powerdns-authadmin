@@ -58,8 +58,8 @@ export default async function TeamDetailPage({ params }: PageProps) {
           Identity
         </h2>
         <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-sm">
-          <Row label="Contact" value={team.contact ?? "—"} />
-          <Row label="Mail" value={team.mail ?? "—"} />
+          <Row label="Contact" value={team.contact ?? "-"} />
+          <Row label="Mail" value={team.mail ?? "-"} />
           <Row label="Created" value={team.createdAt.toLocaleString()} />
         </dl>
       </section>

@@ -57,7 +57,7 @@ export function TestServerButton({ serverId }: { serverId: string }) {
         return;
       }
       // Failure outcomes (auth / unreachable / etc.) ride back as
-      // 200 with `ok: false` — the route owner deliberately surfaces
+      // 200 with `ok: false` - the route owner deliberately surfaces
       // them in-band so the form can render them inline. Mirror that
       // here: classify into a toast with the actionable hint.
       toast({

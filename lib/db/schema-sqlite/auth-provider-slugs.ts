@@ -1,5 +1,5 @@
 /**
- * lib/db/schema-sqlite/auth-provider-slugs.ts — SQLite mirror of
+ * lib/db/schema-sqlite/auth-provider-slugs.ts - SQLite mirror of
  * `../schema/auth-provider-slugs.ts`.
  */
 

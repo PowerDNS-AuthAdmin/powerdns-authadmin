@@ -24,7 +24,7 @@ export const createClusterSchema = z
     name: z.string().min(1).max(120),
     description: z.string().max(2000).optional(),
     writeStrategy: z.enum(WRITE_STRATEGIES).default("round_robin"),
-    // Optional initial members — backend ids assigned to the new group in the
+    // Optional initial members - backend ids assigned to the new group in the
     // same transaction. Capped to keep the create request bounded.
     memberServerIds: z.array(z.string().uuid()).max(100).optional(),
   })

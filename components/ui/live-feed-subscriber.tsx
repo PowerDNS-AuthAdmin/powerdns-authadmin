@@ -6,7 +6,7 @@
  * whenever an event matching `eventTypes` lands. Coalesces refresh-bursts to
  * one per 500 ms.
  *
- * Renders nothing — the visible "LIVE" chip moved to the shared
+ * Renders nothing - the visible "LIVE" chip moved to the shared
  * HeaderStatusChip in the top bar, so every page surfaces realtime status in
  * one consistent spot.
  */
@@ -17,7 +17,7 @@ import { useRealtimeEvent } from "@/components/realtime/realtime-provider";
 import type { RealtimeEvent } from "@/components/realtime/realtime-provider";
 
 interface Props {
-  /** Restrict to these event types — refresh fires only on matches. */
+  /** Restrict to these event types - refresh fires only on matches. */
   eventTypes?: readonly string[];
   /** Optional callback fired on every matching event. */
   onEvent?: (event: RealtimeEvent) => void;

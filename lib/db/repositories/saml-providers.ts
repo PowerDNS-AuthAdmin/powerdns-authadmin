@@ -3,7 +3,7 @@
  *
  * CRUD for the SAML providers table. Mirrors `oidc-providers.ts` shape so
  * route + UI code can stay structurally parallel. The encrypted PEM columns
- * are passed through unchanged — encryption / decryption happens at the
+ * are passed through unchanged - encryption / decryption happens at the
  * route boundary via `lib/crypto/encryption.ts`.
  */
 

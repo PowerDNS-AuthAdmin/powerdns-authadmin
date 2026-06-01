@@ -27,7 +27,7 @@ export function ConfirmEmailChangeForm({ token }: { token: string }) {
       const data = (await res.json()) as { email: string };
       setEmail(data.email);
       setStatus("done");
-      // Sessions were revoked server-side — bounce to login with a flash so the
+      // Sessions were revoked server-side - bounce to login with a flash so the
       // user reads the result first. (Leaving (app), so flash beats a toast.)
       setTimeout(() => window.location.assign("/login?flash=email-changed"), 1500);
     } catch {
@@ -36,7 +36,7 @@ export function ConfirmEmailChangeForm({ token }: { token: string }) {
     }
   }
 
-  // The link click IS the confirmation — confirm automatically on mount.
+  // The link click IS the confirmation - confirm automatically on mount.
   useEffect(() => {
     if (started.current) return;
     started.current = true;
@@ -70,7 +70,7 @@ export function ConfirmEmailChangeForm({ token }: { token: string }) {
         className="rounded border border-[color:var(--color-success)] bg-[color:var(--color-success)]/10 p-3 text-sm"
         role="status"
       >
-        Email changed to <code>{email}</code>. Sessions revoked — sign in again in a moment.
+        Email changed to <code>{email}</code>. Sessions revoked - sign in again in a moment.
       </p>
     );
   }

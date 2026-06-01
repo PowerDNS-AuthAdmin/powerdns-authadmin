@@ -7,7 +7,7 @@
 
 # PowerDNS-AuthAdmin
 
-> A modern, self-hosted DNS administration UI for PowerDNS Authoritative — first-class RBAC,
+> A modern, self-hosted DNS administration UI for PowerDNS Authoritative - first-class RBAC,
 > audit log with diffs, SSO with group-driven role mapping, optimistic concurrency in the editor,
 > and a UI built for teams that actually run multi-backend infrastructure.
 
@@ -48,7 +48,7 @@ ready-to-use install without a single click.
   across zones, records, DNSSEC, TSIG, metadata, autoprimaries, templates, users, teams, servers,
   API tokens, audit, and OIDC providers. Assignments scope to global / team / zone / server.
 - **Auth.** Local accounts (Argon2id), generic OIDC with PKCE + per-provider group→role mapping,
-  TOTP MFA (greyed out for SSO-only users — the IdP is the trust root), `pda_pat_` API tokens
+  TOTP MFA (greyed out for SSO-only users - the IdP is the trust root), `pda_pat_` API tokens
   with per-token permission scopes.
 - **RP-initiated logout.** OIDC sessions sign you out at the IdP, not just locally; the
   `end_session_endpoint` + `id_token_hint` flow lands you on the IdP's signed-out screen.
@@ -78,7 +78,7 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
 
 ## Screenshots
 
-**Dashboard** — live PowerDNS stats, active sessions, and operator-attention surfaces.
+**Dashboard** - live PowerDNS stats, active sessions, and operator-attention surfaces.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/dashboard.png" />
@@ -87,7 +87,7 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
 
 <br>
 
-**Multi-backend** — clusters, primary + secondaries groups, and standalone primaries side by side. Live sync state, drift advisories, and the dashboard PowerDNS-metrics tab are opt-in via [`PDNS_BACKGROUND_POLLING=true`](./docs/03-CONFIGURATION.md#pdns_background_polling) — recommended for replication topologies, off by default for standalone installs.
+**Multi-backend** - clusters, primary + secondaries groups, and standalone primaries side by side. Live sync state, drift advisories, and the dashboard PowerDNS-metrics tab are opt-in via [`PDNS_BACKGROUND_POLLING=true`](./docs/03-CONFIGURATION.md#pdns_background_polling) - recommended for replication topologies, off by default for standalone installs.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/powerdns-servers.png" />
@@ -96,7 +96,7 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
 
 <br>
 
-**Amalgamated zones** — every backend's zones in one searchable list with serial + per-row sync state.
+**Amalgamated zones** - every backend's zones in one searchable list with serial + per-row sync state.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zones-list.png" />
@@ -105,7 +105,7 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
 
 <br>
 
-**Per-RRset editor** — per-type structured editors with inline validation.
+**Per-RRset editor** - per-type structured editors with inline validation.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zone-edit.png" />
@@ -114,7 +114,7 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
 
 <br>
 
-**Diff-before-apply** — every change previewed as a BIND-style before / after diff before it's written.
+**Diff-before-apply** - every change previewed as a BIND-style before / after diff before it's written.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/zone-edit-diff.png" />
@@ -123,7 +123,7 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
 
 <br>
 
-**Backend health** — bell-driven advisories for unreachable hosts, replication drift, missing TSIG keys, daemon-config drift.
+**Backend health** - bell-driven advisories for unreachable hosts, replication drift, missing TSIG keys, daemon-config drift.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/backend-health.png" />
@@ -132,7 +132,7 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
 
 <br>
 
-**Append-only audit log** — redacted before/after snapshots, per-row PDNS HTTP trail, CSV export.
+**Append-only audit log** - redacted before/after snapshots, per-row PDNS HTTP trail, CSV export.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/audit-log.png" />
@@ -141,7 +141,7 @@ The full feature catalog with module-level docs is in [`docs/FEATURES.md`](./doc
 
 ### Mobile-first
 
-Every page is responsive down to a phone viewport — the off-canvas hamburger
+Every page is responsive down to a phone viewport - the off-canvas hamburger
 drawer, the bell + theme + avatar cluster, and the record table all reflow
 cleanly. Screenshots are rendered inside an iPhone 16 Pro bezel by
 [`scripts/screenshots.mjs`](./scripts/screenshots.mjs).
@@ -163,19 +163,19 @@ cleanly. Screenshots are rendered inside an iPhone 16 Pro bezel by
   </picture>
 </p>
 
-Full gallery — every page, four variants:
+Full gallery - every page, four variants:
 [**screenshots/README.md**](./screenshots/README.md).
 
 ## Run it
 
-The app ships as a single image — **[`ghcr.io/powerdns-authadmin/powerdns-authadmin`](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)**.
+The app ships as a single image - **[`ghcr.io/powerdns-authadmin/powerdns-authadmin`](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)**.
 It runs on **SQLite** (single instance: homelab, eval, small teams) or **Postgres** (multi-instance,
 write-concurrent). Migrations and the system-role seed run automatically on boot.
 
 > New here? The [Quickstart](./docs/01-QUICKSTART.md) gets you clicking around in ~2 minutes; the
 > [Installation guide](./docs/02-INSTALLATION.md) covers a real production deploy.
 
-### Try it instantly — the minimal-demo stack
+### Try it instantly - the minimal-demo stack
 
 A throwaway SQLite stack with a bundled PowerDNS and 10 pre-seeded demo zones:
 
@@ -190,12 +190,12 @@ docker compose up -d
 
 ### Production
 
-For a real deployment — SQLite or Postgres, TLS, backups, and the boot sequence —
+For a real deployment - SQLite or Postgres, TLS, backups, and the boot sequence -
 follow the **[Installation guide](./docs/02-INSTALLATION.md)**. It's four copy-paste
 steps and the canonical source of truth (the demo above is evaluation-only).
 
 > Store `APP_SECRET_KEY` / `APP_ENCRYPTION_KEY` once in a persistent **`.env`** next to
-> your compose file — **never** shell `export`s. Exports vanish when the shell closes, and
+> your compose file - **never** shell `export`s. Exports vanish when the shell closes, and
 > a regenerated `APP_ENCRYPTION_KEY` makes every stored PowerDNS API key, OIDC secret, and
 > MFA secret undecryptable. Generate once, back the `.env` up, never change them.
 
@@ -203,22 +203,22 @@ steps and the canonical source of truth (the demo above is evaluation-only).
 
 To run more than one app replica, use **Postgres + Redis** and put a load balancer
 in front. Sessions are already shared (they live in Postgres); setting `REDIS_URL`
-makes the three remaining per-process pieces — auth rate limiting, one-time reveal
-tokens, and the realtime SSE event bus — coordinate across replicas. Without Redis
+makes the three remaining per-process pieces - auth rate limiting, one-time reveal
+tokens, and the realtime SSE event bus - coordinate across replicas. Without Redis
 those degrade to per-replica behaviour (looser rate limits, reveal tokens that only
 work on their origin replica, live updates that don't cross replicas), so Redis is
 **required** past one replica. See [ADR-0016](./docs/adr/0016-redis-horizontal-scale.md).
 
-> SQLite is single-instance only — a file-backed DB isn't shared storage. HA means
+> SQLite is single-instance only - a file-backed DB isn't shared storage. HA means
 > Postgres. The boot log says so if it detects the combination.
 
 ```yaml
-# docker-compose.ha.yml — Postgres + Redis, app fronted by your load balancer.
+# docker-compose.ha.yml - Postgres + Redis, app fronted by your load balancer.
 services:
   app:
     image: ghcr.io/powerdns-authadmin/powerdns-authadmin:latest
     restart: unless-stopped
-    # No host port — your load balancer (nginx/Traefik/cloud LB) fronts the replicas.
+    # No host port - your load balancer (nginx/Traefik/cloud LB) fronts the replicas.
     expose: ["3000"]
     depends_on:
       postgres: { condition: service_healthy }
@@ -262,7 +262,7 @@ volumes:
 ```
 
 > Migrations are serialized across replica boots by a Postgres advisory lock
-> (ADR-0011), so starting N replicas at once is safe — only one applies migrations.
+> (ADR-0011), so starting N replicas at once is safe - only one applies migrations.
 > Redis here is a coordination cache, not a datastore: persistence is off
 > (`--save "" --appendonly no`) because nothing it holds needs to survive a restart.
 
@@ -276,9 +276,9 @@ Every variable is documented in [`.env.example`](./.env.example). The essentials
 | `APP_SECRET_KEY`                                     | ✅          | Session / CSRF / token HMAC secret. `openssl rand -base64 32`.         |
 | `APP_ENCRYPTION_KEY`                                 | ✅          | AES-256 key (base64, decodes to ≥32 bytes). `openssl rand -base64 32`. |
 | `DATABASE_URL`                                       | ✅          | `file:/data/powerdns_authadmin.db` (SQLite) or `postgres://…`.         |
-| `REDIS_URL`                                          | optional    | Enables cross-replica coordination — **required** for replicas > 1.    |
+| `REDIS_URL`                                          | optional    | Enables cross-replica coordination - **required** for replicas > 1.    |
 | `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD`                | ⭐          | First SuperAdmin (password ≥12 chars).                                 |
-| `OIDC_*`                                             | optional    | SSO — or add providers in the UI instead.                              |
+| `OIDC_*`                                             | optional    | SSO - or add providers in the UI instead.                              |
 | `SMTP_*`                                             | optional    | Transactional email (verify-email, password reset).                    |
 | `APP_PDNS_ALLOW_PRIVATE_NETWORKS` / `_INSECURE_HTTP` | situational | Allow internal-network / `http://` PDNS backends.                      |
 | `APP_OIDC_ALLOW_PRIVATE_NETWORKS` / `_INSECURE_HTTP` | situational | Allow internal-network / `http://` OIDC issuers (SSRF guard).          |
@@ -308,13 +308,13 @@ Full workflow + troubleshooting in [`docs/dev-setup.md`](./docs/dev-setup.md).
 
 ## Documentation
 
-Full guides live in **[`docs/`](./docs/)** — start at the
+Full guides live in **[`docs/`](./docs/)** - start at the
 [documentation index](./docs/README.md).
 
 | Guide                                                 | Purpose                                                          |
 | ----------------------------------------------------- | ---------------------------------------------------------------- |
 | [Quickstart](./docs/01-QUICKSTART.md)                 | Run the demo stack end-to-end in ~2 minutes.                     |
-| [Installation](./docs/02-INSTALLATION.md)             | Production install — SQLite or Postgres, TLS, backups, upgrades. |
+| [Installation](./docs/02-INSTALLATION.md)             | Production install - SQLite or Postgres, TLS, backups, upgrades. |
 | [Configuration](./docs/03-CONFIGURATION.md)           | Every environment variable, grouped and explained.               |
 | [Connecting PowerDNS backends](./docs/04-BACKENDS.md) | Primaries, secondaries, and multi-primary clusters.              |
 | [OIDC single sign-on](./docs/05-OIDC.md)              | SSO with group → role mapping (env vs provisioning vs UI).       |
@@ -330,7 +330,7 @@ Full guides live in **[`docs/`](./docs/)** — start at the
 | ---------------------------------------------------------- | -------------------------------------------------------------------- |
 | [`docs/FEATURES.md`](./docs/FEATURES.md)                   | The full feature catalog with module pointers.                       |
 | [`docs/dev-setup.md`](./docs/dev-setup.md)                 | Local development workflow.                                          |
-| [`docs/adr/`](./docs/adr/)                                 | Architecture Decision Records — why the codebase is shaped this way. |
+| [`docs/adr/`](./docs/adr/)                                 | Architecture Decision Records - why the codebase is shaped this way. |
 | [`provisioning.example.yaml`](./provisioning.example.yaml) | Exhaustive provisioning reference.                                   |
 | [`.env.example`](./.env.example)                           | Documented environment variables.                                    |
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md)                     | Code standards, testing, security, perf budgets.                     |
@@ -341,7 +341,7 @@ Full guides live in **[`docs/`](./docs/)** — start at the
 
 **Production-ready.** Deploy on SQLite or Postgres with the published image; see
 [Run it](#run-it). Released versions and changes are in
-[`CHANGELOG.md`](./CHANGELOG.md); the roadmap is tracked in GitHub issues —
+[`CHANGELOG.md`](./CHANGELOG.md); the roadmap is tracked in GitHub issues -
 contributions welcome, read [`CONTRIBUTING.md`](./CONTRIBUTING.md) first.
 
 ## License

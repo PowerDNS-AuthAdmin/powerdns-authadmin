@@ -6,7 +6,7 @@
  * timers, prelude records, and metadata bag are written through to
  * PDNS. We create a custom template at test setup (the seeded
  * `standard-primary` template has a `www CNAME @` record that PDNS
- * rejects — wrong content shape — so we use our own), then create a
+ * rejects - wrong content shape - so we use our own), then create a
  * zone with it and assert the records landed on PDNS.
  */
 

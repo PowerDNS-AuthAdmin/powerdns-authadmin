@@ -32,7 +32,7 @@ export const caaEditor: RREditor<CaaStruct> = {
   type: "CAA",
   empty: () => ({ flags: 0, tag: "issue", value: "" }),
   serialize(s) {
-    // Always double-quote the value half — that's the wire-format presentation.
+    // Always double-quote the value half - that's the wire-format presentation.
     const escaped = s.value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     return `${s.flags} ${s.tag.trim()} "${escaped}"`;
   },

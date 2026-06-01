@@ -1,5 +1,5 @@
 /**
- * eslint.config.mjs — flat config (ESLint 9+).
+ * eslint.config.mjs - flat config (ESLint 9+).
  *
  * The interesting rules in this file are the *import boundaries*: they enforce the
  * three-layer architecture from REBUILD.md § 4. Examples of what they prevent:
@@ -24,8 +24,8 @@ import importPlugin from "eslint-plugin-import-x";
 // Next's own `eslint-config-next` bundles `eslint-plugin-react`, which calls
 // APIs ESLint 10 removed (`context.getFilename`) and crashes the entire lint
 // run. Rather than run that brittle config, we compose the two highest-value,
-// ESLint-10-compatible pieces it vendors — the React Hooks rules and the
-// @next/next framework checks — directly. `eslint-config-next` stays a
+// ESLint-10-compatible pieces it vendors - the React Hooks rules and the
+// @next/next framework checks - directly. `eslint-config-next` stays a
 // devDependency precisely because it's what installs these into node_modules.
 import reactHooks from "eslint-plugin-react-hooks";
 import nextPlugin from "@next/eslint-plugin-next";
@@ -40,14 +40,14 @@ export default tseslint.config(
       "build/**",
       "coverage/**",
       "drizzle/meta/**",
-      // Legacy reference — never lint, never modify.
+      // Legacy reference - never lint, never modify.
       "PowerDNS-Admin/**",
       // postcss.config.mjs / eslint.config.mjs aren't in tsconfig.json's
       // `include` (which is .ts/.tsx only). The type-aware lint rules
       // need the file to be part of the TS project service to resolve
       // types; without that we get a "not found by the project
       // service" parser error. Both files are declarative config with
-      // no runtime logic worth linting — skip them.
+      // no runtime logic worth linting - skip them.
       "postcss.config.mjs",
       "eslint.config.mjs",
       "docker/entrypoint.mjs",
@@ -76,12 +76,12 @@ export default tseslint.config(
   // === Project-wide rules ===
   {
     plugins: { import: importPlugin },
-    // `import/no-default-export` operates on the AST — no resolver needed. The
+    // `import/no-default-export` operates on the AST - no resolver needed. The
     // three-layer import boundary (ADR-0004) is enforced separately by
     // `no-restricted-imports` patterns in the per-layer `files` blocks below.
     // (It used to be `import/no-restricted-paths`, which silently never fired:
     // that rule needs a resolver to map the `@/` alias to a path, and none was
-    // configured — see ADR-0013.)
+    // configured - see ADR-0013.)
     rules: {
       // CONTRIBUTING.md § Language: no default exports. Named exports refactor cleanly.
       "import/no-default-export": "error",
@@ -102,7 +102,7 @@ export default tseslint.config(
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/await-thenable": "error",
       // Relax `checksVoidReturn.attributes` because React internally
-      // void-wraps event-handler return values — `<button onClick={async ()
+      // void-wraps event-handler return values - `<button onClick={async ()
       // => {…}}>` is the idiomatic pattern and not a real bug. The rule
       // still catches the dangerous cases (passing an async function
       // where a sync-void callback is *actually* required, e.g.
@@ -243,9 +243,9 @@ export default tseslint.config(
 
   // === React Hooks rules ===
   // `rules-of-hooks` is a hard correctness invariant (error). `exhaustive-deps`
-  // catches stale-closure bugs in effects/callbacks (warn — gated to a hard
-  // failure by `--max-warnings=0`). From eslint-plugin-react-hooks, which —
-  // unlike the bundled eslint-plugin-react — runs on ESLint 10.
+  // catches stale-closure bugs in effects/callbacks (warn - gated to a hard
+  // failure by `--max-warnings=0`). From eslint-plugin-react-hooks, which -
+  // unlike the bundled eslint-plugin-react - runs on ESLint 10.
   {
     files: ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}"],
     plugins: { "react-hooks": reactHooks },

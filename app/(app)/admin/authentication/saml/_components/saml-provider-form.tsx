@@ -239,7 +239,7 @@ export function SamlProviderForm(props: Props) {
       if (spEncryptionKey.trim() !== "") body.spEncryptionKey = spEncryptionKey;
       if (spEncryptionCert.trim() !== "") body.spEncryptionCert = spEncryptionCert;
     } else if (props.mode === "edit" && initial.hasEncryptionPair) {
-      // Edit mode and the operator turned encryption off — clear both halves.
+      // Edit mode and the operator turned encryption off - clear both halves.
       body.spEncryptionKey = null;
       body.spEncryptionCert = null;
     }
@@ -277,7 +277,7 @@ export function SamlProviderForm(props: Props) {
       <Field
         id="name"
         label="Display name"
-        hint="Shown on the login button — e.g. 'Continue with Company SSO'."
+        hint="Shown on the login button - e.g. 'Continue with Company SSO'."
         errors={fieldErrors["name"]}
       >
         <input
@@ -347,7 +347,7 @@ export function SamlProviderForm(props: Props) {
         <Field
           id="idpSloUrl"
           label="IdP SLO URL (optional)"
-          hint="Single Logout endpoint. Leave blank to disable IdP-side logout — local sessions still end."
+          hint="Single Logout endpoint. Leave blank to disable IdP-side logout - local sessions still end."
           errors={fieldErrors["idpSloUrl"]}
         >
           <input
@@ -440,7 +440,7 @@ export function SamlProviderForm(props: Props) {
           <span>
             Configure assertion encryption keypair
             <span className="block text-xs text-[color:var(--color-fg-muted)]">
-              Optional — operators that want the IdP to encrypt assertions to this SP supply an
+              Optional - operators that want the IdP to encrypt assertions to this SP supply an
               encryption keypair below.
             </span>
           </span>
@@ -594,7 +594,7 @@ export function SamlProviderForm(props: Props) {
           <span>
             Override <code>OIDC_ALLOWED_EMAIL_DOMAINS</code> for this provider
             <span className="block text-xs text-[color:var(--color-fg-muted)]">
-              Off: inherit the env allow-list. On: use the list below (REPLACES env — empty allows
+              Off: inherit the env allow-list. On: use the list below (REPLACES env - empty allows
               any email).
             </span>
           </span>
@@ -682,7 +682,7 @@ export function SamlProviderForm(props: Props) {
                 <label className="text-xs">
                   Target
                   {m.scopeType === "global" ? (
-                    <input value="" disabled placeholder="—" className={`${inputClass} text-xs`} />
+                    <input value="" disabled placeholder="-" className={`${inputClass} text-xs`} />
                   ) : m.scopeType === "team" ? (
                     <SelectMenu
                       value={m.scopeId ?? ""}

@@ -1,7 +1,7 @@
 /**
  * tests/integration/profile/name.test.ts
  *
- * PATCH /api/profile/name — self-service display name edit. Empty
+ * PATCH /api/profile/name - self-service display name edit. Empty
  * string is treated as a clear (DB stores NULL). Verifies the change
  * is visible via the admin list and reflected in the users table.
  */

@@ -1,7 +1,7 @@
 /**
  * app/api/profile/tokens/[id]/route.ts
  *
- * DELETE — revoke the caller's own token. Soft-delete (sets
+ * DELETE - revoke the caller's own token. Soft-delete (sets
  *          `revokedAt`); the row stays for audit correlation. The
  *          WHERE clause matches BOTH token id AND user id so a
  *          mis-routed call can't revoke someone else's token.

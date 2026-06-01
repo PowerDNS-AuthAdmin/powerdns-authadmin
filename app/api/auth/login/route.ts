@@ -1,7 +1,7 @@
 /**
  * app/api/auth/login/route.ts
  *
- * POST /api/auth/login — local email + password login.
+ * POST /api/auth/login - local email + password login.
  *
  * Steps:
  *   1. Parse + validate input.
@@ -62,7 +62,7 @@ export async function POST(request: Request): Promise<Response> {
   const ip = clientIp(hdrs);
   const userAgent = hdrs.get("user-agent");
 
-  // 2a. Captcha. Only enforced when TURNSTILE_SECRET_KEY is configured —
+  // 2a. Captcha. Only enforced when TURNSTILE_SECRET_KEY is configured -
   // skips cleanly in dev so the local stack keeps working without keys.
   // Verified BEFORE rate-limiting so a bot stream doesn't burn the per-IP
   // budget; verified BEFORE credential checking so a missing/invalid token
@@ -102,18 +102,18 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // 2b. Per-IP rate limit. The IP comes from the fronting proxy's forwarded
-  // headers; if one is absent (no proxy — a misconfiguration where all
+  // headers; if one is absent (no proxy - a misconfiguration where all
   // traffic is unattributed anyway) we fall back to a shared bucket so the
   // limiter still applies.
   //
-  // S-11: the per-email rate-limit that used to live here was removed —
+  // S-11: the per-email rate-limit that used to live here was removed -
   // it let an off-path attacker spamming wrong passwords for `victim@org`
   // from many IPs lock the legitimate user out of the form (separately
   // from the account-lockout below, with a different UX path). The
   // defenses left are:
-  //   - per-IP token bucket (this block) — slows a single source
+  //   - per-IP token bucket (this block) - slows a single source
   //   - per-account lockout in `recordFailedLogin()` (10 attempts → 15
-  //     min lockout) — catches IP-distributed credential spray
+  //     min lockout) - catches IP-distributed credential spray
   // The lockout window is the only ceiling on online password guessing
   // against a known account and it's tight enough to make brute-force
   // online cred-spray uneconomical (max 96 attempts/day per account at
@@ -146,13 +146,13 @@ export async function POST(request: Request): Promise<Response> {
         unlockAt: outcome.unlockAt.toISOString(),
       });
     }
-    // Uniform message for invalid-credentials AND disabled — don't leak
+    // Uniform message for invalid-credentials AND disabled - don't leak
     // which it is. Audit log captures the truth.
     return jsonError(401, "Invalid email or password.");
   }
 
   // 3b. Email-verification gate. When public self-service signup is enabled,
-  // the deployment commits to "verify your email before you get in" — otherwise
+  // the deployment commits to "verify your email before you get in" - otherwise
   // an attacker could register `someone-else@org.com` and access the app without
   // ever owning that mailbox. We block any local-password account whose email
   // isn't verified yet. SSO-only accounts (no passwordHash) never reach this
@@ -178,7 +178,7 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  // 4. MFA challenge — when the user has ANY MFA factor enrolled (TOTP
+  // 4. MFA challenge - when the user has ANY MFA factor enrolled (TOTP
   // OR a WebAuthn credential), do NOT start a session yet. Mint a
   // single-use challenge token bound to the constant actor
   // "_mfa-pending"; its plaintext is the userId. The token is the

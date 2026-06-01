@@ -5,7 +5,7 @@
  * RSA-2048 keypair on first import so the tests don't need a checked-in
  * private key (avoids "looks like a secret" CI scanner false positives).
  *
- * For X.509 cert material we use a stable fake — `@node-saml/node-saml`
+ * For X.509 cert material we use a stable fake - `@node-saml/node-saml`
  * accepts a `BEGIN CERTIFICATE` PEM containing any base64 body when the
  * library is only generating outbound material; it parses the cert only
  * when verifying inbound signatures, which isn't exercised by the AuthnRequest
@@ -15,7 +15,7 @@
 import { generateKeyPairSync } from "node:crypto";
 import type { ResolvedSamlProvider } from "./saml";
 
-// Fake X.509 cert — accepted by node-saml for the outbound-only paths the
+// Fake X.509 cert - accepted by node-saml for the outbound-only paths the
 // fixture exercises. Real signature verification needs a real keypair-derived
 // cert (the integration suite does that via Keycloak's IdP-issued cert).
 const FAKE_CERT_PEM = [

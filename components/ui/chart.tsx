@@ -29,7 +29,7 @@ import type { EChartsOption } from "echarts";
 import { useEffect, useState } from "react";
 
 // Register every ECharts module we use BEFORE any component mounts. Doing
-// this lazily inside useEffect causes "Q[l] is not a constructor" — ECharts
+// this lazily inside useEffect causes "Q[l] is not a constructor" - ECharts
 // instantiates the chart on first render, before any effect runs, so the
 // chart-type constructors must already be registered at that point.
 echartsUse([
@@ -86,8 +86,8 @@ export function Chart({ option, height = 280, className = "" }: ChartProps) {
 }
 
 /**
- * Merge minimal theme defaults — background, palette, fonts, tooltip styling
- * — onto the caller's option. We intentionally don't touch xAxis / yAxis
+ * Merge minimal theme defaults - background, palette, fonts, tooltip styling
+ * - onto the caller's option. We intentionally don't touch xAxis / yAxis
  * shape (their discriminated-union shape doesn't merge cleanly through spread);
  * call sites style axes themselves.
  */

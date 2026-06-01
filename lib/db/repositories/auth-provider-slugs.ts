@@ -6,7 +6,7 @@
  * PK enforces uniqueness across OIDC / SAML / LDAP, so two providers of
  * different types can't claim the same slug.
  *
- * Deletes release the slug for reuse. Updates are not supported — slugs are
+ * Deletes release the slug for reuse. Updates are not supported - slugs are
  * immutable post-create (it's the operator-facing API key for OIDC group
  * mappings, the audit log, and the `auth_default_provider` setting).
  */
@@ -24,7 +24,7 @@ export type ProviderType = "oidc" | "saml" | "ldap";
 
 /**
  * Reserve a slug for a given provider type. Throws on conflict (uniqueness
- * violation surfaces as a Postgres `23505` / SQLite `SQLITE_CONSTRAINT`) —
+ * violation surfaces as a Postgres `23505` / SQLite `SQLITE_CONSTRAINT`) -
  * the caller catches and surfaces as a 409 to the operator.
  */
 export async function reserveProviderSlug(
@@ -36,7 +36,7 @@ export async function reserveProviderSlug(
   return rows[0];
 }
 
-/** Release a slug. Idempotent — releasing an unknown slug is a no-op. */
+/** Release a slug. Idempotent - releasing an unknown slug is a no-op. */
 export async function releaseProviderSlug(slug: string, executor: DbExecutor = db): Promise<void> {
   await executor.delete(authProviderSlugs).where(eq(authProviderSlugs.slug, slug));
 }

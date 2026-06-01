@@ -1,12 +1,12 @@
 /**
  * Body-only loading skeleton for tab switches. Rendered as the
- * `<Suspense>` fallback that wraps the tab body — the header + tab
+ * `<Suspense>` fallback that wraps the tab body - the header + tab
  * strip above stay put (they were already streamed), only this area
  * shimmers while the new tab's RSC resolves (e.g. PDNS fetch on
  * DNSSEC / Metadata).
  *
  * For synchronous tabs (records / soa / settings / history) the
- * fallback flickers very briefly or not at all — the inner JSX has
+ * fallback flickers very briefly or not at all - the inner JSX has
  * no async dependency to wait on.
  */
 

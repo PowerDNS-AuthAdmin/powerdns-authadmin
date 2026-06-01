@@ -10,7 +10,7 @@ import "server-only";
  * The default source for that id is the `X-Request-Id` header that `proxy.ts`
  * injects on each incoming HTTP request, read via `next/headers`. But Next's
  * `next/headers` is itself ALS-backed and INCLUDES async tasks spawned within
- * the handler — so any `void (async () => { … })()` or background poller call
+ * the handler - so any `void (async () => { … })()` or background poller call
  * issued from inside a request keeps reading the *parent* request's id. That
  * leak produces the "67 PDNS calls under one request id at totally different
  * timestamps" symptom: a single user action gets attributed every poller tick,

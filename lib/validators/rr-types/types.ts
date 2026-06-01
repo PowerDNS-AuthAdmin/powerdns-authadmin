@@ -25,7 +25,7 @@ export interface RRValidationResult {
   issues: RRValidationIssue[];
   /**
    * Normalized form of the input. May differ from the input even when there
-   * are no issues — e.g. CNAME content gets a trailing dot added and the
+   * are no issues - e.g. CNAME content gets a trailing dot added and the
    * label is lowercased. Always defined when `errors` is empty; may be the
    * raw input when validation failed.
    */

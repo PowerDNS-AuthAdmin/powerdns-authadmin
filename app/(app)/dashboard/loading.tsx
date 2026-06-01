@@ -1,7 +1,7 @@
 /**
  * Route-transition skeleton for /dashboard.
  *
- * Rendered the moment the user clicks the dashboard link — covers the
+ * Rendered the moment the user clicks the dashboard link - covers the
  * gap until the streaming server response begins flushing. Without
  * this file, Next.js falls back to "nothing" while the server-side
  * data fetch (sampler probe to PDNS over WAN) blocks the first byte.

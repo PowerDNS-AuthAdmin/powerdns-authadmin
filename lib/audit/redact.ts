@@ -36,7 +36,7 @@ export const REDACT_FIELDS: ReadonlySet<string> = new Set([
   "webauthnCredentials",
   // PDNS TSIG keys carry the base64-encoded HMAC secret under the
   // top-level field `key`. Bare `key` is generic enough that it could
-  // collide with non-sensitive uses elsewhere — but the cost of
+  // collide with non-sensitive uses elsewhere - but the cost of
   // over-redacting an audit row's UI label is dramatically lower than
   // ever logging a shared-secret HMAC key.
   "key",
@@ -73,7 +73,7 @@ function isSecretFieldName(key: string): boolean {
 /**
  * Walk a JSON-able object and replace values of known-secret-named fields
  * with `[Redacted]`. Recursive but bounded: stops at `MAX_DEPTH` to avoid
- * runaway on cyclic structures. Returns a fresh object — does not mutate.
+ * runaway on cyclic structures. Returns a fresh object - does not mutate.
  */
 export function redactSnapshot(value: unknown, depth = 0): unknown {
   const MAX_DEPTH = 12;

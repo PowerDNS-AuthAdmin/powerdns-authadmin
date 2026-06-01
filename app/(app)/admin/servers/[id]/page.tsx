@@ -37,7 +37,7 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
   const row = await findPdnsServerById(id);
   if (!row) notFound();
 
-  // Groups the operator can place this backend in — populates the form's
+  // Groups the operator can place this backend in - populates the form's
   // optional "Group" picker (ADR-0014).
   const groups = (await listAllClusters()).map((c) => ({
     id: c.id,
@@ -45,18 +45,18 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
     slug: c.slug,
   }));
 
-  // For primaries, list the secondaries that share its group — surfaced as a
+  // For primaries, list the secondaries that share its group - surfaced as a
   // section beneath the form so operators can see the mirror set inline.
   const secondaries = isWriteCapable(row.capabilities) ? await listSecondariesForPrimary(row) : [];
 
   // Audit-derived last-edit line. Gated by audit.read since it
-  // leaks "X did Y at Z time" — matches the zone-detail page
+  // leaks "X did Y at Z time" - matches the zone-detail page
   // convention.
   const canReadAudit = ability.can("read", "Audit");
   const [lastEdit, recentEdits] = canReadAudit
     ? await Promise.all([latestServerAdminEdit(row.id), recentAdminEditsForServer(row.id, 10)])
     : [null, []];
-  // Ask the broker to ensure a recent observation, then read the shared store —
+  // Ask the broker to ensure a recent observation, then read the shared store -
   // same source as the servers list + bell, so all three agree. No PDNS call
   // from this page.
   await ensureBackendsObserved();
@@ -66,7 +66,7 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
   const reachFresh = row.lastSeenAt ? freshnessOf(row.lastSeenAt.toISOString()) : null;
 
   // Read-only daemon config for the "Daemon configuration" section, served from
-  // the broker's display-safe config cache (allowlisted, secret-stripped — the
+  // the broker's display-safe config cache (allowlisted, secret-stripped - the
   // poll populated it). Capability-vs-config advisories live in the health bell
   // (ADR-0015), not here.
   const daemonSettings: SafeConfigRow[] =
@@ -81,15 +81,15 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
             <>Disabled.</>
           ) : reachability === "auth" ? (
             <span className="text-[color:var(--color-error)]">
-              API rejected the key — check the X-API-Key and the webserver/api ACL.
+              API rejected the key - check the X-API-Key and the webserver/api ACL.
             </span>
           ) : reachability === "down" ? (
             <span className="text-[color:var(--color-error)]">
-              Unreachable — the app hasn&apos;t reached this backend&apos;s API recently.
+              Unreachable - the app hasn&apos;t reached this backend&apos;s API recently.
             </span>
           ) : reachFresh ? (
             <>
-              Reachable · {reachFresh.label} — PDNS {row.versionCache?.version ?? "?"}.
+              Reachable · {reachFresh.label} - PDNS {row.versionCache?.version ?? "?"}.
             </>
           ) : (
             <>Not yet reached.</>
@@ -156,7 +156,7 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
             </h2>
             <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
               Read-only, from the server&apos;s <code>/config</code>. PowerDNS settings are
-              file-based — change them in <code>pdns.conf</code>, not here. Secrets are redacted.
+              file-based - change them in <code>pdns.conf</code>, not here. Secrets are redacted.
             </p>
           </header>
           <PdnsConfView rows={daemonSettings} />
@@ -171,7 +171,7 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
                 Secondaries ({secondaries.length})
               </h2>
               <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
-                Read-only mirrors sharing this primary&apos;s group — polled for stats + sync state.
+                Read-only mirrors sharing this primary&apos;s group - polled for stats + sync state.
               </p>
             </div>
             <Link

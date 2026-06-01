@@ -10,7 +10,7 @@
  * deliberately (see `lib/pdns/client.ts`).
  *
  * Every error message has already been passed through `lib/errors/redact.ts`
- * before construction — the API key never appears in `.message`.
+ * before construction - the API key never appears in `.message`.
  */
 
 import "server-only";
@@ -25,7 +25,7 @@ import { redact } from "@/lib/errors/redact";
  * Rationale: a future PDNS response shape could embed a secret-looking string
  * (a connection URL, an echoed API key) in a field we don't anticipate. We
  * can't whitelist fields we don't know, so redact defensively at the value
- * level — over-redaction here is cheap, leaking is not.
+ * level - over-redaction here is cheap, leaking is not.
  */
 function redactBody(value: unknown, depth = 0): unknown {
   const MAX_DEPTH = 8;
@@ -60,19 +60,19 @@ export class PdnsError extends Error {
   }
 }
 
-/** 400 — PDNS rejected the request payload. */
+/** 400 - PDNS rejected the request payload. */
 export class PdnsValidationError extends PdnsError {}
 
-/** 401/403 — wrong or missing API key. */
+/** 401/403 - wrong or missing API key. */
 export class PdnsAuthError extends PdnsError {}
 
-/** 404 — zone, RRset, or other resource not found. */
+/** 404 - zone, RRset, or other resource not found. */
 export class PdnsNotFoundError extends PdnsError {}
 
-/** 409/412 — optimistic concurrency or precondition failure. */
+/** 409/412 - optimistic concurrency or precondition failure. */
 export class PdnsConflictError extends PdnsError {}
 
-/** 422 — unprocessable entity (PDNS-specific semantic error). */
+/** 422 - unprocessable entity (PDNS-specific semantic error). */
 export class PdnsUnprocessableError extends PdnsError {}
 
 /**

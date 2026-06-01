@@ -50,7 +50,7 @@ describe("effectiveZonePermissions", () => {
 
   it("unions across multiple matching grants (unusual but defensible)", () => {
     // Same (user, server, zone) is forbidden by the unique index in
-    // practice, but the pure helper shouldn't care — defensive union.
+    // practice, but the pure helper shouldn't care - defensive union.
     const dup: ZoneGrantInput[] = [
       { serverId: "s", zoneName: "z.", permissions: ["a"] },
       { serverId: "s", zoneName: "z.", permissions: ["b"] },

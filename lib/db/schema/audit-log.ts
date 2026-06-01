@@ -5,7 +5,7 @@
  * Pruning happens via the `audit-prune` job per configured retention; rows
  * are never updated.
  *
- * `before` and `after` are JSONB snapshots — generous on size. Secrets are
+ * `before` and `after` are JSONB snapshots - generous on size. Secrets are
  * redacted (replaced with the literal string "[Redacted]") before insertion
  * by `lib/audit/log.ts`.
  *

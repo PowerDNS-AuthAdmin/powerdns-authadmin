@@ -4,7 +4,7 @@
  * Per-user MFA policy override. Tri-state select bound to the user's
  * `mfaRequired` column (null = inherit, true = require, false = exempt). The
  * override supersedes the user's role `requiresMfa` flags AND the SSO
- * exemption — see lib/auth/mfa-compliance.ts.
+ * exemption - see lib/auth/mfa-compliance.ts.
  */
 
 import { useRouter } from "next/navigation";

@@ -48,7 +48,7 @@ export const apiTokens = pgTable(
     // Argon2id hash of the plaintext token. We never store the plaintext.
     tokenHash: text("token_hash").notNull(),
 
-    // Public prefix — first 8 chars of the plaintext, kept in cleartext for
+    // Public prefix - first 8 chars of the plaintext, kept in cleartext for
     // identifying which token a leaked log line refers to.
     // Format: `pda_pat_<prefix>` where `<prefix>` is base64url[0..8].
     prefix: text("prefix").notNull(),
@@ -57,7 +57,7 @@ export const apiTokens = pgTable(
     // the user's effective permissions; re-verified on every use.
     scopes: jsonb("scopes").$type<StoredPermission[]>().notNull().default([]),
 
-    // Optionally bound to a single team — narrows the token's effective
+    // Optionally bound to a single team - narrows the token's effective
     // resource scope. NULL means "wherever the user has access".
     teamId: uuid("team_id").references(() => teams.id, {
       onDelete: "cascade",

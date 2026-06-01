@@ -1,8 +1,8 @@
-# docker-compose.yml — the MINIMAL-DEMO STACK.
+# docker-compose.yml - the MINIMAL-DEMO STACK.
 #
 # PowerDNS-AuthAdmin + a single official PowerDNS Authoritative (SQLite-backed),
 # pre-seeded with 10 demo zones so you can click around immediately. No
-# Postgres, no Redis — the smallest thing that runs end-to-end.
+# Postgres, no Redis - the smallest thing that runs end-to-end.
 #
 #   docker compose up -d
 #     → app    http://localhost:3000      (login: admin@example.com / change-me-now)
@@ -14,7 +14,7 @@
 #
 # Multi-server / primary+secondary / multi-primary topologies live in the
 # docker-compose-*.yml files. Every stack uses the OFFICIAL powerdns/pdns-auth
-# image — there is no custom PowerDNS build.
+# image - there is no custom PowerDNS build.
 
 name: powerdns-authadmin
 
@@ -41,7 +41,7 @@ services:
       - ./docker/pdns/init-primary.sh:/init.sh:ro
       - ./docker/pdns/schema.sqlite3.sql:/schema.sqlite3.sql:ro
 
-  # Official PowerDNS Authoritative — standalone, SQLite backend, HTTP API on.
+  # Official PowerDNS Authoritative - standalone, SQLite backend, HTTP API on.
   pdns:
     image: powerdns/pdns-auth-49:latest
     restart: unless-stopped

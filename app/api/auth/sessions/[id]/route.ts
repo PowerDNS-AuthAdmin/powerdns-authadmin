@@ -1,7 +1,7 @@
 /**
  * app/api/auth/sessions/[id]/route.ts
  *
- * DELETE — revoke one of the signed-in user's own sessions by id. Refuses to
+ * DELETE - revoke one of the signed-in user's own sessions by id. Refuses to
  * touch a session that belongs to someone else (admins use the audit log;
  * forced revocation lands later).
  */
