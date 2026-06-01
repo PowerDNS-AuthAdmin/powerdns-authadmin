@@ -208,6 +208,24 @@ const envSchema = z.object({
     .pipe(z.boolean())
     .default(false),
 
+  /**
+   * Lock the whole admin Settings page against edits. When true, the
+   * runtime-mutable settings (site name, branding, login intro, lockout
+   * policy, password-reset toggle) become read-only for everyone - the
+   * `PATCH /api/admin/settings` route rejects with 403 regardless of
+   * `settings.write`, and the form renders disabled with a notice.
+   *
+   * Intended for a publicly-hosted demo where visitors may hold a
+   * settings-capable role but must not be able to reconfigure the install.
+   * Default false, so real deployments are unaffected. Unlike
+   * BOOTSTRAP_ADMIN_RO this needs no companion variable.
+   */
+  SETTINGS_RO: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .default(false),
+
   // --- OIDC (one provider later; multi-provider later) ---
   OIDC_ENABLED: z
     .string()
