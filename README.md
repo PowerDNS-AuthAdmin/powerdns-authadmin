@@ -11,6 +11,8 @@
 > audit log with diffs, SSO with group-driven role mapping, optimistic concurrency in the editor,
 > and a UI built for teams that actually run multi-backend infrastructure.
 
+**Website:** [powerdns-authadmin.org](https://powerdns-authadmin.org/) &nbsp;·&nbsp; **Live demo:** [demo.powerdns-authadmin.org](https://demo.powerdns-authadmin.org/) (sign in with `admin@example.com` / `change-me-now`)
+
 [![CI](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/ci.yml?query=branch%3Amain)
 [![Release](https://img.shields.io/github/v/release/PowerDNS-AuthAdmin/powerdns-authadmin)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/releases/latest)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PowerDNS-AuthAdmin/powerdns-authadmin/badge)](https://scorecard.dev/viewer/?uri=github.com/PowerDNS-AuthAdmin/powerdns-authadmin)
