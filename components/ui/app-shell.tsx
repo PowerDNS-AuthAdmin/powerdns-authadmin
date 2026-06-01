@@ -83,10 +83,21 @@ export function AppShell({
         {/* `min-h-0` is the canonical flexbox-clipping fix: a `flex-1` child
             without it can grow beyond its parent's height when its content
             is taller, defeating `overflow-y-auto` and leaking a second
-            outer scroll region. Previously this surfaced on the zones list
-            at high page sizes (100+) as the "scroll-in-scroll, half the
-            page goes black at the bottom" bug. */}
-        <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">{children}</main>
+            outer scroll region.
+
+            `relative` makes this the containing block for absolutely-positioned
+            descendants - notably Tailwind `sr-only` spans, which are
+            `position: absolute`. `overflow-y-auto` alone does NOT establish a
+            containing block, so without `relative` those spans escape the scroll
+            region and anchor to the document at their full-content-height static
+            position, stretching <html> past the viewport. That re-introduced the
+            exact "scroll-in-scroll, black at the bottom" bug on the zones list at
+            high row counts even with `min-h-0` already in place (each row's
+            screen-reader label is one such span; 50 of them push the document to
+            ~2000px tall behind a correctly-sized 100dvh shell). */}
+        <main className="relative min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          {children}
+        </main>
       </div>
     </div>
   );
