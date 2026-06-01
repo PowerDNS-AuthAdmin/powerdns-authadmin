@@ -43,7 +43,7 @@ export default async function NewZonePage({
       ? {
           kind: "cluster",
           slug: b.cluster.slug,
-          name: `${b.cluster.name} · ${b.peers.length}-peer cluster`,
+          name: `${b.cluster.name} · ${describeGroupTopology(b.peers.length, b.secondaries.length)}`,
           isDefault: false,
           primaryIds: b.peers.map((peer) => peer.id),
           secondaries: [],
@@ -101,4 +101,23 @@ export default async function NewZonePage({
       />
     </div>
   );
+}
+
+/**
+ * Human label for a group backend (a `pdns_clusters` row), shown in the
+ * backend picker. Both topologies are stored as a cluster, but they read very
+ * differently to an operator:
+ *
+ *   - 2+ writable peers        → a true multi-primary cluster ("3-peer cluster")
+ *   - 1 primary + secondaries  → a primary + secondaries group
+ *                                ("primary + 2 secondaries")
+ *   - 1 primary, no secondaries → just a primary that happens to sit in a group
+ *
+ * Calling a single primary + secondary pair a "1-peer cluster" (the old label)
+ * was misleading - the operator sees the count of write targets, not mirrors.
+ */
+function describeGroupTopology(peerCount: number, secondaryCount: number): string {
+  if (peerCount >= 2) return `${peerCount}-peer cluster`;
+  if (secondaryCount === 0) return "primary";
+  return `primary + ${secondaryCount} ${secondaryCount === 1 ? "secondary" : "secondaries"}`;
 }
