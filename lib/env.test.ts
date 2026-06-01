@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { BUILD_TIME_PLACEHOLDER_MARK, detectBuildTimePlaceholders } from "./env";
+import {
+  BUILD_TIME_PLACEHOLDER_MARK,
+  detectBuildTimePlaceholders,
+  ENV_KEYS,
+  envSchema,
+} from "./env";
+
+describe("ENV_KEYS coverage", () => {
+  // A schema key absent from ENV_KEYS is never read from process.env, so the
+  // schema silently applies its default and the variable does nothing at
+  // runtime (this regressed SETTINGS_RO once). Keep the two in lockstep.
+  it("collects every variable declared in envSchema", () => {
+    const schemaKeys = Object.keys(envSchema.shape);
+    const collected = new Set<string>(ENV_KEYS);
+    const missing = schemaKeys.filter((k) => !collected.has(k));
+    expect(missing).toEqual([]);
+  });
+
+  it("has no ENV_KEYS entry without a matching schema field", () => {
+    const schemaKeys = new Set(Object.keys(envSchema.shape));
+    const orphaned = ENV_KEYS.filter((k) => !schemaKeys.has(k));
+    expect(orphaned).toEqual([]);
+  });
+});
 
 const realLooking = {
   APP_SECRET_KEY: "Z".repeat(48),
