@@ -37,6 +37,21 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.4.1 (from 1.4.0)
+
+No migration and no breaking changes - pull the new tag and recreate the container
+as above. The release fixes create-zone template auto-selection for clustered /
+grouped primaries, clarifies the backend picker's group label, and adds an opt-in
+Settings read-only lock.
+
+#### Optional - lock the Settings page for public demos (`SETTINGS_RO`)
+
+If you run a **publicly-reachable demo** where visitors may hold a settings-capable
+role, set `SETTINGS_RO=true` to make the entire admin Settings page read-only: every
+runtime-mutable setting is frozen and `PATCH /api/admin/settings` returns 403 even
+for holders of `settings.write`. Leave it unset (`false`, the default) for normal
+deployments - existing behaviour is unchanged. It needs no companion variable.
+
 ### Upgrading to 1.4.0 (from 1.3.x)
 
 No migration and no breaking changes - pull the new tag and recreate the

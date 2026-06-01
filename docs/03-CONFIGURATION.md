@@ -67,6 +67,13 @@ not a global read-only mode. With it on, the seed creates the account already
 compliant (`must_change_password=false`), since it can no longer change its own
 password.
 
+For the same demo scenario, `SETTINGS_RO=true` (default `false`) makes the whole
+admin **Settings** page read-only: every runtime-mutable setting (site name,
+branding, login intro, lockout policy, password-reset toggle) is frozen and `PATCH
+/api/admin/settings` returns 403 even for holders of `settings.write`. Unlike
+`BOOTSTRAP_ADMIN_RO` it needs no companion variable. Leave it off (`false`) for
+normal installs.
+
 ## Sessions
 
 | Variable              | Default                     | Notes                                        |

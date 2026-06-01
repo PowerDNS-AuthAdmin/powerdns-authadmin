@@ -4,6 +4,52 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-06-02
+
+A small fix-and-polish release. No migration; no breaking changes. Adds an opt-in
+global read-only lock for the Settings page, fixes default-template auto-selection
+on the create-zone page for clustered / grouped primaries, and clarifies the
+backend picker's group label. See
+[Upgrading -> 1.4.1](./docs/09-UPGRADING.md#upgrading-to-141-from-140).
+
+### Added - global Settings read-only lock (`SETTINGS_RO`)
+
+New opt-in `SETTINGS_RO` flag (default `false`). When `true`, the entire admin
+Settings page (site name, branding, login intro, support contact, lockout policy,
+password-reset toggle) is frozen for everyone: `PATCH /api/admin/settings` returns
+403 even for holders of `settings.write`, and the form renders disabled with a
+notice. Intended for a public demo where visitors may hold a settings-capable role
+but must not reconfigure the install, without stripping the permission from the demo
+role. Enforced at the route via `assertSettingsMutable`; needs no companion
+variable. Mirrors `BOOTSTRAP_ADMIN_RO`.
+
+### Fixed - default zone template no longer auto-selects for clustered / grouped primaries
+
+On the create-zone page, the default zone template stopped auto-selecting once its
+target primary joined a cluster or primary+secondary group. The form matched a
+template's `defaultForPrimaryIds` only against a standalone server's id; a grouped
+primary is surfaced as a single cluster backend that carried no id, so the match
+never happened. Backend options now expose the full set of writable primary ids
+they create zones through (the standalone primary's own id, or every cluster peer's
+id) and the matcher intersects that with the template's `defaultForPrimaryIds`. Also
+hardened first-boot provisioning: the `default_for_primary_slugs` -> id resolution
+now runs whenever the file defines zone templates, even when it omits the
+`pdns_servers` section, so a templates-only re-provision no longer leaves raw slugs
+that never match a backend id.
+
+### Changed - clearer backend-picker label for primary+secondary groups
+
+The create-zone backend picker labelled every `pdns_clusters`-backed group as
+"N-peer cluster" using the writable-peer count, so a primary + secondary pair read
+as a misleading "1-peer cluster". It now reads by topology: "3-peer cluster" for a
+true multi-primary cluster, "primary + N secondaries" for a single primary with
+mirrors, and "primary" for a lone primary in a group.
+
+### Docs
+
+Link to the project website and the live demo (with the demo login) from the
+README, and add the GitHub social image under `assets/`.
+
 ## [1.4.0] - 2026-06-01
 
 Demo-hardening and dashboard polish: a lockable bootstrap admin for public demos,
@@ -1091,7 +1137,8 @@ First production release.
 - **Distribution** - multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.5...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.0...v1.4.1
 [1.1.5]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.2...v1.1.3
