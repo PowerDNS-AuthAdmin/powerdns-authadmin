@@ -24,6 +24,9 @@
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=next.js)](https://nextjs.org)
 [![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 
+**[Website](https://powerdns-authadmin.org/)**  
+**[Live demo](https://demo.powerdns-authadmin.org/)** (sign in with `admin@example.com` / `change-me-now`)
+
 PowerDNS-AuthAdmin manages one or many PowerDNS Authoritative backends from a single web app. It
 ships with a permissive RBAC engine, OIDC single sign-on with group→role mapping, transactional
 zone editing, NOTIFY-aware sync probes for cluster + primary/secondary topologies, an append-only
