@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: { default: siteName, template: `%s - ${siteName}` },
     description: "Self-hosted DNS administration UI for PowerDNS.",
-    // No external favicon file - `app/icon.tsx` generates one inline.
+    // Favicon is the static `app/icon.svg`, auto-injected by Next.
     robots: { index: false, follow: false },
   };
 }
