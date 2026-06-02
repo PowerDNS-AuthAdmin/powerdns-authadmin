@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-06-02
+
+A cosmetic patch release. No migration, no breaking changes, no config or
+permission changes. See
+[Upgrading -> 1.4.2](./docs/09-UPGRADING.md#upgrading-to-142-from-141).
+
+### Fixed - favicon now matches the marketing site exactly
+
+The in-app browser-tab icon is now the same `{}` brace mark the marketing site
+([powerdns-authadmin.org](https://powerdns-authadmin.org)) serves. It was being
+generated as a PNG via `next/og`, which re-drew the glyph with a bundled font and
+its own sizing, so it never matched the site's SVG favicon pixel-for-pixel. The
+PNG generator (`app/icon.tsx`) is replaced with a static `app/icon.svg` holding
+the identical markup the site embeds as its data-URI favicon; Next.js auto-injects
+`<link rel="icon" type="image/svg+xml" sizes="any">` and serves the file verbatim,
+so the icon renders identically across platforms.
+
 ## [1.4.1] - 2026-06-02
 
 A small fix-and-polish release. No migration; no breaking changes. Adds an opt-in
@@ -1137,7 +1154,8 @@ First production release.
 - **Distribution** - multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.1...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.2...HEAD
+[1.4.2]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.0...v1.4.1
 [1.1.5]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.3...v1.1.4

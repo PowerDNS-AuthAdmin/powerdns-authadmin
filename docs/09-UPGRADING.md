@@ -37,6 +37,13 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.4.2 (from 1.4.1)
+
+No migration, no breaking changes, and no config or permission changes - pull the
+new tag and recreate the container as above. The release only swaps the in-app
+favicon to the static `{}` SVG the marketing site uses so the browser-tab icon
+matches; nothing operational changes.
+
 ### Upgrading to 1.4.1 (from 1.4.0)
 
 No migration and no breaking changes - pull the new tag and recreate the container
