@@ -92,6 +92,14 @@ export const envSchema = z.object({
     .url("APP_URL must be a fully-qualified URL with no trailing slash")
     .refine((u) => !u.endsWith("/"), "APP_URL must not end with a trailing slash"),
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
+  // Build provenance injected by Docker/CI. Optional for local dev, but still
+  // centralized here so runtime modules do not read `process.env` directly.
+  APP_GIT_SHA: z.string().optional(),
+  APP_RELEASE: z
+    .string()
+    .transform((s) => s.toLowerCase() === "true")
+    .pipe(z.boolean())
+    .default(false),
 
   // --- Secrets ---
   APP_SECRET_KEY: secretKey,
@@ -528,6 +536,8 @@ export const ENV_KEYS = [
   "PORT",
   "APP_URL",
   "LOG_LEVEL",
+  "APP_GIT_SHA",
+  "APP_RELEASE",
   "APP_SECRET_KEY",
   "APP_ENCRYPTION_KEY",
   "DATABASE_URL",

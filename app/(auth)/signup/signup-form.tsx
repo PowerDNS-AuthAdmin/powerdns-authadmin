@@ -15,6 +15,7 @@
 import { useState, type FormEvent } from "react";
 import { MIN_PASSWORD_LENGTH } from "@/lib/validators/password-policy";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
+import { apiFetch } from "@/lib/client/api-fetch";
 
 export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) {
   const [email, setEmail] = useState("");
@@ -44,7 +45,7 @@ export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) 
 
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/signup", {
+      const res = await apiFetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

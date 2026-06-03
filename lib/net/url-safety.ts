@@ -224,13 +224,6 @@ export async function checkOutboundUrlSafe(
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     return { safe: false, reason: `${policy.label} must use http:// or https://.` };
   }
-  if (isProduction && url.protocol !== "https:" && !policy.allowInsecureHttp) {
-    return {
-      safe: false,
-      reason: `${policy.label} must use https:// in production. ${policy.insecureHttpHint}`,
-    };
-  }
-
   const host = url.hostname;
   if (!host) return { safe: false, reason: `${policy.label} has no host.` };
 
@@ -272,6 +265,13 @@ export async function checkOutboundUrlSafe(
         reason: `Host '${host}' resolves to ${addr}, which is a private address. ${policy.privateNetworkHint}`,
       };
     }
+  }
+
+  if (isProduction && url.protocol !== "https:" && !policy.allowInsecureHttp) {
+    return {
+      safe: false,
+      reason: `${policy.label} must use https:// in production. ${policy.insecureHttpHint}`,
+    };
   }
 
   return { safe: true, addresses };

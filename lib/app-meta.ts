@@ -25,14 +25,14 @@
 
 import "server-only";
 import pkg from "@/package.json";
+import { env } from "@/lib/env";
 
 /** Short commit SHA baked into the image at build time, or null in local dev. */
-const rawSha = process.env["APP_GIT_SHA"]?.trim();
+const rawSha = env.APP_GIT_SHA?.trim();
 const shortSha = rawSha ? rawSha.slice(0, 7) : null;
 
 type BuildKind = "release" | "commit" | "dev";
-const buildKind: BuildKind =
-  process.env["APP_RELEASE"] === "true" ? "release" : shortSha !== null ? "commit" : "dev";
+const buildKind: BuildKind = env.APP_RELEASE ? "release" : shortSha !== null ? "commit" : "dev";
 
 /** True only for an image built from a `vX.Y.Z` release tag. */
 export const IS_RELEASE_BUILD: boolean = buildKind === "release";

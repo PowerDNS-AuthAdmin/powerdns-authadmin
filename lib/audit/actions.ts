@@ -101,6 +101,9 @@ export const AUDIT_ACTIONS = [
   // Fleet-level refresh of every active PDNS backend's
   // version_cache (T-110). Sister action to oidc.provider.refresh-all.
   "pdns_server.refresh-all",
+  // Operator dismissed an active health-bell advisory. The underlying backend
+  // condition remains monitored and will re-alert if the advisory changes.
+  "backend_advisory.acknowledge",
 
   // Zones / records
   "zone.create",

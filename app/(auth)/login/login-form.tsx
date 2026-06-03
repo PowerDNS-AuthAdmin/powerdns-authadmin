@@ -24,6 +24,7 @@
 import { useState, type FormEvent } from "react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
+import { apiFetch } from "@/lib/client/api-fetch";
 
 type MfaMethod = "totp" | "webauthn";
 
@@ -57,7 +58,7 @@ export function LoginForm({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/auth/mfa/totp", {
+      const res = await apiFetch("/api/auth/mfa/totp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ challengeToken: mfa.mfaToken, code }),
@@ -86,7 +87,7 @@ export function LoginForm({
       // First call: mint an assertion challenge. Pass the email so
       // `allowCredentials` is scoped to this user (the email was
       // already authenticated by the prior password POST).
-      const optsRes = await fetch("/api/auth/webauthn/assertion-options", {
+      const optsRes = await apiFetch("/api/auth/webauthn/assertion-options", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -102,7 +103,7 @@ export function LoginForm({
 
       const assertion = await startAuthentication({ optionsJSON: options });
 
-      const verifyRes = await fetch("/api/auth/webauthn/assertion-verify", {
+      const verifyRes = await apiFetch("/api/auth/webauthn/assertion-verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -137,7 +138,7 @@ export function LoginForm({
     setError(null);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await apiFetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

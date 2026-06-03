@@ -18,6 +18,7 @@
 import { useState } from "react";
 import { Fingerprint } from "lucide-react";
 import { startAuthentication } from "@simplewebauthn/browser";
+import { apiFetch } from "@/lib/client/api-fetch";
 
 export function PasskeyButton({ next = "/dashboard" }: { next?: string }) {
   const [busy, setBusy] = useState(false);
@@ -27,7 +28,7 @@ export function PasskeyButton({ next = "/dashboard" }: { next?: string }) {
     setBusy(true);
     setError(null);
     try {
-      const optsRes = await fetch("/api/auth/webauthn/assertion-options", {
+      const optsRes = await apiFetch("/api/auth/webauthn/assertion-options", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -41,7 +42,7 @@ export function PasskeyButton({ next = "/dashboard" }: { next?: string }) {
         challengeToken: string;
       };
       const assertion = await startAuthentication({ optionsJSON: options });
-      const verifyRes = await fetch("/api/auth/webauthn/assertion-verify", {
+      const verifyRes = await apiFetch("/api/auth/webauthn/assertion-verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
