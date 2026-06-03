@@ -19,9 +19,12 @@ import Link from "next/link";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { findServerToInspect, listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
+import { listEligibleTsigKeys } from "@/lib/realtime/tsig-eligibility";
 import { listPrimarySecondaries } from "@/lib/realtime/tsig-replication";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
+import { derivedParentOf } from "@/lib/pdns/topology-cache";
 import { isWriteCapable } from "@/lib/pdns/capabilities";
+import { stripTrailingDot } from "@/lib/pdns/tsig";
 import { readCachedZones } from "@/lib/pdns/zone-state-cache";
 import { PdnsAuthError } from "@/lib/pdns/errors";
 import { logger } from "@/lib/logger";
@@ -79,26 +82,51 @@ export default async function TsigKeysPage({ searchParams }: PageProps) {
     );
   }
 
-  const sorted = keys ? [...keys].sort((a, b) => a.name.localeCompare(b.name)) : null;
-
-  // Replication targets (only meaningful when this backend is a primary): its
-  // secondaries (group ∪ derived) for API install, and its authoritative zones
-  // for in-flow key activation. Warm the broker store so the zone list is fresh.
+  // Replication targets: API install only makes sense when inspecting a primary.
+  // Zone correlation is primary-owned, but secondaries should still display and
+  // edit the same primary-side domain list as a convenience reference.
   const isPrimary = isWriteCapable(selected.capabilities);
   let installSecondaries: Array<{ slug: string; name: string; supportsTsigApi: boolean }> = [];
-  let primaryZones: string[] = [];
-  if (canManage && isPrimary) {
-    await ensureBackendsObserved();
-    installSecondaries = (await listPrimarySecondaries(selected)).map((s) => ({
-      slug: s.slug,
-      name: s.name,
-      supportsTsigApi: !!s.versionCache?.capabilities.supportsTsigApi,
-    }));
-    primaryZones = [...(readCachedZones(selected.id)?.zones.values() ?? [])]
+  let correlationServer: { slug: string; name: string } | null = null;
+  let correlationZones: string[] = [];
+  let keyUsage = new Map<string, { zoneCount: number; zones: string[] }>();
+  await ensureBackendsObserved();
+  const correlationPrimary = resolveCorrelationPrimary(selected, servers);
+  if (correlationPrimary) {
+    correlationServer = { slug: correlationPrimary.slug, name: correlationPrimary.name };
+    if (canManage && selected.id === correlationPrimary.id) {
+      installSecondaries = (await listPrimarySecondaries(selected)).map((s) => ({
+        slug: s.slug,
+        name: s.name,
+        supportsTsigApi: !!s.versionCache?.capabilities.supportsTsigApi,
+      }));
+    }
+    correlationZones = [...(readCachedZones(correlationPrimary.id)?.zones.values() ?? [])]
       .filter((z) => PRIMARY_KINDS.has(z.kind.toLowerCase()))
       .map((z) => z.name)
       .sort();
+    if (keys) {
+      const usage = await listEligibleTsigKeys({
+        keyHosts: [correlationPrimary],
+        zoneHosts: [correlationPrimary],
+      });
+      keyUsage = new Map(usage.map((u) => [u.name, { zoneCount: u.zoneCount, zones: u.zones }]));
+    }
   }
+
+  const sorted = keys
+    ? [...keys]
+        .map((key) => {
+          const usage = keyUsage.get(stripTrailingDot(key.name));
+          return {
+            ...key,
+            zoneCount: usage?.zoneCount ?? 0,
+            zones: usage?.zones ?? [],
+            canEditZones: usage !== undefined,
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name))
+    : null;
 
   return (
     <div className="space-y-6">
@@ -149,7 +177,8 @@ export default async function TsigKeysPage({ searchParams }: PageProps) {
           rows={sorted}
           isPrimary={isPrimary}
           secondaries={installSecondaries}
-          zones={primaryZones}
+          correlationServer={correlationServer}
+          zones={correlationZones}
         />
       ) : fetchError ? null : (
         <TsigKeysReadOnly serverSlug={selected.slug} rows={sorted ?? []} />
@@ -161,4 +190,27 @@ export default async function TsigKeysPage({ searchParams }: PageProps) {
 async function loadKeys(selected: Awaited<ReturnType<typeof findServerToInspect>> & object) {
   const client = getBackendGateway(selected);
   return client.listTsigKeys();
+}
+
+function resolveCorrelationPrimary(
+  selected: NonNullable<Awaited<ReturnType<typeof findServerToInspect>>>,
+  servers: Awaited<ReturnType<typeof listAllPdnsServers>>,
+) {
+  if (isWriteCapable(selected.capabilities)) return selected;
+
+  const active = servers.filter((s) => s.disabledAt === null);
+  const derivedParentId = derivedParentOf(selected.id);
+  const derivedParent = derivedParentId
+    ? active.find((s) => s.id === derivedParentId && isWriteCapable(s.capabilities))
+    : null;
+  if (derivedParent) return derivedParent;
+
+  if (selected.clusterId) {
+    const peers = active.filter(
+      (s) => s.clusterId === selected.clusterId && isWriteCapable(s.capabilities),
+    );
+    if (peers.length === 1) return peers[0]!;
+  }
+
+  return null;
 }

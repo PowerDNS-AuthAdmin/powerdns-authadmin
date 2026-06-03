@@ -25,6 +25,8 @@ import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositori
 import { findClusterBySlug, listActivePeersForCluster } from "@/lib/db/repositories/pdns-clusters";
 import { findZoneTemplateById } from "@/lib/db/repositories/zone-templates";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
+import { assertTsigKeyPresentOnPrimaryAndSecondaries } from "@/lib/realtime/tsig-eligibility";
+import { setZoneTransferKey } from "@/lib/realtime/tsig-replication";
 import { choosePeer } from "@/lib/pdns/cluster-picker";
 import { expandTemplateName } from "@/lib/validators/zone-templates";
 import { serializeSoaContent } from "@/lib/validators/soa";
@@ -33,7 +35,7 @@ import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
 import { publishZoneEvent } from "@/lib/realtime/event-bus";
 import { scheduleImmediatePoll } from "@/lib/realtime/zone-poller";
-import { ConflictError, ValidationError } from "@/lib/errors";
+import { ConflictError, ForbiddenError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 
 const KIND_VALUES = ["Native", "Master", "Primary", "Slave", "Secondary"] as const;
@@ -81,11 +83,18 @@ const createZoneSchema = z.object({
     .max(320)
     .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Looks like it isn't a valid email.")
     .optional(),
+  /** Optional transfer-auth key, validated against the target backend before create. */
+  tsigKeyName: z
+    .string()
+    .min(1)
+    .max(255)
+    .regex(/^[A-Za-z0-9.-]+$/, "Invalid key name.")
+    .optional(),
 });
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const { user } = await requireUser({ can: "zone.create" });
+    const { user, globalPermissions } = await requireUser({ can: "zone.create" });
     await requireCsrf(request);
 
     let input;
@@ -139,6 +148,7 @@ export async function POST(request: Request): Promise<Response> {
 
     // ── Slave / Secondary requires master IPs ──────────────────────────────
     const isSecondary = input.kind === "Slave" || input.kind === "Secondary";
+    const isTransferPrimary = input.kind === "Master" || input.kind === "Primary";
     if (isSecondary && input.masters.length === 0) {
       throw new ValidationError(
         "Secondary / Slave zones need at least one primary master IP to pull from.",
@@ -148,6 +158,15 @@ export async function POST(request: Request): Promise<Response> {
       throw new ValidationError(
         "Master / Primary / Native zones can't have a `masters` list - that field is only meaningful for Secondary.",
       );
+    }
+    if (input.tsigKeyName) {
+      if (!globalPermissions.has("tsig.read")) {
+        throw new ForbiddenError("Missing permission: tsig.read");
+      }
+      if (!isTransferPrimary) {
+        throw new ValidationError("TSIG keys can only be applied to Primary / Master zones.");
+      }
+      await assertTsigKeyPresentOnPrimaryAndSecondaries(server, input.tsigKeyName);
     }
 
     // ── Template resolution ────────────────────────────────────────────────
@@ -319,6 +338,22 @@ export async function POST(request: Request): Promise<Response> {
       }
     }
 
+    const tsigResult = input.tsigKeyName
+      ? await setZoneTransferKey(server, zoneName, input.tsigKeyName, "add")
+      : null;
+    if (tsigResult && (!tsigResult.primaryOk || tsigResult.secondaries.some((s) => !s.ok))) {
+      logger.warn(
+        {
+          server: server.slug,
+          zone: zoneName,
+          keyName: input.tsigKeyName,
+          primaryOk: tsigResult.primaryOk,
+          secondaries: tsigResult.secondaries,
+        },
+        "zone.create.tsig-transfer.partial",
+      );
+    }
+
     const hdrs = await headers();
     await appendAudit({
       actor: { type: "user", id: user.id },
@@ -331,9 +366,28 @@ export async function POST(request: Request): Promise<Response> {
         nameservers: normalizedNs,
         masters: isSecondary ? input.masters : [],
         rrsetCount: rrsets.length,
+        tsigKeyName: input.tsigKeyName ?? null,
       },
       request: getRequestContext(hdrs),
     });
+    if (input.tsigKeyName && tsigResult) {
+      await appendAudit({
+        actor: { type: "user", id: user.id },
+        action: "zone.tsig-transfer.set",
+        resource: { type: "zone", id: `${server.slug}:${zoneName}` },
+        after: {
+          keyName: input.tsigKeyName,
+          mode: "add",
+          primaryOk: tsigResult.primaryOk,
+          secondaries: tsigResult.secondaries.map((s) => ({
+            server: s.serverSlug,
+            hosted: s.hosted,
+            ok: s.ok,
+          })),
+        },
+        request: getRequestContext(hdrs),
+      });
+    }
 
     // Auto-NOTIFY freshly-created Master/Primary zones so secondaries
     // pick up the new zone immediately instead of waiting for refresh.

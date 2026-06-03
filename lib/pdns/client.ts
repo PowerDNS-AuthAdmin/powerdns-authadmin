@@ -178,12 +178,13 @@ export class PdnsClient {
     return pdnsZoneListSchema.parse(body);
   }
 
-  /** `GET /servers/{id}/zones/{zoneId}` - detail incl. `rrsets`. */
-  public async getZone(zoneName: string): Promise<PdnsZoneDetail> {
+  /** `GET /servers/{id}/zones/{zoneId}` - detail, with optional `rrsets` elision. */
+  public async getZone(zoneName: string, opts?: { rrsets?: boolean }): Promise<PdnsZoneDetail> {
     const id = normalizeZoneId(zoneName);
+    const query = opts?.rrsets === undefined ? "" : `?rrsets=${opts.rrsets ? "true" : "false"}`;
     const body = await this.request<unknown>({
       method: "GET",
-      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}`,
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}${query}`,
       op: "zones.get",
     });
     return pdnsZoneDetailSchema.parse(body);

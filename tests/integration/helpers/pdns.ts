@@ -108,6 +108,8 @@ export interface PdnsZone {
   kind: string;
   serial?: number;
   rrsets?: PdnsRRset[];
+  master_tsig_key_ids?: string[];
+  slave_tsig_key_ids?: string[];
 }
 
 async function pdnsCall(
