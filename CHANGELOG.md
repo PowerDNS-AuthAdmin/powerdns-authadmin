@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-06-04
+
+Feature and hardening release. No migration and no breaking changes. Adds TSIG
+key selection for creation-style zone workflows, extends the Settings read-only
+lock to Backup & Restore, and captures repository standards cleanup. See
+[Upgrading -> 1.4.3](./docs/09-UPGRADING.md#upgrading-to-143-from-142).
+
 ### Added - TSIG key zone workflows (#100, #101)
 
 The TSIG Keys admin page now shows each key's zone correlation, including mirrored
@@ -1187,7 +1194,8 @@ First production release.
 - **Distribution** - multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.2...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.3...HEAD
+[1.4.3]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.0...v1.4.1
 [1.1.5]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.1.4...v1.1.5

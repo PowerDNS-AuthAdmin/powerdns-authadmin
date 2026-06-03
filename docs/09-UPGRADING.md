@@ -37,6 +37,19 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.4.3 (from 1.4.2)
+
+No migration and no breaking changes - pull the new tag and recreate the
+container as above. The release improves TSIG key workflows by showing and
+editing zone correlations on TSIG keys, selecting eligible keys when creating or
+importing Primary / Master zones, and applying import-time transfer keys through
+the same primary-plus-secondaries validation used by Add Zone.
+
+`SETTINGS_RO=true` now also blocks Settings Backup & Restore. Export and restore
+return 403 from the API while the UI shows the read-only lock and disables the
+download, upload, and restore controls. Normal deployments with `SETTINGS_RO`
+unset keep existing behaviour.
+
 ### Upgrading to 1.4.2 (from 1.4.1)
 
 No migration, no breaking changes, and no config or permission changes - pull the
