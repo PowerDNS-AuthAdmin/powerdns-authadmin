@@ -170,6 +170,35 @@ async function backendZone(
   };
 }
 
+/** Raw PDNS getZone with rrsets=false - validates the lightweight detail path
+ *  used for TSIG correlation across the compatibility matrix. */
+async function backendZoneWithoutRrsets(
+  b: PdnsBackend,
+  zoneId: string,
+): Promise<{
+  master_tsig_key_ids: string[];
+  slave_tsig_key_ids: string[];
+  hasRrsets: boolean;
+} | null> {
+  const res = await fetch(
+    `${b.baseUrl}/servers/localhost/zones/${encodeURIComponent(zoneId)}?rrsets=false`,
+    {
+      headers: { "X-API-Key": b.apiKey },
+    },
+  );
+  if (!res.ok) return null;
+  const z = (await res.json()) as {
+    master_tsig_key_ids?: string[];
+    slave_tsig_key_ids?: string[];
+    rrsets?: unknown;
+  };
+  return {
+    master_tsig_key_ids: (z.master_tsig_key_ids ?? []).map(stripTrailingDot),
+    slave_tsig_key_ids: (z.slave_tsig_key_ids ?? []).map(stripTrailingDot),
+    hasRrsets: Object.hasOwn(z, "rrsets"),
+  };
+}
+
 /** Raw PDNS getTsigKey - returns the base64 secret (for replication-fidelity checks). */
 async function backendTsigSecret(b: PdnsBackend, id: string): Promise<string | null> {
   const res = await fetch(`${b.baseUrl}/servers/localhost/tsigkeys/${encodeURIComponent(id)}`, {
@@ -312,6 +341,9 @@ describe("/api/admin/pdns/zones/[zoneId]/tsig-transfer", () => {
       expect(add1.primaryOk).toBe(true);
       let z = await backendZone(primary, zone);
       expect(z?.master_tsig_key_ids ?? []).toContain(k1);
+      const lightweight = await backendZoneWithoutRrsets(primary, zone);
+      expect(lightweight?.hasRrsets).toBe(false);
+      expect(lightweight?.master_tsig_key_ids ?? []).toContain(k1);
 
       // Add k2 - k1 must be preserved (non-clobber).
       await transfer(k2, "add");
@@ -331,6 +363,88 @@ describe("/api/admin/pdns/zones/[zoneId]/tsig-transfer", () => {
       await deleteBackendTsig(primary, k2);
     }
   }, 30_000);
+});
+
+describe("POST /api/admin/pdns/zones with tsigKeyName", () => {
+  beforeEach(async () => {
+    await resetState();
+  });
+
+  it("applies an eligible TSIG key to the new Primary zone", async () => {
+    const admin = await loginAsBootstrap();
+    const primary = PDNS_BY_TOPOLOGY.psPrimary;
+    await admin.call("/api/admin/pdns-servers/refresh-all", { method: "POST" });
+
+    const name = uniqueTsigName("create-zone");
+    const zone = `create-tsig-${Date.now().toString(36)}.example.`;
+    const created = await admin.sendJson<TsigCreateResponse>("POST", "/api/admin/pdns/tsig-keys", {
+      serverSlug: primary.slug,
+      name,
+      algorithm: "hmac-sha256",
+    });
+
+    try {
+      await admin.sendJson<InstallResponse>(
+        "POST",
+        `/api/admin/pdns/tsig-keys/${encodeURIComponent(created.tsigKey.id)}/install`,
+        { serverSlug: primary.slug },
+      );
+      await admin.sendJson("POST", "/api/admin/pdns/zones", {
+        serverSlug: primary.slug,
+        name: zone,
+        kind: "Master",
+        nameservers: ["ns1.example."],
+        tsigKeyName: name,
+      });
+
+      expect((await backendZone(primary, zone))?.master_tsig_key_ids ?? []).toContain(name);
+      const rows = await dbQuery<{ action: string; after: { keyName?: string } }>(
+        "SELECT action, after FROM audit_log WHERE resource_id = $1 ORDER BY ts",
+        [`${primary.slug}:${zone}`],
+      );
+      expect(rows.map((r) => r.action)).toContain("zone.tsig-transfer.set");
+      expect(rows.find((r) => r.action === "zone.tsig-transfer.set")?.after.keyName).toBe(name);
+    } finally {
+      await deleteBackendZone(primary, zone);
+      await deleteBackendTsig(primary, name);
+      for (const s of PDNS_BY_TOPOLOGY.psSecondaries) await deleteBackendTsig(s, name);
+    }
+  }, 45_000);
+
+  it("rejects a TSIG key that is not installed on every secondary", async () => {
+    const admin = await loginAsBootstrap();
+    const primary = PDNS_BY_TOPOLOGY.psPrimary;
+    await admin.call("/api/admin/pdns-servers/refresh-all", { method: "POST" });
+
+    const name = uniqueTsigName("missing-secondary");
+    const zone = `missing-tsig-${Date.now().toString(36)}.example.`;
+    await admin.sendJson<TsigCreateResponse>("POST", "/api/admin/pdns/tsig-keys", {
+      serverSlug: primary.slug,
+      name,
+      algorithm: "hmac-sha256",
+    });
+
+    try {
+      const res = await admin.call("/api/admin/pdns/zones", {
+        method: "POST",
+        json: {
+          serverSlug: primary.slug,
+          name: zone,
+          kind: "Master",
+          nameservers: ["ns1.example."],
+          tsigKeyName: name,
+        },
+      });
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error ?? "").toMatch(/primary and every secondary/i);
+      expect(await backendZone(primary, zone)).toBeNull();
+    } finally {
+      await deleteBackendZone(primary, zone);
+      await deleteBackendTsig(primary, name);
+      for (const s of PDNS_BY_TOPOLOGY.psSecondaries) await deleteBackendTsig(s, name);
+    }
+  }, 45_000);
 });
 
 describe("DELETE /api/admin/pdns/tsig-keys/[id]?cascade=true", () => {
@@ -515,6 +629,12 @@ describe("TSIG mutations keep AXFR replication working (ps topology)", () => {
       // The app configured TSIG transfer on BOTH sides (read fresh off PDNS).
       expect((await backendZone(primary, zone))?.master_tsig_key_ids ?? []).toContain(name);
       expect((await backendZone(secondary, zone))?.slave_tsig_key_ids ?? []).toContain(name);
+      const primaryLightweight = await backendZoneWithoutRrsets(primary, zone);
+      const secondaryLightweight = await backendZoneWithoutRrsets(secondary, zone);
+      expect(primaryLightweight?.hasRrsets).toBe(false);
+      expect(secondaryLightweight?.hasRrsets).toBe(false);
+      expect(primaryLightweight?.master_tsig_key_ids ?? []).toContain(name);
+      expect(secondaryLightweight?.slave_tsig_key_ids ?? []).toContain(name);
 
       // ADD: edit a record on the primary; it must reach the secondary over AXFR.
       await upsertA(a1, "192.0.2.81");

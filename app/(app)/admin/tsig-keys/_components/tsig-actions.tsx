@@ -17,7 +17,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Pencil, Plus, Trash2, UploadCloud } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
@@ -29,6 +29,9 @@ interface Row {
   id: string;
   name: string;
   algorithm: string;
+  zoneCount: number;
+  zones: string[];
+  canEditZones: boolean;
 }
 
 interface Props {
@@ -40,24 +43,41 @@ interface Props {
   isPrimary: boolean;
   /** The primary's secondaries (for API install) - empty unless `isPrimary`. */
   secondaries: InstallSecondary[];
-  /** The primary's authoritative zone names (for in-flow key activation). */
+  /** Primary whose zone-transfer settings back this key correlation view. */
+  correlationServer: { slug: string; name: string } | null;
+  /** The correlation primary's authoritative zone names. */
   zones: string[];
 }
 
-type WizardState = { mode: "create" } | { mode: "existing"; keyId: string; keyName: string };
+type WizardState =
+  | { mode: "create" }
+  | {
+      mode: "existing";
+      keyId: string;
+      keyName: string;
+      startStep: "install" | "zones";
+      serverSlug: string;
+      configuredZones: string[];
+    };
 
-export function TsigActions({ serverSlug, rows, isPrimary, secondaries, zones }: Props) {
+export function TsigActions({
+  serverSlug,
+  rows,
+  isPrimary,
+  secondaries,
+  correlationServer,
+  zones,
+}: Props) {
   const router = useRouter();
   const { confirm, toast } = useDialog();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [wizard, setWizard] = useState<WizardState | null>(null);
 
-  // Per-row "Set up" only makes sense from a primary with somewhere to install
-  // (managed secondaries) or zones to activate the key for.
-  const canInstall = isPrimary && (secondaries.length > 0 || zones.length > 0);
+  const canInstall = isPrimary && secondaries.length > 0;
+  const canEditZones = correlationServer !== null && zones.length > 0;
 
   async function handleDelete(row: Row) {
-    const { confirmed, checked: cascade } = await confirm({
+    const deletePrompt = {
       title: `Delete TSIG key ${row.name}?`,
       description: (
         <span className="flex items-start gap-2">
@@ -84,12 +104,19 @@ export function TsigActions({ serverSlug, rows, isPrimary, secondaries, zones }:
       confirmLabel: "Delete key",
       variant: "danger",
       dismissOnBackdrop: false,
-      checkbox: {
-        label: "Also delete key from all zones configured to use it, and cleanup secondaries",
-        defaultChecked: true,
-        warningWhenUnchecked: "Zones still referencing this key will reject transfers",
-      },
-    });
+    } as const;
+    const result = isPrimary
+      ? await confirm({
+          ...deletePrompt,
+          checkbox: {
+            label: "Also delete key from all zones configured to use it, and cleanup secondaries",
+            defaultChecked: true,
+            warningWhenUnchecked: "Zones still referencing this key will reject transfers",
+          },
+        })
+      : await confirm(deletePrompt);
+    const confirmed = typeof result === "boolean" ? result : result.confirmed;
+    const cascade = typeof result === "boolean" ? false : result.checked;
     if (!confirmed) return;
     setDeletingId(row.id);
     try {
@@ -98,7 +125,7 @@ export function TsigActions({ serverSlug, rows, isPrimary, secondaries, zones }:
         window.location.origin,
       );
       url.searchParams.set("serverSlug", serverSlug);
-      url.searchParams.set("cascade", cascade ? "true" : "false");
+      url.searchParams.set("cascade", isPrimary && cascade ? "true" : "false");
       const result = await mutate(url.pathname + url.search, { method: "DELETE" });
       if (!result.ok) {
         toast({ kind: "error", title: "Delete failed", description: result.error });
@@ -141,20 +168,45 @@ export function TsigActions({ serverSlug, rows, isPrimary, secondaries, zones }:
           serverSlug={serverSlug}
           keys={keys}
           canInstall={canInstall}
+          canEditZones={canEditZones}
           busyDeleteId={deletingId}
           onDelete={handleDelete}
-          onSetUp={(row) => setWizard({ mode: "existing", keyId: row.id, keyName: row.name })}
+          onInstall={(row) =>
+            setWizard({
+              mode: "existing",
+              keyId: row.id,
+              keyName: row.name,
+              startStep: "install",
+              serverSlug,
+              configuredZones: row.zones,
+            })
+          }
+          onEditZones={(row) =>
+            setWizard({
+              mode: "existing",
+              keyId: row.id,
+              keyName: row.name,
+              startStep: "zones",
+              serverSlug: correlationServer?.slug ?? serverSlug,
+              configuredZones: row.zones,
+            })
+          }
         />
       ) : null}
 
       {wizard ? (
         <TsigKeyWizard
-          serverSlug={serverSlug}
+          serverSlug={wizard.mode === "existing" ? wizard.serverSlug : serverSlug}
           secondaries={secondaries}
           zones={zones}
           existing={
             wizard.mode === "existing"
-              ? { keyId: wizard.keyId, keyName: wizard.keyName }
+              ? {
+                  keyId: wizard.keyId,
+                  keyName: wizard.keyName,
+                  startStep: wizard.startStep,
+                  configuredZones: wizard.configuredZones,
+                }
               : undefined
           }
           onChanged={() => router.refresh()}
@@ -172,23 +224,29 @@ function TsigKeysTable({
   serverSlug,
   keys,
   canInstall,
+  canEditZones,
   busyDeleteId,
   onDelete,
-  onSetUp,
+  onInstall,
+  onEditZones,
 }: {
   serverSlug: string;
   keys: Row[];
   canInstall: boolean;
+  canEditZones: boolean;
   busyDeleteId: string | null;
   onDelete: (row: Row) => void;
-  onSetUp: (row: Row) => void;
+  onInstall: (row: Row) => void;
+  onEditZones: (row: Row) => void;
 }) {
   const columns = useMemo<Array<ColumnDef<Row, unknown>>>(
     () => [
       {
         accessorKey: "name",
         header: "Name",
-        cell: (ctx) => <span className="font-mono text-xs">{ctx.getValue<string>()}</span>,
+        cell: (ctx) => (
+          <span className="font-mono text-xs break-all">{ctx.getValue<string>()}</span>
+        ),
       },
       {
         accessorKey: "algorithm",
@@ -200,6 +258,46 @@ function TsigKeysTable({
         ),
       },
       {
+        accessorKey: "zoneCount",
+        header: "Domains",
+        cell: (ctx) => {
+          const row = ctx.row.original;
+          return (
+            <div className="max-w-sm space-y-1">
+              <span
+                className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${
+                  row.zoneCount > 0
+                    ? "bg-[color:var(--color-accent)]/15 text-[color:var(--color-accent)]"
+                    : "bg-[color:var(--color-bg-muted)] text-[color:var(--color-fg-muted)]"
+                }`}
+              >
+                {row.zoneCount === 0
+                  ? "Not applied"
+                  : `${row.zoneCount} domain${row.zoneCount === 1 ? "" : "s"}`}
+              </span>
+              {row.zones.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {row.zones.slice(0, 3).map((zone) => (
+                    <span
+                      key={zone}
+                      title={zone}
+                      className="max-w-44 truncate rounded bg-[color:var(--color-bg-subtle)] px-1.5 py-0.5 font-mono text-[0.625rem] text-[color:var(--color-fg-muted)]"
+                    >
+                      {zone}
+                    </span>
+                  ))}
+                  {row.zones.length > 3 ? (
+                    <span className="rounded bg-[color:var(--color-bg-subtle)] px-1.5 py-0.5 text-[0.625rem] text-[color:var(--color-fg-muted)]">
+                      +{row.zones.length - 3}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          );
+        },
+      },
+      {
         id: "actions",
         header: "",
         enableSorting: false,
@@ -207,21 +305,33 @@ function TsigKeysTable({
           const row = ctx.row.original;
           return (
             <div className="flex justify-end gap-1.5">
+              {canEditZones && row.canEditZones ? (
+                <button
+                  type="button"
+                  onClick={() => onEditZones(row)}
+                  className="inline-flex items-center gap-1 rounded border border-[color:var(--color-border)] px-2 py-1 text-xs hover:bg-[color:var(--color-bg-muted)]"
+                >
+                  <Pencil className="h-3.5 w-3.5" aria-hidden />
+                  Edit
+                </button>
+              ) : null}
               {canInstall ? (
                 <button
                   type="button"
-                  onClick={() => onSetUp(row)}
-                  className="rounded border border-[color:var(--color-border)] px-2 py-1 text-xs hover:bg-[color:var(--color-bg-muted)]"
+                  onClick={() => onInstall(row)}
+                  className="inline-flex items-center gap-1 rounded border border-[color:var(--color-border)] px-2 py-1 text-xs hover:bg-[color:var(--color-bg-muted)]"
                 >
-                  Set up
+                  <UploadCloud className="h-3.5 w-3.5" aria-hidden />
+                  Install
                 </button>
               ) : null}
               <button
                 type="button"
                 onClick={() => onDelete(row)}
                 disabled={busyDeleteId === row.id}
-                className="rounded border border-[color:var(--color-error)] px-2 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded border border-[color:var(--color-error)] px-2 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
               >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden />
                 {busyDeleteId === row.id ? "Deleting…" : "Delete"}
               </button>
             </div>
@@ -229,7 +339,7 @@ function TsigKeysTable({
         },
       },
     ],
-    [canInstall, busyDeleteId, onDelete, onSetUp],
+    [canEditZones, canInstall, busyDeleteId, onDelete, onEditZones, onInstall],
   );
 
   return (

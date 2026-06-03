@@ -22,7 +22,8 @@
  * say, adding a secondary.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ShieldCheck } from "lucide-react";
 import { apiFetch, mutate } from "@/lib/client/api-fetch";
 import { useDialog } from "@/components/ui/dialog";
 import { SelectMenu, type SelectOption } from "@/components/ui/select-menu";
@@ -86,7 +87,12 @@ interface Props {
   /** The primary's authoritative zone names (Master/Primary) - for activation. */
   zones: string[];
   /** Set to (re)install an existing key - the wizard skips the Generate step. */
-  existing?: { keyId: string; keyName: string };
+  existing?: {
+    keyId: string;
+    keyName: string;
+    startStep?: "install" | "zones";
+    configuredZones?: string[];
+  };
   onClose: () => void;
   /** Called after a key is created so the table refreshes behind the modal. */
   onChanged: () => void;
@@ -102,7 +108,12 @@ export function TsigKeyWizard({
 }: Props) {
   const { toast } = useDialog();
 
-  const [step, setStep] = useState<Step>(existing ? "install" : "generate");
+  const initialStep: Step = existing
+    ? existing.startStep === "zones" && zones.length > 0
+      ? "zones"
+      : "install"
+    : "generate";
+  const [step, setStep] = useState<Step>(initialStep);
   const [key, setKey] = useState<{ id: string; name: string } | null>(
     existing ? { id: existing.keyId, name: existing.keyName } : null,
   );
@@ -120,7 +131,13 @@ export function TsigKeyWizard({
   const [loadingScript, setLoadingScript] = useState(false);
 
   // Step 3 - zones.
-  const [selectedZones, setSelectedZones] = useState<Set<string>>(new Set());
+  const configuredZones = useMemo(
+    () => new Set(existing?.configuredZones ?? []),
+    [existing?.configuredZones],
+  );
+  const [selectedZones, setSelectedZones] = useState<Set<string>>(
+    () => new Set(existing?.configuredZones ?? []),
+  );
   const [activating, setActivating] = useState(false);
 
   const managed = secondaries.filter((s) => s.supportsTsigApi).length;
@@ -225,43 +242,69 @@ export function TsigKeyWizard({
     }
   }
 
-  async function applyZones() {
-    if (!key || selectedZones.size === 0) return;
-    setActivating(true);
-    try {
-      const targets = [...selectedZones];
-      let failed = 0;
-      for (const zone of targets) {
-        const res = await mutate(
-          `/api/admin/pdns/zones/${encodeURIComponent(zone)}/tsig-transfer`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            // Additive - never drops other keys already securing the zone.
-            body: JSON.stringify({ serverSlug, keyName: key.name, mode: "add" }),
-          },
-        );
-        if (!res.ok) failed += 1;
-      }
-      toast({
-        kind: failed > 0 ? "error" : "success",
-        title: failed > 0 ? "Some zones failed" : "Zones secured",
-        description: `${targets.length - failed}/${targets.length} zone(s) now require this key for AXFR.`,
-      });
-      setSelectedZones(new Set());
-    } finally {
-      setActivating(false);
+  async function mapLimit<T, R>(
+    items: readonly T[],
+    limit: number,
+    fn: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    const out: R[] = [];
+    for (let i = 0; i < items.length; i += limit) {
+      out.push(...(await Promise.all(items.slice(i, i + limit).map(fn))));
     }
+    return out;
   }
 
-  const allZonesSelected = zones.length > 0 && selectedZones.size === zones.length;
-  function toggleZone(zone: string) {
-    setSelectedZones((prev) => {
-      const next = new Set(prev);
-      if (next.has(zone)) next.delete(zone);
-      else next.add(zone);
-      return next;
+  const addedZones = useMemo(
+    () => [...selectedZones].filter((zone) => !configuredZones.has(zone)),
+    [configuredZones, selectedZones],
+  );
+  const removedZones = useMemo(
+    () => [...configuredZones].filter((zone) => !selectedZones.has(zone)),
+    [configuredZones, selectedZones],
+  );
+  const changeCount = addedZones.length + removedZones.length;
+  const hasSelectionChanges = changeCount > 0;
+
+  async function applyZonesInBackground(
+    changes: Array<{ zone: string; mode: "add" | "remove" }>,
+    keyName: string,
+  ) {
+    const results = await mapLimit(changes, 6, async ({ zone, mode }) => {
+      const res = await mutate(`/api/admin/pdns/zones/${encodeURIComponent(zone)}/tsig-transfer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // Non-clobbering: the route adds/removes only this key from each zone.
+        body: JSON.stringify({ serverSlug, keyName, mode }),
+      });
+      return res.ok;
     });
+    const failed = results.filter((ok) => !ok).length;
+    toast({
+      kind: failed > 0 ? "error" : "success",
+      title: failed > 0 ? "Some domains failed" : `Key ${keyName} applied`,
+      description:
+        failed > 0
+          ? `${changes.length - failed}/${changes.length} domain changes completed.`
+          : `Key ${keyName} updated on ${changes.length} domain${changes.length === 1 ? "" : "s"} successfully.`,
+    });
+    onChanged();
+  }
+
+  function applyZones() {
+    if (!key || !hasSelectionChanges) return;
+    setActivating(true);
+    const changes = [
+      ...addedZones.map((zone) => ({ zone, mode: "add" as const })),
+      ...removedZones.map((zone) => ({ zone, mode: "remove" as const })),
+    ];
+    const keyName = key.name;
+    toast({
+      kind: "info",
+      title: "Applying TSIG key",
+      description: `Started ${changes.length} domain change${changes.length === 1 ? "" : "s"}. You can keep working.`,
+    });
+    onClose();
+    void applyZonesInBackground(changes, keyName);
   }
 
   const stepNo = step === "generate" ? 1 : step === "install" ? 2 : 3;
@@ -272,6 +315,7 @@ export function TsigKeyWizard({
       : step === "install"
         ? "Install on secondaries"
         : "Secure zones";
+  const modalWidth = step === "zones" ? "max-w-4xl" : "max-w-lg";
 
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto">
@@ -281,7 +325,7 @@ export function TsigKeyWizard({
           role="dialog"
           aria-modal="true"
           aria-label="Add TSIG key"
-          className="relative w-full max-w-lg rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-6 shadow-xl"
+          className={`relative w-full ${modalWidth} rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-6 shadow-xl`}
         >
           <div className="flex items-baseline justify-between">
             <h2 className="text-lg font-semibold">{heading}</h2>
@@ -410,44 +454,63 @@ export function TsigKeyWizard({
             ) : null}
 
             {step === "zones" ? (
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <div className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-3">
+                    <div className="text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+                      Domains
+                    </div>
+                    <div className="mt-1 text-lg font-semibold">{zones.length}</div>
+                  </div>
+                  <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-3">
+                    <div className="text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+                      Selected
+                    </div>
+                    <div className="mt-1 text-lg font-semibold">{selectedZones.size}</div>
+                  </div>
+                  <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-3">
+                    <div className="text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+                      Key
+                    </div>
+                    <div className="mt-1 truncate font-mono text-sm" title={key?.name}>
+                      {key?.name}
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-3 py-2 text-xs text-[color:var(--color-fg-muted)]">
+                  {hasSelectionChanges ? (
+                    <>
+                      {addedZones.length} add{addedZones.length === 1 ? "" : "s"},{" "}
+                      {removedZones.length} remove{removedZones.length === 1 ? "" : "s"} pending.
+                    </>
+                  ) : (
+                    "Selection matches the configured domains."
+                  )}
+                </div>
+                <div className="space-y-2">
                   <p className="text-xs text-[color:var(--color-fg-muted)]">
                     Sets <code>master_tsig_key_ids</code> on the primary and{" "}
                     <code>slave_tsig_key_ids</code> on the secondaries that host each zone.
                   </p>
-                  <Checkbox
-                    checked={allZonesSelected}
-                    onChange={(c) => setSelectedZones(c ? new Set(zones) : new Set())}
-                    label={
-                      <span className="text-xs text-[color:var(--color-fg-muted)]">
-                        Select all ({zones.length})
-                      </span>
-                    }
+                  <ZoneMultiSelect
+                    zones={zones}
+                    selected={selectedZones}
+                    configured={configuredZones}
+                    onChange={setSelectedZones}
                   />
-                </div>
-                <div className="grid max-h-56 grid-cols-1 gap-x-4 gap-y-1.5 overflow-auto sm:grid-cols-2 lg:grid-cols-3">
-                  {zones.map((z) => (
-                    <Checkbox
-                      key={z}
-                      checked={selectedZones.has(z)}
-                      onChange={() => toggleZone(z)}
-                      className="min-w-0"
-                      label={
-                        <span className="truncate font-mono text-xs" title={z}>
-                          {z}
-                        </span>
-                      }
-                    />
-                  ))}
                 </div>
                 <button
                   type="button"
                   onClick={applyZones}
-                  disabled={activating || selectedZones.size === 0}
-                  className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-muted)] disabled:opacity-50"
+                  disabled={activating || !hasSelectionChanges}
+                  className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium ${
+                    hasSelectionChanges
+                      ? "bg-[color:var(--color-accent)] text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+                      : "border border-[color:var(--color-border)] bg-[color:var(--color-bg)] text-[color:var(--color-fg-muted)]"
+                  }`}
                 >
-                  {activating ? "Applying…" : `Apply to selected (${selectedZones.size})`}
+                  <ShieldCheck className="h-4 w-4" aria-hidden />
+                  {activating ? "Applying…" : `Apply changes (${changeCount})`}
                 </button>
               </div>
             ) : null}
@@ -477,13 +540,170 @@ export function TsigKeyWizard({
 
             {step === "zones" ? (
               <>
-                <FooterGhost onClick={() => setStep("install")}>← Back</FooterGhost>
+                {existing?.startStep === "zones" ? null : (
+                  <FooterGhost onClick={() => setStep("install")}>← Back</FooterGhost>
+                )}
                 <FooterPrimary onClick={onClose}>Done</FooterPrimary>
               </>
             ) : null}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ZoneMultiSelect({
+  zones,
+  selected,
+  configured,
+  onChange,
+}: {
+  zones: string[];
+  selected: Set<string>;
+  configured: Set<string>;
+  onChange: (next: Set<string>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (rootRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const filteredZones = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return zones;
+    return zones.filter((zone) => zone.toLowerCase().includes(q));
+  }, [query, zones]);
+
+  const selectedPreview = useMemo(() => [...selected].sort(), [selected]);
+  const allSelected = zones.length > 0 && selected.size === zones.length;
+
+  function toggleZone(zone: string) {
+    const next = new Set(selected);
+    if (next.has(zone)) next.delete(zone);
+    else next.add(zone);
+    onChange(next);
+  }
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="flex min-h-12 w-full items-center justify-between gap-3 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-left text-sm hover:border-[color:var(--color-fg-muted)]"
+      >
+        <span className="min-w-0">
+          <span className="block font-medium">
+            {selected.size === 0
+              ? "Choose domains"
+              : `${selected.size} domain${selected.size === 1 ? "" : "s"} selected`}
+          </span>
+          <span className="block text-xs text-[color:var(--color-fg-muted)]">
+            {zones.length} available
+          </span>
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-[color:var(--color-fg-muted)]" aria-hidden />
+      </button>
+
+      {selectedPreview.length > 0 ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selectedPreview.slice(0, 8).map((zone) => (
+            <span
+              key={zone}
+              title={zone}
+              className="max-w-full truncate rounded bg-[color:var(--color-accent)]/10 px-2 py-1 font-mono text-[0.7rem] text-[color:var(--color-accent)] sm:max-w-64"
+            >
+              {zone}
+            </span>
+          ))}
+          {selectedPreview.length > 8 ? (
+            <span className="rounded bg-[color:var(--color-bg-subtle)] px-2 py-1 text-[0.7rem] text-[color:var(--color-fg-muted)]">
+              +{selectedPreview.length - 8}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {open ? (
+        <div className="absolute z-[210] mt-2 w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] shadow-xl">
+          <div className="border-b border-[color:var(--color-border)] p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Filter domains"
+                className="min-w-0 flex-1 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-[color:var(--color-accent)] focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => onChange(allSelected ? new Set() : new Set(zones))}
+                className="rounded-md border border-[color:var(--color-border)] px-3 py-2 text-xs font-medium hover:bg-[color:var(--color-bg-subtle)]"
+              >
+                {allSelected ? "Clear all" : `Select all (${zones.length})`}
+              </button>
+              {selected.size > 0 && !allSelected ? (
+                <button
+                  type="button"
+                  onClick={() => onChange(new Set())}
+                  className="rounded-md border border-[color:var(--color-border)] px-3 py-2 text-xs hover:bg-[color:var(--color-bg-subtle)]"
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
+          </div>
+          <div role="listbox" className="max-h-80 overflow-auto p-2">
+            {filteredZones.length === 0 ? (
+              <p className="px-2 py-6 text-center text-sm text-[color:var(--color-fg-muted)]">
+                No domains match.
+              </p>
+            ) : (
+              filteredZones.map((zone) => (
+                <Checkbox
+                  key={zone}
+                  checked={selected.has(zone)}
+                  onChange={() => toggleZone(zone)}
+                  className="flex w-full min-w-0 items-start rounded px-2 py-2 hover:bg-[color:var(--color-bg-subtle)]"
+                  label={
+                    <span className="flex min-w-0 flex-1 items-start gap-2">
+                      <span
+                        className="min-w-0 flex-1 font-mono text-xs leading-5 break-all"
+                        title={zone}
+                      >
+                        {zone}
+                      </span>
+                      {configured.has(zone) ? (
+                        <span className="shrink-0 rounded bg-[color:var(--color-accent)]/10 px-1.5 py-0.5 text-[0.625rem] font-medium text-[color:var(--color-accent)]">
+                          configured
+                        </span>
+                      ) : null}
+                    </span>
+                  }
+                />
+              ))
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

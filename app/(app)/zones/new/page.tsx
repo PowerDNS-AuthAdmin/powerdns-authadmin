@@ -10,6 +10,8 @@
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { listSelectableBackends } from "@/lib/db/repositories/selectable-backends";
 import { listAllZoneTemplates } from "@/lib/db/repositories/zone-templates";
+import { listEligibleTsigKeys } from "@/lib/realtime/tsig-eligibility";
+import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { CreateZoneForm, type BackendOption } from "../_components/create-zone-form";
 
 export const metadata = { title: "Create zone" };
@@ -19,7 +21,8 @@ export default async function NewZonePage({
 }: {
   searchParams: Promise<{ server?: string; cluster?: string; template?: string }>;
 }) {
-  await requireUserForPage({ can: "zone.create" });
+  const { globalPermissions } = await requireUserForPage({ can: "zone.create" });
+  const canReadTsig = globalPermissions.has("tsig.read");
   const {
     server: requestedServerSlug,
     cluster: requestedClusterSlug,
@@ -30,6 +33,34 @@ export default async function NewZonePage({
     listSelectableBackends(),
     listAllZoneTemplates(),
   ]);
+  if (canReadTsig) {
+    await ensureBackendsObserved();
+  }
+
+  const tsigKeysByBackend = new Map<string, Array<{ name: string; zoneCount: number }>>();
+  if (canReadTsig) {
+    const entries = await Promise.all(
+      backends.map(async (b) => {
+        const backendKey =
+          b.kind === "cluster" ? `cluster:${b.cluster.slug}` : `server:${b.server.slug}`;
+        const eligible =
+          b.kind === "cluster"
+            ? await listEligibleTsigKeys({
+                keyHosts: [...b.peers, ...b.secondaries],
+                zoneHosts: b.peers,
+              })
+            : await listEligibleTsigKeys({
+                keyHosts: [b.server, ...b.secondaries],
+                zoneHosts: [b.server],
+              });
+        return [
+          backendKey,
+          eligible.map((k) => ({ name: k.name, zoneCount: k.zoneCount })),
+        ] as const;
+      }),
+    );
+    for (const [backendKey, keys] of entries) tsigKeysByBackend.set(backendKey, keys);
+  }
 
   // Collapse SelectableBackend[] into the form's option shape. A cluster
   // is ONE option (not its peers) - the write_strategy picks the peer at
@@ -47,6 +78,7 @@ export default async function NewZonePage({
           isDefault: false,
           primaryIds: b.peers.map((peer) => peer.id),
           secondaries: [],
+          tsigKeys: tsigKeysByBackend.get(`cluster:${b.cluster.slug}`) ?? [],
         }
       : {
           kind: "server",
@@ -55,6 +87,7 @@ export default async function NewZonePage({
           isDefault: b.server.isDefault,
           primaryIds: [b.server.id],
           secondaries: b.secondaries.map((s) => ({ slug: s.slug, name: s.name })),
+          tsigKeys: tsigKeysByBackend.get(`server:${b.server.slug}`) ?? [],
         },
   );
 

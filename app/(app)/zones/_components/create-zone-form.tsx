@@ -58,6 +58,8 @@ export interface BackendOption {
    * operator sees the full replication topology before creating a zone.
    */
   secondaries: Array<{ slug: string; name: string }>;
+  /** Keys present on every backend needed for transfer authentication. */
+  tsigKeys: Array<{ name: string; zoneCount: number }>;
 }
 
 interface TemplateOption {
@@ -151,6 +153,11 @@ export function CreateZoneForm(props: Props) {
   const backendSelection = backendKey ? parseKey(backendKey) : null;
   const [name, setName] = useState("");
   const [kind, setKind] = useState<(typeof KINDS)[number]["value"]>("Native");
+  const selectedBackend = backendSelection
+    ? (props.backends.find(
+        (b) => b.kind === backendSelection.kind && b.slug === backendSelection.slug,
+      ) ?? null)
+    : null;
 
   // Compute the template the form should pre-apply for a given backend
   // selection - the first template registered as the default for any
@@ -187,12 +194,19 @@ export function CreateZoneForm(props: Props) {
   const [responsibleEmail, setResponsibleEmail] = useState("");
   const [nameservers, setNameservers] = useState<string[]>([""]);
   const [masters, setMasters] = useState<string[]>([]);
+  const [selectedTsigKey, setSelectedTsigKey] = useState("");
+  const tsigTouched = useRef(false);
+  const tsigScopeRef = useRef(`${backendKey}:${kind}`);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
   const isSecondary = kind === "Secondary";
+  const eligibleTsigKeys = useMemo(
+    () => (kind === "Primary" ? (selectedBackend?.tsigKeys ?? []) : []),
+    [kind, selectedBackend],
+  );
 
   const selectedTemplate = props.templates.find((t) => t.id === templateId);
 
@@ -241,6 +255,21 @@ export function CreateZoneForm(props: Props) {
     // state would re-fire it on unrelated renders and clobber user edits.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backendKey]);
+
+  useEffect(() => {
+    const scope = `${backendKey}:${kind}`;
+    if (tsigScopeRef.current !== scope) {
+      tsigScopeRef.current = scope;
+      tsigTouched.current = false;
+    }
+    if (!tsigTouched.current) {
+      setSelectedTsigKey(eligibleTsigKeys[0]?.name ?? "");
+      return;
+    }
+    if (selectedTsigKey && !eligibleTsigKeys.some((key) => key.name === selectedTsigKey)) {
+      setSelectedTsigKey("");
+    }
+  }, [backendKey, eligibleTsigKeys, kind, selectedTsigKey]);
 
   function addNs() {
     setNameservers([...nameservers, ""]);
@@ -316,6 +345,7 @@ export function CreateZoneForm(props: Props) {
     };
     if (templateId) body["templateId"] = templateId;
     if (responsibleEmail) body["responsibleEmail"] = responsibleEmail;
+    if (kind === "Primary" && selectedTsigKey) body["tsigKeyName"] = selectedTsigKey;
 
     try {
       const res = await apiFetch("/api/admin/pdns/zones", {
@@ -345,12 +375,6 @@ export function CreateZoneForm(props: Props) {
       </div>
     );
   }
-
-  const selectedBackend = backendSelection
-    ? (props.backends.find(
-        (b) => b.kind === backendSelection.kind && b.slug === backendSelection.slug,
-      ) ?? null)
-    : null;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
@@ -470,6 +494,27 @@ export function CreateZoneForm(props: Props) {
           </div>
         ) : null}
       </Section>
+
+      {kind === "Primary" && eligibleTsigKeys.length > 0 ? (
+        <Section
+          title="TSIG keys"
+          subtitle="Only keys present on the primary and every secondary are selectable."
+        >
+          <TsigKeySection
+            keys={eligibleTsigKeys}
+            selected={selectedTsigKey}
+            onSelect={(next) => {
+              tsigTouched.current = true;
+              setSelectedTsigKey(next);
+            }}
+          />
+          {fieldErrors["tsigKeyName"] ? (
+            <p className="text-xs text-[color:var(--color-error)]" role="alert">
+              {fieldErrors["tsigKeyName"].join(" ")}
+            </p>
+          ) : null}
+        </Section>
+      ) : null}
 
       {isSecondary ? (
         <Section
@@ -651,6 +696,74 @@ function SecondariesList({ secondaries }: { secondaries: Array<{ slug: string; n
         </li>
       ))}
     </ul>
+  );
+}
+
+function TsigKeySection({
+  keys,
+  selected,
+  onSelect,
+}: {
+  keys: Array<{ name: string; zoneCount: number }>;
+  selected: string;
+  onSelect: (next: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={() => onSelect("")}
+        aria-pressed={selected === ""}
+        className={`flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left text-sm ${
+          selected === ""
+            ? "border-[color:var(--color-accent)] bg-[color:var(--color-accent)]/10"
+            : "border-[color:var(--color-border)] hover:bg-[color:var(--color-bg-subtle)]"
+        }`}
+      >
+        <span
+          aria-hidden
+          className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+            selected === "" ? "bg-[color:var(--color-accent)]" : "bg-[color:var(--color-border)]"
+          }`}
+        />
+        <span className="min-w-0">
+          <span className="block font-medium">No TSIG key</span>
+          <span className="block text-xs text-[color:var(--color-fg-muted)]">
+            Create the zone without transfer authentication.
+          </span>
+        </span>
+      </button>
+      {keys.map((key, index) => {
+        const active = selected === key.name;
+        return (
+          <button
+            key={key.name}
+            type="button"
+            onClick={() => onSelect(key.name)}
+            aria-pressed={active}
+            className={`flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left text-sm ${
+              active
+                ? "border-[color:var(--color-accent)] bg-[color:var(--color-accent)]/10"
+                : "border-[color:var(--color-border)] hover:bg-[color:var(--color-bg-subtle)]"
+            }`}
+          >
+            <span
+              aria-hidden
+              className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                active ? "bg-[color:var(--color-accent)]" : "bg-[color:var(--color-border)]"
+              }`}
+            />
+            <span className="min-w-0 flex-1">
+              <span className="block font-mono text-xs break-all">{key.name}</span>
+              <span className="mt-0.5 block text-xs text-[color:var(--color-fg-muted)]">
+                {key.zoneCount} existing domain{key.zoneCount === 1 ? "" : "s"} use this key
+                {index === 0 ? " - default" : ""}
+              </span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
