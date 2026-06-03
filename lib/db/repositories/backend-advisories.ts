@@ -154,6 +154,18 @@ export interface ActiveAdvisory {
   acknowledgedAt: Date | null;
 }
 
+export interface AcknowledgedAdvisory {
+  id: string;
+  backendId: string;
+  code: string;
+  severity: string;
+  title: string;
+  detail: string;
+  firstSeenAt: Date;
+  lastSeenAt: Date;
+  acknowledgedAt: Date;
+}
+
 /**
  * Confirmed advisories (seen on ≥2 cycles) joined with backend identity.
  * Ordered errors-first, then by backend name. Includes acknowledged ones so the
@@ -185,12 +197,28 @@ export async function listActiveAdvisories(): Promise<ActiveAdvisory[]> {
   return rows.map((r) => ({ ...r, acknowledgedAt: r.acknowledgedAt ?? null }));
 }
 
-/** Acknowledge a single advisory by id. Returns true if a row was updated. */
-export async function acknowledgeAdvisory(id: string): Promise<boolean> {
+/**
+ * Acknowledge a single advisory by id.
+ *
+ * @returns The acknowledged row, or null when the advisory is missing/already acked.
+ */
+export async function acknowledgeAdvisory(id: string): Promise<AcknowledgedAdvisory | null> {
   const updated = await db
     .update(backendAdvisories)
     .set({ acknowledgedAt: new Date() })
     .where(and(eq(backendAdvisories.id, id), isNull(backendAdvisories.acknowledgedAt)))
-    .returning({ id: backendAdvisories.id });
-  return updated.length > 0;
+    .returning({
+      id: backendAdvisories.id,
+      backendId: backendAdvisories.backendId,
+      code: backendAdvisories.code,
+      severity: backendAdvisories.severity,
+      title: backendAdvisories.title,
+      detail: backendAdvisories.detail,
+      firstSeenAt: backendAdvisories.firstSeenAt,
+      lastSeenAt: backendAdvisories.lastSeenAt,
+      acknowledgedAt: backendAdvisories.acknowledgedAt,
+    });
+  const row = updated[0];
+  if (!row?.acknowledgedAt) return null;
+  return { ...row, acknowledgedAt: row.acknowledgedAt };
 }

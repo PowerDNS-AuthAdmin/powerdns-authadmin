@@ -12,6 +12,7 @@
 
 import { useState, type FormEvent } from "react";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
+import { apiFetch } from "@/lib/client/api-fetch";
 
 interface Props {
   slug: string;
@@ -40,7 +41,7 @@ export function LdapLoginForm({
     setError(null);
 
     try {
-      const res = await fetch(`/api/auth/ldap/${encodeURIComponent(slug)}/login`, {
+      const res = await apiFetch(`/api/auth/ldap/${encodeURIComponent(slug)}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

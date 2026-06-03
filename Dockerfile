@@ -118,8 +118,8 @@ ENV PATH=/nodejs/bin:$PATH
 # Build provenance surfaced in the UI (sidebar version chip + GitHub/Docs
 # links, see lib/app-meta.ts). The CI docker job sets GIT_SHA to the
 # commit and APP_RELEASE=true only for vX.Y.Z tag builds. Both default
-# empty for a plain `docker build`, which makes the app fall back to
-# release/tag links.
+# empty/false for a plain `docker build`, which makes the app fall back
+# to local-dev labels and main-branch links.
 ARG GIT_SHA=""
 ARG APP_RELEASE="false"
 ENV APP_GIT_SHA=$GIT_SHA

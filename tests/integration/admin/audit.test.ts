@@ -8,6 +8,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { createUser, loginAs, loginAsBootstrap, SYSTEM_ROLES, uniqueEmail } from "../helpers/auth";
+import { dbQuery } from "../helpers/db";
 import { resetState } from "../helpers/reset";
 
 describe("/api/admin/audit/export", () => {
@@ -52,6 +53,40 @@ describe("/api/admin/audit/export", () => {
     const admin = await loginAsBootstrap();
     const res = await admin.call("/api/admin/audit/export?from=not-a-date");
     expect(res.status).toBe(400);
+  });
+
+  it("records backend advisory acknowledgements", async () => {
+    const admin = await loginAsBootstrap();
+    const [server] = await dbQuery<{ id: string }>("SELECT id FROM pdns_servers LIMIT 1");
+    expect(server).toBeDefined();
+
+    const code = `test.audit-ack.${Date.now()}`;
+    const [advisory] = await dbQuery<{ id: string }>(
+      `INSERT INTO backend_advisories
+         (backend_id, code, severity, title, detail, first_seen_at, last_seen_at)
+       VALUES
+         ($1, $2, 'warn', 'Integration test advisory', 'Seeded by audit test', now() - interval '2 minutes', now())
+       RETURNING id`,
+      [server!.id, code],
+    );
+    expect(advisory).toBeDefined();
+
+    await admin.sendJson("POST", `/api/admin/backend-advisories/${advisory!.id}/ack`);
+
+    const rows = await dbQuery<{ action: string; resource_type: string; resource_id: string }>(
+      `SELECT action, resource_type, resource_id
+       FROM audit_log
+       WHERE action = 'backend_advisory.acknowledge'
+         AND resource_id = $1`,
+      [advisory!.id],
+    );
+    expect(rows).toEqual([
+      {
+        action: "backend_advisory.acknowledge",
+        resource_type: "backend_advisory",
+        resource_id: advisory!.id,
+      },
+    ]);
   });
 
   it("non-admin (operator) cannot export - 403", async () => {

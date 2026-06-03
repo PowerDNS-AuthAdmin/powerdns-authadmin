@@ -9,10 +9,13 @@
 
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { appendAudit } from "@/lib/audit/log";
 import { errorResponse } from "@/lib/http/error-response";
 import { NotFoundError } from "@/lib/errors";
 import { acknowledgeAdvisory } from "@/lib/db/repositories/backend-advisories";
 import { publishHealthEvent } from "@/lib/realtime/event-bus";
+import { headers } from "next/headers";
+import { getRequestContext } from "@/lib/client-ip";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -20,11 +23,21 @@ interface RouteContext {
 
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   try {
-    await requireUser({ can: "server.read" });
+    const { user } = await requireUser({ can: "server.read" });
     await requireCsrf(request);
     const { id } = await context.params;
-    const ok = await acknowledgeAdvisory(id);
-    if (!ok) throw new NotFoundError("Advisory not found or already acknowledged.");
+    const advisory = await acknowledgeAdvisory(id);
+    if (!advisory) throw new NotFoundError("Advisory not found or already acknowledged.");
+
+    await appendAudit({
+      actor: { type: "user", id: user.id },
+      action: "backend_advisory.acknowledge",
+      resource: { type: "backend_advisory", id: advisory.id },
+      before: { ...advisory, acknowledgedAt: null },
+      after: advisory,
+      request: getRequestContext(await headers()),
+    });
+
     // Acking drops it from the unacked count for everyone - nudge other bells.
     publishHealthEvent();
     return Response.json({ ok: true });

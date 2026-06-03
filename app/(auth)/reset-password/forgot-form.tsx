@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
+import { apiFetch } from "@/lib/client/api-fetch";
 
 export function ForgotPasswordForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) {
   const [email, setEmail] = useState("");
@@ -17,7 +18,7 @@ export function ForgotPasswordForm({ turnstileSiteKey }: { turnstileSiteKey?: st
     setMessage(null);
     setError(null);
     try {
-      const res = await fetch("/api/auth/forgot-password", {
+      const res = await apiFetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

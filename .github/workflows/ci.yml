@@ -56,7 +56,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
 
       - name: Lint
         run: npm run lint
@@ -82,7 +82,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
 
       - name: Run unit tests
         run: npm run test
@@ -115,7 +115,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
 
       - name: Integration suite (full stack via docker compose, PDNS 4.9)
         # docker-compose-combined.yml requires the two secrets via ${VAR:?} at
@@ -145,7 +145,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
 
       - name: Audit (production deps only)
         run: npm audit --audit-level=high --omit=dev
