@@ -20,7 +20,7 @@
  */
 
 import { useRef, useState } from "react";
-import { Download, Upload, ArrowLeft, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Download, Upload, ArrowLeft, ShieldCheck, AlertTriangle, Lock } from "lucide-react";
 import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
 
@@ -30,7 +30,7 @@ type RestoreCounts = Record<string, { attempted: number; inserted: number; skipp
 
 const CONFIRM_PHRASE = "RESTORE";
 
-export function BackupRestoreWizard() {
+export function BackupRestoreWizard({ readOnly = false }: { readOnly?: boolean }) {
   const [step, setStep] = useState<Step>("choose");
   const [file, setFile] = useState<File | null>(null);
   const [bundlePreview, setBundlePreview] = useState<{
@@ -59,6 +59,10 @@ export function BackupRestoreWizard() {
   }
 
   async function handleFile(picked: File) {
+    if (readOnly) {
+      setRestoreError("Settings backup and restore are disabled on this deployment.");
+      return;
+    }
     setFile(picked);
     setRestoreError(null);
     try {
@@ -95,6 +99,10 @@ export function BackupRestoreWizard() {
   }
 
   async function handleRestore() {
+    if (readOnly) {
+      setRestoreError("Settings backup and restore are disabled on this deployment.");
+      return;
+    }
     if (!file || !bundlePreview) return;
     if (confirmPhrase !== CONFIRM_PHRASE) return;
     setSubmitting(true);
@@ -132,6 +140,13 @@ export function BackupRestoreWizard() {
         </p>
       </header>
 
+      {readOnly ? (
+        <ReadOnlyBanner>
+          Settings backup and restore are disabled on this deployment because{" "}
+          <Code>SETTINGS_RO</Code> is enabled.
+        </ReadOnlyBanner>
+      ) : null}
+
       {step !== "choose" ? (
         <button
           type="button"
@@ -142,9 +157,14 @@ export function BackupRestoreWizard() {
         </button>
       ) : null}
 
-      {step === "choose" ? <ChoosePicker onPick={(next) => setStep(next)} /> : null}
+      {step === "choose" ? (
+        <ChoosePicker readOnly={readOnly} onPick={(next) => setStep(next)} />
+      ) : null}
       {step === "backup" ? (
-        <BackupStep onToast={(text) => toast({ kind: "success", description: text })} />
+        <BackupStep
+          readOnly={readOnly}
+          onToast={(text) => toast({ kind: "success", description: text })}
+        />
       ) : null}
       {step === "restore-upload" ? (
         <RestoreUploadStep
@@ -152,6 +172,7 @@ export function BackupRestoreWizard() {
           fileInputRef={fileInputRef}
           bundlePreview={bundlePreview}
           restoreError={restoreError}
+          readOnly={readOnly}
           onPick={(f) => {
             void handleFile(f);
           }}
@@ -172,6 +193,7 @@ export function BackupRestoreWizard() {
           onRun={() => void handleRestore()}
           submitting={submitting}
           restoreError={restoreError}
+          readOnly={readOnly}
         />
       ) : null}
       {step === "restore-result" ? (
@@ -183,21 +205,31 @@ export function BackupRestoreWizard() {
 
 /* ---------- Step 1: choose ---------- */
 
-function ChoosePicker({ onPick }: { onPick: (next: Step) => void }) {
+function ChoosePicker({ readOnly, onPick }: { readOnly: boolean; onPick: (next: Step) => void }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <ChooseCard
         title="Download backup"
-        body="Snapshot the app DB as a JSON file. Streams instantly; no server-side state."
+        body={
+          readOnly
+            ? "Disabled by SETTINGS_RO on this deployment."
+            : "Snapshot the app DB as a JSON file. Streams instantly; no server-side state."
+        }
         icon={<Download className="h-5 w-5" aria-hidden />}
         accent="accent"
+        disabled={readOnly}
         onClick={() => onPick("backup")}
       />
       <ChooseCard
         title="Restore from backup"
-        body="Upload a JSON file and merge its rows into the live DB. Existing rows untouched."
+        body={
+          readOnly
+            ? "Disabled by SETTINGS_RO on this deployment."
+            : "Upload a JSON file and merge its rows into the live DB. Existing rows untouched."
+        }
         icon={<Upload className="h-5 w-5" aria-hidden />}
         accent="warn"
+        disabled={readOnly}
         onClick={() => onPick("restore-upload")}
       />
     </div>
@@ -209,12 +241,14 @@ function ChooseCard({
   body,
   icon,
   accent,
+  disabled,
   onClick,
 }: {
   title: string;
   body: string;
   icon: React.ReactNode;
   accent: "accent" | "warn";
+  disabled?: boolean;
   onClick: () => void;
 }) {
   const accentBorder =
@@ -228,8 +262,9 @@ function ChooseCard({
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
-      className={`flex flex-col items-start gap-3 rounded-lg border-2 ${accentBorder} bg-[color:var(--color-bg-subtle)] p-5 text-left transition-colors`}
+      className={`flex flex-col items-start gap-3 rounded-lg border-2 ${accentBorder} bg-[color:var(--color-bg-subtle)] p-5 text-left transition-colors disabled:cursor-not-allowed disabled:border-[color:var(--color-border)] disabled:opacity-60 disabled:hover:border-[color:var(--color-border)]`}
     >
       <span className={`inline-flex h-10 w-10 items-center justify-center rounded-md ${accentBg}`}>
         {icon}
@@ -242,7 +277,7 @@ function ChooseCard({
 
 /* ---------- Step 2A: backup ---------- */
 
-function BackupStep({ onToast }: { onToast: (text: string) => void }) {
+function BackupStep({ readOnly, onToast }: { readOnly: boolean; onToast: (text: string) => void }) {
   return (
     <div className="space-y-5">
       <Hero icon={<Download />} title="Download backup" tone="accent">
@@ -293,13 +328,23 @@ function BackupStep({ onToast }: { onToast: (text: string) => void }) {
         </ul>
       </Panel>
 
-      <a
-        href="/api/admin/backup/export"
-        onClick={() => onToast("Streaming pda-backup-<date>.json…")}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-[color:var(--color-accent)] px-4 py-2.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 sm:w-auto sm:px-6"
-      >
-        <Download className="h-4 w-4" aria-hidden /> Download backup
-      </a>
+      {readOnly ? (
+        <button
+          type="button"
+          disabled
+          className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-md bg-[color:var(--color-accent)] px-4 py-2.5 text-sm font-medium text-[color:var(--color-accent-fg)] opacity-50 sm:w-auto sm:px-6"
+        >
+          <Download className="h-4 w-4" aria-hidden /> Download backup
+        </button>
+      ) : (
+        <a
+          href="/api/admin/backup/export"
+          onClick={() => onToast("Streaming pda-backup-<date>.json...")}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-[color:var(--color-accent)] px-4 py-2.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 sm:w-auto sm:px-6"
+        >
+          <Download className="h-4 w-4" aria-hidden /> Download backup
+        </a>
+      )}
     </div>
   );
 }
@@ -311,6 +356,7 @@ function RestoreUploadStep({
   fileInputRef,
   bundlePreview,
   restoreError,
+  readOnly,
   onPick,
   onClear,
   onNext,
@@ -325,6 +371,7 @@ function RestoreUploadStep({
     totalRows: number;
   } | null;
   restoreError: string | null;
+  readOnly: boolean;
   onPick: (f: File) => void;
   onClear: () => void;
   onNext: () => void;
@@ -342,11 +389,12 @@ function RestoreUploadStep({
             ref={fileInputRef}
             type="file"
             accept="application/json,.json"
+            disabled={readOnly}
             onChange={(e) => {
               const picked = e.target.files?.[0];
               if (picked) onPick(picked);
             }}
-            className="block w-full text-sm file:mr-3 file:rounded file:border file:border-[color:var(--color-border)] file:bg-[color:var(--color-bg-subtle)] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[color:var(--color-fg)] hover:file:bg-[color:var(--color-bg-muted)]"
+            className="block w-full text-sm file:mr-3 file:rounded file:border file:border-[color:var(--color-border)] file:bg-[color:var(--color-bg-subtle)] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[color:var(--color-fg)] hover:file:bg-[color:var(--color-bg-muted)] disabled:cursor-not-allowed disabled:opacity-60"
           />
         </label>
         {file ? (
@@ -406,7 +454,7 @@ function RestoreUploadStep({
       <button
         type="button"
         onClick={onNext}
-        disabled={!bundlePreview}
+        disabled={readOnly || !bundlePreview}
         className="inline-flex items-center gap-2 rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
       >
         Continue →
@@ -424,6 +472,7 @@ function RestoreConfirmStep({
   onRun,
   submitting,
   restoreError,
+  readOnly,
 }: {
   bundlePreview: {
     rowCountsByTable: Array<[string, number]>;
@@ -434,8 +483,10 @@ function RestoreConfirmStep({
   onRun: () => void;
   submitting: boolean;
   restoreError: string | null;
+  readOnly: boolean;
 }) {
-  const canRun = !submitting && confirmPhrase === CONFIRM_PHRASE && bundlePreview !== null;
+  const canRun =
+    !readOnly && !submitting && confirmPhrase === CONFIRM_PHRASE && bundlePreview !== null;
   return (
     <div className="space-y-5">
       <Hero icon={<AlertTriangle />} title="Confirm restore" tone="warn">
@@ -471,6 +522,7 @@ function RestoreConfirmStep({
           value={confirmPhrase}
           onChange={(e) => onConfirmPhraseChange(e.target.value)}
           placeholder={CONFIRM_PHRASE}
+          disabled={readOnly}
           className="block w-full max-w-xs rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-[color:var(--color-warn)] focus:outline-none"
           autoComplete="off"
         />
@@ -593,6 +645,15 @@ function Hero({
         <h2 className="text-base font-semibold">{title}</h2>
         <p className="text-sm text-[color:var(--color-fg-muted)]">{children}</p>
       </div>
+    </div>
+  );
+}
+
+function ReadOnlyBanner({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex gap-3 rounded-lg border border-[color:var(--color-warn)]/35 bg-[color:var(--color-warn)]/10 p-4 text-sm text-[color:var(--color-fg)]">
+      <Lock className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--color-warn-fg)]" aria-hidden />
+      <p>{children}</p>
     </div>
   );
 }

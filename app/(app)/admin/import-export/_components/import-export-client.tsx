@@ -16,15 +16,17 @@
  * isn't allowed in this app - feedback memory.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Upload, Download, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { apiFetch, mutate } from "@/lib/client/api-fetch";
+import { TsigKeySelector } from "@/components/domain/tsig-key-selector";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { useDialog } from "@/components/ui/dialog";
 
 interface Backend {
   slug: string;
   label: string;
+  tsigKeys: Array<{ name: string; zoneCount: number }>;
 }
 
 interface ImportResult {
@@ -111,12 +113,39 @@ function TabButton({
 function ImportPanel({ backends }: { backends: Backend[] }) {
   const [server, setServer] = useState<string>(backends[0]?.slug ?? "");
   const [kind, setKind] = useState<ZoneKind>("Master");
+  const [selectedTsigKey, setSelectedTsigKey] = useState("");
+  const tsigTouched = useRef(false);
+  const tsigScopeRef = useRef(`${server}:${kind}`);
   const [zoneText, setZoneText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<ImportResult[] | null>(null);
   const [diagnostics, setDiagnostics] = useState<ParseDiagnostic[]>([]);
   const [topError, setTopError] = useState<string | null>(null);
   const { toast } = useDialog();
+
+  const selectedBackend = useMemo(
+    () => backends.find((backend) => backend.slug === server) ?? null,
+    [backends, server],
+  );
+  const eligibleTsigKeys = useMemo(
+    () => (kind === "Master" ? (selectedBackend?.tsigKeys ?? []) : []),
+    [kind, selectedBackend],
+  );
+
+  useEffect(() => {
+    const scope = `${server}:${kind}`;
+    if (tsigScopeRef.current !== scope) {
+      tsigScopeRef.current = scope;
+      tsigTouched.current = false;
+    }
+    if (!tsigTouched.current) {
+      setSelectedTsigKey(eligibleTsigKeys[0]?.name ?? "");
+      return;
+    }
+    if (selectedTsigKey && !eligibleTsigKeys.some((key) => key.name === selectedTsigKey)) {
+      setSelectedTsigKey("");
+    }
+  }, [eligibleTsigKeys, kind, selectedTsigKey, server]);
 
   const handlePickFile = useCallback(async (file: File) => {
     setZoneText(await file.text());
@@ -137,7 +166,12 @@ function ImportPanel({ backends }: { backends: Backend[] }) {
       }>("/api/admin/pdns/zones/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serverSlug: server, zoneText, kind }),
+        body: JSON.stringify({
+          serverSlug: server,
+          zoneText,
+          kind,
+          ...(kind === "Master" && selectedTsigKey ? { tsigKeyName: selectedTsigKey } : {}),
+        }),
       });
       if (!out.ok) {
         setTopError(out.error);
@@ -204,6 +238,27 @@ function ImportPanel({ backends }: { backends: Backend[] }) {
             />
           </Field>
         </div>
+
+        {kind === "Master" && eligibleTsigKeys.length > 0 ? (
+          <div className="mt-4 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-4">
+            <h3 className="text-sm font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+              TSIG keys
+            </h3>
+            <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
+              Only keys present on the primary and every secondary are selectable.
+            </p>
+            <div className="mt-3">
+              <TsigKeySelector
+                keys={eligibleTsigKeys}
+                selected={selectedTsigKey}
+                onSelect={(next) => {
+                  tsigTouched.current = true;
+                  setSelectedTsigKey(next);
+                }}
+              />
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-4">
           <Field label="Zonefile text">

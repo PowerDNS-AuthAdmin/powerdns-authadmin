@@ -23,10 +23,12 @@ import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
+import { assertTsigKeyPresentOnPrimaryAndSecondaries } from "@/lib/realtime/tsig-eligibility";
+import { setZoneTransferKey } from "@/lib/realtime/tsig-replication";
 import { PdnsError } from "@/lib/pdns/errors";
 import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
-import { ValidationError } from "@/lib/errors";
+import { ForbiddenError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 import { parseZonefile } from "@/lib/dns/zonefile-parser";
 
@@ -37,6 +39,12 @@ const importSchema = z.object({
     .min(1)
     .max(2 * 1024 * 1024), // 2 MiB cap - enough for a Fortune-500 worth of records
   kind: z.enum(["Master", "Primary", "Native"]).default("Master"),
+  tsigKeyName: z
+    .string()
+    .min(1)
+    .max(255)
+    .regex(/^[A-Za-z0-9.-]+$/, "Invalid key name.")
+    .optional(),
 });
 
 interface ZoneImportResult {
@@ -48,7 +56,7 @@ interface ZoneImportResult {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const { user } = await requireUser({ can: "zone.create" });
+    const { user, globalPermissions } = await requireUser({ can: "zone.create" });
     await requireCsrf(request);
 
     let input;
@@ -64,6 +72,16 @@ export async function POST(request: Request): Promise<Response> {
     const server = await findPdnsServerBySlug(input.serverSlug);
     if (!server || server.disabledAt) {
       throw new ValidationError("Unknown or disabled PowerDNS backend.");
+    }
+    const isTransferPrimary = input.kind === "Master" || input.kind === "Primary";
+    if (input.tsigKeyName) {
+      if (!globalPermissions.has("tsig.read")) {
+        throw new ForbiddenError("Missing permission: tsig.read");
+      }
+      if (!isTransferPrimary) {
+        throw new ValidationError("TSIG keys can only be applied to Primary / Master zones.");
+      }
+      await assertTsigKeyPresentOnPrimaryAndSecondaries(server, input.tsigKeyName);
     }
 
     // Parse errors return 200 with `ok:false` rather than 4xx so the client
@@ -113,6 +131,21 @@ export async function POST(request: Request): Promise<Response> {
           kind: input.kind,
           rrsets: wireRrsets,
         });
+        const tsigResult = input.tsigKeyName
+          ? await setZoneTransferKey(server, zone.name, input.tsigKeyName, "add")
+          : null;
+        if (tsigResult && (!tsigResult.primaryOk || tsigResult.secondaries.some((s) => !s.ok))) {
+          logger.warn(
+            {
+              server: server.slug,
+              zone: zone.name,
+              keyName: input.tsigKeyName,
+              primaryOk: tsigResult.primaryOk,
+              secondaries: tsigResult.secondaries,
+            },
+            "pdns.zone.import.tsig-transfer.partial",
+          );
+        }
         results.push({
           name: zone.name,
           status: "created",
@@ -122,9 +155,32 @@ export async function POST(request: Request): Promise<Response> {
           actor: { type: "user", id: user.id },
           action: "zone.create",
           resource: { type: "zone", id: created.id },
-          after: { name: zone.name, source: "zonefile-import", rrsets: zone.rrsets.length },
+          after: {
+            name: zone.name,
+            source: "zonefile-import",
+            rrsets: zone.rrsets.length,
+            tsigKeyName: input.tsigKeyName ?? null,
+          },
           request: reqCtx,
         });
+        if (input.tsigKeyName && tsigResult) {
+          await appendAudit({
+            actor: { type: "user", id: user.id },
+            action: "zone.tsig-transfer.set",
+            resource: { type: "zone", id: `${server.slug}:${zone.name}` },
+            after: {
+              keyName: input.tsigKeyName,
+              mode: "add",
+              primaryOk: tsigResult.primaryOk,
+              secondaries: tsigResult.secondaries.map((s) => ({
+                server: s.serverSlug,
+                hosted: s.hosted,
+                ok: s.ok,
+              })),
+            },
+            request: reqCtx,
+          });
+        }
       } catch (err) {
         const message =
           err instanceof PdnsError

@@ -21,6 +21,7 @@ import { headers } from "next/headers";
 import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
+import { assertSettingsBackupAllowed } from "@/lib/auth/settings-lock";
 import { db } from "@/lib/db";
 import {
   apiTokens,
@@ -51,6 +52,7 @@ export async function GET(): Promise<Response> {
     if (!globalPermissions.has("system.backup")) {
       throw new ForbiddenError("Missing system.backup.");
     }
+    assertSettingsBackupAllowed();
 
     // Pull every export-relevant table in parallel. Order doesn't matter
     // here - the export is a snapshot; restore handles dependency order.
