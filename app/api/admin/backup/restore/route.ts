@@ -26,6 +26,7 @@ import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { assertSettingsBackupAllowed } from "@/lib/auth/settings-lock";
 import { db } from "@/lib/db";
 import {
   apiTokens,
@@ -87,6 +88,7 @@ export async function POST(request: Request): Promise<Response> {
       throw new ForbiddenError("Missing system.backup.");
     }
     await requireCsrf(request);
+    assertSettingsBackupAllowed();
 
     let bundle: BackupBundle;
     try {

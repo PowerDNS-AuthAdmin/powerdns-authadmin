@@ -9,6 +9,7 @@
 
 import type { Metadata } from "next";
 import { requireUserForPage } from "@/lib/auth/require-user";
+import { isSettingsReadOnly } from "@/lib/auth/settings-lock";
 import { ForbiddenError } from "@/lib/errors";
 import { BackupRestoreWizard } from "./_components/backup-restore-wizard";
 
@@ -19,5 +20,5 @@ export default async function BackupPage() {
   if (!globalPermissions.has("system.backup")) {
     throw new ForbiddenError("Missing system.backup.");
   }
-  return <BackupRestoreWizard />;
+  return <BackupRestoreWizard readOnly={isSettingsReadOnly()} />;
 }

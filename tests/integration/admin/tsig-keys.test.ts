@@ -447,6 +447,63 @@ describe("POST /api/admin/pdns/zones with tsigKeyName", () => {
   }, 45_000);
 });
 
+describe("POST /api/admin/pdns/zones/import with tsigKeyName", () => {
+  beforeEach(async () => {
+    await resetState();
+  });
+
+  it("applies an eligible TSIG key to imported Master zones", async () => {
+    const admin = await loginAsBootstrap();
+    const primary = PDNS_BY_TOPOLOGY.psPrimary;
+    await admin.call("/api/admin/pdns-servers/refresh-all", { method: "POST" });
+
+    const name = uniqueTsigName("import-zone");
+    const zone = `import-tsig-${Date.now().toString(36)}.example.`;
+    const created = await admin.sendJson<TsigCreateResponse>("POST", "/api/admin/pdns/tsig-keys", {
+      serverSlug: primary.slug,
+      name,
+      algorithm: "hmac-sha256",
+    });
+
+    try {
+      await admin.sendJson<InstallResponse>(
+        "POST",
+        `/api/admin/pdns/tsig-keys/${encodeURIComponent(created.tsigKey.id)}/install`,
+        { serverSlug: primary.slug },
+      );
+
+      const result = await admin.sendJson<{
+        ok: boolean;
+        results: Array<{ name: string; status: string }>;
+      }>("POST", "/api/admin/pdns/zones/import", {
+        serverSlug: primary.slug,
+        kind: "Master",
+        tsigKeyName: name,
+        zoneText: `$ORIGIN ${zone}
+$TTL 3600
+@ IN SOA ns1.example. hostmaster.example. 1 3600 900 604800 3600
+@ IN NS ns1.example.
+www IN A 192.0.2.25`,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.results).toMatchObject([{ name: zone, status: "created" }]);
+      expect((await backendZone(primary, zone))?.master_tsig_key_ids ?? []).toContain(name);
+
+      const rows = await dbQuery<{ action: string; after: { keyName?: string } }>(
+        "SELECT action, after FROM audit_log WHERE resource_id = $1 ORDER BY ts",
+        [`${primary.slug}:${zone}`],
+      );
+      expect(rows.map((r) => r.action)).toContain("zone.tsig-transfer.set");
+      expect(rows.find((r) => r.action === "zone.tsig-transfer.set")?.after.keyName).toBe(name);
+    } finally {
+      await deleteBackendZone(primary, zone);
+      await deleteBackendTsig(primary, name);
+      for (const s of PDNS_BY_TOPOLOGY.psSecondaries) await deleteBackendTsig(s, name);
+    }
+  }, 45_000);
+});
+
 describe("DELETE /api/admin/pdns/tsig-keys/[id]?cascade=true", () => {
   beforeEach(async () => {
     await resetState({ skipPdns: true });

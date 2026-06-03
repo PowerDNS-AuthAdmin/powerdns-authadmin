@@ -16,7 +16,8 @@ const mockEnv: { SETTINGS_RO: boolean } = { SETTINGS_RO: false };
 
 vi.mock("@/lib/env", () => ({ env: mockEnv }));
 
-const { isSettingsReadOnly, assertSettingsMutable } = await import("./settings-lock");
+const { isSettingsReadOnly, assertSettingsMutable, assertSettingsBackupAllowed } =
+  await import("./settings-lock");
 
 beforeEach(() => {
   mockEnv.SETTINGS_RO = false;
@@ -42,5 +43,17 @@ describe("assertSettingsMutable", () => {
   it("throws ForbiddenError when the lock is on", () => {
     mockEnv.SETTINGS_RO = true;
     expect(() => assertSettingsMutable()).toThrow(ForbiddenError);
+  });
+});
+
+describe("assertSettingsBackupAllowed", () => {
+  it("does not throw when the lock is off", () => {
+    mockEnv.SETTINGS_RO = false;
+    expect(() => assertSettingsBackupAllowed()).not.toThrow();
+  });
+
+  it("throws ForbiddenError when the lock is on", () => {
+    mockEnv.SETTINGS_RO = true;
+    expect(() => assertSettingsBackupAllowed()).toThrow(ForbiddenError);
   });
 });

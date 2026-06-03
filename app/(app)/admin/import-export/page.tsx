@@ -16,15 +16,46 @@
 import type { Metadata } from "next";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { listActivePdnsServers } from "@/lib/db/repositories/pdns-servers";
+import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
+import { listEligibleTsigKeys } from "@/lib/realtime/tsig-eligibility";
+import { listPrimarySecondaries } from "@/lib/realtime/tsig-replication";
 import { ImportExportClient } from "./_components/import-export-client";
 
 export const metadata: Metadata = { title: "Import / Export" };
 
 export default async function ImportExportPage() {
-  const { ability } = await requireUserForPage({ can: "zone.read" });
+  const { ability, globalPermissions } = await requireUserForPage({ can: "zone.read" });
   const canImport = ability.can("create", "Zone");
+  const canReadTsig = globalPermissions.has("tsig.read");
   const servers = await listActivePdnsServers();
-  const backends = servers.map((s) => ({ slug: s.slug, label: s.name }));
+
+  if (canImport && canReadTsig) {
+    await ensureBackendsObserved();
+  }
+
+  const tsigKeysByServer = new Map<string, Array<{ name: string; zoneCount: number }>>();
+  if (canImport && canReadTsig) {
+    const entries = await Promise.all(
+      servers.map(async (server) => {
+        const secondaries = await listPrimarySecondaries(server);
+        const eligible = await listEligibleTsigKeys({
+          keyHosts: [server, ...secondaries],
+          zoneHosts: [server],
+        });
+        return [
+          server.slug,
+          eligible.map((key) => ({ name: key.name, zoneCount: key.zoneCount })),
+        ] as const;
+      }),
+    );
+    for (const [serverSlug, keys] of entries) tsigKeysByServer.set(serverSlug, keys);
+  }
+
+  const backends = servers.map((s) => ({
+    slug: s.slug,
+    label: s.name,
+    tsigKeys: tsigKeysByServer.get(s.slug) ?? [],
+  }));
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">

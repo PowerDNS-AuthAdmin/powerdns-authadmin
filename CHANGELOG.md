@@ -4,6 +4,39 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added - TSIG key zone workflows (#100, #101)
+
+The TSIG Keys admin page now shows each key's zone correlation, including mirrored
+domain usage when viewing replicated key copies on secondaries. Operators can edit
+that correlation from the key row through the same clean multi-select domain picker
+used in the create-key wizard. Applying a key to zones now triggers the work in the
+background and reports the summary after completion instead of requiring the modal
+to remain open while each request finishes.
+
+The Add Zone flow now includes a TSIG Keys section for Primary / Master zones. A
+key is selectable only when it exists on the primary and every secondary that must
+participate in AXFR; the most-used eligible key is selected by default. The same
+selector is now available on Zone Import, so imported Master zones can be created
+with transfer authentication in one pass. Both create and import validate the key
+server-side before applying it and audit the resulting `zone.tsig-transfer.set`
+action.
+
+### Fixed - SETTINGS_RO now covers Backup & Restore (#102)
+
+`SETTINGS_RO=true` now blocks settings backup export and restore in the API as well
+as the UI. The Backup & Restore page shows the read-only deployment lock and
+disables download, upload, and restore controls, while the backend remains the
+security boundary for direct API calls.
+
+### Changed - repository standards and documentation polish (#97)
+
+Repo standards documentation was tightened after the standards audit: validator and
+RBAC guidance now more clearly describe ownership boundaries, environment handling,
+and contributor expectations. Integration coverage and local validation were kept
+aligned with the documented Node 24 workflow.
+
 ## [1.4.2] - 2026-06-02
 
 A cosmetic patch release. No migration, no breaking changes, no config or
