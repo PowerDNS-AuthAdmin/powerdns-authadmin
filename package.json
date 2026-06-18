@@ -66,7 +66,7 @@
     "ldapts": "8.1.8",
     "lucide-react": "1.16.0",
     "next": "16.2.6",
-    "nodemailer": "8.0.11",
+    "nodemailer": "9.0.1",
     "openid-client": "6.8.4",
     "pg": "8.21.0",
     "pino": "10.3.1",
@@ -78,7 +78,7 @@
     "react-dom": "19.2.6",
     "server-only": "0.0.1",
     "tsx": "4.22.3",
-    "undici": "8.3.0",
+    "undici": "8.5.0",
     "xml-crypto": "6.1.2",
     "zod": "4.4.3"
   },
