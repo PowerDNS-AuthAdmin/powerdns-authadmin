@@ -53,10 +53,19 @@ export async function GET(
 
   const cookieStore = await cookies();
   const tenMinutes = 60 * 10;
+  // SP-initiated SAML with the HTTP-POST binding returns via a cross-site POST
+  // from the IdP to our ACS endpoint. A `SameSite=Lax` cookie is withheld on
+  // that request, so the ACS handler sees no state cookie and fails with
+  // `saml-state-missing`. The state must therefore ride `SameSite=None`, which
+  // browsers only honour together with `Secure`. Over HTTPS (every real SAML
+  // deployment, where APP_URL is https) that pairing is exact; on a plain-http
+  // dev origin `Secure` would be dropped, so fall back to Lax there — a same-
+  // site dev round-trip never needs the cross-site relaxation anyway.
+  const httpsOrigin = env.APP_URL.startsWith("https:");
   const cookieOpts = {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: "lax" as const,
+    secure: httpsOrigin || isProduction,
+    sameSite: httpsOrigin ? ("none" as const) : ("lax" as const),
     path: "/",
     maxAge: tenMinutes,
   };
