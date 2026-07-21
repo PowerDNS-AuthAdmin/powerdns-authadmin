@@ -3,12 +3,12 @@
  */
 
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import type { PdnsDaemonCapabilities, PdnsVersionCache } from "@/lib/pdns/types";
+import type { PdnsDaemonCapabilities, PdnsVersionCache, PdnsWriteMode } from "@/lib/pdns/types";
 import { pdnsClusters } from "./pdns-clusters";
 import { users } from "./users";
 import { pk, timestamps } from "./_helpers";
 
-export type { PdnsVersionCache, PdnsDaemonCapabilities } from "@/lib/pdns/types";
+export type { PdnsVersionCache, PdnsDaemonCapabilities, PdnsWriteMode } from "@/lib/pdns/types";
 
 export const pdnsServers = sqliteTable(
   "pdns_servers",
@@ -24,6 +24,9 @@ export const pdnsServers = sqliteTable(
     capabilities: text("capabilities", { mode: "json" }).$type<PdnsDaemonCapabilities | null>(),
     advertisedAddresses: text("advertised_addresses", { mode: "json" }).$type<string[] | null>(),
     lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }),
+    /** Operator write-routing override (#111). See the PG schema for the rationale. */
+    writeMode: text("write_mode").notNull().default("auto").$type<PdnsWriteMode>(),
+
     isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
     clusterId: text("cluster_id").references(() => pdnsClusters.id, { onDelete: "set null" }),
     disabledAt: integer("disabled_at", { mode: "timestamp_ms" }),

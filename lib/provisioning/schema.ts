@@ -144,6 +144,11 @@ const pdnsServerEntry = z
     /** PDNS X-API-Key, plaintext in YAML. Encrypted before write. */
     api_key: z.string().min(1),
     is_default: z.boolean().default(false),
+    /** Operator write-routing override (#111). `auto` trusts the daemon's
+     *  observed /config; `read_only` vetoes writes to this backend regardless
+     *  - for nodes fed by database replication whose DB user can't write, a
+     *  state PowerDNS has no way to advertise over its API. */
+    write_mode: z.enum(["auto", "read_only"]).default("auto"),
     /** Group membership (ADR-0014). References a cluster slug from the
      *  `clusters:` section above. A backend's primary/secondary nature is
      *  OBSERVED from its `/config`, not declared here: group the writable

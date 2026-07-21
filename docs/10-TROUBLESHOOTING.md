@@ -41,6 +41,33 @@ the runtime env, or the deploy didn't override the secrets. Generate real
 - **Reachable but no zones** - confirm `api=yes` and that the API key has access to
   the `server_id` you configured (almost always `localhost`).
 
+## Zone or record edits fail on some backends but not others
+
+Symptom: the same edit succeeds when you retry it, then fails again later,
+seemingly at random. Usually a permission or read-only error surfaced from
+PowerDNS rather than from AuthAdmin.
+
+Almost always a group where **not every peer can actually accept writes**. The
+peer-selection strategy rotates each request across the group's write targets,
+so a node that rejects writes takes roughly its share of your edits and the
+failures look intermittent.
+
+The common shape is a hidden primary whose zones are `Native`, replicated to
+the public nameservers through the **database** rather than AXFR, where those
+public nodes run against a read-only database user. PowerDNS reports them as
+`primary=no, secondary=no` - indistinguishable from a standalone primary - so
+AuthAdmin can't detect the difference on its own.
+
+Fix: open each node you only read from under **Admin -> PowerDNS servers**,
+tick **Never write to this backend (read-only)**, and save. Writes then land
+only on the real write target, and the group re-labels itself
+**Primary + secondaries**. In provisioning YAML, set `write_mode: read_only` on
+the server row. See
+[Backends -> Hidden primary](./04-BACKENDS.md#hidden-primary--read-only-public-nameservers-native-zones).
+
+Note this is unrelated to **Use as the default backend**, which only picks
+which backend serves a request that doesn't name one.
+
 ## Sign-in does nothing / browser DevTools shows "Cookie pda_csrf has been rejected for invalid domain"
 
 `APP_URL`'s host doesn't match the URL you have in the address bar. The session

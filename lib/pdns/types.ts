@@ -329,6 +329,19 @@ export type PdnsConfigSetting = z.infer<typeof pdnsConfigSettingSchema>;
 export const pdnsConfigSchema = z.array(pdnsConfigSettingSchema);
 
 /**
+ * Operator override for whether a backend may be written to (#111).
+ * Complements - and can only ever restrict - the observed capabilities:
+ * `auto` defers to them, `read_only` vetoes writes regardless.
+ *
+ * Lives here alongside `PdnsDaemonCapabilities` so the DB schema can use it
+ * for `.$type<>()` without crossing the `lib/pdns → lib/db` boundary.
+ */
+export type PdnsWriteMode = "auto" | "read_only";
+
+/** Every legal `PdnsWriteMode`, for validators and UI selects. */
+export const PDNS_WRITE_MODES = ["auto", "read_only"] as const satisfies readonly PdnsWriteMode[];
+
+/**
  * What a backend's daemon is OBSERVED to be willing/able to do, derived from
  * its read-only `/config` on each version probe (ADR-0014). This is the
  * per-daemon truth the app uses instead of an operator-declared `role`: a

@@ -46,7 +46,9 @@ ready-to-use install without a single click.
 - **Multi-backend.** One install fronts standalone primaries, primary + secondaries groups, and
   multi-primary clusters. Backends are visible side-by-side; zones merge into one amalgamated
   list. Per-cluster peer-selection strategies (round-robin / random / lowest-latency / least-load)
-  route reads and writes to a member of the cluster.
+  route reads and writes to a member of the cluster. Any backend can be marked **read-only** so
+  writes skip it - the escape hatch for public nameservers fed by database replication, which
+  PowerDNS itself reports as ordinary writable primaries.
 - **Real RBAC.** Five system roles plus org-defined custom roles. Permissions span ~60 actions
   across zones, records, DNSSEC, TSIG, metadata, autoprimaries, templates, users, teams, servers,
   API tokens, audit, and OIDC providers. Assignments scope to global / team / zone / server.

@@ -15,7 +15,7 @@ import {
   type PdnsCluster,
   type PdnsServer,
 } from "@/lib/db/schema";
-import { isWriteCapable } from "@/lib/pdns/capabilities";
+import { isServerWriteTarget } from "@/lib/pdns/capabilities";
 
 export async function listAllClusters(): Promise<PdnsCluster[]> {
   return db.select().from(pdnsClusters).orderBy(pdnsClusters.name);
@@ -58,10 +58,11 @@ export async function deleteCluster(id: string, executor: DbExecutor = db): Prom
 }
 
 /**
- * Active WRITABLE peers in a group - primaries with this cluster_id, not
- * disabled. Feeds the write-strategy picker (choosePeer), so it must exclude
- * secondaries (ADR-0014): a group may now contain a primary's secondaries, and
- * a write must never be routed to a read-only mirror.
+ * Active WRITABLE peers in a group - members with this cluster_id, not
+ * disabled, that we may actually write to. Feeds the peer picker (choosePeer),
+ * so it must exclude both observed read-only mirrors (ADR-0014) and backends
+ * the operator has marked `read_only` (#111) - a write must never be routed to
+ * either.
  */
 export async function listActivePeersForCluster(clusterId: string): Promise<PdnsServer[]> {
   const rows = await db
@@ -69,7 +70,7 @@ export async function listActivePeersForCluster(clusterId: string): Promise<Pdns
     .from(pdnsServers)
     .where(and(eq(pdnsServers.clusterId, clusterId), isNull(pdnsServers.disabledAt)))
     .orderBy(pdnsServers.name);
-  return rows.filter((r) => isWriteCapable(r.capabilities));
+  return rows.filter(isServerWriteTarget);
 }
 
 /**

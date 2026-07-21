@@ -341,7 +341,12 @@ clusters:
 #                      its secondaries, or the peers of a multi-primary cluster.
 #   • is_default     → only a primary may be the default; set on EXACTLY ONE
 #                      row (the applier doesn't enforce uniqueness; the admin
-#                      UI does).
+#                      UI does). A `write_mode: read_only` row can't be it.
+#   • write_mode     → "auto" (default) trusts the daemon's observed /config;
+#                      "read_only" vetoes ALL writes to this backend. Use it for
+#                      a node fed by database replication whose DB user has no
+#                      write access - PowerDNS reports such a daemon as a plain
+#                      standalone primary, so nothing else can detect it.
 #
 # `api_key` is the PDNS X-API-Key in plaintext; encrypted with
 # APP_ENCRYPTION_KEY before persisting. `base_url` must point at the PDNS

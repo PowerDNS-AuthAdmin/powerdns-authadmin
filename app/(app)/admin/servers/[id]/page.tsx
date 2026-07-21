@@ -14,7 +14,7 @@ import { findPdnsServerById, listSecondariesForPrimary } from "@/lib/db/reposito
 import { listAllClusters } from "@/lib/db/repositories/pdns-clusters";
 import { latestServerAdminEdit, recentAdminEditsForServer } from "@/lib/db/repositories/audit-log";
 import { freshnessOf } from "@/lib/freshness";
-import { isWriteCapable } from "@/lib/pdns/capabilities";
+import { isServerWriteTarget } from "@/lib/pdns/capabilities";
 import { CapabilityBadges } from "@/components/domain/capability-badges";
 import { type SafeConfigRow } from "@/lib/pdns/config-advice";
 import { readDaemonConfig } from "@/lib/pdns/daemon-config-cache";
@@ -47,7 +47,7 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
 
   // For primaries, list the secondaries that share its group - surfaced as a
   // section beneath the form so operators can see the mirror set inline.
-  const secondaries = isWriteCapable(row.capabilities) ? await listSecondariesForPrimary(row) : [];
+  const secondaries = isServerWriteTarget(row) ? await listSecondariesForPrimary(row) : [];
 
   // Audit-derived last-edit line. Gated by audit.read since it
   // leaks "X did Y at Z time" - matches the zone-detail page
@@ -98,7 +98,7 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
         {row.capabilities ? (
           <p className="flex flex-wrap items-center gap-2 text-xs text-[color:var(--color-fg-muted)]">
             <span className="font-medium text-[color:var(--color-fg)]">Observed:</span>
-            <CapabilityBadges capabilities={row.capabilities} />
+            <CapabilityBadges capabilities={row.capabilities} writeMode={row.writeMode} />
             {row.capabilities.backends.length > 0 ? (
               <> · {row.capabilities.backends.join(", ")}</>
             ) : null}
@@ -142,6 +142,7 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
           baseUrl: row.baseUrl,
           serverId: row.serverId,
           isDefault: row.isDefault,
+          writeMode: row.writeMode,
           disabled: row.disabledAt !== null,
           clusterId: row.clusterId,
           advertisedAddresses: row.advertisedAddresses,
@@ -163,7 +164,7 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
         </section>
       ) : null}
 
-      {isWriteCapable(row.capabilities) ? (
+      {isServerWriteTarget(row) ? (
         <section className="rounded-md border border-[color:var(--color-border)] p-4">
           <header className="mb-3 flex items-center justify-between">
             <div>

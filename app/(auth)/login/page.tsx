@@ -31,6 +31,7 @@ import { envOidcProviderSummary } from "@/lib/auth/providers/oidc";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { safeNextPath } from "@/lib/auth/safe-redirect";
 import { detectAppUrlMismatch } from "@/lib/auth/app-url-check";
+import { safeIconUrl } from "@/lib/security/icon-url";
 import { LoginForm } from "./login-form";
 import { LdapLoginForm } from "./ldap-login-form";
 import { PasskeyButton } from "./passkey-button";
@@ -188,7 +189,10 @@ export default async function LoginPage({
       label: p.name,
       tag: "OIDC",
       href: `/api/auth/oidc/${p.id}/initiate${nextParam}`,
-      iconUrl: p.iconUrl,
+      // Re-normalized even though the validator gated it on write: rows
+      // persisted under an older, looser icon rule would otherwise reach the
+      // <img> sink unchecked (#113). Null when it isn't a renderable URL.
+      iconUrl: p.iconUrl ? safeIconUrl(p.iconUrl) : null,
     });
   }
   for (const p of dbSamlProviders) {

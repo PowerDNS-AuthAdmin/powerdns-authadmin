@@ -11,6 +11,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/client/api-fetch";
+import { safeIconUrl } from "@/lib/security/icon-url";
 import { SelectMenu } from "@/components/ui/select-menu";
 
 interface FormInitial {
@@ -117,6 +118,9 @@ export function OidcProviderForm(props: Props) {
   );
   const [iconUrl, setIconUrl] = useState(initial.iconUrl ?? "");
   const [groupMappings, setGroupMappings] = useState<GroupMappingForm[]>(initial.groupMappings);
+  // Rebuilt, allowlisted form of what's in the icon field - null when it isn't
+  // a renderable URL yet. Never render `iconUrl` itself (#113).
+  const previewSrc = safeIconUrl(iconUrl);
 
   function addGroupMapping() {
     setGroupMappings([
@@ -404,17 +408,27 @@ export function OidcProviderForm(props: Props) {
         {iconUrl.trim() !== "" ? (
           <div className="mt-2 flex items-center gap-2 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-2 text-xs text-[color:var(--color-fg-muted)]">
             <span>Preview:</span>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={iconUrl}
-              alt="Provider icon preview"
-              style={{
-                width: 20,
-                height: 20,
-                objectFit: "contain",
-                display: "block",
-              }}
-            />
+            {/* Same allowlist the server enforces, so the preview can never
+                render something that wouldn't save. `safeIconUrl` returns a
+                rebuilt string rather than the raw field value, so what's
+                validated is exactly what's rendered (#113). */}
+            {previewSrc !== null ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewSrc}
+                alt="Provider icon preview"
+                style={{
+                  width: 20,
+                  height: 20,
+                  objectFit: "contain",
+                  display: "block",
+                }}
+              />
+            ) : (
+              <span className="text-[color:var(--color-error)]">
+                No preview - use an https:// URL or an inline data:image URI.
+              </span>
+            )}
           </div>
         ) : null}
       </Field>

@@ -26,6 +26,7 @@ import {
   updatePdnsServer,
 } from "@/lib/db/repositories/pdns-servers";
 import { updatePdnsServerSchema } from "@/lib/validators/pdns-servers";
+import type { PdnsWriteMode } from "@/lib/pdns/types";
 import { invalidatePdnsClient } from "@/lib/pdns/registry";
 import { assertSafePdnsUrl } from "@/lib/pdns/url-safety";
 import { findClusterById } from "@/lib/db/repositories/pdns-clusters";
@@ -79,7 +80,20 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       // against the new credentials before any UI relies on them.
       patch.versionCache = null;
     }
+    if (input.writeMode !== undefined) patch.writeMode = input.writeMode;
     if (input.isDefault !== undefined) patch.isDefault = input.isDefault;
+    // The default backend is the implicit write target, so it can't be one the
+    // operator has marked read-only (#111). Checked against the merged state so
+    // "set default" and "set read_only" in the same request is caught too.
+    const effectiveWriteMode = patch.writeMode ?? existing.writeMode;
+    const effectiveIsDefault = patch.isDefault ?? existing.isDefault;
+    if (effectiveIsDefault && effectiveWriteMode === "read_only") {
+      throw new ValidationError("Invalid input.", {
+        fieldErrors: {
+          writeMode: ["A read-only backend can't be the default - the default receives writes."],
+        },
+      });
+    }
     if (input.disabled !== undefined) {
       patch.disabledAt = input.disabled ? new Date() : null;
     }
@@ -188,6 +202,7 @@ function snapshotForAudit(row: {
   baseUrl: string;
   serverId: string;
   isDefault: boolean;
+  writeMode: PdnsWriteMode;
   disabledAt: Date | null;
 }) {
   return {
@@ -198,6 +213,7 @@ function snapshotForAudit(row: {
     baseUrl: row.baseUrl,
     serverId: row.serverId,
     isDefault: row.isDefault,
+    writeMode: row.writeMode,
     disabledAt: row.disabledAt?.toISOString() ?? null,
   };
 }

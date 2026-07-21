@@ -28,7 +28,7 @@ import "server-only";
 import { isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { pdnsClusters, pdnsServers, type PdnsCluster, type PdnsServer } from "@/lib/db/schema";
-import { isReadOnlyMirror, isWriteCapable } from "@/lib/pdns/capabilities";
+import { isReadOnlyBackend, isServerWriteTarget } from "@/lib/pdns/capabilities";
 
 export type SelectableBackend =
   | {
@@ -67,12 +67,13 @@ export async function listSelectableBackends(): Promise<SelectableBackend[]> {
   const out: SelectableBackend[] = [];
   const seenClusters = new Set<string>();
 
-  // Each group collapses to ONE entry. Peers are its WRITABLE members
-  // (primaries) - never secondaries, so a write is never routed to a mirror.
-  // Secondary members ride along for topology display.
+  // Each group collapses to ONE entry. Peers are its WRITABLE members - never
+  // mirrors and never `read_only` overrides (#111), so a write is never routed
+  // somewhere it would be rejected. Read-only members ride along for topology
+  // display.
   for (const c of clusters) {
     const members = allServers.filter((s) => s.clusterId === c.id);
-    const peers = members.filter((s) => isWriteCapable(s.capabilities));
+    const peers = members.filter(isServerWriteTarget);
     if (peers.length === 0) continue;
     seenClusters.add(c.id);
     out.push({
@@ -80,14 +81,17 @@ export async function listSelectableBackends(): Promise<SelectableBackend[]> {
       cluster: c,
       peers,
       representativeServer: peers[0]!,
-      secondaries: members.filter((s) => isReadOnlyMirror(s.capabilities)),
+      secondaries: members.filter(isReadOnlyBackend),
     });
   }
 
   // Standalone write targets (not in a group). A backend's managed secondaries
   // are group members, so a write target outside any group has none here.
+  // Ungrouped read-only backends are deliberately absent: they're surfaced by
+  // `listUngroupedSecondaries()` on the zones list instead, since this list is
+  // specifically "things you can pick as a write target".
   for (const s of allServers) {
-    if (!isWriteCapable(s.capabilities)) continue;
+    if (!isServerWriteTarget(s)) continue;
     if (s.clusterId && seenClusters.has(s.clusterId)) continue;
     out.push({
       kind: "server",

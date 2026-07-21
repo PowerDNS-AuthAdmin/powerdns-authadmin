@@ -6,6 +6,67 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-07-22
+
+Feature and security release. One additive migration (`pdns_servers.write_mode`,
+defaulting to `auto`), no breaking changes, no behaviour change for existing
+backends.
+
+### Added - read-only backends (#109, #111)
+
+Backends can now be marked **Never write to this backend (read-only)**. A backend
+in that state is excluded from peer selection and from every backend picker, can't
+be the default backend, and renders with a `read-only` badge under its group's
+write target - while staying fully browsable and still polled for sync state and
+stats.
+
+This closes a gap that only shows up in one topology: a hidden primary whose zones
+are `Native` and reach the public nameservers through **database replication**
+rather than AXFR. Those public nodes usually run against a read-only database
+user, but PowerDNS reports them as `primary=no, secondary=no` - byte-identical to
+a standalone primary. Nothing in `/config` distinguishes the two, so AuthAdmin
+classified them as writable and the peer-selection strategy rotated writes onto
+them, which the database then rejected.
+
+Since PowerDNS cannot report the fact, it has to be declared. The new
+`pdns_servers.write_mode` column (`auto` | `read_only`) is that declaration, and
+it's deliberately narrow: it can only ever _remove_ a backend from write routing,
+never promote a mirror into a write target, and it does not touch AXFR topology
+derivation - marking a genuine AXFR primary read-only stops writes to it without
+breaking the secondaries that pull from it. Set it from the backend's edit page or
+with `write_mode: read_only` in provisioning YAML.
+
+Group composition now counts read-only members as mirrors, so a hidden primary
+with three read-only public nodes reports **Primary + secondaries** instead of
+claiming to be a multi-primary cluster with a peer-selection strategy that has
+nothing to choose from.
+
+See [FEATURES § 3.3](./docs/FEATURES.md#33-read-only-backends-write-mode-override),
+[Backends → Hidden primary](./docs/04-BACKENDS.md#hidden-primary--read-only-public-nameservers-native-zones),
+and the 2026-07-22 amendment in [ADR-0014](./docs/adr/0014-backend-capability-model.md).
+
+### Security (#112, #113)
+
+- **`js-yaml` 4.2.0 → 4.3.0** ([GHSA-52cp-r559-cp3m](https://github.com/advisories/GHSA-52cp-r559-cp3m),
+  high) - YAML merge-key chains could force quadratic CPU use. Reachable only
+  through the provisioning applier, which parses operator-supplied YAML at boot,
+  so this was not attacker-controlled - but it is a runtime dependency and worth
+  closing.
+- **`dompurify`** ([GHSA-c2j3-45gr-mqc4](https://github.com/advisories/GHSA-c2j3-45gr-mqc4),
+  low) - refreshed via `isomorphic-dompurify`. Impact was negligible: the SVG
+  sanitizer is defense-in-depth behind `<img src>` rendering, which already runs
+  SVG in the browser's secure static mode.
+- **`brace-expansion`** ([GHSA-3jxr-9vmj-r5cp](https://github.com/advisories/GHSA-3jxr-9vmj-r5cp),
+  high) - devDependency only, via the eslint plugins' `minimatch`. Never shipped.
+- **OIDC icon-URL preview** - the admin form rendered a live `<img>` preview of the
+  icon field before validation, which CodeQL flagged as an XSS-through-DOM sink.
+  Real-world impact was minimal (`javascript:` doesn't execute in `<img src>`, and
+  persisted values were already restricted to `https://` or `data:image`), but the
+  preview was the one path that skipped the allowlist. Both sides now share a
+  single predicate, `isSafeIconUrl()`, so they can't drift.
+
+`npm audit` reports zero vulnerabilities as of this release.
+
 ## [1.4.3] - 2026-06-04
 
 Feature and hardening release. No migration and no breaking changes. Adds TSIG
@@ -823,12 +884,12 @@ schema or API breaking changes - drop-in upgrade.
   `/admin/pdns-requests` was undocumented despite shipping since 1.1.0.
   Filters by server / op / status / `requestId` / time range; every row
   expands inline to the request + response detail; cross-pivots to / from
-  the audit log via shared `requestId`. ([FEATURES § 3.6](./docs/FEATURES.md#36-pdns-request-log))
+  the audit log via shared `requestId`. ([FEATURES § 3.7](./docs/FEATURES.md#37-pdns-request-log))
 - **Backend health bell documented.** The alert bell + popover that surfaces
   active advisories (unreachable hosts, API-key rejections, replication
   drift, missing TSIG keys, mirror zones without `masters`, daemon-config
   drift between peers) is now an explicit feature in the catalog.
-  ([FEATURES § 3.7](./docs/FEATURES.md#37-backend-health-advisories) · [ADR-0015](./docs/adr/0015-backend-health-advisories.md))
+  ([FEATURES § 3.8](./docs/FEATURES.md#38-backend-health-advisories) · [ADR-0015](./docs/adr/0015-backend-health-advisories.md))
 
 ### Added - documentation
 
@@ -1194,7 +1255,8 @@ First production release.
 - **Distribution** - multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.3...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.3...v1.5.0
 [1.4.3]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.0...v1.4.1

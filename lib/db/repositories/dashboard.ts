@@ -20,7 +20,7 @@ import { oidcProviders } from "@/lib/db/schema";
 import { pdnsServers } from "@/lib/db/schema";
 import { users } from "@/lib/db/schema";
 import { countStar, isSqlite, jsonBoolField, truncToHour } from "@/lib/db/sql-dialect";
-import { isWriteCapable } from "@/lib/pdns/capabilities";
+import { isServerWriteTarget } from "@/lib/pdns/capabilities";
 
 // =============================================================================
 // Audit-derived
@@ -178,6 +178,7 @@ export async function latestBackendSamples(): Promise<BackendStat[]> {
       serverSlug: pdnsServers.slug,
       serverName: pdnsServers.name,
       capabilities: pdnsServers.capabilities,
+      writeMode: pdnsServers.writeMode,
       clusterId: pdnsServers.clusterId,
       zoneCount: metricSamples.zoneCount,
       latencyP50Ms: metricSamples.latencyP50Ms,
@@ -197,7 +198,7 @@ export async function latestBackendSamples(): Promise<BackendStat[]> {
     serverId: row.serverId,
     serverSlug: row.serverSlug,
     serverName: row.serverName,
-    isWriteTarget: isWriteCapable(row.capabilities),
+    isWriteTarget: isServerWriteTarget(row),
     clusterId: row.clusterId ?? null,
     zoneCount: row.zoneCount ?? null,
     latencyP50Ms: row.latencyP50Ms ?? null,
