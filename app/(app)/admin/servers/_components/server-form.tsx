@@ -13,6 +13,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/client/api-fetch";
+import type { PdnsWriteMode } from "@/lib/pdns/types";
 import { hostFromUrl } from "@/lib/net/host";
 import { SelectMenu } from "@/components/ui/select-menu";
 
@@ -24,6 +25,7 @@ interface ServerFormInitial {
   baseUrl: string;
   serverId: string;
   isDefault: boolean;
+  writeMode: PdnsWriteMode;
   disabled: boolean;
   clusterId: string | null;
   advertisedAddresses: string[] | null;
@@ -67,6 +69,7 @@ const DEFAULTS: ServerFormInitial = {
   baseUrl: "",
   serverId: "localhost",
   isDefault: false,
+  writeMode: "auto",
   disabled: false,
   clusterId: null,
   advertisedAddresses: null,
@@ -83,6 +86,7 @@ export function ServerForm(props: ServerFormProps) {
   const [serverId, setServerId] = useState(initial.serverId);
   const [apiKey, setApiKey] = useState("");
   const [isDefault, setIsDefault] = useState(initial.isDefault);
+  const [readOnly, setReadOnly] = useState(initial.writeMode === "read_only");
   const [disabled, setDisabled] = useState(props.mode === "edit" ? initial.disabled : false);
   const [clusterId, setClusterId] = useState<string | null>(
     props.mode === "edit" ? initial.clusterId : (props.forGroup ?? null),
@@ -120,6 +124,7 @@ export function ServerForm(props: ServerFormProps) {
       baseUrl: string;
       serverId: string;
       isDefault: boolean;
+      writeMode: PdnsWriteMode;
       apiKey?: string;
       disabled?: boolean;
       clusterId: string | null;
@@ -130,6 +135,7 @@ export function ServerForm(props: ServerFormProps) {
       baseUrl,
       serverId,
       isDefault,
+      writeMode: readOnly ? "read_only" : "auto",
       clusterId,
       // Empty → null (the server derives from the API host). Non-empty → the
       // explicit override list.
@@ -315,10 +321,40 @@ export function ServerForm(props: ServerFormProps) {
         <input
           type="checkbox"
           checked={isDefault}
+          disabled={readOnly}
           onChange={(e) => setIsDefault(e.target.checked)}
         />
         Use as the default backend (only a write-capable backend can be the default)
       </label>
+
+      <div className="space-y-1">
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={readOnly}
+            onChange={(e) => {
+              const next = e.target.checked;
+              setReadOnly(next);
+              // The default backend receives writes, so the two are mutually
+              // exclusive - clear it here rather than letting the save 400.
+              if (next) setIsDefault(false);
+            }}
+          />
+          Never write to this backend (read-only)
+        </label>
+        <p className="pl-6 text-xs text-[color:var(--color-fg-muted)]">
+          For nodes you only read from - a public nameserver fed by database replication, or any
+          backend whose database user has no write access. PowerDNS can&apos;t advertise this over
+          its API, so it has to be set here. Zone and record edits will be routed to other peers in
+          the group instead.
+        </p>
+        {fieldErrors["writeMode"]?.map((msg) => (
+          <p key={msg} className="pl-6 text-xs text-[color:var(--color-error)]" role="alert">
+            {msg}
+          </p>
+        ))}
+      </div>
 
       {props.mode === "edit" ? (
         <label className="flex items-center gap-2 text-sm">

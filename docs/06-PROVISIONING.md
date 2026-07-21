@@ -81,6 +81,10 @@ Every block is optional - drop what you don't need.
 - `pdns_servers`: `role: secondary` requires `primary_slug` (resolving in-file or
   to an existing DB primary); a primary must **not** set `primary_slug`; a
   secondary must **not** set `cluster_slug`; exactly one row should be `is_default`.
+- `pdns_servers`: `write_mode: read_only` marks a backend that must never receive
+  writes even though its `/config` looks writable - the database-replicated
+  public nameserver case. It's excluded from peer selection and from every
+  backend picker, and can't be `is_default`. Defaults to `auto`.
 - `clusters`: only primaries can be cluster peers - putting `cluster_slug` on a
   secondary is a parse error.
 - `oidc`: this is the **same mechanism as the Admin UI** (rows in

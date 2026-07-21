@@ -212,7 +212,32 @@ can jump straight into the code that owns each feature.
   in the DB is `write_strategy` (legacy name preserved); the UI label is "Peer selection
   strategy" since it governs both reads and writes.
 
-### 3.3 Sync probes
+### 3.3 Read-only backends (write-mode override)
+
+- **What.** A per-backend switch, **Never write to this backend (read-only)**, that removes it
+  from every write path while leaving its zones fully browsable. Peer selection skips it, it
+  can't be the default backend, and it renders with a `read-only` badge nested under its
+  group's write target like a mirror.
+- **Why it can't be derived.** Every other role signal in the app is observed from the daemon's
+  `/config` (ADR-0014). This one can't be: a public nameserver serving **native** zones fed by
+  **database replication** runs with `primary=no, secondary=no` - byte-identical to a standalone
+  primary - yet its database user has no write access. PowerDNS exposes no flag for that, so
+  without an override the peer picker rotates writes onto it and they fail (#109).
+- **Where.** `pdns_servers.write_mode` (`auto` | `read_only`), the `isServerWriteTarget()` /
+  `isReadOnlyBackend()` predicates in `lib/pdns/capabilities.ts`, enforced in
+  `lib/db/repositories/{pdns-servers,pdns-clusters,selectable-backends}.ts`.
+- **How.** Tick the box on the backend's edit page, or set `write_mode: read_only` on a server
+  in provisioning YAML. Defaults to `auto`, so existing backends are unaffected.
+- **Scope.** The override governs write routing only. AXFR topology derivation still reads the
+  daemon's real capabilities, so marking a genuine AXFR primary read-only stops writes to it
+  without breaking the secondaries that pull from it. See the 2026-07-22 amendment in
+  [ADR-0014](./adr/0014-backend-capability-model.md).
+
+> **Note.** "Use as the default backend" is a _different_ control - it only picks which backend
+> serves a request that doesn't name one. It has never constrained peer selection within a group;
+> use the read-only switch for that.
+
+### 3.4 Sync probes
 
 - **What.** Two flavours, identical visual shape:
   - **Primary + secondaries.** Compare each secondary's serial against the primary's;
@@ -223,7 +248,7 @@ can jump straight into the code that owns each feature.
 - **Where.** `lib/pdns/sync.ts`, `lib/pdns/cluster-sync.ts`,
   `app/(app)/zones/[zoneId]/_components/sync-section.tsx`.
 
-### 3.4 NOTIFY-on-write + convergence sweep
+### 3.5 NOTIFY-on-write + convergence sweep
 
 - **What.** Every code path that creates a zone goes through `createZoneAndNotify()` which
   fires NOTIFY to all secondaries after the create. The provisioning loop additionally runs
@@ -233,7 +258,7 @@ can jump straight into the code that owns each feature.
   initial NOTIFY.
 - **Where.** `lib/pdns/operations.ts`.
 
-### 3.5 PDNS HTTP client
+### 3.6 PDNS HTTP client
 
 - **What.** Typed thin wrapper over PDNS's HTTP API: zones.list / get / create, rrsets PATCH,
   cryptokeys, metadata, TSIG, autoprimaries, server.info, statistics. Version cache +
@@ -243,7 +268,7 @@ can jump straight into the code that owns each feature.
 - **Where.** `lib/pdns/client.ts`, `lib/pdns/registry.ts`, `lib/pdns/types.ts`,
   `lib/pdns/errors.ts`.
 
-### 3.6 PDNS request log
+### 3.7 PDNS request log
 
 - **What.** Every HTTP call the app issues to PowerDNS is recorded with timestamp, server,
   operation, method, URL, response status, error (if any), and the correlator `requestId` of
@@ -259,7 +284,7 @@ can jump straight into the code that owns each feature.
   <img src="../screenshots/light/pdns-requests.png" alt="PDNS request log" width="720" />
 </picture>
 
-### 3.7 Backend health advisories
+### 3.8 Backend health advisories
 
 - **What.** A bell in the top header surfaces active advisories computed every poll cycle:
   unreachable backends, API-key rejections (401/403), replication drift past a threshold, TSIG
@@ -276,7 +301,7 @@ can jump straight into the code that owns each feature.
   <img src="../screenshots/light/backend-health.png" alt="Backend health bell popover" width="720" />
 </picture>
 
-### 3.8 SSRF guard
+### 3.9 SSRF guard
 
 - **What.** Config-time + runtime IP-range checks on PDNS `base_url`. Link-local
   (incl. 169.254.169.254 cloud metadata) is always blocked. Private networks gated by
@@ -421,7 +446,7 @@ can jump straight into the code that owns each feature.
   from one batched query. Quick-filter chips cover the common incident-response queries
   (failed sign-ins, MFA admin changes, session revocations). Every row that originated a PDNS
   call carries a `req:` link that pivots to the matching rows in
-  [the PDNS request log](#36-pdns-request-log), and CSV export honours the active filters.
+  [the PDNS request log](#37-pdns-request-log), and CSV export honours the active filters.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/audit-log.png" />
@@ -543,7 +568,7 @@ folder (`drizzle/`, `drizzle-sqlite/`); the boot entrypoint picks one based on
 
 - **Per-request CSP nonce** (ADR 0006) so injected `<script>` tags don't execute.
 - **CSRF double-submit** on every mutating route via `requireCsrf(request)`.
-- **SSRF guard** on PDNS base URLs (§ 3.8).
+- **SSRF guard** on PDNS base URLs (§ 3.9).
 - **Encryption envelope** for at-rest secrets - versioned AES-256-GCM via HKDF-SHA-256
   subkeys per usage (`lib/crypto/encryption.ts`).
 - **Secret-field redaction** in audit `before`/`after` snapshots and free-form log strings.

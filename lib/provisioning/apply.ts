@@ -297,6 +297,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
           serverId: s.server_id,
           apiKeyEncrypted,
           isDefault: s.is_default,
+          writeMode: s.write_mode,
           clusterId,
         })
         .onConflictDoUpdate({
@@ -308,6 +309,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
             serverId: s.server_id,
             apiKeyEncrypted,
             isDefault: s.is_default,
+            writeMode: s.write_mode,
             clusterId,
             updatedAt: new Date(),
           },

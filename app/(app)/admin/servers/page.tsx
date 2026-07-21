@@ -20,7 +20,7 @@ import { latestAdminEditTimestampsForServers } from "@/lib/db/repositories/audit
 import { freshnessOf } from "@/lib/freshness";
 import { rawCache } from "@/lib/pdns/zone-state-cache";
 import { derivedParentOf } from "@/lib/pdns/topology-cache";
-import { isReadOnlyMirror } from "@/lib/pdns/capabilities";
+import { isReadOnlyBackend } from "@/lib/pdns/capabilities";
 import { CapabilityBadges } from "@/components/domain/capability-badges";
 import { ClickableTr, ClickableDiv } from "@/components/ui/clickable-row";
 import { SyncIndicator } from "@/components/ui/sync-indicator";
@@ -63,7 +63,7 @@ export default async function PdnsServersListPage() {
   // they stay visible + editable:
   //   - standalone - mirrors an external/unmanaged primary, NOT an error;
   //   - orphaned - grouped but the group has no resolvable primary.
-  const primaries = servers.filter((s) => !isReadOnlyMirror(s.capabilities));
+  const primaries = servers.filter((s) => !isReadOnlyBackend(s));
   const primaryById = new Map(primaries.map((p) => [p.id, p]));
   // First write target of each group represents it in the tree (multi-primary
   // groups share storage, so any peer is an equivalent sync reference).
@@ -80,7 +80,7 @@ export default async function PdnsServersListPage() {
     secondariesByPrimary.set(primaryId, arr);
   };
   for (const s of servers) {
-    if (!isReadOnlyMirror(s.capabilities)) continue;
+    if (!isReadOnlyBackend(s)) continue;
     // 1. Explicit group membership.
     const groupRep = s.clusterId ? primaryByCluster.get(s.clusterId) : undefined;
     if (groupRep) {
@@ -442,7 +442,7 @@ function ServerRow({
             </span>
           ) : null}
           <div className="font-medium">{row.name}</div>
-          <CapabilityBadges capabilities={row.capabilities} />
+          <CapabilityBadges capabilities={row.capabilities} writeMode={row.writeMode} />
         </div>
         <div className="mt-0.5 text-xs text-[color:var(--color-fg-muted)]">
           {row.slug}
@@ -469,7 +469,7 @@ function ServerRow({
       <td className="px-4 py-3 align-top text-xs">{row.versionCache?.version ?? "-"}</td>
       {pdnsBackgroundPollingEnabled ? (
         <td className="px-4 py-3 align-top text-xs">
-          <SyncChip verdict={syncChip} isMirror={isReadOnlyMirror(row.capabilities)} />
+          <SyncChip verdict={syncChip} isMirror={isReadOnlyBackend(row)} />
         </td>
       ) : null}
       {canReadAudit ? (
@@ -500,7 +500,7 @@ function ServerRow({
 
 /** Mobile (< md) card rendering of a server row - same data as ServerRow. */
 function ServerCard({ row, canReadAudit, lastEdits, syncChip, reachability }: ServerRowProps) {
-  const isMirror = isReadOnlyMirror(row.capabilities);
+  const isMirror = isReadOnlyBackend(row);
   return (
     <ClickableDiv
       href={`/admin/servers/${row.id}`}
@@ -512,7 +512,7 @@ function ServerCard({ row, canReadAudit, lastEdits, syncChip, reachability }: Se
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-base font-medium">{row.name}</span>
-        <CapabilityBadges capabilities={row.capabilities} />
+        <CapabilityBadges capabilities={row.capabilities} writeMode={row.writeMode} />
         {row.isDefault ? (
           <span className="rounded bg-[color:var(--color-bg-muted)] px-1.5 py-0.5 text-[0.65rem] tracking-wide uppercase">
             default

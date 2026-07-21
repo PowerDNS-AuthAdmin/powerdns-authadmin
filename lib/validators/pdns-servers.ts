@@ -9,6 +9,7 @@
 
 import "server-only";
 import { z } from "zod";
+import { PDNS_WRITE_MODES } from "@/lib/pdns/types";
 import { slugSchema } from "./common";
 
 /**
@@ -73,6 +74,8 @@ const descriptionSchema = z
   .max(500, "Description must be 500 characters or fewer.")
   .transform((s) => s.trim());
 
+const writeModeSchema = z.enum(PDNS_WRITE_MODES);
+
 export const createPdnsServerSchema = z.object({
   slug: slugSchema,
   name: z.string().min(1, "Name is required.").max(120),
@@ -81,6 +84,11 @@ export const createPdnsServerSchema = z.object({
   serverId: z.string().min(1).max(120).default("localhost"),
   apiKey: z.string().min(1, "API key is required.").max(2048, "API key is unexpectedly long."),
   isDefault: z.boolean().default(false),
+  // Operator write-routing override (#111). `auto` trusts the observed
+  // /config capabilities; `read_only` vetoes writes regardless - the escape
+  // hatch for nodes whose database user is read-only, which PowerDNS itself
+  // has no way to advertise.
+  writeMode: writeModeSchema.default("auto"),
   // Optional group (ADR-0014): the multi-primary cluster a peer belongs to, or
   // the group a secondary shares with its primary. null = stands alone. A
   // backend's primary/secondary nature is observed from /config, not declared.
@@ -110,6 +118,8 @@ export const updatePdnsServerSchema = z.object({
   apiKey: z.string().min(1).max(2048).optional(),
   isDefault: z.boolean().optional(),
   disabled: z.boolean().optional(),
+  // See createPdnsServerSchema. Omit to leave unchanged.
+  writeMode: writeModeSchema.optional(),
   // Group membership (ADR-0014). Send null to leave the group, a uuid to join
   // one, omit to leave unchanged.
   clusterId: z.string().uuid().optional().nullable(),

@@ -72,6 +72,13 @@ clusters:
 # reachable on the compose network; the app uses these URLs to talk to PDNS.
 # Every backend joins the `syd` group via `cluster_slug`; authority is per
 # zone (the secondaries hold Slave-kind zones), not per server.
+#
+# Note these secondaries need NO `write_mode` setting: they run with
+# `secondary=yes, primary=no`, so AuthAdmin observes that they're mirrors and
+# never routes a write to them. `write_mode: read_only` is only for the case
+# PowerDNS can't advertise - a node whose DATABASE user is read-only (public
+# nameservers fed by DB replication serving Native zones), which reports itself
+# as an ordinary standalone primary. See docs/04-BACKENDS.md.
 # -----------------------------------------------------------------------------
 pdns_servers:
   - slug: primary

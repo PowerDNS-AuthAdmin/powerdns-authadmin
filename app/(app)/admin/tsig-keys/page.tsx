@@ -23,7 +23,7 @@ import { listEligibleTsigKeys } from "@/lib/realtime/tsig-eligibility";
 import { listPrimarySecondaries } from "@/lib/realtime/tsig-replication";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { derivedParentOf } from "@/lib/pdns/topology-cache";
-import { isWriteCapable } from "@/lib/pdns/capabilities";
+import { isServerWriteTarget } from "@/lib/pdns/capabilities";
 import { stripTrailingDot } from "@/lib/pdns/tsig";
 import { readCachedZones } from "@/lib/pdns/zone-state-cache";
 import { PdnsAuthError } from "@/lib/pdns/errors";
@@ -85,7 +85,7 @@ export default async function TsigKeysPage({ searchParams }: PageProps) {
   // Replication targets: API install only makes sense when inspecting a primary.
   // Zone correlation is primary-owned, but secondaries should still display and
   // edit the same primary-side domain list as a convenience reference.
-  const isPrimary = isWriteCapable(selected.capabilities);
+  const isPrimary = isServerWriteTarget(selected);
   let installSecondaries: Array<{ slug: string; name: string; supportsTsigApi: boolean }> = [];
   let correlationServer: { slug: string; name: string } | null = null;
   let correlationZones: string[] = [];
@@ -196,18 +196,18 @@ function resolveCorrelationPrimary(
   selected: NonNullable<Awaited<ReturnType<typeof findServerToInspect>>>,
   servers: Awaited<ReturnType<typeof listAllPdnsServers>>,
 ) {
-  if (isWriteCapable(selected.capabilities)) return selected;
+  if (isServerWriteTarget(selected)) return selected;
 
   const active = servers.filter((s) => s.disabledAt === null);
   const derivedParentId = derivedParentOf(selected.id);
   const derivedParent = derivedParentId
-    ? active.find((s) => s.id === derivedParentId && isWriteCapable(s.capabilities))
+    ? active.find((s) => s.id === derivedParentId && isServerWriteTarget(s))
     : null;
   if (derivedParent) return derivedParent;
 
   if (selected.clusterId) {
     const peers = active.filter(
-      (s) => s.clusterId === selected.clusterId && isWriteCapable(s.capabilities),
+      (s) => s.clusterId === selected.clusterId && isServerWriteTarget(s),
     );
     if (peers.length === 1) return peers[0]!;
   }

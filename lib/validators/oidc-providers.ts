@@ -10,6 +10,7 @@
 
 import "server-only";
 import { z } from "zod";
+import { isSafeIconUrl } from "@/lib/security/icon-url";
 import { slugSchema } from "./common";
 
 const issuerUrlSchema = z
@@ -50,15 +51,9 @@ const iconUrlSchema = z
   .string()
   .min(1)
   .max(MAX_ICON_LENGTH, "Icon is too large. Use an image under 64 KB or host it externally.")
-  .refine(
-    (u) =>
-      u.startsWith("https://") ||
-      u.startsWith("http://") ||
-      /^data:image\/(png|jpeg|jpg|gif|svg\+xml|webp);base64,/.test(u),
-    {
-      message: "Icon URL must use https://, http://, or be an inline data: URI.",
-    },
-  );
+  .refine(isSafeIconUrl, {
+    message: "Icon URL must use https://, http://, or be an inline data: URI.",
+  });
 
 /**
  * Per-provider email-domain override (S-7).

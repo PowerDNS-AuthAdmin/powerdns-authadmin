@@ -9,6 +9,12 @@
  *   • standalone    → neutral - no replication flag set (default PDNS Auth
  *                     config; API still accepts zone creates - fully usable).
  *
+ * Plus one badge that is NOT observed but operator-declared:
+ *   • read-only     → warn (yellow) - `write_mode='read_only'` (#111). Shown
+ *                     first, because it overrides whatever the daemon reports:
+ *                     a node badged `standalone read-only` looks writable to
+ *                     PDNS but the operator has vetoed writes to it.
+ *
  * Renders nothing fancy: a small rounded badge per active flag, joined by a
  * narrow gap. Use anywhere a backend row shows its role (server lists, group
  * detail, server detail).
@@ -39,20 +45,49 @@ const TONE = {
   autosecondary: `${BASE} bg-[color:var(--color-orange)]/15 text-[color:var(--color-orange-fg)]`,
 } as const;
 
-export function CapabilityBadges({ capabilities }: { capabilities: Capabilities | null }) {
-  if (!capabilities) return <span className={NEUTRAL}>unprobed</span>;
+export function CapabilityBadges({
+  capabilities,
+  writeMode = "auto",
+}: {
+  capabilities: Capabilities | null;
+  /** Operator write-routing override (#111). "read_only" adds a leading badge. */
+  writeMode?: "auto" | "read_only";
+}) {
+  const readOnly =
+    writeMode === "read_only" ? (
+      <span className={TONE.secondary} title="Operator override: writes are never routed here">
+        read-only
+      </span>
+    ) : null;
+
+  if (!capabilities) {
+    return (
+      <span className="whitespace-nowrap">
+        {readOnly}
+        <span className={readOnly ? `${NEUTRAL} ml-1` : NEUTRAL}>unprobed</span>
+      </span>
+    );
+  }
   const flags: Array<keyof typeof TONE> = [];
   if (capabilities.primary) flags.push("primary");
   if (capabilities.secondary) flags.push("secondary");
   if (capabilities.autosecondary) flags.push("autosecondary");
-  if (flags.length === 0) return <span className={NEUTRAL}>standalone</span>;
+  if (flags.length === 0) {
+    return (
+      <span className="whitespace-nowrap">
+        {readOnly}
+        <span className={readOnly ? `${NEUTRAL} ml-1` : NEUTRAL}>standalone</span>
+      </span>
+    );
+  }
   // Plain inline <span> wrapper (no flex) so each badge renders exactly like
   // the CLUSTER badge in the zones list - inherited line-height and no
   // cross-axis stretching from a flex container.
   return (
     <span className="whitespace-nowrap">
+      {readOnly}
       {flags.map((f, i) => (
-        <span key={f} className={i > 0 ? `${TONE[f]} ml-1` : TONE[f]}>
+        <span key={f} className={i > 0 || readOnly ? `${TONE[f]} ml-1` : TONE[f]}>
           {f}
         </span>
       ))}

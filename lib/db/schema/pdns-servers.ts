@@ -22,7 +22,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { PdnsDaemonCapabilities, PdnsVersionCache } from "@/lib/pdns/types";
+import type { PdnsDaemonCapabilities, PdnsVersionCache, PdnsWriteMode } from "@/lib/pdns/types";
 import { pdnsClusters } from "./pdns-clusters";
 import { users } from "./users";
 import { pk, timestamps } from "./_helpers";
@@ -31,7 +31,7 @@ import { pk, timestamps } from "./_helpers";
 // adapter doesn't have to cross the import-boundary rule that forbids
 // `lib/pdns → lib/db`. Re-exported here so existing callers that import
 // the type from this file (the historical location) keep working.
-export type { PdnsVersionCache, PdnsDaemonCapabilities } from "@/lib/pdns/types";
+export type { PdnsVersionCache, PdnsDaemonCapabilities, PdnsWriteMode } from "@/lib/pdns/types";
 
 export const pdnsServers = pgTable(
   "pdns_servers",
@@ -105,6 +105,22 @@ export const pdnsServers = pgTable(
      * until the first successful contact.
      */
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+
+    /**
+     * Operator override for write routing (#111). PowerDNS Auth has no config
+     * flag that says "my database user is read-only", so a native-zone public
+     * nameserver fed by DB replication looks identical to a standalone primary
+     * over `/config` - `primary=no, secondary=no` - and capability derivation
+     * classifies it as writable. This column is the only way an operator can
+     * say otherwise.
+     *
+     *   `auto`      - trust the observed capabilities (the default; unchanged
+     *                 behaviour for every existing backend)
+     *   `read_only` - never route a write here, whatever `/config` claims
+     *
+     * Enforced by `isServerWriteTarget()`; see lib/pdns/capabilities.ts.
+     */
+    writeMode: text("write_mode").notNull().default("auto").$type<PdnsWriteMode>(),
 
     /**
      * Default backend used when a request doesn't specify `?server=`. Exactly

@@ -37,6 +37,29 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.5.0 (from 1.4.3)
+
+One additive migration, no breaking changes - pull the new tag and recreate the
+container as above. The migration adds `pdns_servers.write_mode` with a default of
+`auto`, so every existing backend keeps its current behaviour and no backend
+becomes read-only on its own.
+
+Act on this release only if you run a **hidden primary whose zones are `Native`
+and replicate to public nameservers through the database** rather than AXFR. Those
+public nodes are indistinguishable from standalone primaries over the PowerDNS
+API, so until now the peer-selection strategy could route writes to them and the
+read-only database user would reject the change. Open each public node under
+**Admin → PowerDNS servers**, tick **Never write to this backend (read-only)**,
+and save - writes then land only on the primary. In provisioning YAML the
+equivalent is `write_mode: read_only` on the server row.
+
+Every other topology needs no action.
+
+This release also bumps `js-yaml`, `dompurify`, and `brace-expansion` to clear
+open advisories, and tightens the OIDC icon-URL preview in the admin form. See
+the [CHANGELOG](../CHANGELOG.md#150---2026-07-22) for the impact assessment on
+each.
+
 ### Upgrading to 1.4.3 (from 1.4.2)
 
 No migration and no breaking changes - pull the new tag and recreate the

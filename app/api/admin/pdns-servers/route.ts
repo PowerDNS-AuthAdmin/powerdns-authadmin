@@ -82,6 +82,16 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
 
+    // The default backend is the implicit write target, so it can't also be
+    // marked read-only (#111).
+    if (input.isDefault && input.writeMode === "read_only") {
+      throw new ValidationError("Invalid input.", {
+        fieldErrors: {
+          writeMode: ["A read-only backend can't be the default - the default receives writes."],
+        },
+      });
+    }
+
     const apiKeyEncrypted = encrypt(input.apiKey, "pdns-api-key");
     const hdrs = await headers();
     // One transaction: the single-default clearing, the insert, and the audit
@@ -97,6 +107,7 @@ export async function POST(request: Request): Promise<Response> {
           serverId: input.serverId,
           apiKeyEncrypted,
           isDefault: input.isDefault,
+          writeMode: input.writeMode,
           clusterId: input.clusterId ?? null,
           advertisedAddresses:
             input.advertisedAddresses && input.advertisedAddresses.length > 0
@@ -119,6 +130,7 @@ export async function POST(request: Request): Promise<Response> {
             baseUrl: created.baseUrl,
             serverId: created.serverId,
             isDefault: created.isDefault,
+            writeMode: created.writeMode,
           },
           request: getRequestContext(hdrs),
         },

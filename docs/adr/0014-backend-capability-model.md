@@ -34,6 +34,29 @@ behaviour had to be moved off `role` onto zone `kind` (done); the `/config` advi
    existing poll from `/config` + `/servers/{id}`: `api`, `primary`, `secondary`, `autosecondary`,
    `launch` backends, per-backend DNSSEC, daemon + API version. Same write path and cache pattern as
    the version cache - a sanctioned `lib/pdns → lib/db` bridge (ADR-0013).
+
+   > **Amendment (2026-07-22, #111):** "observe, don't declare" holds for everything PowerDNS can
+   > actually tell us - and there is exactly one thing it can't. A daemon whose **database user is
+   > read-only** (the public half of a native-zone deployment replicated at the DB layer) reports
+   > `primary=no, secondary=no` over `/config`, byte-identical to a standalone primary. There is no
+   > flag, no probe, and no safe write-test that distinguishes them, so derivation necessarily calls
+   > it writable and `choosePeer` rotates writes onto a node that rejects them.
+   >
+   > We therefore add ONE operator-declared field, `pdns_servers.write_mode` (`auto` | `read_only`),
+   > and constrain it tightly so it can't grow back into the `role` we deleted:
+   >
+   > - It can only ever **subtract**. `read_only` vetoes a daemon the capabilities called writable;
+   >   `auto` never promotes an observed mirror into a write target. Authority still flows one way.
+   > - It governs **write routing and the operator-facing backend pickers only** - the predicate is
+   >   `isServerWriteTarget()`. AXFR topology derivation (decision 4) keeps reading raw capabilities,
+   >   because `masters[]` resolution is a fact about the DNS protocol that an operator's routing
+   >   preference must not rewrite. Marking a genuine AXFR primary `read_only` stops writes going to
+   >   it; it must not make the secondaries pulling from it un-resolvable.
+   > - It defaults to `auto`, so every existing backend behaves exactly as before.
+   >
+   > This is a deliberate, bounded exception. The test for adding another one: PowerDNS must be
+   > _incapable_ of reporting the fact, not merely inconvenient to ask.
+
 3. **Gate editability on zone `kind`** via one ops resolver:
    `zoneCapabilities(kind) → { rrsets, metadata, masters, dnssec, axfrRetrieve, delete }`.
    Generalizes the existing `isReadOnlyZoneKind` and encodes the _real_ writable options on a

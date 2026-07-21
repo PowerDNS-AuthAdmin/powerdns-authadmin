@@ -7,7 +7,7 @@
  * which is why this replaces the operator-declared `role`.
  */
 
-import type { PdnsConfigSetting, PdnsDaemonCapabilities } from "./types";
+import type { PdnsConfigSetting, PdnsDaemonCapabilities, PdnsWriteMode } from "./types";
 
 const isYes = (v: string | undefined): boolean => v?.toLowerCase() === "yes";
 
@@ -83,11 +83,55 @@ export function isReadOnlyMirror(caps: PdnsDaemonCapabilities | null | undefined
   return !!caps && caps.secondary && !caps.primary;
 }
 
+/** The subset of a backend row this module reasons about. */
+export interface WriteRoutable {
+  capabilities: PdnsDaemonCapabilities | null;
+  writeMode: PdnsWriteMode;
+}
+
+/**
+ * Whether a backend may actually be written to - the predicate every write-
+ * routing decision must use, rather than {@link isWriteCapable} alone.
+ *
+ * `/config` cannot express "this daemon's database user is read-only" (#111).
+ * A public nameserver serving native zones fed by database replication reports
+ * `primary=no, secondary=no`, which is byte-identical to a standalone primary,
+ * so {@link deriveCapabilities} necessarily calls it writable and the cluster
+ * picker happily rotates writes onto it. The operator's `write_mode` override
+ * is the only signal that can correct that, so it wins here.
+ *
+ * The override can only ever *subtract*: `read_only` vetoes a daemon the
+ * capabilities said was writable, but `auto` never promotes a read-only mirror
+ * into a write target.
+ *
+ * SCOPE: this governs write ROUTING and the operator-facing backend pickers,
+ * not AXFR topology derivation. `lib/realtime/zone-poller.ts` and
+ * `lib/pdns/sync.ts` keep using {@link isWriteCapable} on the raw capabilities
+ * deliberately - they resolve mirror zones' `masters[]` back to the daemon
+ * that actually serves the AXFR, which is a fact about the DNS protocol that
+ * an operator's write-routing preference must not rewrite. Marking a genuine
+ * AXFR primary `read_only` should stop writes going to it, not make the
+ * secondaries that pull from it un-resolvable.
+ */
+export function isServerWriteTarget(server: WriteRoutable): boolean {
+  return server.writeMode !== "read_only" && isWriteCapable(server.capabilities);
+}
+
+/**
+ * Whether a backend is excluded from writes for any reason - an observed
+ * read-only mirror, or an operator-declared `read_only` override. The
+ * complement of {@link isServerWriteTarget}, named for UI that groups
+ * "everything we only read from" together.
+ */
+export function isReadOnlyBackend(server: WriteRoutable): boolean {
+  return !isServerWriteTarget(server);
+}
+
 /** Derived composition of a backend group (ADR-0014), from its members. */
 export interface GroupComposition {
-  /** Write-capable members (primaries / unprobed). */
+  /** Members that may be written to (primaries / unprobed, minus overrides). */
   writable: number;
-  /** Read-only mirror members. */
+  /** Members we only ever read from - observed mirrors plus `read_only` overrides. */
   mirrors: number;
   /**
    * A true multi-primary cluster - ≥2 writable peers sharing storage. Only
@@ -100,11 +144,13 @@ export interface GroupComposition {
 }
 
 /** Classify a group from its members' observed capabilities. */
-export function classifyGroup(
-  members: ReadonlyArray<{ capabilities: PdnsDaemonCapabilities | null }>,
-): GroupComposition {
-  const writable = members.filter((m) => isWriteCapable(m.capabilities)).length;
-  const mirrors = members.filter((m) => isReadOnlyMirror(m.capabilities)).length;
+export function classifyGroup(members: readonly WriteRoutable[]): GroupComposition {
+  // Counted off the routing predicate, not the raw capabilities: a group of
+  // one hidden primary plus three `read_only` public nameservers has exactly
+  // one write target, so it must not present itself as multi-primary and
+  // offer a peer-selection strategy that would do nothing (#111).
+  const writable = members.filter(isServerWriteTarget).length;
+  const mirrors = members.length - writable;
   const isMultiPrimary = writable >= 2;
   const typeLabel = isMultiPrimary
     ? "Multi-primary cluster"

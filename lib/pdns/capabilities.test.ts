@@ -3,6 +3,9 @@ import {
   deriveCapabilities,
   isReadOnlyMirror,
   isWriteCapable,
+  isServerWriteTarget,
+  isReadOnlyBackend,
+  classifyGroup,
   summarizeCapabilities,
 } from "./capabilities";
 import type { PdnsConfigSetting } from "./types";
@@ -99,5 +102,67 @@ describe("isWriteCapable / isReadOnlyMirror", () => {
     expect(isWriteCapable(null)).toBe(true);
     expect(isWriteCapable(undefined)).toBe(true);
     expect(isReadOnlyMirror(null)).toBe(false);
+  });
+});
+
+// The #109 case: a public nameserver serving native zones, fed by database
+// replication, whose DB user is read-only. Over /config it is indistinguishable
+// from a standalone primary, so only the operator's override can keep writes
+// off it.
+describe("isServerWriteTarget / isReadOnlyBackend (write_mode override)", () => {
+  const standalone = deriveCapabilities(cfg({}));
+  const mirror = deriveCapabilities(cfg({ secondary: "yes" }));
+
+  it("routes writes to a standalone backend on the default write_mode", () => {
+    expect(isServerWriteTarget({ capabilities: standalone, writeMode: "auto" })).toBe(true);
+    expect(isReadOnlyBackend({ capabilities: standalone, writeMode: "auto" })).toBe(false);
+  });
+
+  it("vetoes writes to a standalone backend marked read_only", () => {
+    expect(isServerWriteTarget({ capabilities: standalone, writeMode: "read_only" })).toBe(false);
+    expect(isReadOnlyBackend({ capabilities: standalone, writeMode: "read_only" })).toBe(true);
+  });
+
+  it("vetoes writes to an unprobed backend marked read_only", () => {
+    // Otherwise the "unprobed defaults to writable" rule would punch straight
+    // through the override during the window before the first probe.
+    expect(isServerWriteTarget({ capabilities: null, writeMode: "read_only" })).toBe(false);
+    expect(isServerWriteTarget({ capabilities: null, writeMode: "auto" })).toBe(true);
+  });
+
+  it("never promotes an observed mirror into a write target", () => {
+    // The override can only subtract. `auto` on a mirror stays read-only.
+    expect(isServerWriteTarget({ capabilities: mirror, writeMode: "auto" })).toBe(false);
+    expect(isServerWriteTarget({ capabilities: mirror, writeMode: "read_only" })).toBe(false);
+  });
+});
+
+describe("classifyGroup with write_mode overrides", () => {
+  const standalone = deriveCapabilities(cfg({}));
+
+  it("counts read_only members as mirrors, not writable peers", () => {
+    // One hidden primary + three read-only public nameservers. All four look
+    // writable over /config; only the override reveals the real shape.
+    const g = classifyGroup([
+      { capabilities: standalone, writeMode: "auto" },
+      { capabilities: standalone, writeMode: "read_only" },
+      { capabilities: standalone, writeMode: "read_only" },
+      { capabilities: standalone, writeMode: "read_only" },
+    ]);
+    expect(g.writable).toBe(1);
+    expect(g.mirrors).toBe(3);
+    // Crucially NOT "Multi-primary cluster" - there is exactly one write
+    // target, so a peer-selection strategy would have nothing to choose from.
+    expect(g.isMultiPrimary).toBe(false);
+    expect(g.typeLabel).toBe("Primary + secondaries");
+  });
+
+  it("still reports a genuine multi-primary cluster when no override is set", () => {
+    const g = classifyGroup([
+      { capabilities: standalone, writeMode: "auto" },
+      { capabilities: standalone, writeMode: "auto" },
+    ]);
+    expect(g.isMultiPrimary).toBe(true);
+    expect(g.typeLabel).toBe("Multi-primary cluster");
   });
 });

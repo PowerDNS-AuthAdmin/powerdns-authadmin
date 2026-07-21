@@ -140,6 +140,32 @@ that cluster. The cluster appears as **one logical backend** in every picker; a
 
 Secondaries can't belong to a cluster - clusters are peer-groups of primaries.
 
+### Hidden primary + read-only public nameservers (native zones)
+
+A common shape that needs one extra step: all zones are `Native`, edits happen on
+a hidden primary, and the public nameservers receive them through **database
+replication** rather than AXFR. Those public nodes typically run against a
+read-only database user.
+
+PowerDNS reports such a daemon as `primary=no, secondary=no` - identical to a
+plain standalone primary - so AuthAdmin cannot tell it apart, and by default the
+peer-selection strategy will happily route a write to it, which then fails.
+
+Tick **Never write to this backend (read-only)** on each public node (or set
+`write_mode: read_only` in provisioning YAML). That backend is then:
+
+- excluded from peer selection, so every write lands on the hidden primary;
+- excluded from the create-zone and zones-list backend pickers;
+- ineligible to be the default backend;
+- still fully browsable, and still polled for sync state and stats.
+
+Group the hidden primary and its public nodes together so the group renders as
+**Primary + secondaries** rather than a multi-primary cluster.
+
+> The **default backend** setting is unrelated: it only chooses which backend
+> serves a request that doesn't name one. It has never constrained peer
+> selection inside a group.
+
 ## DNSSEC, TSIG, autoprimaries
 
 Once a backend is connected, manage these from the zone and admin UIs (gated by

@@ -1,0 +1,1 @@
+ALTER TABLE "pdns_servers" ADD COLUMN "write_mode" text DEFAULT 'auto' NOT NULL;

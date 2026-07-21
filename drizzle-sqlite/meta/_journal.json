@@ -36,6 +36,13 @@
       "when": 1779924229752,
       "tag": "0004_black_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784668351372,
+      "tag": "0005_known_vance_astro",
+      "breakpoints": true
     }
   ]
 }

@@ -21,14 +21,15 @@ import {
   type PdnsVersionCache,
   type PdnsDaemonCapabilities,
 } from "@/lib/db/schema";
-import { isReadOnlyMirror, isWriteCapable } from "@/lib/pdns/capabilities";
+import { isReadOnlyBackend, isServerWriteTarget } from "@/lib/pdns/capabilities";
 
 /**
  * Active (non-disabled) WRITE-TARGET backends - the default for read paths
  * (zones list, dashboards, write APIs). A backend is a write target when its
  * observed capabilities report `primary`, or it hasn't been probed yet
- * (ADR-0014). Replaces the old `role='primary'` filter. Use
- * `listSecondariesForPrimary` / `listAllActiveBackends` for mirrors.
+ * (ADR-0014), and the operator hasn't overridden it to `read_only` (#111).
+ * Replaces the old `role='primary'` filter. Use `listSecondariesForPrimary` /
+ * `listAllActiveBackends` for mirrors.
  */
 export async function listActivePdnsServers(): Promise<PdnsServer[]> {
   const rows = await db
@@ -36,7 +37,7 @@ export async function listActivePdnsServers(): Promise<PdnsServer[]> {
     .from(pdnsServers)
     .where(isNull(pdnsServers.disabledAt))
     .orderBy(pdnsServers.name);
-  return rows.filter((r) => isWriteCapable(r.capabilities));
+  return rows.filter(isServerWriteTarget);
 }
 
 /** Every active backend regardless of role - for the stats sampler. */
@@ -49,10 +50,15 @@ export async function listAllActiveBackends(): Promise<PdnsServer[]> {
 }
 
 /**
- * Active secondaries that belong to NO group (`cluster_id` null) - they mirror
- * an external / unmanaged primary, so the app can only browse their zones
- * read-only. The amalgamated zones list uses this to surface those otherwise-
- * invisible zones (deduped against primary zones).
+ * Active read-only backends that belong to NO group (`cluster_id` null) - they
+ * mirror an external / unmanaged primary, so the app can only browse their
+ * zones read-only. The amalgamated zones list uses this to surface those
+ * otherwise-invisible zones (deduped against primary zones).
+ *
+ * Includes `write_mode='read_only'` backends (#111): an ungrouped node the
+ * operator has declared unwritable is browse-only in exactly the same way, and
+ * this is the path that keeps its zones visible at all - it is excluded from
+ * every write-target list by definition.
  */
 export async function listUngroupedSecondaries(): Promise<PdnsServer[]> {
   const rows = await db
@@ -60,17 +66,20 @@ export async function listUngroupedSecondaries(): Promise<PdnsServer[]> {
     .from(pdnsServers)
     .where(and(isNull(pdnsServers.disabledAt), isNull(pdnsServers.clusterId)))
     .orderBy(pdnsServers.name);
-  return rows.filter((r) => isReadOnlyMirror(r.capabilities));
+  return rows.filter(isReadOnlyBackend);
 }
 
-/** Active read-only-mirror members of a group (ADR-0014 capability classification). */
+/**
+ * Active read-only members of a group - observed AXFR mirrors (ADR-0014) plus
+ * operator-declared `read_only` backends (#111).
+ */
 export async function listClusterSecondaries(clusterId: string): Promise<PdnsServer[]> {
   const rows = await db
     .select()
     .from(pdnsServers)
     .where(and(isNull(pdnsServers.disabledAt), eq(pdnsServers.clusterId, clusterId)))
     .orderBy(pdnsServers.name);
-  return rows.filter((r) => isReadOnlyMirror(r.capabilities));
+  return rows.filter(isReadOnlyBackend);
 }
 
 /**
@@ -123,7 +132,7 @@ export async function assignServerToCluster(
 /** Write-target backends, any disabled state - for admin lists/pickers. */
 export async function listAllPrimaries(): Promise<PdnsServer[]> {
   const rows = await db.select().from(pdnsServers).orderBy(pdnsServers.name);
-  return rows.filter((r) => isWriteCapable(r.capabilities));
+  return rows.filter(isServerWriteTarget);
 }
 
 /** Find a backend by id. */
@@ -144,14 +153,15 @@ export async function findPdnsServerBySlug(slug: string): Promise<PdnsServer | n
  * active server - that one. Otherwise null.
  */
 export async function findDefaultPdnsServer(): Promise<PdnsServer | null> {
-  // The default is the implicit write target, so it must be write-capable
-  // (ADR-0014) - a read-only mirror is never the default.
+  // The default is the implicit write target, so it must be writable
+  // (ADR-0014) - neither a read-only mirror nor a `read_only` override (#111)
+  // is ever the default.
   const marked = await db
     .select()
     .from(pdnsServers)
     .where(and(eq(pdnsServers.isDefault, true), isNull(pdnsServers.disabledAt)))
     .limit(1);
-  if (marked[0] && isWriteCapable(marked[0].capabilities)) return marked[0];
+  if (marked[0] && isServerWriteTarget(marked[0])) return marked[0];
 
   const active = await listActivePdnsServers();
   return active.length === 1 ? (active[0] ?? null) : null;
