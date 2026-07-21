@@ -1,6 +1,6 @@
 {
   "name": "powerdns-authadmin",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "description": "Modern, self-hosted DNS administration UI for PowerDNS - multi-team RBAC, real audit, real SSO. From-scratch rebuild of PowerDNS-Admin in Node.js + TypeScript.",
   "license": "MIT",
@@ -111,7 +111,7 @@
     "vitest": "4.1.7"
   },
   "overrides": {
-    "comment": "Transitive-dep CVE patches (dev/build-only deps). Revisit when upstream ships fixes.",
+    "comment": "Transitive-dep CVE patches. Revisit when upstream ships fixes.",
     "@esbuild-kit/core-utils": {
       "esbuild": "0.25.12"
     },
@@ -119,6 +119,8 @@
       "esbuild": "0.28.1"
     },
     "postcss": "$postcss",
-    "size-sensor": "1.0.3"
+    "size-sensor": "1.0.3",
+    "sharp-comment": "RUNTIME dep, unlike the rest here: next/image needs sharp to optimize images in production. next@16 still declares ^0.34.5, but every 0.34.x inherits the libvips CVEs in GHSA-f88m-g3jw-g9cj, and npm audit's only suggested fix is downgrading to next@14. Pinning forward to 0.35.x is the sane direction; drop this once next widens its range.",
+    "sharp": "^0.35.3"
   }
 }

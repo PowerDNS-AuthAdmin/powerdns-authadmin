@@ -37,6 +37,12 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.5.2 (from 1.5.1)
+
+No migration and no code change - pull the new tag and recreate the container.
+Pins `sharp` forward to `^0.35.3` to clear the inherited libvips CVEs in
+[GHSA-f88m-g3jw-g9cj](https://github.com/advisories/GHSA-f88m-g3jw-g9cj).
+
 ### Upgrading to 1.5.1 (from 1.5.0)
 
 No migration, no schema change, no config change - pull the new tag and

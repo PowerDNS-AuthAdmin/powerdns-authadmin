@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-07-22
+
+Dependency security release. No code change, no migration.
+
+### Security - sharp / libvips CVEs (GHSA-f88m-g3jw-g9cj)
+
+`sharp` below 0.35.0 inherits four libvips CVEs (CVE-2026-33327, CVE-2026-33328,
+CVE-2026-35590, CVE-2026-35591). It reaches us as a transitive **runtime**
+dependency of `next`, which uses it to optimize images in production - and
+`next/image` is used here, so it isn't dead weight we could simply drop.
+
+`next@16` still declares `sharp: ^0.34.5`, and every 0.34.x is affected. `npm
+audit`'s only suggested remedy is downgrading to `next@14`, which is a far
+bigger regression than the bug. Pinned forward with an `overrides` entry to
+`^0.35.3` instead.
+
+Verified rather than assumed, since this forces a version outside the range
+Next declares: sharp loads against libvips 8.18.3, resize/webp/avif round-trips
+succeed, and a full production build completes. Remove the override once Next
+widens its range.
+
 ## [1.5.1] - 2026-07-22
 
 Bug-fix release. No migration, no schema change, no config change. Three
@@ -1303,7 +1324,8 @@ First production release.
 - **Distribution** - multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.2...HEAD
+[1.5.2]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.3...v1.5.0
 [1.4.3]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.2...v1.4.3
