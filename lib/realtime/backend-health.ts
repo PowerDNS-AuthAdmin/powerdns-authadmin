@@ -33,6 +33,7 @@ import {
 } from "@/lib/db/repositories/pdns-servers";
 import { getPdnsProbeClientForRow } from "@/lib/pdns/registry";
 import type { PdnsClient } from "@/lib/pdns/client";
+import type { PdnsVersionCache } from "@/lib/pdns/types";
 import { deriveCapabilities } from "@/lib/pdns/capabilities";
 import { safeConfigSettings } from "@/lib/pdns/config-advice";
 import { writeDaemonConfig } from "@/lib/pdns/daemon-config-cache";
@@ -107,6 +108,17 @@ export interface BackendHealthOutcome {
   authError: boolean;
   /** Daemon version when reachable, else the last-known (or null). */
   version: string | null;
+  /**
+   * The version snapshot as it stands after this probe - version, serverId and
+   * the derived capability flags. Returned explicitly rather than leaving
+   * callers to read the mutation `probeDaemonMeta` makes on the passed row,
+   * so the contract is visible in the type.
+   *
+   * Null when the backend has never been version-probed successfully. That is
+   * reachable-but-no-cache: `listZones` can succeed while the `/api/v1/servers`
+   * version probe fails, so consumers must treat this as genuinely optional.
+   */
+  versionCache: PdnsVersionCache | null;
 }
 
 /**
@@ -198,7 +210,7 @@ export async function refreshBackendHealth(
     );
   }
 
-  return { reachable, authError, version };
+  return { reachable, authError, version, versionCache: backend.versionCache ?? null };
 }
 
 /**

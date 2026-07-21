@@ -38,7 +38,26 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
 
     const outcome = await refreshBackendHealth(row, { immediate: true });
     if (outcome.reachable) {
-      return Response.json({ ok: true, cache: { version: outcome.version }, requestId });
+      // Send the whole snapshot the panel renders - version, serverId and the
+      // capability flags. It previously returned only `version`, so the client
+      // dereferenced `cache.capabilities.supportsExtendPrune` on undefined and
+      // the panel crashed on every successful test.
+      //
+      // `versionCache` stays nullable on purpose: listZones can succeed while
+      // the version probe fails, and a never-probed backend has no snapshot at
+      // all. The client renders the capability list only when it's present.
+      const cache = outcome.versionCache;
+      return Response.json({
+        ok: true,
+        cache: cache
+          ? {
+              version: cache.version,
+              serverId: cache.serverId,
+              capabilities: cache.capabilities,
+            }
+          : { version: outcome.version },
+        requestId,
+      });
     }
     // Unreachable outcomes ride back in the body (200) so the admin form shows
     // them inline rather than as an HTTP error.

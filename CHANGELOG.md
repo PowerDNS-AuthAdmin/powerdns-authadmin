@@ -6,6 +6,54 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-07-22
+
+Bug-fix release. No migration, no schema change, no config change. Three
+long-standing defects that predate 1.5.0 - none were introduced by it.
+
+### Fixed - "Test connection" crashed the result panel
+
+Clicking **Test connection** on a _reachable_ backend blanked the panel with
+`Cannot read properties of undefined (reading 'supportsExtendPrune')`.
+
+The endpoint returned only `cache: { version }`, while the panel rendered
+`cache.capabilities.supportsExtendPrune` behind a guard that checked `cache`
+alone. Any successful test therefore dereferenced `undefined`. Present since
+1.4.0.
+
+Both halves are fixed rather than just the crash: `refreshBackendHealth()` now
+returns the version snapshot explicitly as part of `BackendHealthOutcome`, the
+route sends the full shape (version, server id, capability flags), and the
+panel treats the snapshot as genuinely optional. That last part matters on its
+own - `listZones` can succeed while the version probe fails, so a successful
+test legitimately has no capability data, and the panel now says so instead of
+throwing.
+
+### Fixed - favicon rendered inconsistently across browsers
+
+The icon drew its `{}` mark with `<text font-family="monospace">`, leaving the
+glyph at the mercy of whichever font each browser's favicon rasterizer
+resolved. Firefox looked right; Safari came out cramped and misaligned. The
+mark is now stroked paths, so it carries its own geometry and rasterizes
+identically everywhere.
+
+### Fixed - error spam from `/favicon.ico` on every page load
+
+Production logs carried two recurring errors:
+
+```
+Failed to update prerender cache for /favicon.ico
+  Error: LRUCache: calculateSize returned 0, but size must be > 0
+TypeError: Response constructor: Invalid response status code 204
+```
+
+Both came from one cause. The route answered with `204 No Content`, and 204 is
+a _null-body_ status: the empty response made Next's prerender cache compute a
+zero size and refuse to store it, and replaying the entry reconstructed
+`new Response(body, { status: 204 })`, which the Response constructor rejects.
+The route now serves the icon itself with a `200`. Present since the initial
+commit.
+
 ## [1.5.0] - 2026-07-22
 
 Feature and security release. One additive migration (`pdns_servers.write_mode`,
@@ -1255,7 +1303,8 @@ First production release.
 - **Distribution** - multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.3...v1.5.0
 [1.4.3]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.1...v1.4.2

@@ -37,6 +37,14 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.5.1 (from 1.5.0)
+
+No migration, no schema change, no config change - pull the new tag and
+recreate the container. Fixes three defects that predate 1.5.0: **Test
+connection** crashing the result panel on a reachable backend, the favicon
+rendering inconsistently in Safari, and recurring `/favicon.ico` prerender-cache
+errors in the container logs.
+
 ### Upgrading to 1.5.0 (from 1.4.3)
 
 One additive migration, no breaking changes - pull the new tag and recreate the

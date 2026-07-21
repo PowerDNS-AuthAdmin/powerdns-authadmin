@@ -32,8 +32,15 @@ interface TestResponse {
   persisted?: boolean;
   cache?: {
     version: string;
-    serverId: string;
-    capabilities: {
+    /**
+     * Both optional on purpose. `listZones` (the reachability probe) can
+     * succeed while the version probe fails, and a backend that has never been
+     * probed has no snapshot at all - so a successful test legitimately comes
+     * back with nothing but a version. Rendering these unconditionally is what
+     * threw "Cannot read properties of undefined (reading 'supportsExtendPrune')".
+     */
+    serverId?: string;
+    capabilities?: {
       supportsExtendPrune: boolean;
       supportsCatalogZones: boolean;
       supportsViews: boolean;
@@ -142,16 +149,24 @@ export function ServerActions({ id }: ServerActionsProps) {
               {result.cache ? (
                 <ul className="mt-2 list-disc pl-5 text-xs">
                   <li>PDNS version: {result.cache.version}</li>
-                  <li>Server id: {result.cache.serverId}</li>
-                  <li>
-                    EXTEND/PRUNE: {result.cache.capabilities.supportsExtendPrune ? "yes" : "no"}
-                  </li>
-                  <li>
-                    Catalog zones: {result.cache.capabilities.supportsCatalogZones ? "yes" : "no"}
-                  </li>
-                  <li>
-                    Views (split-horizon): {result.cache.capabilities.supportsViews ? "yes" : "no"}
-                  </li>
+                  {result.cache.serverId ? <li>Server id: {result.cache.serverId}</li> : null}
+                  {result.cache.capabilities ? (
+                    <>
+                      <li>
+                        EXTEND/PRUNE: {result.cache.capabilities.supportsExtendPrune ? "yes" : "no"}
+                      </li>
+                      <li>
+                        Catalog zones:{" "}
+                        {result.cache.capabilities.supportsCatalogZones ? "yes" : "no"}
+                      </li>
+                      <li>
+                        Views (split-horizon):{" "}
+                        {result.cache.capabilities.supportsViews ? "yes" : "no"}
+                      </li>
+                    </>
+                  ) : (
+                    <li>Capabilities: not probed yet - reachable, but the version probe failed.</li>
+                  )}
                 </ul>
               ) : null}
               {result.persisted ? (
