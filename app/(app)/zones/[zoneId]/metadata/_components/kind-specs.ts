@@ -80,6 +80,12 @@ export const KIND_SPECS: Record<string, KindShape> = {
     type: "string",
     description: "Local IP used as the source for outgoing AXFR.",
   },
+  "ENABLE-LUA-RECORDS": {
+    type: "bool",
+    description:
+      "Allow trusted PowerDNS Lua records in this zone. Lua records execute code inside the authoritative server.",
+    apiWritable: false,
+  },
   "FORWARD-DNSUPDATE": {
     type: "bool",
     description: "Forward dynamic updates to the configured primary.",
