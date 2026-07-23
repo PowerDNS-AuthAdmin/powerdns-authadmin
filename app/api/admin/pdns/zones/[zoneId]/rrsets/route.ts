@@ -145,6 +145,34 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     // role (a primary box can still host mirror zones).
     assertEditableZoneKind(zoneBefore.kind);
 
+    // LUA records execute code inside the authoritative server. AuthAdmin
+    // cannot discover whether the daemon-wide enable-lua-records setting is
+    // active, so require the explicit per-zone metadata opt-in. Re-read it
+    // immediately so a crafted request or stale tab cannot bypass the guard.
+    const upsertsLua = input.changes.some(
+      (change) => change.kind === "upsert" && change.type === "LUA",
+    );
+    if (upsertsLua) {
+      let metadata;
+      try {
+        metadata = await client.listZoneMetadata(zoneName);
+      } catch (err) {
+        if (err instanceof PdnsError) {
+          throw new ValidationError(`Could not verify ENABLE-LUA-RECORDS: ${redact(err.message)}`);
+        }
+        throw err;
+      }
+      const enabled = metadata.some(
+        (item) =>
+          item.kind === "ENABLE-LUA-RECORDS" && item.metadata.some((value) => value.trim() === "1"),
+      );
+      if (!enabled) {
+        throw new ValidationError(
+          "LUA records require ENABLE-LUA-RECORDS to be set to 1 in this zone's metadata.",
+        );
+      }
+    }
+
     // NOTE: zone-level edited_serial concurrency check was removed - it had
     // the wrong granularity (every successful edit advances the zone's serial
     // so consecutive edits in the same session falsely 409'd against the

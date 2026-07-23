@@ -294,6 +294,29 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   const canReadDnssec = zoneCan("dnssec.read");
   const canReadMetadata = zoneCan("metadata.read");
 
+  // LUA records are executable server-side code. AuthAdmin cannot discover
+  // whether the daemon-wide enable-lua-records setting is active, so editing
+  // requires the explicit per-zone metadata opt-in. Read it even for users
+  // without metadata.read: only the resulting capability bit reaches the
+  // record editor, not the metadata bag itself. A read failure fails closed.
+  let luaRecordsEnabled = false;
+  try {
+    const zoneMetadata = await client.listZoneMetadata(canonical);
+    luaRecordsEnabled = zoneMetadata.some(
+      (item) =>
+        item.kind === "ENABLE-LUA-RECORDS" && item.metadata.some((value) => value.trim() === "1"),
+    );
+  } catch (err) {
+    logger.warn(
+      {
+        server: selected.slug,
+        zone: canonical,
+        error: err instanceof Error ? redact(err.message) : "Unknown error",
+      },
+      "zone.lua-metadata.read.failed",
+    );
+  }
+
   // Direct ?tab=sync / ?tab=statistics on a polling-off install bounces
   // back to the default records view with an error flash toast - these
   // surfaces are powered by the background poller, which is opt-in
@@ -445,6 +468,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
               canCreate={canCreate}
               canUpdate={canUpdate}
               canDelete={canDelete}
+              luaRecordsEnabled={luaRecordsEnabled}
             />
           ) : (
             <RecordTable

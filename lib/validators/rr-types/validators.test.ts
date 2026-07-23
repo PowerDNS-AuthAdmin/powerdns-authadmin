@@ -15,6 +15,7 @@ import { caaValidator } from "./caa";
 import { cnameValidator } from "./cname";
 import { dnameValidator } from "./dname";
 import { dsValidator } from "./ds";
+import { luaValidator } from "./lua";
 import { mxValidator } from "./mx";
 import { naptrValidator } from "./naptr";
 import { nsValidator } from "./ns";
@@ -878,6 +879,51 @@ describe("NAPTR validator", () => {
     // regexp rewrite step with no terminal classification.
     const r = naptrValidator.validate('100 10 "" "E2U+sip" "!^.*$!sip:x@y.example!" .');
     expect(r.issues.filter((i) => i.level === "error")).toEqual([]);
+  });
+});
+
+describe("LUA validator", () => {
+  it("accepts a typical PowerDNS ifportup expression", () => {
+    const r = luaValidator.validate(`A "ifportup(443, {'192.0.2.1', '192.0.2.2'})"`);
+    expect(hasErrors(r)).toBe(false);
+  });
+
+  it("accepts full scripts and LUA configuration selectors", () => {
+    expect(hasErrors(luaValidator.validate(`TXT ";return 'hello'"`))).toBe(false);
+    expect(hasErrors(luaValidator.validate(`LUA "settings={selector='pickclosest'}"`))).toBe(false);
+  });
+
+  it("normalizes the query type to uppercase", () => {
+    const r = luaValidator.validate(`a "'192.0.2.1'"`);
+    expect(hasErrors(r)).toBe(false);
+    expect(r.normalized).toBe(`A "'192.0.2.1'"`);
+  });
+
+  it("accepts adjacent quoted segments for AXFR-safe long snippets", () => {
+    const r = luaValidator.validate(`A "ifportup(443, " "{'192.0.2.1'})"`);
+    expect(hasErrors(r)).toBe(false);
+  });
+
+  it("rejects missing, unquoted, empty, and unterminated snippets", () => {
+    expect(hasErrors(luaValidator.validate("A"))).toBe(true);
+    expect(hasErrors(luaValidator.validate("A ifportup(443, {'192.0.2.1'})"))).toBe(true);
+    expect(hasErrors(luaValidator.validate('A ""'))).toBe(true);
+    expect(hasErrors(luaValidator.validate('A "ifportup(443)'))).toBe(true);
+  });
+
+  it("rejects malformed query types and literal newlines", () => {
+    expect(hasErrors(luaValidator.validate(`A! "'192.0.2.1'"`))).toBe(true);
+    expect(hasErrors(luaValidator.validate(`TYPE99999 "'192.0.2.1'"`))).toBe(true);
+    expect(hasErrors(luaValidator.validate(`TYPEABC "'192.0.2.1'"`))).toBe(true);
+    expect(hasErrors(luaValidator.validate('A "line one\nline two"'))).toBe(true);
+  });
+
+  it("warns when one quoted segment exceeds the AXFR 255-octet boundary", () => {
+    const long = luaValidator.validate(`TXT "${"a".repeat(256)}"`);
+    expect(long.issues.some((i) => i.level === "warning" && i.message.includes("255"))).toBe(true);
+
+    const split = luaValidator.validate(`TXT "${"a".repeat(200)}" "${"b".repeat(200)}"`);
+    expect(split.issues.some((i) => i.message.includes("255"))).toBe(false);
   });
 });
 
