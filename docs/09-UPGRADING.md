@@ -37,6 +37,19 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.5.3 (from 1.5.2)
+
+No migration and no code change to your data - pull the new tag and recreate the
+container. Adds PowerDNS Lua record editing (only where the daemon has Lua
+enabled) and bumps `next` to 16.2.12 and `postcss` to 8.5.18 for the advisories
+noted in the [CHANGELOG](../CHANGELOG.md#153---2026-07-26).
+
+To use Lua records, enable them on the PowerDNS host - either globally with
+`enable-lua-records` in `pdns.conf`, or per zone with
+`pdnsutil set-meta <zone> ENABLE-LUA-RECORDS 1`. AuthAdmin cannot set that flag
+itself (PowerDNS does not expose it for writing over the API) and reflects
+whichever you chose.
+
 ### Upgrading to 1.5.2 (from 1.5.1)
 
 No migration and no code change - pull the new tag and recreate the container.
