@@ -6,6 +6,50 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.5.3] - 2026-07-26
+
+Feature + dependency-security release. No migration, no schema change.
+
+### Added - PowerDNS Lua records
+
+Forward and reverse zone editors can now create and edit PowerDNS `LUA` records,
+with type-aware validation of the presentation format (`<query-type> "<Lua
+snippet>"`, adjacent quoted chunks, `\DDD` escapes, the 255-octet AXFR
+boundary). Because a `LUA` record is server-side code, the editor only offers
+the type - and the write path only accepts it - when PowerDNS actually has Lua
+enabled for the zone.
+
+Enablement is read from PowerDNS itself and honours **both** signals the daemon
+uses: the global `enable-lua-records` setting (`GET /config`) **or** the
+per-zone `ENABLE-LUA-RECORDS` domain metadata. Verified against pdns-auth
+4.9.16: the per-zone flag is not writable through the API (`pdnsutil` /
+`pdns.conf` own it), and it is returned only by the metadata **list** endpoint,
+so AuthAdmin never tries to set it and reads it where it actually appears. The
+write path re-reads this live on every Lua upsert and fails closed, so a stale
+tab or crafted request can't create a Lua record on a server that has Lua off.
+
+Thanks to @Der-Jan for the original feature (#115).
+
+### Changed - metadata write-policy is now enforced, not just hinted
+
+Which zone-metadata kinds are read-only now lives in one place
+(`lib/pdns/metadata-policy`) that both the UI and the write path consult, so the
+metadata tab hides exactly the kinds the API refuses. Writes to a read-only kind
+(the DNSSEC signing state, the AXFR TSIG bindings, `ENABLE-LUA-RECORDS`) are
+declined at the boundary with a clear message instead of being forwarded to
+PowerDNS for a raw 422. All the kinds in that set were verified to reject `PUT`
+and `DELETE` on pdns-auth 4.9.16.
+
+### Security - `next` and `postcss` advisories
+
+- `next` bumped `16.2.6 → 16.2.12`, clearing the high-severity App Router
+  advisories fixed in 16.2.11 (middleware/proxy bypass, Server Actions DoS/SSRF,
+  rewrite SSRF, and the moderate cache/disclosure issues).
+- `postcss` pinned forward `8.5.15 → 8.5.18` for the path-traversal in source-map
+  auto-loading ([GHSA-r28c-9q8g-f849](https://github.com/advisories/GHSA-r28c-9q8g-f849)),
+  a transitive of `next`. The advisory was published after 1.5.2 shipped;
+  `npm audit --audit-level=high --omit=dev` is clean on 8.5.18.
+
 ## [1.5.2] - 2026-07-22
 
 Dependency security release. No code change, no migration.

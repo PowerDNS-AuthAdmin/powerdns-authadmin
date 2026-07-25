@@ -19,6 +19,7 @@ import { cnameValidator } from "./cname";
 import { dnameValidator } from "./dname";
 import { dsValidator } from "./ds";
 import { makeGenericValidator } from "./generic";
+import { luaValidator } from "./lua";
 import { mxValidator } from "./mx";
 import { naptrValidator } from "./naptr";
 import { nsValidator } from "./ns";
@@ -54,6 +55,7 @@ const REGISTRY = new Map<string, RRTypeValidator>(
     openpgpkeyValidator,
     svcbValidator,
     httpsValidator,
+    luaValidator,
   ].map((v) => [v.type, v]),
 );
 
@@ -82,17 +84,19 @@ export const SUPPORTED_TYPES: readonly string[] = [
   "OPENPGPKEY",
   "SVCB",
   "HTTPS",
+  "LUA",
 ];
 
 /**
  * Record types that belong in a reverse zone. PTR is the primary
  * purpose; NS / DNAME / CNAME cover RFC 2317-style classless reverse
  * delegations; TXT is occasionally used for ownership / contact notes.
+ * LUA is included because PowerDNS supports scripted reverse answers.
  * Everything else (A, MX, SRV, …) is semantically nonsensical in an
  * `in-addr.arpa` / `ip6.arpa` zone and would only ever land there by
  * accident.
  */
-export const REVERSE_ZONE_TYPES: readonly string[] = ["PTR", "NS", "DNAME", "CNAME", "TXT"];
+export const REVERSE_ZONE_TYPES: readonly string[] = ["PTR", "NS", "DNAME", "CNAME", "TXT", "LUA"];
 
 /**
  * Forward zones get the full menu minus PTR - PTR in a forward zone

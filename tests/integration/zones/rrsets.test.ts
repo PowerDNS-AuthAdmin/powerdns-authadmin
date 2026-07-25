@@ -175,4 +175,27 @@ describe("PATCH /api/admin/pdns/zones/[zoneId]/rrsets", () => {
     ]);
     expect(res.status).toBe(400);
   }, 15_000);
+
+  // The demo stack runs with enable-lua-records=no and a fresh zone carries no
+  // ENABLE-LUA-RECORDS metadata, so a LUA upsert must be refused. The ENABLED
+  // path can't be arranged here (ENABLE-LUA-RECORDS is not API-writable and the
+  // global setting is fixed for the stack) - it's covered by the unit tests for
+  // isLuaEnabledByZoneMetadata / isLuaEnabledGlobally.
+  it("refuses to create a LUA record when Lua is not enabled for the zone (400)", async () => {
+    const admin = await loginAsBootstrap();
+    const zone = randomZone();
+    await createZone(admin, zone);
+    const res = await patchRRsets(admin, zone, [
+      {
+        kind: "upsert",
+        name: zone,
+        type: "LUA",
+        ttl: 300,
+        records: [{ content: `A "192.0.2.1"` }],
+      },
+    ]);
+    expect(res.status).toBe(400);
+    // The record never reached PDNS.
+    expect(await findRRset(zone, zone, "LUA")).toBeUndefined();
+  }, 15_000);
 });

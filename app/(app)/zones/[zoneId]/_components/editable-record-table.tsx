@@ -73,6 +73,8 @@ interface EditableRecordTableProps {
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
+  /** Live ENABLE-LUA-RECORDS=1 state for this zone. */
+  luaRecordsEnabled: boolean;
 }
 
 interface EditorState {
@@ -364,6 +366,12 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
       setEditorError("Edit SOA through the SOA panel above the records table.");
       return;
     }
+    if (editor.type === "LUA" && !props.luaRecordsEnabled) {
+      setEditorError(
+        "LUA records require ENABLE-LUA-RECORDS to be set to 1 in this zone's metadata.",
+      );
+      return;
+    }
 
     const validation = getRRTypeValidator(editor.type).validate(editor.value);
     if (hasErrors(validation) && !overrideErrors) {
@@ -611,7 +619,9 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                     });
                   }}
                   options={(() => {
-                    const allowed = typesForZone(props.zoneName);
+                    const allowed = typesForZone(props.zoneName).filter(
+                      (type) => type !== "LUA" || props.luaRecordsEnabled,
+                    );
                     const opts =
                       editor.mode === "edit" && !allowed.includes(editor.type)
                         ? [editor.type, ...allowed]
@@ -621,6 +631,12 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                   ariaLabel="Type"
                   className="mt-1 w-full"
                 />
+                {!props.luaRecordsEnabled ? (
+                  <p className="mt-1 text-[0.6875rem] text-[color:var(--color-fg-muted)]">
+                    To add LUA records through AuthAdmin, set <code>ENABLE-LUA-RECORDS</code> to{" "}
+                    <code>1</code> for this zone on the PowerDNS host.
+                  </p>
+                ) : null}
               </Field>
             </div>
 
