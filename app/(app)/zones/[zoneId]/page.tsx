@@ -31,6 +31,11 @@ import { findPdnsRequestsByRequestIds } from "@/lib/db/repositories/pdns-request
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { normalizeZoneId } from "@/lib/pdns/client";
 import { zoneCapabilities } from "@/lib/pdns/writable-kind";
+import {
+  ENABLE_LUA_RECORDS_SETTING,
+  isLuaEnabledByZoneMetadata,
+  isLuaEnabledGlobally,
+} from "@/lib/pdns/metadata-policy";
 import { normalizeMaster } from "@/lib/pdns/topology";
 import { derivedUpstreamFor } from "@/lib/pdns/topology-cache";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
@@ -294,27 +299,32 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   const canReadDnssec = zoneCan("dnssec.read");
   const canReadMetadata = zoneCan("metadata.read");
 
-  // LUA records are executable server-side code. AuthAdmin cannot discover
-  // whether the daemon-wide enable-lua-records setting is active, so editing
-  // requires the explicit per-zone metadata opt-in. Read it even for users
-  // without metadata.read: only the resulting capability bit reaches the
-  // record editor, not the metadata bag itself. A read failure fails closed.
+  // LUA records are executable server-side code, so the editor only offers the
+  // LUA type when PowerDNS actually has Lua enabled for this zone - the global
+  // enable-lua-records setting or the per-zone ENABLE-LUA-RECORDS metadata.
+  // Only editors need the bit, so read-only viewers skip the extra PDNS reads;
+  // the metadata read short-circuits the config read; only the derived boolean
+  // (never the metadata bag) reaches the client; a read failure fails closed.
   let luaRecordsEnabled = false;
-  try {
-    const zoneMetadata = await client.listZoneMetadata(canonical);
-    luaRecordsEnabled = zoneMetadata.some(
-      (item) =>
-        item.kind === "ENABLE-LUA-RECORDS" && item.metadata.some((value) => value.trim() === "1"),
-    );
-  } catch (err) {
-    logger.warn(
-      {
-        server: selected.slug,
-        zone: canonical,
-        error: err instanceof Error ? redact(err.message) : "Unknown error",
-      },
-      "zone.lua-metadata.read.failed",
-    );
+  if (canEdit) {
+    try {
+      const zoneMetadata = await client.listZoneMetadata(canonical);
+      luaRecordsEnabled = isLuaEnabledByZoneMetadata(zoneMetadata);
+      if (!luaRecordsEnabled) {
+        const config = await client.getConfig();
+        const globalSetting = config.find((row) => row.name === ENABLE_LUA_RECORDS_SETTING)?.value;
+        luaRecordsEnabled = isLuaEnabledGlobally(globalSetting);
+      }
+    } catch (err) {
+      logger.warn(
+        {
+          server: selected.slug,
+          zone: canonical,
+          error: err instanceof Error ? redact(err.message) : "Unknown error",
+        },
+        "zone.lua-enablement.read.failed",
+      );
+    }
   }
 
   // Direct ?tab=sync / ?tab=statistics on a polling-off install bounces

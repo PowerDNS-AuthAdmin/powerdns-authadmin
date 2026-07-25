@@ -8,19 +8,15 @@
  * with no validation - that covers `X-`-prefixed custom kinds and
  * any new kinds future PDNS versions add.
  *
- * `apiWritable: false` is set for kinds PDNS consistently lists in
- * `protectedOptions` across recent 4.x versions - DNSSEC state
- * (NSEC3PARAM, NSEC3NARROW, PRESIGNED) plus a couple of others that
- * the daemon owns (LUA-AXFR-SCRIPT, AXFR-MASTER-TSIG, TSIG-ALLOW-AXFR).
- * Those should be changed via the right PDNS surface (cryptokeys /
- * `pdnsutil`), not the metadata API. SOA-EDIT, SOA-EDIT-API and
- * API-RECTIFY are NOT metadata-API kinds at all on any current PDNS -
- * they're zone-object fields, so they live on `ZoneSettingsPanel`
- * instead of here.
+ * Which kinds are read-only via the API is NOT decided here - it lives in
+ * `lib/pdns/metadata-policy` (`isKindApiWritable` re-exports it below) so the
+ * UI hides exactly the kinds the route refuses. SOA-EDIT, SOA-EDIT-API and
+ * API-RECTIFY are NOT metadata-API kinds at all on any current PDNS - they're
+ * zone-object fields, so they live on `ZoneSettingsPanel` (see
+ * `ZONE_OBJECT_KINDS`) instead of here.
  */
 interface KindShapeBase {
   description: string;
-  apiWritable?: boolean;
 }
 export type KindShape = KindShapeBase &
   (
@@ -74,7 +70,6 @@ export const KIND_SPECS: Record<string, KindShape> = {
   "AXFR-MASTER-TSIG": {
     type: "string",
     description: "TSIG key name used when this server pulls AXFR from its primary.",
-    apiWritable: false,
   },
   "AXFR-SOURCE": {
     type: "string",
@@ -84,7 +79,6 @@ export const KIND_SPECS: Record<string, KindShape> = {
     type: "bool",
     description:
       "Allow trusted PowerDNS Lua records in this zone. Lua records execute code inside the authoritative server.",
-    apiWritable: false,
   },
   "FORWARD-DNSUPDATE": {
     type: "bool",
@@ -105,7 +99,6 @@ export const KIND_SPECS: Record<string, KindShape> = {
   "LUA-AXFR-SCRIPT": {
     type: "string",
     description: "Path to a Lua script invoked during AXFR.",
-    apiWritable: false,
   },
   "NOTIFY-DNSUPDATE": {
     type: "bool",
@@ -114,17 +107,14 @@ export const KIND_SPECS: Record<string, KindShape> = {
   NSEC3NARROW: {
     type: "bool",
     description: "Use NSEC3 narrow mode for this zone.",
-    apiWritable: false,
   },
   NSEC3PARAM: {
     type: "string",
     description: "NSEC3 parameters: <hash-algo> <flags> <iterations> <salt>. e.g. '1 0 1 abcd'.",
-    apiWritable: false,
   },
   PRESIGNED: {
     type: "bool",
     description: "The zone is signed externally; PDNS won't sign.",
-    apiWritable: false,
   },
   "PUBLISH-CDNSKEY": {
     type: "bool",
@@ -147,7 +137,6 @@ export const KIND_SPECS: Record<string, KindShape> = {
     type: "list",
     description: "TSIG key name(s) allowed to authorize a zone transfer.",
     lineHint: "key-name",
-    apiWritable: false,
   },
   "TSIG-ALLOW-DNSUPDATE": {
     type: "list",
@@ -166,18 +155,12 @@ export function getKindSpec(kind: string): KindShape {
 }
 
 /**
- * Whether the kind can be set via the PDNS HTTP API on a typical 4.9-era
- * server. Custom `X-`-prefixed kinds are always writable. Kinds we
- * explicitly flag with `apiWritable: false` (protected per PDNS source)
- * return false. Unknown kinds default to true - let the server reject
- * if it doesn't recognize them.
+ * Whether the kind can be set via the PDNS HTTP API. Delegates to the shared
+ * write-path policy so the metadata tab hides exactly the kinds the route
+ * refuses - one source of truth, no drift between what the UI offers and what
+ * the server accepts.
  */
-export function isKindApiWritable(kind: string): boolean {
-  if (kind.startsWith("X-")) return true;
-  const spec = KIND_SPECS[kind];
-  if (!spec) return true;
-  return spec.apiWritable !== false;
-}
+export { isApiWritableMetadataKind as isKindApiWritable } from "@/lib/pdns/metadata-policy";
 
 /** True values per PDNS convention: `1`, `yes`, `true` (case-insensitive). */
 export function isBoolTrue(v: string): boolean {

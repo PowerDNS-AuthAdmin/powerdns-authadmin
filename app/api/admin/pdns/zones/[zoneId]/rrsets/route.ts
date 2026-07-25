@@ -39,8 +39,13 @@ import { logger } from "@/lib/logger";
 import { redact } from "@/lib/errors/redact";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
 import { assertEditableZoneKind } from "@/lib/pdns/writable-kind";
+import {
+  ENABLE_LUA_RECORDS_SETTING,
+  isLuaEnabledByZoneMetadata,
+  isLuaEnabledGlobally,
+} from "@/lib/pdns/metadata-policy";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
-import { normalizeZoneId } from "@/lib/pdns/client";
+import { normalizeZoneId, type PdnsClient } from "@/lib/pdns/client";
 import { deleteRRset, replaceRRset, zonePatchBody, type RRsetPatch } from "@/lib/pdns/rrsets";
 import { detectRRsetConflicts } from "@/lib/pdns/rrset-hash";
 import { PdnsError, PdnsNotFoundError } from "@/lib/pdns/errors";
@@ -70,6 +75,41 @@ function dedupeRecordsByContent<T extends { content: string; disabled?: boolean 
     else if (existing.disabled && !r.disabled) byContent.set(r.content, r);
   }
   return [...byContent.values()];
+}
+
+/**
+ * Gate a Lua-record write on PowerDNS actually having Lua enabled for this
+ * zone - either the daemon-global `enable-lua-records` setting OR the per-zone
+ * `ENABLE-LUA-RECORDS` metadata (see ADR / lib/pdns/metadata-policy). Both are
+ * read live here rather than trusting the client, and any read failure denies
+ * the write (fail-closed). The metadata read short-circuits the config read.
+ */
+async function assertZoneAllowsLua(client: PdnsClient, zoneName: string): Promise<void> {
+  // A PDNS read failure here must deny the write, not skip the check.
+  const readOrDeny = async <T>(read: () => Promise<T>): Promise<T> => {
+    try {
+      return await read();
+    } catch (err) {
+      if (err instanceof PdnsError) {
+        throw new ValidationError(
+          `Could not verify Lua-records enablement: ${redact(err.message)}`,
+        );
+      }
+      throw err;
+    }
+  };
+
+  const metadata = await readOrDeny(() => client.listZoneMetadata(zoneName));
+  if (isLuaEnabledByZoneMetadata(metadata)) return;
+
+  const config = await readOrDeny(() => client.getConfig());
+  const globalSetting = config.find((row) => row.name === ENABLE_LUA_RECORDS_SETTING)?.value;
+  if (isLuaEnabledGlobally(globalSetting)) return;
+
+  throw new ValidationError(
+    "LUA records are not enabled for this zone. Enable them on the PowerDNS host - set " +
+      "enable-lua-records globally, or the ENABLE-LUA-RECORDS metadata on this zone via pdnsutil.",
+  );
 }
 
 export async function PATCH(request: Request, context: RouteContext): Promise<Response> {
@@ -145,32 +185,12 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     // role (a primary box can still host mirror zones).
     assertEditableZoneKind(zoneBefore.kind);
 
-    // LUA records execute code inside the authoritative server. AuthAdmin
-    // cannot discover whether the daemon-wide enable-lua-records setting is
-    // active, so require the explicit per-zone metadata opt-in. Re-read it
-    // immediately so a crafted request or stale tab cannot bypass the guard.
-    const upsertsLua = input.changes.some(
-      (change) => change.kind === "upsert" && change.type === "LUA",
-    );
-    if (upsertsLua) {
-      let metadata;
-      try {
-        metadata = await client.listZoneMetadata(zoneName);
-      } catch (err) {
-        if (err instanceof PdnsError) {
-          throw new ValidationError(`Could not verify ENABLE-LUA-RECORDS: ${redact(err.message)}`);
-        }
-        throw err;
-      }
-      const enabled = metadata.some(
-        (item) =>
-          item.kind === "ENABLE-LUA-RECORDS" && item.metadata.some((value) => value.trim() === "1"),
-      );
-      if (!enabled) {
-        throw new ValidationError(
-          "LUA records require ENABLE-LUA-RECORDS to be set to 1 in this zone's metadata.",
-        );
-      }
+    // LUA records execute code inside the authoritative server, so refuse to
+    // create one unless PowerDNS actually has Lua enabled here. Verified live
+    // (below) so a crafted request or a stale tab can't bypass a disabled
+    // server; any read failure denies the write.
+    if (input.changes.some((change) => change.kind === "upsert" && change.type === "LUA")) {
+      await assertZoneAllowsLua(client, zoneName);
     }
 
     // NOTE: zone-level edited_serial concurrency check was removed - it had

@@ -105,4 +105,33 @@ describe("zone metadata PUT/DELETE", () => {
     );
     expect(res.status).toBe(400);
   }, 15_000);
+
+  // AuthAdmin refuses read-only kinds at the boundary (403) rather than
+  // forwarding them for PowerDNS's own 422 - verified against 4.9.16 that PUT
+  // and DELETE on each of these are rejected by the daemon.
+  for (const kind of ["ENABLE-LUA-RECORDS", "NSEC3PARAM", "TSIG-ALLOW-AXFR"]) {
+    it(`refuses to PUT the read-only kind ${kind} with 403`, async () => {
+      const admin = await loginAsBootstrap();
+      const zone = randomZone();
+      await createZone(admin, zone);
+      const res = await admin.call(
+        `/api/admin/pdns/zones/${encodeURIComponent(zone)}/metadata/${kind}`,
+        { method: "PUT", json: { serverSlug: "standalone", values: ["1"] } },
+      );
+      expect(res.status).toBe(403);
+      // The write never reached PDNS.
+      expect(await pdnsGetMetadata(zone, kind)).toBeNull();
+    }, 15_000);
+
+    it(`refuses to DELETE the read-only kind ${kind} with 403`, async () => {
+      const admin = await loginAsBootstrap();
+      const zone = randomZone();
+      await createZone(admin, zone);
+      const res = await admin.call(
+        `/api/admin/pdns/zones/${encodeURIComponent(zone)}/metadata/${kind}?serverSlug=standalone`,
+        { method: "DELETE" },
+      );
+      expect(res.status).toBe(403);
+    }, 15_000);
+  }
 });
