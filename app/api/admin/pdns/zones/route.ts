@@ -35,6 +35,8 @@ import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
 import { publishZoneEvent } from "@/lib/realtime/event-bus";
 import { scheduleImmediatePoll } from "@/lib/realtime/zone-poller";
+import { horizonScopeFor, setZoneHorizon } from "@/lib/db/repositories/zone-horizons";
+import { DEFAULT_ZONE_HORIZON, ZONE_HORIZONS } from "@/lib/dns/zone-horizon";
 import { ConflictError, ForbiddenError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 
@@ -70,6 +72,12 @@ const createZoneSchema = z.object({
       "Zone name has invalid label characters.",
     ),
   kind: z.enum(KIND_VALUES),
+  /**
+   * Horizon classification (#121). Omitted / false means the default `public`.
+   * Purely app-side: PowerDNS has no notion of it, so it's applied after the
+   * zone exists and never blocks the create.
+   */
+  horizon: z.enum(ZONE_HORIZONS).optional(),
   /** Operator-supplied NS list. If empty AND a template is selected, the
    *  template's `nameservers` field is used. */
   nameservers: z.array(hostnameLite).max(13).default([]),
@@ -338,6 +346,32 @@ export async function POST(request: Request): Promise<Response> {
       }
     }
 
+    // Horizon classification is app-side state about a zone PowerDNS already
+    // created, so a failure here must not fail (or roll back) the create - the
+    // operator can reclassify from the zone's settings tab. Cluster zones
+    // classify against the cluster, not the peer `choosePeer` happened to pick.
+    const horizon = input.horizon ?? DEFAULT_ZONE_HORIZON;
+    if (horizon !== DEFAULT_ZONE_HORIZON) {
+      try {
+        await setZoneHorizon({
+          scope: horizonScopeFor(server),
+          zoneName,
+          horizon,
+          actorId: user.id,
+        });
+      } catch (err) {
+        logger.warn(
+          {
+            server: server.slug,
+            zone: zoneName,
+            horizon,
+            error: err instanceof Error ? redact(err.message) : "unknown",
+          },
+          "zone.create.horizon.failed",
+        );
+      }
+    }
+
     const tsigResult = input.tsigKeyName
       ? await setZoneTransferKey(server, zoneName, input.tsigKeyName, "add")
       : null;
@@ -367,6 +401,7 @@ export async function POST(request: Request): Promise<Response> {
         masters: isSecondary ? input.masters : [],
         rrsetCount: rrsets.length,
         tsigKeyName: input.tsigKeyName ?? null,
+        horizon,
       },
       request: getRequestContext(hdrs),
     });

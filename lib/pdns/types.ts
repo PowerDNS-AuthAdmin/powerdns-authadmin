@@ -342,6 +342,14 @@ export type PdnsWriteMode = "auto" | "read_only";
 export const PDNS_WRITE_MODES = ["auto", "read_only"] as const satisfies readonly PdnsWriteMode[];
 
 /**
+ * The three values PowerDNS documents for `enable-lua-records`: `no` (the
+ * default), `yes`, and `shared` (Lua state shared between threads - still
+ * armed). The older `shard` spelling and the documented empty-string alias for
+ * `yes` are normalized away before they reach this type.
+ */
+export type PdnsLuaRecordsMode = "no" | "yes" | "shared";
+
+/**
  * What a backend's daemon is OBSERVED to be willing/able to do, derived from
  * its read-only `/config` on each version probe (ADR-0014). This is the
  * per-daemon truth the app uses instead of an operator-declared `role`: a
@@ -355,6 +363,18 @@ export const PDNS_WRITE_MODES = ["auto", "read_only"] as const satisfies readonl
 export interface PdnsDaemonCapabilities {
   /** `api=yes` - the HTTP API is enabled (definitionally true if we read this). */
   api: boolean;
+  /**
+   * `enable-lua-records` - whether the daemon arms LUA records for every zone
+   * it serves, and in which mode. LUA records are executable server-side code,
+   * so this is an operator-relevant capability, not a cosmetic one: it decides
+   * whether the record editor offers the type at all.
+   *
+   * Optional: absent on snapshots taken before this field existed (#122), which
+   * readers must treat as "not observed" rather than "off" - the zone editor
+   * falls back to a live `/config` read in that case. Once observed, `"no"` is
+   * a real negative.
+   */
+  luaRecords?: PdnsLuaRecordsMode;
   /** `primary`/`master`=yes - sends NOTIFY + serves AXFR for its master zones. */
   primary: boolean;
   /** `secondary`/`slave`=yes - initiates AXFR for its slave zones. */

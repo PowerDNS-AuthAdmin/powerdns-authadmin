@@ -34,6 +34,14 @@ import {
   type SelectableBackend,
 } from "@/lib/db/repositories/selectable-backends";
 import { listUngroupedSecondaries } from "@/lib/db/repositories/pdns-servers";
+import {
+  horizonFrom,
+  horizonScopeFor,
+  loadZoneHorizonIndex,
+  type ZoneHorizonIndex,
+} from "@/lib/db/repositories/zone-horizons";
+import { DEFAULT_ZONE_HORIZON } from "@/lib/dns/zone-horizon";
+import { dedupeZonesByIdentity } from "@/lib/dns/zone-dedupe";
 import { isReadOnlyZoneKind } from "@/lib/pdns/writable-kind";
 import { latestEditTimestampsByZone } from "@/lib/db/repositories/audit-log";
 import { checkZonesSyncBatch, type SecondarySyncStatus } from "@/lib/pdns/sync";
@@ -80,8 +88,21 @@ export default async function ZonesPage() {
     return <NoServersState canCreateServer={canCreateServer} />;
   }
 
+  // Horizon classifications for the whole fleet, in one query (#121). Every row
+  // needs one, and the table only holds deliberately-classified zones, so a
+  // single indexed read beats a lookup per row.
+  const horizonIndex = await loadZoneHorizonIndex();
+
+  // Backend rows by id, so a derived secondary can inherit its primary's
+  // classification below.
+  const backendServersById = new Map<string, PdnsServer>();
+  for (const b of backends) {
+    if (b.kind === "server") backendServersById.set(b.server.id, b.server);
+    else for (const p of b.peers) backendServersById.set(p.id, p);
+  }
+
   // Build the amalgamated list from the broker store - no PDNS calls here.
-  const fetched = await Promise.all(backends.map((b) => rowsFromBackend(b)));
+  const fetched = await Promise.all(backends.map((b) => rowsFromBackend(b, horizonIndex)));
 
   const errors: Array<{ backendName: string; message: string }> = [];
   const allRows: ZoneRow[] = [];
@@ -120,7 +141,7 @@ export default async function ZonesPage() {
   // everything else below. Display-only; writes to a secondary are blocked
   // server-side.
   for (const s of readOnlySecondaries) {
-    const r = readOnlySecondaryRows(s);
+    const r = readOnlySecondaryRows(s, horizonIndex, backendServersById);
     if (r.error) {
       errors.push({ backendName: r.label, message: r.error });
       continue;
@@ -128,13 +149,13 @@ export default async function ZonesPage() {
     for (const row of r.rows) allRows.push(row);
   }
 
-  // De-dup by zone name. The SAME zone surfaces from multiple backends - a
-  // primary plus its mirrors, two primaries seeded with the same name, or two
-  // secondaries of one external primary. Keep ONE row per name: an authoritative
-  // (writable) row always wins over a read-only mirror; within the same tier the
-  // first wins (backends arrive name-ordered). So a zone always resolves to its
-  // primary, or - if none is managed - to the first secondary that serves it.
-  const { kept: dedupedRows, hidden: hiddenRows } = dedupeZonesByName(allRows);
+  // De-dup by zone IDENTITY - (horizon, name), not name alone. The SAME zone
+  // surfaces from multiple backends (a primary plus its mirrors, two primaries
+  // seeded with the same name, two secondaries of one external primary) and
+  // collapses to one row. A zone the operator marked internal is a DIFFERENT
+  // zone from the public one sharing its name, so it keeps its own row (#121).
+  // See lib/dns/zone-dedupe.ts for the precedence rule.
+  const { kept: dedupedRows, hidden: hiddenRows } = dedupeZonesByIdentity(allRows);
 
   // Restrict the amalgamated list to zones the viewer may actually read.
   // Global zone.read sees all; otherwise only granted zone names. (The
@@ -252,9 +273,11 @@ export default async function ZonesPage() {
           <strong>
             {hiddenSummary.count} duplicate zone{hiddenSummary.count === 1 ? "" : "s"} hidden.
           </strong>{" "}
-          Each zone is listed once (resolved to its primary, or the first secondary when no primary
-          is managed). These copies are on backends with no managed primary - standalone secondaries
-          mirroring an unmanaged primary, or the same name on another primary. Also served by:{" "}
+          Each zone is listed once per horizon (resolved to its primary, or the first secondary when
+          no primary is managed). These copies are on backends with no managed primary - standalone
+          secondaries mirroring an unmanaged primary, or the same name on another primary serving
+          the same audience. A zone marked <strong>internal</strong> is a separate zone, not a
+          duplicate, and gets its own row instead of appearing here. Also served by:{" "}
           {hiddenSummary.backends.map((b, i) => (
             <span key={`${b.name} ${b.type}`}>
               {i > 0 ? ", " : ""}
@@ -294,7 +317,10 @@ function unreachableMessage(kind: "down" | "auth"): string {
  * (peers share data); a backend the broker can't reach yields an error envelope
  * so it surfaces consistently with the servers list + bell.
  */
-async function rowsFromBackend(backend: SelectableBackend): Promise<FetchResult> {
+async function rowsFromBackend(
+  backend: SelectableBackend,
+  horizonIndex: ZoneHorizonIndex,
+): Promise<FetchResult> {
   const label = backend.kind === "cluster" ? backend.cluster.name : backend.server.name;
 
   // The peer whose cached zone set we read. Any reachable peer is equivalent for
@@ -346,37 +372,22 @@ async function rowsFromBackend(backend: SelectableBackend): Promise<FetchResult>
     serverSlug: readPeer.slug,
   };
 
-  const rows = zones.map((z) => toZoneRow(z, rowsBackend, syncByZone.get(z.name) ?? []));
-  return { label, lastEditServerSlug, rows, error: null };
-}
+  // Cluster zones are classified against the cluster, not the peer we happened
+  // to read from - `readPeer` rotates, the classification must not.
+  const horizonScope =
+    backend.kind === "cluster"
+      ? { clusterId: backend.cluster.id }
+      : horizonScopeFor(backend.server);
 
-/**
- * One row per zone name across the whole fleet. An authoritative (writable) row
- * beats a read-only mirror of the same name; among rows of the same tier the
- * first wins (rows arrive in a stable, name-ordered backend sequence). Net: a
- * zone resolves to its primary, or to the first secondary when no primary serves
- * it. Map preserves first-insertion order, so an in-place replacement keeps the
- * row's original position.
- */
-function dedupeZonesByName(rows: readonly ZoneRow[]): { kept: ZoneRow[]; hidden: ZoneRow[] } {
-  const byName = new Map<string, ZoneRow>();
-  const hidden: ZoneRow[] = [];
-  for (const row of rows) {
-    const existing = byName.get(row.name);
-    if (!existing) {
-      byName.set(row.name, row);
-      continue;
-    }
-    // Prefer an authoritative row over a read-only mirror; the displaced one is
-    // hidden. Otherwise this duplicate is the one hidden.
-    if (existing.readOnly && !row.readOnly) {
-      byName.set(row.name, row);
-      hidden.push(existing);
-    } else {
-      hidden.push(row);
-    }
-  }
-  return { kept: [...byName.values()], hidden };
+  const rows = zones.map((z) =>
+    toZoneRow(
+      z,
+      rowsBackend,
+      syncByZone.get(z.name) ?? [],
+      horizonFrom(horizonIndex, horizonScope, z.name),
+    ),
+  );
+  return { label, lastEditServerSlug, rows, error: null };
 }
 
 /**
@@ -387,7 +398,11 @@ function dedupeZonesByName(rows: readonly ZoneRow[]): { kept: ZoneRow[]; hidden:
  * column (no app-side primary to compare); "last edit" falls back to the
  * SOA-serial date.
  */
-function readOnlySecondaryRows(secondary: PdnsServer): {
+function readOnlySecondaryRows(
+  secondary: PdnsServer,
+  horizonIndex: ZoneHorizonIndex,
+  backendServersById: ReadonlyMap<string, PdnsServer>,
+): {
   label: string;
   rows: ZoneRow[];
   error: string | null;
@@ -398,10 +413,26 @@ function readOnlySecondaryRows(secondary: PdnsServer): {
   if (unreach || !cached) {
     return { label, rows: [], error: unreachableMessage(unreach ?? "down") };
   }
+  // A mirror of a managed primary INHERITS that primary's classification when
+  // it has none of its own. Otherwise marking a zone internal on the primary
+  // would split its own mirror off into a second row - the mirror would sit on
+  // the public horizon and stop de-duplicating against the zone it mirrors.
+  // Same derived-parent signal the hidden-zones notice and the servers page use.
+  const parentId = derivedParentOf(secondary.id);
+  const parent = parentId ? (backendServersById.get(parentId) ?? null) : null;
+
   const rows: ZoneRow[] = [];
   for (const z of cached.zones.values()) {
     const fold = foldLastEdit(z.serial, null);
+    const own = horizonFrom(horizonIndex, { serverId: secondary.id }, z.name);
+    const horizon =
+      own !== DEFAULT_ZONE_HORIZON
+        ? own
+        : parent
+          ? horizonFrom(horizonIndex, horizonScopeFor(parent), z.name)
+          : DEFAULT_ZONE_HORIZON;
     rows.push({
+      horizon,
       id: z.id,
       name: z.name,
       kind: z.kind,
@@ -476,6 +507,7 @@ function toZoneRow(
   zone: CachedZoneSnapshot,
   backend: ZoneRow["backend"],
   sync: SecondarySyncStatus[],
+  horizon: ZoneRow["horizon"],
 ): ZoneRow {
   // Worst-case sync verdict across peers/secondaries: error > missing
   // > lagging > ahead > in-sync. Drives the column's color.
@@ -497,6 +529,7 @@ function toZoneRow(
     kind: zone.kind,
     serial: zone.serial,
     dnssec: zone.dnssec,
+    horizon,
     // Read-only by zone kind - a Slave/Secondary/Consumer zone is an AXFR
     // mirror even when it lives on an otherwise-writable (primary) backend.
     readOnly: isReadOnlyZoneKind(zone.kind),

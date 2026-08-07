@@ -6,6 +6,60 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added - split-horizon zones ("This is an internal zone")
+
+Zones carry a **horizon** - public (the default) or internal - set with a toggle
+when you add a zone, or later on the zone's **Zone settings** tab. An internal
+zone is listed as its own row alongside a public zone of the same name instead of
+disappearing into the "duplicate zones hidden" notice, carries an `INTERNAL`
+badge next to the `CLUSTER` badge in the zones list, and shows that badge on its
+detail page so it's unambiguous which copy you have open. A Public / Internal
+filter appears above the list once at least one internal zone exists.
+
+The classification is AuthAdmin-side - PowerDNS has no way to tell two same-named
+zones apart - and is stored only when it differs from the default, so nothing
+changes for installs that don't use it. Cluster zones classify against the
+cluster (not the peer that happened to serve the write), a mirror inherits its
+managed primary's classification, and changes are audited as
+`zone.horizon.update`. Adds one table, `zone_horizons`; no data migration.
+
+See [FEATURES § 4.1.1](./docs/FEATURES.md#411-split-horizon-zones-public--internal)
+· [ADR-0022](./docs/adr/0022-zone-horizons.md) · (#121)
+
+### Fixed - `enable-lua-records` now shows up in backend capabilities
+
+A daemon with Lua records armed said so nowhere in the UI: the record editor
+offered the `LUA` type (correctly), but no capability badge, no daemon-settings
+row, and nothing in the stored capability snapshot reflected it - the only way
+to find out was to open a zone and look for the type in a dropdown. The observed
+capability set now carries `enable-lua-records` (`no` / `yes` / `shared`), it
+renders as a `lua records` badge wherever backends are listed, and the setting
+appears verbatim in the backend's **Daemon settings** table.
+
+The zone page now reads the cached capability instead of issuing a live
+`/config` call on every render for editors, so enabling Lua in `pdns.conf` needs
+a backend refresh (**Admin → PowerDNS servers → Refresh**) to show up - the same
+contract as every other capability. Per-zone `ENABLE-LUA-RECORDS` metadata still
+overrides a daemon-level `no`.
+
+See [FEATURES § 3.10](./docs/FEATURES.md#310-observed-daemon-capabilities) ·
+[ADR-0014](./docs/adr/0014-backend-capability-model.md) · (#122)
+
+### Security - dependency advisories
+
+- `undici` 8.5.0 → 8.10.0 (and the transitive 7.28.0 → 7.29.0), clearing the
+  open advisories for degenerate private cache directives, retry-interceptor
+  response desynchronization, cookie attribute injection, Cache-Control
+  whitespace disclosure, and blob-type CRLF injection.
+- `js-yaml` 4.3.0 → 4.3.1 - quadratic CPU consumption resolving `!!omap`
+  ([GHSA-5p4m-2wfm-xmqj](https://github.com/advisories/GHSA-5p4m-2wfm-xmqj),
+  high). This is the one that was failing the `audit` CI gate.
+- `postcss` 8.5.18 → 8.5.25 - attacker-controlled `sourceMappingURL` reading
+  arbitrary `.map` files when `from` is unset
+  ([GHSA-fxqj-rqcc-2cmp](https://github.com/advisories/GHSA-fxqj-rqcc-2cmp),
+  moderate). The existing `"postcss": "$postcss"` override propagates the bump
+  through `next`'s copy too.
+
 ## [1.5.3] - 2026-07-26
 
 Feature + dependency-security release. No migration, no schema change.

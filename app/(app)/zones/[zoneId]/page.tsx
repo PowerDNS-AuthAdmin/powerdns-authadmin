@@ -29,6 +29,7 @@ import type { PdnsCluster, PdnsServer } from "@/lib/db/schema";
 import { latestZoneEdit, zoneAuditLog } from "@/lib/db/repositories/audit-log";
 import { findPdnsRequestsByRequestIds } from "@/lib/db/repositories/pdns-requests";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
+import { getZoneHorizon, horizonScopeFor } from "@/lib/db/repositories/zone-horizons";
 import { normalizeZoneId } from "@/lib/pdns/client";
 import { zoneCapabilities } from "@/lib/pdns/writable-kind";
 import {
@@ -299,21 +300,38 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   const canReadDnssec = zoneCan("dnssec.read");
   const canReadMetadata = zoneCan("metadata.read");
 
+  // Which audience this copy of the zone serves (#121). Cluster zones classify
+  // against the cluster, so the answer doesn't change as `choosePeer` rotates.
+  const zoneHorizon = await getZoneHorizon(horizonScopeFor(selected), canonical);
+
   // LUA records are executable server-side code, so the editor only offers the
   // LUA type when PowerDNS actually has Lua enabled for this zone - the global
   // enable-lua-records setting or the per-zone ENABLE-LUA-RECORDS metadata.
   // Only editors need the bit, so read-only viewers skip the extra PDNS reads;
-  // the metadata read short-circuits the config read; only the derived boolean
+  // the metadata read short-circuits the global check; only the derived boolean
   // (never the metadata bag) reaches the client; a read failure fails closed.
+  //
+  // The global half comes from the backend's observed capability snapshot
+  // (#122), not a live `/config` per render - the daemon-meta probe already
+  // reads it every poll, and the operator refreshing a backend is the same
+  // gesture that refreshes every other capability. Only a snapshot predating
+  // that field (or a never-probed backend) falls back to the live read.
   let luaRecordsEnabled = false;
   if (canEdit) {
     try {
       const zoneMetadata = await client.listZoneMetadata(canonical);
       luaRecordsEnabled = isLuaEnabledByZoneMetadata(zoneMetadata);
       if (!luaRecordsEnabled) {
-        const config = await client.getConfig();
-        const globalSetting = config.find((row) => row.name === ENABLE_LUA_RECORDS_SETTING)?.value;
-        luaRecordsEnabled = isLuaEnabledGlobally(globalSetting);
+        const observed = selected.capabilities?.luaRecords;
+        if (observed !== undefined) {
+          luaRecordsEnabled = observed !== "no";
+        } else {
+          const config = await client.getConfig();
+          const globalSetting = config.find(
+            (row) => row.name === ENABLE_LUA_RECORDS_SETTING,
+          )?.value;
+          luaRecordsEnabled = isLuaEnabledGlobally(globalSetting);
+        }
       }
     } catch (err) {
       logger.warn(
@@ -400,6 +418,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
     <div className="space-y-6">
       <ZoneHeader
         zone={zone}
+        horizon={zoneHorizon}
         zoneIdEncoded={encodeURIComponent(zoneId)}
         server={{ name: selected.name, slug: selected.slug }}
         cluster={clusterContext ? { name: clusterContext.name, slug: clusterContext.slug } : null}
@@ -517,6 +536,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
                 ...(zone.soa_edit !== undefined ? { soa_edit: zone.soa_edit } : {}),
                 ...(zone.soa_edit_api !== undefined ? { soa_edit_api: zone.soa_edit_api } : {}),
                 ...(zone.api_rectify !== undefined ? { api_rectify: zone.api_rectify } : {}),
+                horizon: zoneHorizon,
               }}
               canEdit={canEditSettings}
             />

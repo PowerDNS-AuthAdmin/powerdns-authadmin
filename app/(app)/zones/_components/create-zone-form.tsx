@@ -28,6 +28,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/client/api-fetch";
 import { TsigKeySelector } from "@/components/domain/tsig-key-selector";
 import { SelectMenu } from "@/components/ui/select-menu";
+import { Switch } from "@/components/ui/switch";
 
 /**
  * Operator-facing backend option. A logical backend is either a
@@ -154,6 +155,7 @@ export function CreateZoneForm(props: Props) {
   const backendSelection = backendKey ? parseKey(backendKey) : null;
   const [name, setName] = useState("");
   const [kind, setKind] = useState<(typeof KINDS)[number]["value"]>("Native");
+  const [internal, setInternal] = useState(false);
   const selectedBackend = backendSelection
     ? (props.backends.find(
         (b) => b.kind === backendSelection.kind && b.slug === backendSelection.slug,
@@ -344,6 +346,9 @@ export function CreateZoneForm(props: Props) {
         ? { clusterSlug: backendSelection.slug }
         : { serverSlug: backendSelection.slug }),
     };
+    // Only send a non-default horizon - the server treats "absent" as public,
+    // and this keeps the payload honest about what the operator actually chose.
+    if (internal) body["horizon"] = "internal";
     if (templateId) body["templateId"] = templateId;
     if (responsibleEmail) body["responsibleEmail"] = responsibleEmail;
     if (kind === "Primary" && selectedTsigKey) body["tsigKeyName"] = selectedTsigKey;
@@ -452,6 +457,23 @@ export function CreateZoneForm(props: Props) {
           />
           <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
             {KINDS.find((k) => k.value === kind)?.hint}
+          </p>
+        </Field>
+
+        <Field label="Horizon">
+          <div className="mt-1 flex items-center gap-2">
+            <Switch
+              checked={internal}
+              onChange={setInternal}
+              ariaLabel="This is an internal zone"
+            />
+            <span className="text-sm">This is an internal zone.</span>
+          </div>
+          <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
+            Tick this for the internal half of a split-horizon setup. An internal zone is listed
+            separately from a public zone of the same name and carries an{" "}
+            <span className="font-mono">INTERNAL</span> badge. AuthAdmin-side only - nothing is sent
+            to PowerDNS. Changeable later from the zone&apos;s Zone settings tab.
           </p>
         </Field>
       </Section>

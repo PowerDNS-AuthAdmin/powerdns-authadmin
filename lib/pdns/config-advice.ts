@@ -39,6 +39,10 @@ const DISPLAY_SETTINGS: readonly string[] = [
   "gsqlite3-dnssec",
   "gmysql-dnssec",
   "gpgsql-dnssec",
+  // Arms LUA records fleet-wide (#122). Carries no secret material, and an
+  // operator reading this table needs to see that server-side code execution
+  // is enabled just as much as they need to see the replication flags.
+  "enable-lua-records",
 ];
 
 /** Settings whose name smells secret - shown as `<redacted>`, never plaintext. */
