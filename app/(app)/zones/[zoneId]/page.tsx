@@ -303,17 +303,30 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   // LUA type when PowerDNS actually has Lua enabled for this zone - the global
   // enable-lua-records setting or the per-zone ENABLE-LUA-RECORDS metadata.
   // Only editors need the bit, so read-only viewers skip the extra PDNS reads;
-  // the metadata read short-circuits the config read; only the derived boolean
+  // the metadata read short-circuits the global check; only the derived boolean
   // (never the metadata bag) reaches the client; a read failure fails closed.
+  //
+  // The global half comes from the backend's observed capability snapshot
+  // (#122), not a live `/config` per render - the daemon-meta probe already
+  // reads it every poll, and the operator refreshing a backend is the same
+  // gesture that refreshes every other capability. Only a snapshot predating
+  // that field (or a never-probed backend) falls back to the live read.
   let luaRecordsEnabled = false;
   if (canEdit) {
     try {
       const zoneMetadata = await client.listZoneMetadata(canonical);
       luaRecordsEnabled = isLuaEnabledByZoneMetadata(zoneMetadata);
       if (!luaRecordsEnabled) {
-        const config = await client.getConfig();
-        const globalSetting = config.find((row) => row.name === ENABLE_LUA_RECORDS_SETTING)?.value;
-        luaRecordsEnabled = isLuaEnabledGlobally(globalSetting);
+        const observed = selected.capabilities?.luaRecords;
+        if (observed !== undefined) {
+          luaRecordsEnabled = observed !== "no";
+        } else {
+          const config = await client.getConfig();
+          const globalSetting = config.find(
+            (row) => row.name === ENABLE_LUA_RECORDS_SETTING,
+          )?.value;
+          luaRecordsEnabled = isLuaEnabledGlobally(globalSetting);
+        }
       }
     } catch (err) {
       logger.warn(

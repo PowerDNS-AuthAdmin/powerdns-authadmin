@@ -57,6 +57,21 @@ describe("deriveCapabilities", () => {
     expect(deriveCapabilities(cfg({ primary: "yes" })).api).toBe(true);
     expect(deriveCapabilities(cfg({ api: "no" })).api).toBe(false);
   });
+
+  // #122 - `enable-lua-records` arms executable server-side code, so the
+  // snapshot has to carry it: the record editor gates the LUA type on this and
+  // the capability badges have to say so.
+  it.each<[string, Record<string, string>, "no" | "yes" | "shared"]>([
+    ["absent → the documented default", {}, "no"],
+    ["explicit no", { "enable-lua-records": "no" }, "no"],
+    ["yes", { "enable-lua-records": "yes" }, "yes"],
+    ["empty is documented as equivalent to yes", { "enable-lua-records": "" }, "yes"],
+    ["shared keeps its own mode", { "enable-lua-records": "shared" }, "shared"],
+    ["legacy `shard` spelling", { "enable-lua-records": "shard" }, "shared"],
+    ["case + whitespace insensitive", { "enable-lua-records": "  YES " }, "yes"],
+  ])("derives enable-lua-records: %s", (_label, flags, expected) => {
+    expect(deriveCapabilities(cfg(flags)).luaRecords).toBe(expected);
+  });
 });
 
 describe("summarizeCapabilities", () => {
