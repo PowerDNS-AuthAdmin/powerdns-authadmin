@@ -6,6 +6,32 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed - `enable-lua-records` now shows up in backend capabilities
+
+A daemon with Lua records armed said so nowhere in the UI: the record editor
+offered the `LUA` type (correctly), but no capability badge, no daemon-settings
+row, and nothing in the stored capability snapshot reflected it - the only way
+to find out was to open a zone and look for the type in a dropdown. The observed
+capability set now carries `enable-lua-records` (`no` / `yes` / `shared`), it
+renders as a `lua records` badge wherever backends are listed, and the setting
+appears verbatim in the backend's **Daemon settings** table.
+
+The zone page now reads the cached capability instead of issuing a live
+`/config` call on every render for editors, so enabling Lua in `pdns.conf` needs
+a backend refresh (**Admin → PowerDNS servers → Refresh**) to show up - the same
+contract as every other capability. Per-zone `ENABLE-LUA-RECORDS` metadata still
+overrides a daemon-level `no`.
+
+See [FEATURES § 3.10](./docs/FEATURES.md#310-observed-daemon-capabilities) ·
+[ADR-0014](./docs/adr/0014-backend-capability-model.md) · (#122)
+
+### Security
+
+- `undici` 8.5.0 → 8.10.0 (and the transitive 7.28.0 → 7.29.0), clearing the
+  open advisories for degenerate private cache directives, retry-interceptor
+  response desynchronization, cookie attribute injection, Cache-Control
+  whitespace disclosure, and blob-type CRLF injection.
+
 ## [1.5.3] - 2026-07-26
 
 Feature + dependency-security release. No migration, no schema change.
