@@ -19,12 +19,21 @@ import { SyncIndicator } from "@/components/ui/sync-indicator";
 import { freshnessOf, freshnessOfDay } from "@/lib/freshness";
 import { isReverseZone } from "@/lib/dns/zone-kind";
 import { displayZoneName } from "@/lib/dns/zone-name";
+import { type ZoneHorizon } from "@/lib/dns/zone-horizon";
+import { ZoneHorizonBadge } from "@/components/domain/zone-horizon-badge";
 
 type ScopeFilter = "all" | "forward" | "reverse";
 const SCOPE_STORAGE_KEY = "pda.zones.scope";
 
 function isValidScope(s: unknown): s is ScopeFilter {
   return s === "all" || s === "forward" || s === "reverse";
+}
+
+type HorizonFilter = "all" | ZoneHorizon;
+const HORIZON_STORAGE_KEY = "pda.zones.horizon";
+
+function isValidHorizonFilter(s: unknown): s is HorizonFilter {
+  return s === "all" || s === "public" || s === "internal";
 }
 
 /**
@@ -58,6 +67,11 @@ export interface ZoneRow {
   kind: string;
   serial: number | null;
   dnssec: boolean;
+  /**
+   * Which audience this copy serves (#121). `internal` rows carry the INTERNAL
+   * badge and de-duplicate separately from a public zone of the same name.
+   */
+  horizon: ZoneHorizon;
   /** The backend this row was read from. The view + edit link resolves
    *  to a concrete server slug regardless of whether the source was a
    *  cluster (any peer suffices). */
@@ -168,6 +182,7 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
                   cluster
                 </span>
               ) : null}
+              <ZoneHorizonBadge horizon={row.horizon} className="ml-2" />
               {row.readOnly ? (
                 <span
                   className="ml-2 rounded bg-[color:var(--color-bg-muted)] px-1 py-0.5 font-mono text-[0.625rem] tracking-wide text-[color:var(--color-fg-muted)] uppercase"
@@ -268,25 +283,62 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
     }
   }, [scope]);
 
+  // Public / Internal filter. Same persistence as the scope tabs, but the
+  // control only appears once the fleet actually has an internal zone -
+  // otherwise it's a filter with nothing to filter.
+  const [horizon, setHorizon] = useState<HorizonFilter>("all");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(HORIZON_STORAGE_KEY);
+      if (raw && isValidHorizonFilter(raw)) setHorizon(raw);
+    } catch {
+      // Corrupt / blocked localStorage - keep the default.
+    }
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(HORIZON_STORAGE_KEY, horizon);
+    } catch {
+      // Quota / blocked - non-fatal.
+    }
+  }, [horizon]);
+
   const counts = useMemo(() => {
     let forward = 0;
     let reverse = 0;
+    let internal = 0;
     for (const z of zones) {
       if (isReverseZone(z.name)) reverse++;
       else forward++;
+      if (z.horizon === "internal") internal++;
     }
-    return { all: zones.length, forward, reverse };
+    return {
+      all: zones.length,
+      forward,
+      reverse,
+      internal,
+      public: zones.length - internal,
+    };
   }, [zones]);
 
   const filtered = useMemo(() => {
-    if (scope === "all") return zones;
-    const wantReverse = scope === "reverse";
-    return zones.filter((z) => isReverseZone(z.name) === wantReverse);
-  }, [zones, scope]);
+    return zones.filter((z) => {
+      if (scope !== "all" && isReverseZone(z.name) !== (scope === "reverse")) return false;
+      if (horizon !== "all" && z.horizon !== horizon) return false;
+      return true;
+    });
+  }, [zones, scope, horizon]);
 
   return (
     <div className="space-y-3">
-      <ScopeTabs scope={scope} counts={counts} onChange={setScope} />
+      <div className="flex flex-wrap items-center gap-2">
+        <ScopeTabs scope={scope} counts={counts} onChange={setScope} />
+        {counts.internal > 0 ? (
+          <HorizonTabs horizon={horizon} counts={counts} onChange={setHorizon} />
+        ) : null}
+      </div>
       <DataTable
         columns={columns}
         data={filtered}
@@ -309,16 +361,17 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
         pageSizeParam="pageSize"
         stateKey="zones"
         rowHref={zoneHref}
-        noDataMessage={
-          scope === "forward"
-            ? "No forward zones across any backend yet."
-            : scope === "reverse"
-              ? "No reverse zones across any backend yet."
-              : "No zones across any backend yet."
-        }
+        noDataMessage={emptyMessage(scope, horizon)}
       />
     </div>
   );
+}
+
+/** Empty-state copy that names whichever filters are actually narrowing the list. */
+function emptyMessage(scope: ScopeFilter, horizon: HorizonFilter): string {
+  const kind = scope === "forward" ? "forward " : scope === "reverse" ? "reverse " : "";
+  const audience = horizon === "internal" ? "internal " : horizon === "public" ? "public " : "";
+  return `No ${audience}${kind}zones across any backend yet.`;
 }
 
 function ScopeTabs({
@@ -330,28 +383,73 @@ function ScopeTabs({
   counts: { all: number; forward: number; reverse: number };
   onChange: (next: ScopeFilter) => void;
 }) {
-  const tabs: Array<{ id: ScopeFilter; label: string; count: number }> = [
-    { id: "all", label: "All", count: counts.all },
-    { id: "forward", label: "Forward", count: counts.forward },
-    { id: "reverse", label: "Reverse", count: counts.reverse },
-  ];
+  return (
+    <SegmentedTabs
+      ariaLabel="Zone scope filter"
+      active={scope}
+      onChange={onChange}
+      tabs={[
+        { id: "all", label: "All", count: counts.all },
+        { id: "forward", label: "Forward", count: counts.forward },
+        { id: "reverse", label: "Reverse", count: counts.reverse },
+      ]}
+    />
+  );
+}
+
+/** Public / Internal split-horizon filter (#121). Rendered only when the fleet
+ *  has at least one internal zone - see the call site. */
+function HorizonTabs({
+  horizon,
+  counts,
+  onChange,
+}: {
+  horizon: HorizonFilter;
+  counts: { all: number; public: number; internal: number };
+  onChange: (next: HorizonFilter) => void;
+}) {
+  return (
+    <SegmentedTabs
+      ariaLabel="Zone horizon filter"
+      active={horizon}
+      onChange={onChange}
+      tabs={[
+        { id: "all", label: "Any horizon", count: counts.all },
+        { id: "public", label: "Public", count: counts.public },
+        { id: "internal", label: "Internal", count: counts.internal },
+      ]}
+    />
+  );
+}
+
+function SegmentedTabs<T extends string>({
+  ariaLabel,
+  active,
+  tabs,
+  onChange,
+}: {
+  ariaLabel: string;
+  active: T;
+  tabs: Array<{ id: T; label: string; count: number }>;
+  onChange: (next: T) => void;
+}) {
   return (
     <div
       role="tablist"
-      aria-label="Zone scope filter"
+      aria-label={ariaLabel}
       className="inline-flex rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-0.5 text-sm"
     >
       {tabs.map((t) => {
-        const active = t.id === scope;
+        const isActive = t.id === active;
         return (
           <button
             key={t.id}
             role="tab"
             type="button"
-            aria-selected={active}
+            aria-selected={isActive}
             onClick={() => onChange(t.id)}
             className={
-              active
+              isActive
                 ? "rounded bg-[color:var(--color-accent)] px-3 py-1 font-medium text-[color:var(--color-accent-fg)]"
                 : "rounded px-3 py-1 text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)]"
             }
@@ -359,7 +457,7 @@ function ScopeTabs({
             {t.label}
             <span
               className={
-                active
+                isActive
                   ? "ml-1.5 text-[color:var(--color-accent-fg)]/80"
                   : "ml-1.5 text-[color:var(--color-fg-subtle)]"
               }

@@ -43,6 +43,13 @@
       "when": 1784668351372,
       "tag": "0005_known_vance_astro",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1786133283567,
+      "tag": "0006_petite_the_santerians",
+      "breakpoints": true
     }
   ]
 }

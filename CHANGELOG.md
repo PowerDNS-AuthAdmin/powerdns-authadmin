@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added - split-horizon zones ("This is an internal zone")
+
+Zones carry a **horizon** - public (the default) or internal - set with a toggle
+when you add a zone, or later on the zone's **Zone settings** tab. An internal
+zone is listed as its own row alongside a public zone of the same name instead of
+disappearing into the "duplicate zones hidden" notice, carries an `INTERNAL`
+badge next to the `CLUSTER` badge in the zones list, and shows that badge on its
+detail page so it's unambiguous which copy you have open. A Public / Internal
+filter appears above the list once at least one internal zone exists.
+
+The classification is AuthAdmin-side - PowerDNS has no way to tell two same-named
+zones apart - and is stored only when it differs from the default, so nothing
+changes for installs that don't use it. Cluster zones classify against the
+cluster (not the peer that happened to serve the write), a mirror inherits its
+managed primary's classification, and changes are audited as
+`zone.horizon.update`. Adds one table, `zone_horizons`; no data migration.
+
+See [FEATURES § 4.1.1](./docs/FEATURES.md#411-split-horizon-zones-public--internal)
+· [ADR-0022](./docs/adr/0022-zone-horizons.md) · (#121)
+
 ### Fixed - `enable-lua-records` now shows up in backend capabilities
 
 A daemon with Lua records armed said so nowhere in the UI: the record editor

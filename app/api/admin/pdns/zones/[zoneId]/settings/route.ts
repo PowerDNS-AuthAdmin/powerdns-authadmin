@@ -21,7 +21,14 @@ import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
+import {
+  getZoneHorizon,
+  horizonScopeFor,
+  setZoneHorizon,
+} from "@/lib/db/repositories/zone-horizons";
+import { ZONE_HORIZONS } from "@/lib/dns/zone-horizon";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
+import { normalizeZoneId } from "@/lib/pdns/client";
 import { PdnsError } from "@/lib/pdns/errors";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { redact } from "@/lib/errors/redact";
@@ -45,6 +52,13 @@ const putBodySchema = z.object({
   soa_edit: z.string().max(64).optional(),
   soa_edit_api: z.string().max(64).optional(),
   api_rectify: z.boolean().optional(),
+  /**
+   * Horizon classification (#121). The odd one out in this payload: every other
+   * field is forwarded to PowerDNS, this one is app-side state. It rides along
+   * anyway because it's the same Save button on the same panel, and splitting
+   * it into its own request would let the two halves land independently.
+   */
+  horizon: z.enum(ZONE_HORIZONS).optional(),
 });
 
 interface RouteContext {
@@ -92,6 +106,13 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
       throw new ForbiddenError("Missing zone.update for this zone.");
     }
 
+    // Horizon lives in our DB, keyed on the canonical zone name (the same form
+    // the zones list and the create path store), so normalize rather than trust
+    // whatever casing the URL carried.
+    const horizonScope = horizonScopeFor(selected);
+    const canonicalZoneName = normalizeZoneId(zoneName);
+    const horizonBefore = await getZoneHorizon(horizonScope, canonicalZoneName);
+
     // Read current state for the audit `before` snapshot.
     const before = await client.getZone(zoneName).catch(() => null);
 
@@ -108,34 +129,59 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
     if (body.soa_edit_api !== undefined) patch.soa_edit_api = body.soa_edit_api;
     if (body.api_rectify !== undefined) patch.api_rectify = body.api_rectify;
 
-    await client.updateZoneSettings(zoneName, patch);
-    const after = await client.getZone(zoneName).catch(() => null);
-
+    // A horizon-only save carries no PowerDNS-side change; don't spend a PUT
+    // (and don't log a settings-update that updated nothing) on it.
+    const touchesPdns = Object.keys(patch).length > 0;
     const hdrs = await headers();
-    await appendAudit({
-      actor: { type: "user", id: actor.id },
-      action: "zone.settings.update",
-      resource: { type: "zone", id: `${selected.slug}:${zoneName}` },
-      before: before
-        ? {
-            kind: before.kind,
-            masters: before.masters,
-            soa_edit: before.soa_edit,
-            soa_edit_api: before.soa_edit_api,
-            api_rectify: before.api_rectify,
-          }
-        : null,
-      after: after
-        ? {
-            kind: after.kind,
-            masters: after.masters,
-            soa_edit: after.soa_edit,
-            soa_edit_api: after.soa_edit_api,
-            api_rectify: after.api_rectify,
-          }
-        : null,
-      request: getRequestContext(hdrs),
-    });
+
+    if (touchesPdns) {
+      await client.updateZoneSettings(zoneName, patch);
+      const after = await client.getZone(zoneName).catch(() => null);
+      await appendAudit({
+        actor: { type: "user", id: actor.id },
+        action: "zone.settings.update",
+        resource: { type: "zone", id: `${selected.slug}:${zoneName}` },
+        before: before
+          ? {
+              kind: before.kind,
+              masters: before.masters,
+              soa_edit: before.soa_edit,
+              soa_edit_api: before.soa_edit_api,
+              api_rectify: before.api_rectify,
+            }
+          : null,
+        after: after
+          ? {
+              kind: after.kind,
+              masters: after.masters,
+              soa_edit: after.soa_edit,
+              soa_edit_api: after.soa_edit_api,
+              api_rectify: after.api_rectify,
+            }
+          : null,
+        request: getRequestContext(hdrs),
+      });
+    }
+
+    // Audited separately from the PDNS-side settings: it changes app-side zone
+    // identity (which row the amalgamated list shows this zone as), not the
+    // zone object, and a reader of the log should see that distinction.
+    if (body.horizon !== undefined && body.horizon !== horizonBefore) {
+      await setZoneHorizon({
+        scope: horizonScope,
+        zoneName: canonicalZoneName,
+        horizon: body.horizon,
+        actorId: actor.id,
+      });
+      await appendAudit({
+        actor: { type: "user", id: actor.id },
+        action: "zone.horizon.update",
+        resource: { type: "zone", id: `${selected.slug}:${zoneName}` },
+        before: { horizon: horizonBefore },
+        after: { horizon: body.horizon },
+        request: getRequestContext(hdrs),
+      });
+    }
 
     publishZoneEvent({
       type: "zone.updated",

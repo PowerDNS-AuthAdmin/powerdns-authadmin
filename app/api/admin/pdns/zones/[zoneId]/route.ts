@@ -19,7 +19,9 @@ import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
+import { deleteZoneHorizon, horizonScopeFor } from "@/lib/db/repositories/zone-horizons";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
+import { normalizeZoneId } from "@/lib/pdns/client";
 import { PdnsError, PdnsNotFoundError } from "@/lib/pdns/errors";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { redact } from "@/lib/errors/redact";
@@ -92,6 +94,23 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
         return Response.json({ error: `PDNS rejected the request: ${message}` }, { status: 502 });
       }
       throw err;
+    }
+
+    // Drop the horizon classification with the zone. Left behind, it would
+    // silently re-apply to a zone of the same name recreated later on this
+    // backend. Best-effort: the zone is already gone on PDNS, and a stale row
+    // classifies nothing until such a recreate.
+    try {
+      await deleteZoneHorizon(horizonScopeFor(selected), normalizeZoneId(zoneName));
+    } catch (err) {
+      logger.warn(
+        {
+          server: selected.slug,
+          zone: zoneName,
+          error: err instanceof Error ? redact(err.message) : "unknown",
+        },
+        "zone.delete.horizon-cleanup.failed",
+      );
     }
 
     const hdrs = await headers();

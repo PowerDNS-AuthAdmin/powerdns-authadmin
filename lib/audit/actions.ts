@@ -113,6 +113,10 @@ export const AUDIT_ACTIONS = [
   "zone.metadata.set",
   "zone.metadata.delete",
   "zone.settings.update",
+  // Operator (re)classified a zone's horizon - public vs internal (#121). Its
+  // own action, not folded into zone.settings.update, because it changes app-
+  // side zone identity rather than anything on the PowerDNS zone object.
+  "zone.horizon.update",
   "zone.grant.create",
   "zone.grant.delete",
   "zone.export",
