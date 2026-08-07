@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Security - dependency advisories
+
+- `js-yaml` 4.3.0 → 4.3.1 - quadratic CPU consumption resolving `!!omap`
+  ([GHSA-5p4m-2wfm-xmqj](https://github.com/advisories/GHSA-5p4m-2wfm-xmqj),
+  high). This is the one that was failing the `audit` CI gate.
+- `postcss` 8.5.18 → 8.5.25 - attacker-controlled `sourceMappingURL` reading
+  arbitrary `.map` files when `from` is unset
+  ([GHSA-fxqj-rqcc-2cmp](https://github.com/advisories/GHSA-fxqj-rqcc-2cmp),
+  moderate). The existing `"postcss": "$postcss"` override propagates the bump
+  through `next`'s copy too.
+
 ## [1.5.3] - 2026-07-26
 
 Feature + dependency-security release. No migration, no schema change.
