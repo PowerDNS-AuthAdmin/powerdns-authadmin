@@ -7,9 +7,30 @@
  * which is why this replaces the operator-declared `role`.
  */
 
-import type { PdnsConfigSetting, PdnsDaemonCapabilities, PdnsWriteMode } from "./types";
+import { ENABLE_LUA_RECORDS_SETTING, isLuaEnabledGlobally } from "./metadata-policy";
+import type {
+  PdnsConfigSetting,
+  PdnsDaemonCapabilities,
+  PdnsLuaRecordsMode,
+  PdnsWriteMode,
+} from "./types";
 
 const isYes = (v: string | undefined): boolean => v?.toLowerCase() === "yes";
+
+/**
+ * Normalize `enable-lua-records` into the three modes PowerDNS documents.
+ * Truthiness is delegated to `isLuaEnabledGlobally` so the record editor and
+ * this snapshot can never disagree about what "armed" means; only the
+ * `shared`-vs-`yes` distinction is resolved here, because the badge shows the
+ * mode verbatim. A setting the daemon doesn't echo at all reads as the
+ * documented default, `no`.
+ */
+function luaRecordsMode(value: string | undefined): PdnsLuaRecordsMode {
+  if (value === undefined) return "no";
+  const v = value.trim().toLowerCase();
+  if (v === "shared" || v === "shard") return "shared";
+  return isLuaEnabledGlobally(value) ? "yes" : "no";
+}
 
 /** Parse `launch` (comma/space separated, entries may be `backend:instance`). */
 function parseLaunch(value: string | undefined): string[] {
@@ -44,6 +65,7 @@ export function deriveCapabilities(
     // We only ever call this on a successful /config read, so the API is on
     // even if the daemon doesn't echo the `api` flag back.
     api: map.has("api") ? isYes(map.get("api")) : true,
+    luaRecords: luaRecordsMode(map.get(ENABLE_LUA_RECORDS_SETTING)),
     primary: isYes(map.get("primary")) || isYes(map.get("master")),
     secondary: isYes(map.get("secondary")) || isYes(map.get("slave")),
     autosecondary: isYes(map.get("autosecondary")) || isYes(map.get("superslave")),
@@ -172,6 +194,10 @@ export function classifyGroup(members: readonly WriteRoutable[]): GroupCompositi
  * set it falls back to "standalone" (the daemon hosts zones over the API but does
  * no DNS-protocol replication - the default PDNS Auth shape); "unknown" when the
  * daemon has never been observed, "unreachable" when the API itself is down.
+ *
+ * Replication roles ONLY. `luaRecords` is deliberately absent: this string is
+ * the peer "role" label in the cluster pickers, where a feature flag would read
+ * as a topology claim ("primary + lua"). The Lua capability has its own badge.
  */
 export function summarizeCapabilities(caps: PdnsDaemonCapabilities | null): string {
   if (!caps) return "unknown";

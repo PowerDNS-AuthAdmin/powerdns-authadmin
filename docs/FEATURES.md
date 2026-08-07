@@ -312,6 +312,25 @@ can jump straight into the code that owns each feature.
 - **Where.** `lib/pdns/url-safety.ts` (the guard); `lib/pdns/http.ts` (request-time
   re-check + pinned dispatcher).
 
+### 3.10 Observed daemon capabilities
+
+- **What.** Each backend carries a capability snapshot derived from its read-only `/config` on
+  every daemon-meta probe: `api`, `primary`, `secondary`, `autosecondary`, the `launch` backends,
+  DNSSEC, the configured autoprimary count, and `enable-lua-records`. The active ones render as
+  tinted badges wherever a backend is listed; the allowlisted raw settings show verbatim under
+  **Daemon settings** on the backend's detail page.
+- **Lua records.** `enable-lua-records` (`no` | `yes` | `shared`) is in the snapshot because it
+  decides whether the record editor offers the `LUA` type at all. LUA records are executable
+  server-side code, so which daemons have it armed has to be visible from the backend list, not
+  discoverable only by opening a zone and looking for the type in a dropdown. A daemon-level `no`
+  is not a veto: per-zone `ENABLE-LUA-RECORDS` metadata still enables Lua for that one zone.
+- **Freshness.** Badges reflect the last probe. After editing `pdns.conf`, re-probe the backend
+  (**Admin → PowerDNS servers → Refresh**) - the same gesture that refreshes every other
+  capability.
+- **Where.** `lib/pdns/capabilities.ts`, `lib/pdns/config-advice.ts`,
+  `components/domain/capability-badges.tsx`, `lib/realtime/backend-health.ts`.
+  See [ADR-0014](./adr/0014-backend-capability-model.md).
+
 ---
 
 ## 4. Zones
