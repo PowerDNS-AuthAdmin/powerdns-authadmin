@@ -37,6 +37,47 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.5.4 (from 1.5.3)
+
+**This release adds a table** - `zone_horizons`, for the new split-horizon zone
+classification. It's the first schema change since 1.5.0, so unlike the last few
+upgrades there is a migration to watch:
+
+```sh
+docker compose pull
+docker compose up -d
+docker compose logs -f app   # expect: 0006_nice_butterfly (Postgres) or
+                             #         0006_petite_the_santerians (SQLite)
+```
+
+The migration creates an empty table and touches nothing else - no existing row
+is read, rewritten, or locked, so it applies in milliseconds on any size of
+install. On Postgres the entrypoint takes a `pg_advisory_lock` first, so
+multi-replica deployments serialize their boots as usual.
+
+**Rolling back.** 1.5.3 doesn't know about `zone_horizons` and never queries it,
+so a downgrade works: the table sits unused and your classifications are still
+there if you roll forward again. The boot log will show one more applied
+migration than that version's journal expects, which is logged but not treated
+as an error (the migrator only refuses to start on _pending_ migrations, never
+on extra ones). Drop the table manually only if you're sure you won't roll
+forward.
+
+Everything else is a pull-and-recreate:
+
+- **Split-horizon zones.** Nothing to configure - every existing zone is
+  `public`, exactly as it behaved before. Tick **This is an internal zone** on a
+  zone's **Zone settings** tab (or when adding one) to classify it; the zones
+  list then shows an internal and a public zone of the same name as separate
+  rows instead of hiding one as a duplicate.
+- **Lua capability badge.** Backends now show a `lua records` badge when
+  `enable-lua-records` is on. It reads from the cached capability snapshot, so
+  after changing `pdns.conf` re-probe the backend (**Admin → PowerDNS servers →
+  Refresh**) for the badge - and the record editor's `LUA` type - to update. Any
+  backend probed before this upgrade shows nothing until its next probe.
+- `js-yaml` 4.3.1 and `postcss` 8.5.25 for the advisories noted in the
+  [CHANGELOG](../CHANGELOG.md#154---2026-08-08).
+
 ### Upgrading to 1.5.3 (from 1.5.2)
 
 No migration and no code change to your data - pull the new tag and recreate the

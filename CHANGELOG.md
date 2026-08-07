@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.5.4] - 2026-08-08
+
+Feature + dependency-security release. **Adds one table (`zone_horizons`) - the
+first schema change since 1.5.0.** The migration runs automatically at container
+boot (ADR-0011) and creates an empty table; no existing row is read or written,
+so the upgrade is a pull-and-recreate. See
+[UPGRADING](./docs/09-UPGRADING.md#upgrading-to-154-from-153).
+
 ### Added - split-horizon zones ("This is an internal zone")
 
 Zones carry a **horizon** - public (the default) or internal - set with a toggle
@@ -1422,7 +1430,9 @@ First production release.
 - **Distribution** - multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.2...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.4...HEAD
+[1.5.4]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.3...v1.5.4
+[1.5.3]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.3...v1.5.0
