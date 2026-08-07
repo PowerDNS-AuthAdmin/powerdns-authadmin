@@ -321,7 +321,33 @@ can jump straight into the code that owns each feature.
 - **What.** Every zone across every backend in one list. Per-row "Backend" column. Per-row
   Sync chip: "-" for standalones, "synced/desynced (N)" for primaries with secondaries and
   for clusters.
-- **Where.** `app/(app)/zones/page.tsx`, `app/(app)/zones/_components/zones-table.tsx`.
+- **One row per zone identity** - `(horizon, name)`, see § 4.1.1. The same zone reached from a
+  primary and its mirrors collapses to one row, resolved to the backend that owns it; anything
+  genuinely collapsed is summarized in the "duplicate zones hidden" notice.
+- **Where.** `app/(app)/zones/page.tsx`, `app/(app)/zones/_components/zones-table.tsx`,
+  `lib/dns/zone-dedupe.ts`.
+
+### 4.1.1 Split-horizon zones (public / internal)
+
+- **What.** A per-zone **horizon** - "this is the internal copy" - set with a toggle at create time
+  or later on the zone's **Zone settings** tab. An internal zone lists separately from a public zone
+  of the same name, carries an `INTERNAL` badge next to the `CLUSTER` badge, and shows the badge on
+  its detail page so it's unambiguous which copy is open before anyone edits a record. A
+  Public / Internal filter appears above the list once the fleet has at least one internal zone.
+- **Why.** Split-horizon DNS serves the same name differently inside and outside the network,
+  usually from two daemons. Before this, the list keyed on the name alone, so the internal copy
+  vanished into the "duplicate zones hidden" notice - a deliberate setup reported as an accident of
+  replication (#121).
+- **How.** App-side classification (PowerDNS cannot tell the two apart), stored sparsely in
+  `zone_horizons` and scoped to the backend - to the **cluster** for a cluster zone, so it doesn't
+  flicker as peer selection rotates. Unclassified means `public`, so nothing changes for installs
+  that don't use it. A mirror of a managed primary inherits that primary's classification. Changes
+  are audited as `zone.horizon.update`; deleting a zone drops its classification.
+- **Scope.** Presentation and grouping only - it never changes what PowerDNS serves, and it is not
+  PDNS 5.0 Views (which splits horizons _within_ one daemon; complementary, not superseded).
+- **Where.** `lib/dns/zone-horizon.ts`, `lib/dns/zone-dedupe.ts`,
+  `lib/db/{schema,repositories}/zone-horizons.ts`, `components/domain/zone-horizon-badge.tsx`.
+  See [ADR-0022](./adr/0022-zone-horizons.md).
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/zones-list.png" />

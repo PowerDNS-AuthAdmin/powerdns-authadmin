@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { freshnessOf } from "@/lib/freshness";
 import { displayZoneName } from "@/lib/dns/zone-name";
+import { type ZoneHorizon } from "@/lib/dns/zone-horizon";
+import { ZoneHorizonBadge } from "@/components/domain/zone-horizon-badge";
 import type { PdnsZoneDetail } from "@/lib/pdns/types";
 import type { ZoneAuditEntry } from "@/lib/db/repositories/audit-log";
 import { CloneZoneButton } from "./clone-zone-button";
@@ -8,6 +10,12 @@ import { ZoneRealtimeSubscriber } from "./zone-realtime-subscriber";
 import { PollingDisabledHint } from "@/components/domain/polling-disabled-hint";
 
 interface ZoneHeaderProps {
+  /**
+   * Which audience this copy serves (#121). `internal` renders the INTERNAL
+   * badge next to the name, so it's unambiguous which of two same-named zones
+   * is open before anyone edits a record.
+   */
+  horizon: ZoneHorizon;
   /**
    * Cached sync verdict (primary vs secondaries). Drives the realtime
    * indicator into fast-poll mode while replication is in flight. `null`
@@ -37,6 +45,7 @@ interface ZoneHeaderProps {
 
 export function ZoneHeader({
   zone,
+  horizon,
   zoneIdEncoded,
   server,
   cluster,
@@ -64,6 +73,7 @@ export function ZoneHeader({
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h1 className="font-mono text-2xl font-semibold tracking-tight">
             {displayZoneName(zone.name)}
+            <ZoneHorizonBadge horizon={horizon} className="ml-2 align-middle" />
           </h1>
           <ZoneRealtimeSubscriber zoneName={zone.name} inSync={inSync} />
           {inSync === null ? <PollingDisabledHint /> : null}

@@ -7,6 +7,13 @@
  * PDNS' `PUT /zones/{id}` - PDNS' metadata-endpoint allowlist doesn't
  * accept these kinds in 4.9, so the zone-object endpoint is the right
  * door.
+ *
+ * The panel also carries the one setting that ISN'T a PDNS zone-object field:
+ * the zone's horizon (#121). PowerDNS has no notion of it - it's app-side
+ * classification that decides whether this zone lists separately from a
+ * same-named public zone - but from the operator's seat it's a zone setting
+ * like any other, so it shares the panel and the Save button. The route sorts
+ * the two halves out.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -14,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
 import { Switch } from "@/components/ui/switch";
+import { type ZoneHorizon } from "@/lib/dns/zone-horizon";
 
 interface Props {
   zoneIdEncoded: string;
@@ -24,6 +32,8 @@ interface Props {
     soa_edit?: string;
     soa_edit_api?: string;
     api_rectify?: boolean;
+    /** App-side, not from PDNS. `public` unless the operator classified it. */
+    horizon: ZoneHorizon;
   };
   canEdit: boolean;
 }
@@ -79,14 +89,17 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
   const [soaEdit, setSoaEdit] = useState(initial.soa_edit ?? "");
   const [soaEditApi, setSoaEditApi] = useState(initial.soa_edit_api ?? "");
   const [apiRectify, setApiRectify] = useState(initial.api_rectify ?? false);
+  const [internal, setInternal] = useState(initial.horizon === "internal");
   const [saving, setSaving] = useState(false);
 
+  const initialInternal = initial.horizon === "internal";
   const dirty =
     kind !== initialKind ||
     mastersText !== (initial.masters ?? []).join("\n") ||
     soaEdit !== (initial.soa_edit ?? "") ||
     soaEditApi !== (initial.soa_edit_api ?? "") ||
-    apiRectify !== (initial.api_rectify ?? false);
+    apiRectify !== (initial.api_rectify ?? false) ||
+    internal !== initialInternal;
 
   async function handleSave() {
     setSaving(true);
@@ -98,6 +111,7 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
         soa_edit?: string;
         soa_edit_api?: string;
         api_rectify?: boolean;
+        horizon?: ZoneHorizon;
       }
       const patch: Patch = { serverSlug };
       if (kind !== initialKind) patch.kind = kind;
@@ -113,6 +127,7 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
       if (soaEdit !== (initial.soa_edit ?? "")) patch.soa_edit = soaEdit;
       if (soaEditApi !== (initial.soa_edit_api ?? "")) patch.soa_edit_api = soaEditApi;
       if (apiRectify !== (initial.api_rectify ?? false)) patch.api_rectify = apiRectify;
+      if (internal !== initialInternal) patch.horizon = internal ? "internal" : "public";
 
       const result = await mutate(`/api/admin/pdns/zones/${zoneIdEncoded}/settings`, {
         method: "PUT",
@@ -197,6 +212,21 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
               ariaLabel="API-RECTIFY"
             />
             <span className="font-mono text-xs">{apiRectify ? "enabled" : "disabled"}</span>
+          </div>
+        </Field>
+
+        <Field
+          label="This is an internal zone"
+          help="Split-horizon: an internal zone lists separately from a public zone of the same name, and carries an INTERNAL badge. AuthAdmin-side only - nothing is sent to PowerDNS."
+        >
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={internal}
+              onChange={setInternal}
+              disabled={!canEdit}
+              ariaLabel="This is an internal zone"
+            />
+            <span className="font-mono text-xs">{internal ? "internal" : "public"}</span>
           </div>
         </Field>
       </div>

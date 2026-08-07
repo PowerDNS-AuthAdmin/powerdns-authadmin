@@ -24,5 +24,6 @@ export * from "./ldap-providers";
 export * from "./auth-provider-slugs";
 export * from "./zone-templates";
 export * from "./zone-grants";
+export * from "./zone-horizons";
 export * from "./pdns-requests";
 export * from "./pdns-server-stats";
