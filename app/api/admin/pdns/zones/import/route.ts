@@ -31,6 +31,7 @@ import { logger } from "@/lib/logger";
 import { ForbiddenError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 import { parseZonefile } from "@/lib/dns/zonefile-parser";
+import { luaDenialReasonForNewZone } from "@/lib/pdns/lua-enablement";
 
 const importSchema = z.object({
   serverSlug: z.string().min(1),
@@ -112,7 +113,28 @@ export async function POST(request: Request): Promise<Response> {
     const hdrs = await headers();
     const reqCtx = getRequestContext(hdrs);
 
+    // LUA rdata executes inside the authoritative server, so the RRset write
+    // path refuses it unless PowerDNS has Lua armed. Import is the same write
+    // reaching the same daemon and has to answer to the same gate. Read once
+    // up front rather than per zone - the setting is daemon-wide, and these
+    // zones don't exist yet so no per-zone metadata can override it.
+    const hasLua = (zone: (typeof parsed.zones)[number]): boolean =>
+      zone.rrsets.some((rr) => rr.type === "LUA");
+    const luaDenial = parsed.zones.some(hasLua) ? await luaDenialReasonForNewZone(client) : null;
+
     for (const zone of parsed.zones) {
+      if (luaDenial !== null && hasLua(zone)) {
+        // Per-zone failure, not a whole-run abort: the handler is
+        // best-effort, and the operator's other zones are still importable.
+        results.push({
+          name: zone.name,
+          status: "failed",
+          rrsetCount: zone.rrsets.length,
+          error: luaDenial,
+        });
+        continue;
+      }
+
       // PDNS' createZone expects an empty `nameservers` array when NS
       // records ride in `rrsets` (the two are mutually exclusive on the
       // wire). Our parser puts NS records in rrsets, so we pass them
