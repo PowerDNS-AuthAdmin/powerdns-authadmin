@@ -85,14 +85,14 @@ export function parseZonefile(input: string): ParseResult {
     const raw = physicalLines[i] ?? "";
     let stripped = stripComment(raw);
 
-    // Open parens increment depth; close parens decrement.
-    for (const ch of stripped) {
-      if (ch === "(") parenDepth += 1;
-      else if (ch === ")") parenDepth = Math.max(0, parenDepth - 1);
-    }
-    // Drop parens themselves from the buffered content; per RFC 1035 they
-    // are line-continuation markers, not part of the rdata.
-    stripped = stripped.replace(/[()]/g, " ").trim();
+    // Quoted strings and escaped characters are RDATA; only bare parens
+    // are line-continuation markers.
+    stripped = stripped.replace(/"(?:\\.|[^"\\])*"|\\.|[()]/g, (token) => {
+      if (token === "(") parenDepth += 1;
+      else if (token === ")") parenDepth = Math.max(0, parenDepth - 1);
+      return token === "(" || token === ")" ? " " : token;
+    });
+    stripped = stripped.trim();
 
     if (parenDepth === 0) {
       if (buffer.length > 0) {
