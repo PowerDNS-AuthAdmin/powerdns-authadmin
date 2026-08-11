@@ -22,6 +22,10 @@
  *     itself, not operator-imported.
  *   - Multi-line: parenthesised continuations (typically SOA).
  *   - TXT: quoted strings with the usual `\"` and `\\` escapes.
+ *   - Quoted RDATA is opaque: `;`, `(`, `)` and runs of whitespace inside a
+ *     character-string are data, not syntax. This is what keeps PowerDNS LUA
+ *     records - whose payload is a quoted Lua expression, so parentheses on
+ *     every function call - intact through an import.
  *
  * Out of scope:
  *   - `$INCLUDE` (file-traversal vector; refused).
@@ -73,42 +77,40 @@ export function parseZonefile(input: string): ParseResult {
   let currentOrigin: string | null = null;
   let currentTtl = DEFAULT_TTL;
 
-  // Pre-process: strip comments, join multi-line records into single
-  // logical lines. We track the SOURCE line of each joined line for
-  // diagnostics.
+  // Pre-process: tokenize each physical line into fields, then join
+  // parenthesised continuations into single logical lines. We track the
+  // SOURCE line of each joined line for diagnostics.
   const physicalLines = input.split(/\r?\n/);
-  const logicalLines: Array<{ line: number; text: string }> = [];
-  let buffer = "";
+  const logicalLines: Array<{ line: number; fields: string[] }> = [];
+  let buffer: string[] = [];
   let bufferStartLine = 0;
   let parenDepth = 0;
   for (let i = 0; i < physicalLines.length; i += 1) {
-    const raw = physicalLines[i] ?? "";
-    let stripped = stripComment(raw);
-
-    // Quoted strings and escaped characters are RDATA; only bare parens
-    // are line-continuation markers.
-    stripped = stripped.replace(/"(?:\\.|[^"\\])*"|\\.|[()]/g, (token) => {
-      if (token === "(") parenDepth += 1;
-      else if (token === ")") parenDepth = Math.max(0, parenDepth - 1);
-      return token === "(" || token === ")" ? " " : token;
-    });
-    stripped = stripped.trim();
+    const scanned = scanLine(physicalLines[i] ?? "", parenDepth);
+    parenDepth = scanned.parenDepth;
+    if (scanned.unterminatedQuote) {
+      diagnostics.push({
+        line: i + 1,
+        level: "error",
+        message: "Unterminated quoted string (a character-string cannot span lines).",
+      });
+    }
 
     if (parenDepth === 0) {
       if (buffer.length > 0) {
         // Append the final piece of a multi-line record.
-        buffer += ` ${stripped}`;
-        logicalLines.push({ line: bufferStartLine, text: buffer.trim() });
-        buffer = "";
-      } else if (stripped.length > 0) {
-        logicalLines.push({ line: i + 1, text: stripped });
+        buffer.push(...scanned.fields);
+        logicalLines.push({ line: bufferStartLine, fields: buffer });
+        buffer = [];
+      } else if (scanned.fields.length > 0) {
+        logicalLines.push({ line: i + 1, fields: scanned.fields });
       }
     } else {
       if (buffer.length === 0) {
         bufferStartLine = i + 1;
-        buffer = stripped;
+        buffer = scanned.fields;
       } else {
-        buffer += ` ${stripped}`;
+        buffer.push(...scanned.fields);
       }
     }
   }
@@ -120,16 +122,19 @@ export function parseZonefile(input: string): ParseResult {
     });
   }
 
-  for (const { line, text } of logicalLines) {
+  for (const { line, fields } of logicalLines) {
+    // Only for diagnostics - the parse itself works off `fields`, which
+    // preserve whitespace inside quoted strings that this join collapses.
+    const text = fields.join(" ");
+
     // Directives - $-prefixed.
-    if (text.startsWith("$")) {
-      const m = /^\$(\w+)\s+(.*)$/.exec(text);
-      if (!m) {
+    if (fields[0]!.startsWith("$")) {
+      const name = fields[0]!.slice(1).toUpperCase();
+      const rest = fields.slice(1).join(" ");
+      if (!/^[A-Z0-9_]+$/.test(name) || rest.length === 0) {
         diagnostics.push({ line, level: "error", message: `Malformed directive: ${text}` });
         continue;
       }
-      const name = (m[1] ?? "").toUpperCase();
-      const rest = (m[2] ?? "").trim();
       if (name === "TTL") {
         const ttl = Number(rest);
         if (!Number.isFinite(ttl) || ttl < 0) {
@@ -169,7 +174,7 @@ export function parseZonefile(input: string): ParseResult {
       continue;
     }
 
-    const parts = text.split(/\s+/);
+    const parts = fields;
     if (parts.length < 3) {
       diagnostics.push({ line, level: "error", message: `Too few fields: ${text}` });
       continue;
@@ -210,31 +215,87 @@ export function parseZonefile(input: string): ParseResult {
   return { zones: [...zonesByOrigin.values()], diagnostics };
 }
 
-function stripComment(line: string): string {
-  // Walk the line, respecting that `;` inside a quoted TXT value is data.
-  let out = "";
+interface ScannedLine {
+  /** Whitespace-separated fields; quoted strings survive verbatim. */
+  fields: string[];
+  /** Paren depth after this line - non-zero means the record continues. */
+  parenDepth: number;
+  /** A `"` was left open at end-of-line, which is always malformed. */
+  unterminatedQuote: boolean;
+}
+
+/**
+ * Split one physical line into fields, honouring RFC 1035 quoting.
+ *
+ * Comment stripping, escape handling, field splitting and paren-depth
+ * accounting all need the same quote state, so they share one pass. Modelling
+ * that state more than once is what let a `(` inside quoted RDATA be read as a
+ * line-continuation marker - it silently rewrote every Lua expression on
+ * import, and derailed continuation tracking on quoted TXT.
+ *
+ * Inside quotes, `;` `(` `)` and whitespace are all just bytes: per RFC 1035
+ * §5.1 parens are structural only outside a character-string. Outside quotes,
+ * a paren is a continuation marker and separates fields rather than joining
+ * them, so `(2026081101` yields the serial without the paren glued on.
+ *
+ * Quote state deliberately does NOT carry to the next line: a character-string
+ * cannot span a newline, so an unbalanced `"` is a broken line rather than an
+ * open state the following lines inherit.
+ */
+function scanLine(line: string, parenDepth: number): ScannedLine {
+  const fields: string[] = [];
+  let field = "";
   let inQuotes = false;
-  let escape = false;
+  let escaped = false;
+
+  const flush = (): void => {
+    if (field.length > 0) {
+      fields.push(field);
+      field = "";
+    }
+  };
+
   for (const ch of line) {
-    if (escape) {
-      out += ch;
-      escape = false;
+    if (escaped) {
+      // The backslash is kept so the escape survives into the RDATA.
+      field += ch;
+      escaped = false;
       continue;
     }
     if (ch === "\\") {
-      out += ch;
-      escape = true;
+      field += ch;
+      escaped = true;
       continue;
     }
     if (ch === '"') {
       inQuotes = !inQuotes;
-      out += ch;
+      field += ch;
       continue;
     }
-    if (ch === ";" && !inQuotes) break;
-    out += ch;
+    if (inQuotes) {
+      field += ch;
+      continue;
+    }
+    if (ch === ";") break; // comment runs to end-of-line
+    if (ch === "(") {
+      parenDepth += 1;
+      flush();
+      continue;
+    }
+    if (ch === ")") {
+      parenDepth = Math.max(0, parenDepth - 1);
+      flush();
+      continue;
+    }
+    if (ch === " " || ch === "\t" || ch === "\f" || ch === "\v") {
+      flush();
+      continue;
+    }
+    field += ch;
   }
-  return out;
+  flush();
+
+  return { fields, parenDepth, unterminatedQuote: inQuotes };
 }
 
 function canonicalize(name: string): string | null {
