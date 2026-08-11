@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Security - dependency advisories
+
+Lockfile-only; every bump lands inside an existing semver range, so no
+declared dependency or override changed.
+
+- `dompurify` 3.4.12 → 3.4.13 - removing an `IN_PLACE` hook left a detached
+  subtree executable, giving XSS
+  ([GHSA-55q2-fjhq-7xh7](https://github.com/advisories/GHSA-55q2-fjhq-7xh7),
+  moderate). Reaches us as a runtime dep through `isomorphic-dompurify`, which
+  backs the inline-SVG brand-logo sanitizer.
+- `nanoid` 3.3.16 → 3.3.17 - custom generators loop indefinitely when `size` is
+  zero ([GHSA-2v37-7h3g-55p8](https://github.com/advisories/GHSA-2v37-7h3g-55p8),
+  high). Transitive through `postcss`; this is the one that was failing the
+  `audit` CI gate.
+- `brace-expansion` 5.0.7 → 5.0.9 and 1.1.16 → 1.1.18 - DoS via unbounded
+  intermediate arrays, bypassing the CVE-2026-14257 mitigation
+  ([GHSA-rgw5-rvv9-x895](https://github.com/advisories/GHSA-rgw5-rvv9-x895),
+  high) and unbounded expansion length
+  ([GHSA-mh99-v99m-4gvg](https://github.com/advisories/GHSA-mh99-v99m-4gvg),
+  high). Dev-only, through the ESLint plugins' `minimatch`.
+
 ### Fixed - zonefile import no longer rewrites quoted record data
 
 Importing a zonefile stripped **every** parenthesis from a record line,
