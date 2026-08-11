@@ -46,6 +46,7 @@ import * as pgLdapProviders from "./ldap-providers";
 import * as pgAuthProviderSlugs from "./auth-provider-slugs";
 import * as pgZoneTemplates from "./zone-templates";
 import * as pgZoneGrants from "./zone-grants";
+import * as pgZoneHorizons from "./zone-horizons";
 import * as pgPdnsRequests from "./pdns-requests";
 import * as pgPdnsServerStats from "./pdns-server-stats";
 
@@ -68,6 +69,7 @@ import * as sqliteLdapProviders from "@/lib/db/schema-sqlite/ldap-providers";
 import * as sqliteAuthProviderSlugs from "@/lib/db/schema-sqlite/auth-provider-slugs";
 import * as sqliteZoneTemplates from "@/lib/db/schema-sqlite/zone-templates";
 import * as sqliteZoneGrants from "@/lib/db/schema-sqlite/zone-grants";
+import * as sqliteZoneHorizons from "@/lib/db/schema-sqlite/zone-horizons";
 import * as sqlitePdnsRequests from "@/lib/db/schema-sqlite/pdns-requests";
 import * as sqlitePdnsServerStats from "@/lib/db/schema-sqlite/pdns-server-stats";
 
@@ -192,6 +194,11 @@ export type NewZoneTemplate = pgZoneTemplates.NewZoneTemplate;
 export const zoneGrants = pick(pgZoneGrants.zoneGrants, sqliteZoneGrants.zoneGrants);
 export type ZoneGrant = pgZoneGrants.ZoneGrant;
 export type NewZoneGrant = pgZoneGrants.NewZoneGrant;
+
+// --- zone_horizons ---
+export const zoneHorizons = pick(pgZoneHorizons.zoneHorizons, sqliteZoneHorizons.zoneHorizons);
+export type ZoneHorizonRow = pgZoneHorizons.ZoneHorizonRow;
+export type NewZoneHorizonRow = pgZoneHorizons.NewZoneHorizonRow;
 
 // --- pdns_requests ---
 export const pdnsRequests = pick(pgPdnsRequests.pdnsRequests, sqlitePdnsRequests.pdnsRequests);

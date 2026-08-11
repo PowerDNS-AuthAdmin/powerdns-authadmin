@@ -25,6 +25,7 @@ import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
+import { assertApiWritableMetadataKind } from "@/lib/pdns/metadata-policy";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 
@@ -62,6 +63,10 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
 
     const { zoneId, kind: rawKind } = await context.params;
     const kind = parseKind(rawKind);
+    // Refuse the kinds PowerDNS itself rejects (and ENABLE-LUA-RECORDS, which we
+    // hold to the host by policy) at the boundary, with a clear message instead
+    // of forwarding the write for a downstream 422.
+    assertApiWritableMetadataKind(kind);
 
     let body;
     try {
@@ -131,6 +136,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
 
     const { zoneId, kind: rawKind } = await context.params;
     const kind = parseKind(rawKind);
+    assertApiWritableMetadataKind(kind);
     const url = new URL(request.url);
     const { serverSlug } = deleteQuerySchema.parse(Object.fromEntries(url.searchParams));
 

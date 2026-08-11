@@ -57,6 +57,16 @@ behaviour had to be moved off `role` onto zone `kind` (done); the `/config` advi
    > This is a deliberate, bounded exception. The test for adding another one: PowerDNS must be
    > _incapable_ of reporting the fact, not merely inconvenient to ask.
 
+   > **Amendment (2026-08-08, #122):** the snapshot also carries `enable-lua-records`
+   > (`luaRecords: "no" | "yes" | "shared"`). It is an observed `/config` flag like the rest, and it
+   > belongs here for the same reason DNSSEC does: it changes what the app will let an operator
+   > create. LUA records are executable server-side code, so "is Lua armed on this daemon?" is a
+   > capability question, and computing it live on every zone render (which is what the record
+   > editor did before) both hid it from every capability surface and put two PDNS calls on the zone
+   > page's critical path. The field is **optional** - absent means "snapshot predates this field",
+   > which readers must treat as _not observed_ (fall back to a live read) rather than as `no`.
+   > Zone-level `ENABLE-LUA-RECORDS` metadata still ORs on top; a daemon-level `no` is not a veto.
+
 3. **Gate editability on zone `kind`** via one ops resolver:
    `zoneCapabilities(kind) → { rrsets, metadata, masters, dnssec, axfrRetrieve, delete }`.
    Generalizes the existing `isReadOnlyZoneKind` and encodes the _real_ writable options on a

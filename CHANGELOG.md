@@ -6,6 +6,112 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.5.4] - 2026-08-08
+
+Feature + dependency-security release. **Adds one table (`zone_horizons`) - the
+first schema change since 1.5.0.** The migration runs automatically at container
+boot (ADR-0011) and creates an empty table; no existing row is read or written,
+so the upgrade is a pull-and-recreate. See
+[UPGRADING](./docs/09-UPGRADING.md#upgrading-to-154-from-153).
+
+### Added - split-horizon zones ("This is an internal zone")
+
+Zones carry a **horizon** - public (the default) or internal - set with a toggle
+when you add a zone, or later on the zone's **Zone settings** tab. An internal
+zone is listed as its own row alongside a public zone of the same name instead of
+disappearing into the "duplicate zones hidden" notice, carries an `INTERNAL`
+badge next to the `CLUSTER` badge in the zones list, and shows that badge on its
+detail page so it's unambiguous which copy you have open. A Public / Internal
+filter appears above the list once at least one internal zone exists.
+
+The classification is AuthAdmin-side - PowerDNS has no way to tell two same-named
+zones apart - and is stored only when it differs from the default, so nothing
+changes for installs that don't use it. Cluster zones classify against the
+cluster (not the peer that happened to serve the write), a mirror inherits its
+managed primary's classification, and changes are audited as
+`zone.horizon.update`. Adds one table, `zone_horizons`; no data migration.
+
+See [FEATURES § 4.1.1](./docs/FEATURES.md#411-split-horizon-zones-public--internal)
+· [ADR-0022](./docs/adr/0022-zone-horizons.md) · (#121)
+
+### Fixed - `enable-lua-records` now shows up in backend capabilities
+
+A daemon with Lua records armed said so nowhere in the UI: the record editor
+offered the `LUA` type (correctly), but no capability badge, no daemon-settings
+row, and nothing in the stored capability snapshot reflected it - the only way
+to find out was to open a zone and look for the type in a dropdown. The observed
+capability set now carries `enable-lua-records` (`no` / `yes` / `shared`), it
+renders as a `lua records` badge wherever backends are listed, and the setting
+appears verbatim in the backend's **Daemon settings** table.
+
+The zone page now reads the cached capability instead of issuing a live
+`/config` call on every render for editors, so enabling Lua in `pdns.conf` needs
+a backend refresh (**Admin → PowerDNS servers → Refresh**) to show up - the same
+contract as every other capability. Per-zone `ENABLE-LUA-RECORDS` metadata still
+overrides a daemon-level `no`.
+
+See [FEATURES § 3.10](./docs/FEATURES.md#310-observed-daemon-capabilities) ·
+[ADR-0014](./docs/adr/0014-backend-capability-model.md) · (#122)
+
+### Security - dependency advisories
+
+- `undici` 8.5.0 → 8.10.0 (and the transitive 7.28.0 → 7.29.0), clearing the
+  open advisories for degenerate private cache directives, retry-interceptor
+  response desynchronization, cookie attribute injection, Cache-Control
+  whitespace disclosure, and blob-type CRLF injection.
+- `js-yaml` 4.3.0 → 4.3.1 - quadratic CPU consumption resolving `!!omap`
+  ([GHSA-5p4m-2wfm-xmqj](https://github.com/advisories/GHSA-5p4m-2wfm-xmqj),
+  high). This is the one that was failing the `audit` CI gate.
+- `postcss` 8.5.18 → 8.5.25 - attacker-controlled `sourceMappingURL` reading
+  arbitrary `.map` files when `from` is unset
+  ([GHSA-fxqj-rqcc-2cmp](https://github.com/advisories/GHSA-fxqj-rqcc-2cmp),
+  moderate). The existing `"postcss": "$postcss"` override propagates the bump
+  through `next`'s copy too.
+
+## [1.5.3] - 2026-07-26
+
+Feature + dependency-security release. No migration, no schema change.
+
+### Added - PowerDNS Lua records
+
+Forward and reverse zone editors can now create and edit PowerDNS `LUA` records,
+with type-aware validation of the presentation format (`<query-type> "<Lua
+snippet>"`, adjacent quoted chunks, `\DDD` escapes, the 255-octet AXFR
+boundary). Because a `LUA` record is server-side code, the editor only offers
+the type - and the write path only accepts it - when PowerDNS actually has Lua
+enabled for the zone.
+
+Enablement is read from PowerDNS itself and honours **both** signals the daemon
+uses: the global `enable-lua-records` setting (`GET /config`) **or** the
+per-zone `ENABLE-LUA-RECORDS` domain metadata. Verified against pdns-auth
+4.9.16: the per-zone flag is not writable through the API (`pdnsutil` /
+`pdns.conf` own it), and it is returned only by the metadata **list** endpoint,
+so AuthAdmin never tries to set it and reads it where it actually appears. The
+write path re-reads this live on every Lua upsert and fails closed, so a stale
+tab or crafted request can't create a Lua record on a server that has Lua off.
+
+Thanks to @Der-Jan for the original feature (#115).
+
+### Changed - metadata write-policy is now enforced, not just hinted
+
+Which zone-metadata kinds are read-only now lives in one place
+(`lib/pdns/metadata-policy`) that both the UI and the write path consult, so the
+metadata tab hides exactly the kinds the API refuses. Writes to a read-only kind
+(the DNSSEC signing state, the AXFR TSIG bindings, `ENABLE-LUA-RECORDS`) are
+declined at the boundary with a clear message instead of being forwarded to
+PowerDNS for a raw 422. All the kinds in that set were verified to reject `PUT`
+and `DELETE` on pdns-auth 4.9.16.
+
+### Security - `next` and `postcss` advisories
+
+- `next` bumped `16.2.6 → 16.2.12`, clearing the high-severity App Router
+  advisories fixed in 16.2.11 (middleware/proxy bypass, Server Actions DoS/SSRF,
+  rewrite SSRF, and the moderate cache/disclosure issues).
+- `postcss` pinned forward `8.5.15 → 8.5.18` for the path-traversal in source-map
+  auto-loading ([GHSA-r28c-9q8g-f849](https://github.com/advisories/GHSA-r28c-9q8g-f849)),
+  a transitive of `next`. The advisory was published after 1.5.2 shipped;
+  `npm audit --audit-level=high --omit=dev` is clean on 8.5.18.
+
 ## [1.5.2] - 2026-07-22
 
 Dependency security release. No code change, no migration.
@@ -1324,7 +1430,9 @@ First production release.
 - **Distribution** - multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.2...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.4...HEAD
+[1.5.4]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.3...v1.5.4
+[1.5.3]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.4.3...v1.5.0
