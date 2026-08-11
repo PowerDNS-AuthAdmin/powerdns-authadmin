@@ -6,6 +6,45 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed - zonefile import no longer rewrites quoted record data
+
+Importing a zonefile stripped **every** parenthesis from a record line,
+including parentheses inside quoted RDATA, and normalized whitespace inside
+quoted strings. Both happened silently - no diagnostic, no failure - so the
+import reported success over corrupted records. PowerDNS LUA records were the
+worst hit (every Lua expression is a function call), but any TXT value carrying
+parentheses or doubled spaces was affected too.
+
+This also broke the app's own export → import path: `formatZonefile()` writes
+record content verbatim, so moving a zone with a LUA record between two backends
+corrupted it. A quoted `(` additionally derailed multi-line tracking, swallowing
+every following line into the record until a stray `)` turned up.
+
+Comment stripping, quote handling, field splitting and parenthesis-depth
+accounting now share a single pass over each line, so quoted RDATA is opaque to
+all four - `;`, `(`, `)` and runs of whitespace inside a character-string are
+data, exactly as RFC 1035 §5.1 has it. An unbalanced `"` is now reported on the
+line where it occurs instead of consuming the rest of the file.
+
+Thanks to [@Der-Jan](https://github.com/Der-Jan) for finding and fixing this
+(#127, #128, #130).
+
+### Fixed - zonefile import now answers to the Lua-records gate
+
+Creating a `LUA` record through the record editor is refused unless PowerDNS
+actually has Lua armed, verified live against the daemon and failing closed.
+Zonefile import wrote to the same daemon and skipped that check entirely, so a
+zonefile could land LUA records on a backend where the editor would refuse them
+
+- and where PowerDNS then serves nothing for them, with no explanation anywhere
+  in the UI.
+
+Import now applies the same gate. Because a zone being imported doesn't exist
+yet, only the daemon-global `enable-lua-records` setting can arm it (there is no
+zone to carry `ENABLE-LUA-RECORDS` metadata). A refusal fails just that zone and
+reports why in the per-zone result, leaving the rest of the import to proceed
+(#129).
+
 ## [1.5.4] - 2026-08-08
 
 Feature + dependency-security release. **Adds one table (`zone_horizons`) - the
