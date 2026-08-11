@@ -37,6 +37,39 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.5.5 (from 1.5.4)
+
+**No schema change** - nothing to watch in the boot log beyond the usual
+"no pending migrations". Pull and recreate:
+
+```sh
+docker compose pull
+docker compose up -d
+```
+
+**If you have imported zonefiles before, check what landed.** Every version up
+to and including 1.5.4 stripped parentheses out of quoted record data on import
+and collapsed runs of whitespace inside quoted strings, silently and without a
+diagnostic. PowerDNS LUA records are the ones to look at first - a Lua
+expression is nothing but function calls, so `"ifportup(443, {...})"` was stored
+as `"ifportup 443, {...} "` and does not work. Quoted TXT values containing
+parentheses were affected the same way.
+
+Re-importing an affected zone on 1.5.5 parses it correctly, so the fix for a
+mangled record is to re-import from the original zonefile (or fix the record by
+hand in the editor). Nothing is rewritten automatically on upgrade - AuthAdmin
+has no way to tell a corrupted value from one an operator meant to type.
+
+**LUA records now need Lua enabled on the backend to import.** Zonefile import
+previously skipped the `enable-lua-records` check that the record editor
+enforces. If you import a zonefile containing `LUA` records onto a backend
+without `enable-lua-records` set, that zone now fails with an explanatory
+message instead of silently creating records PowerDNS will not serve. Other
+zones in the same import are unaffected.
+
+**Rolling back.** 1.5.4 has the same schema, so a downgrade is a straight image
+swap - though it reintroduces the import corruption.
+
 ### Upgrading to 1.5.4 (from 1.5.3)
 
 **This release adds a table** - `zone_horizons`, for the new split-horizon zone

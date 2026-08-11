@@ -6,26 +6,16 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-### Security - dependency advisories
+## [1.5.5] - 2026-08-12
 
-Lockfile-only; every bump lands inside an existing semver range, so no
-declared dependency or override changed.
+Bug-fix + dependency-security release. **No schema change** - the upgrade is a
+pull-and-recreate, with no migration to watch.
 
-- `dompurify` 3.4.12 → 3.4.13 - removing an `IN_PLACE` hook left a detached
-  subtree executable, giving XSS
-  ([GHSA-55q2-fjhq-7xh7](https://github.com/advisories/GHSA-55q2-fjhq-7xh7),
-  moderate). Reaches us as a runtime dep through `isomorphic-dompurify`, which
-  backs the inline-SVG brand-logo sanitizer.
-- `nanoid` 3.3.16 → 3.3.17 - custom generators loop indefinitely when `size` is
-  zero ([GHSA-2v37-7h3g-55p8](https://github.com/advisories/GHSA-2v37-7h3g-55p8),
-  high). Transitive through `postcss`; this is the one that was failing the
-  `audit` CI gate.
-- `brace-expansion` 5.0.7 → 5.0.9 and 1.1.16 → 1.1.18 - DoS via unbounded
-  intermediate arrays, bypassing the CVE-2026-14257 mitigation
-  ([GHSA-rgw5-rvv9-x895](https://github.com/advisories/GHSA-rgw5-rvv9-x895),
-  high) and unbounded expansion length
-  ([GHSA-mh99-v99m-4gvg](https://github.com/advisories/GHSA-mh99-v99m-4gvg),
-  high). Dev-only, through the ESLint plugins' `minimatch`.
+Zonefile import silently corrupted any record whose quoted data contained
+parentheses. PowerDNS LUA records were the worst hit, but it also broke the
+app's own export → import path, so moving an affected zone between two backends
+mangled it. Import also skipped the Lua-records gate that the record editor has
+always enforced; it now answers to the same check.
 
 ### Fixed - zonefile import no longer rewrites quoted record data
 
@@ -55,16 +45,36 @@ Thanks to [@Der-Jan](https://github.com/Der-Jan) for finding and fixing this
 Creating a `LUA` record through the record editor is refused unless PowerDNS
 actually has Lua armed, verified live against the daemon and failing closed.
 Zonefile import wrote to the same daemon and skipped that check entirely, so a
-zonefile could land LUA records on a backend where the editor would refuse them
-
-- and where PowerDNS then serves nothing for them, with no explanation anywhere
-  in the UI.
+zonefile could land LUA records on a backend where the editor would refuse them,
+and where PowerDNS then serves nothing for them with no explanation anywhere in
+the UI.
 
 Import now applies the same gate. Because a zone being imported doesn't exist
 yet, only the daemon-global `enable-lua-records` setting can arm it (there is no
 zone to carry `ENABLE-LUA-RECORDS` metadata). A refusal fails just that zone and
 reports why in the per-zone result, leaving the rest of the import to proceed
 (#129).
+
+### Security - dependency advisories
+
+Lockfile-only; every bump lands inside an existing semver range, so no declared
+dependency or override changed.
+
+- `dompurify` 3.4.12 → 3.4.13 - removing an `IN_PLACE` hook left a detached
+  subtree executable, giving XSS
+  ([GHSA-55q2-fjhq-7xh7](https://github.com/advisories/GHSA-55q2-fjhq-7xh7),
+  moderate). Reaches us as a runtime dep through `isomorphic-dompurify`, which
+  backs the inline-SVG brand-logo sanitizer.
+- `nanoid` 3.3.16 → 3.3.17 - custom generators loop indefinitely when `size` is
+  zero ([GHSA-2v37-7h3g-55p8](https://github.com/advisories/GHSA-2v37-7h3g-55p8),
+  high). Transitive through `postcss`; this is the one that was failing the
+  `audit` CI gate.
+- `brace-expansion` 5.0.7 → 5.0.9 and 1.1.16 → 1.1.18 - DoS via unbounded
+  intermediate arrays, bypassing the CVE-2026-14257 mitigation
+  ([GHSA-rgw5-rvv9-x895](https://github.com/advisories/GHSA-rgw5-rvv9-x895),
+  high) and unbounded expansion length
+  ([GHSA-mh99-v99m-4gvg](https://github.com/advisories/GHSA-mh99-v99m-4gvg),
+  high). Dev-only, through the ESLint plugins' `minimatch`.
 
 ## [1.5.4] - 2026-08-08
 
