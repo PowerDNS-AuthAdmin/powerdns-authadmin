@@ -37,6 +37,15 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.6.0 (from 1.5.6)
+
+No migration, no schema change, no config change - pull the new tag and
+recreate the container. Clears every open Dependabot alert: `next`
+(two critical RCEs), `sharp`, `nodemailer` (four advisories), `js-yaml`,
+`@simplewebauthn/server` and the vitest dev-dependency trio all move to their
+patched releases. See the [CHANGELOG](../CHANGELOG.md#160---2026-09-14) for
+the full list.
+
 ### Upgrading to 1.5.6 (from 1.5.5)
 
 **No schema change**, but there IS a migration -

@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-14
+
+Security release. **No schema change, no config change** - pull the new tag
+and recreate the container.
+
 ### Security - dependency advisories
 
 - `next` 16.2.12 → 16.3.4 - unauthenticated RCE on Windows-hosted servers
