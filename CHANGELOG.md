@@ -6,6 +6,45 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Security - dependency advisories
+
+- `next` 16.2.12 → 16.3.4 - unauthenticated RCE on Windows-hosted servers
+  ([GHSA-p293-qw3h-jr36](https://github.com/advisories/GHSA-p293-qw3h-jr36),
+  critical) and unauthenticated RCE in the Image Optimization API via crafted
+  AVIF files
+  ([GHSA-2xp9-vwfh-vxw4](https://github.com/advisories/GHSA-2xp9-vwfh-vxw4),
+  critical).
+- `sharp` 0.35.3 → 0.35.4 (the `next`-driven override in `overrides.sharp`) -
+  libheif memory-safety bugs
+  ([GHSA-rgj7-g3m4-5g8c](https://github.com/advisories/GHSA-rgj7-g3m4-5g8c),
+  high).
+- `nodemailer` 9.0.1 → 9.1.1 - the legacy `resolveContent()` signature bypassed
+  `disableFileAccess`/`disableUrlAccess`
+  ([GHSA-8m3c-c648-2xjj](https://github.com/advisories/GHSA-8m3c-c648-2xjj),
+  moderate), an IDN/punycode domain allow-list bypass could route mail to an
+  attacker-controlled domain
+  ([GHSA-wmmp-3585-3rmp](https://github.com/advisories/GHSA-wmmp-3585-3rmp),
+  moderate), address-list parsing was quadratic time, letting a crafted
+  recipient list DoS the sender
+  ([GHSA-2x7j-588g-ccc2](https://github.com/advisories/GHSA-2x7j-588g-ccc2),
+  high), and an RFC 5322 comment-parsing quirk let recipient-domain validation
+  be bypassed the same way
+  ([GHSA-cc9r-2j5m-2m83](https://github.com/advisories/GHSA-cc9r-2j5m-2m83),
+  moderate). Backs `lib/email`.
+- `js-yaml` 4.3.1 → 4.3.2 - `maxTotalMergeKeys` didn't count empty merge
+  sources, so a crafted YAML document could burn CPU well past the configured
+  limit
+  ([GHSA-2883-xcg3-v3hh](https://github.com/advisories/GHSA-2883-xcg3-v3hh),
+  high). Backs the provisioning YAML loader.
+- `@simplewebauthn/server` 13.3.1 → 13.3.3 - registration verification didn't
+  fully chain attestation certificates to a trust anchor
+  ([GHSA-6hxq-p678-4hr2](https://github.com/advisories/GHSA-6hxq-p678-4hr2),
+  low).
+- `vitest` / `@vitest/coverage-v8` / `@vitest/ui` 4.1.7 → 4.1.11 - a redirect
+  mock in `@vitest/mocker` allowed path traversal / arbitrary file read
+  ([GHSA-82fw-gwwq-j7x9](https://github.com/advisories/GHSA-82fw-gwwq-j7x9),
+  moderate). Dev-only.
+
 ## [1.5.6] - 2026-08-27
 
 Feature release. **No schema change** - the upgrade is a pull-and-recreate. It

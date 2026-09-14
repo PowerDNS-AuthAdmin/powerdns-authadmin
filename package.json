@@ -51,7 +51,7 @@
     "@node-rs/argon2": "2.0.2",
     "@node-saml/node-saml": "5.1.0",
     "@simplewebauthn/browser": "13.3.0",
-    "@simplewebauthn/server": "13.3.1",
+    "@simplewebauthn/server": "13.3.3",
     "@tanstack/react-table": "8.21.3",
     "better-sqlite3": "12.10.0",
     "client-only": "0.0.1",
@@ -62,11 +62,11 @@
     "ioredis": "5.10.1",
     "isomorphic-dompurify": "3.13.0",
     "jose": "6.2.3",
-    "js-yaml": "4.3.1",
+    "js-yaml": "4.3.2",
     "ldapts": "8.1.8",
     "lucide-react": "1.16.0",
-    "next": "16.2.12",
-    "nodemailer": "9.0.1",
+    "next": "16.3.4",
+    "nodemailer": "9.1.1",
     "openid-client": "6.8.4",
     "pg": "8.21.0",
     "pino": "10.3.1",
@@ -95,8 +95,8 @@
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
-    "@vitest/coverage-v8": "4.1.7",
-    "@vitest/ui": "4.1.7",
+    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/ui": "4.1.11",
     "drizzle-kit": "0.31.10",
     "eslint": "10.4.0",
     "eslint-config-next": "16.2.6",
@@ -108,7 +108,7 @@
     "tailwindcss": "4.3.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.59.4",
-    "vitest": "4.1.7"
+    "vitest": "4.1.11"
   },
   "overrides": {
     "comment": "Transitive-dep CVE patches. Revisit when upstream ships fixes.",
@@ -121,6 +121,6 @@
     "postcss": "$postcss",
     "size-sensor": "1.0.3",
     "sharp-comment": "RUNTIME dep, unlike the rest here: next/image needs sharp to optimize images in production. next@16 still declares ^0.34.5, but every 0.34.x inherits the libvips CVEs in GHSA-f88m-g3jw-g9cj, and npm audit's only suggested fix is downgrading to next@14. Pinning forward to 0.35.x is the sane direction; drop this once next widens its range.",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.4"
   }
 }
