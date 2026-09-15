@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-09-15
+
+### Fixed
+
+- Record editor: the underscore-label warning (DKIM/DMARC/SRV names) and the
+  unrecognized-CAA-tag warning both said "Override if ..." even though
+  warnings have no override control in the UI - only validation _errors_ get
+  a "Save anyway" checkbox. The wording could be misread as an instruction to
+  replace the underscore with a hyphen, which breaks the record it's
+  describing. Both messages now say plainly that the value is fine as
+  entered and no change is needed.
+
 ## [1.6.0] - 2026-09-14
 
 Security release. **No schema change, no config change** - pull the new tag

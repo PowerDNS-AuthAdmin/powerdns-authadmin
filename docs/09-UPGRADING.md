@@ -37,6 +37,13 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.6.1 (from 1.6.0)
+
+No migration, no schema change, no config change - pull the new tag and
+recreate the container. Fixes misleading wording on two record-editor
+validation warnings (underscore labels, unrecognized CAA tags). See the
+[CHANGELOG](../CHANGELOG.md#161---2026-09-15).
+
 ### Upgrading to 1.6.0 (from 1.5.6)
 
 No migration, no schema change, no config change - pull the new tag and
