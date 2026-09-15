@@ -110,7 +110,7 @@ export function validateHostname(raw: string, opts: HostnameOptions = {}): RRVal
     if (label.includes("_") && !opts.allowUnderscore) {
       issues.push({
         level: "warning",
-        message: `Label "${label}" uses underscore - only the "preferred name syntax" of RFC 1035 + 1123 is letters / digits / hyphens. Override if this is a service label (DKIM, DMARC, SRV target, etc.).`,
+        message: `Label "${label}" uses underscore, which the "preferred name syntax" of RFC 1035 + 1123 reserves for letters / digits / hyphens. This is normal and expected for service labels (DKIM, DMARC, SRV target, etc.) - no change needed, PowerDNS accepts it as written.`,
       });
     }
     if (!PREFERRED_LABEL_RE.test(label)) {

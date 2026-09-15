@@ -79,7 +79,7 @@ export const caaValidator: RRTypeValidator = {
     } else if (!KNOWN_TAGS.has(tag)) {
       issues.push({
         level: "warning",
-        message: `Tag "${tag}" is not in the IANA registry of common CAA tags. Override if it's a custom or recently-registered tag.`,
+        message: `Tag "${tag}" is not in the IANA registry of common CAA tags. This is fine for a custom or recently-registered tag - no change needed.`,
       });
     }
 
