@@ -6,6 +6,38 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-09-18
+
+Sign-in reliability. **No schema change, no config change** - pull the new tag
+and recreate the container.
+
+### Fixed
+
+- Sign-in could fail with **"Invalid request body."** against a form the
+  visitor had filled in correctly, then blank both fields. It happened on a
+  first visit - fresh profile, private window, or any cold cache - and cleared
+  up on a retry, which made it look like flakiness rather than a bug.
+
+  The cause was a hydration race. `/login` is server-rendered, so the form
+  accepts keystrokes from the moment it paints, but its inputs are controlled
+  by React state that doesn't exist until the client bundle loads. Anything
+  typed in that window reached the DOM and nothing else: `required` passed
+  (the browser validates the DOM), the submit handler serialised the still-
+  empty state, and the server rejected `{"email":"","password":""}`. Rendering
+  that error then wrote the empty state back into the fields.
+
+  The pre-auth forms now take their values from the form itself - adopting
+  whatever the fields already hold once React arrives, and re-reading them at
+  submit - so what the visitor sees is what gets sent. That also covers
+  password managers that assign `input.value` without firing an event React
+  recognises, which failed the same way with no timing involved.
+
+  Fixes the login, LDAP login, signup, forgot-password and reset-password
+  forms. Reset-password was failing differently but just as confusingly: its
+  client-side length check measured the empty state and reported "Password
+  must be at least 12 characters." against a field holding a long password.
+  ([#139](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/139))
+
 ## [1.6.1] - 2026-09-15
 
 ### Fixed

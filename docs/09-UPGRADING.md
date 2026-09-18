@@ -37,6 +37,14 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.6.2 (from 1.6.1)
+
+No migration, no schema change, no config change - pull the new tag and
+recreate the container. Fixes a hydration race that made sign-in fail with
+"Invalid request body." on a first visit when the visitor typed faster than
+the page's JavaScript loaded. See the
+[CHANGELOG](../CHANGELOG.md#162---2026-09-18).
+
 ### Upgrading to 1.6.1 (from 1.6.0)
 
 No migration, no schema change, no config change - pull the new tag and
