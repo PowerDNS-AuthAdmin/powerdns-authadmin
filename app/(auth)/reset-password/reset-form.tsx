@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/client/api-fetch";
+import { readFormFields, useDomFieldSync } from "@/lib/client/form-dom";
 
 export function ResetPasswordForm({ token }: { token: string }) {
   const [pw, setPw] = useState("");
@@ -10,14 +11,26 @@ export function ResetPasswordForm({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
+  // Input typed before this bundle loaded is in the DOM and nowhere else;
+  // adopt it on mount and re-read it on submit (#139). Without this the
+  // length check below measures the empty state and rejects a password the
+  // field visibly holds.
+  const formRef = useRef<HTMLFormElement>(null);
+  useDomFieldSync(formRef, { password: setPw, confirm: setConfirm });
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    if (pw.length < 12) {
+
+    const submitted = readFormFields(event.currentTarget, ["password", "confirm"]);
+    setPw(submitted.password);
+    setConfirm(submitted.confirm);
+
+    if (submitted.password.length < 12) {
       setError("Password must be at least 12 characters.");
       return;
     }
-    if (pw !== confirm) {
+    if (submitted.password !== submitted.confirm) {
       setError("Passwords don't match.");
       return;
     }
@@ -26,7 +39,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
       const res = await apiFetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password: pw }),
+        body: JSON.stringify({ token, password: submitted.password }),
       });
       const data = (await res.json().catch(() => null)) as {
         ok?: boolean;
@@ -73,13 +86,14 @@ export function ResetPasswordForm({ token }: { token: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label htmlFor="pw" className="block text-sm font-medium">
           New password
         </label>
         <input
           id="pw"
+          name="password"
           type="password"
           autoComplete="new-password"
           required
@@ -95,6 +109,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         </label>
         <input
           id="confirm"
+          name="confirm"
           type="password"
           autoComplete="new-password"
           required

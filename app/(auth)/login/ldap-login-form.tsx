@@ -10,9 +10,10 @@
  * renders and its token is included in the body.
  */
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
 import { apiFetch } from "@/lib/client/api-fetch";
+import { readFormFields, useDomFieldSync } from "@/lib/client/form-dom";
 
 interface Props {
   slug: string;
@@ -35,8 +36,18 @@ export function LdapLoginForm({
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
+  // Credentials typed before this bundle loaded are in the DOM and nowhere
+  // else; adopt them on mount and re-read them on submit (#139).
+  const formRef = useRef<HTMLFormElement>(null);
+  useDomFieldSync(formRef, { username: setUsername, password: setPassword });
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const submitted = readFormFields(event.currentTarget, ["username", "password"]);
+    setUsername(submitted.username);
+    setPassword(submitted.password);
+
     setLoading(true);
     setError(null);
 
@@ -45,8 +56,8 @@ export function LdapLoginForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username,
-          password,
+          username: submitted.username,
+          password: submitted.password,
           ...(captchaToken ? { captchaToken } : {}),
         }),
       });
@@ -90,7 +101,12 @@ export function LdapLoginForm({
   const submitDisabled = loading || (turnstileSiteKey !== undefined && captchaToken === null);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" aria-label={`Sign in with ${providerName}`}>
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      className="space-y-4"
+      aria-label={`Sign in with ${providerName}`}
+    >
       <div className="flex items-baseline gap-2">
         <span className="text-sm font-medium">{providerName}</span>
         <span className="rounded bg-[color:var(--color-bg-muted)] px-1.5 py-0.5 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
@@ -103,6 +119,7 @@ export function LdapLoginForm({
         </label>
         <input
           id={`ldap-username-${slug}`}
+          name="username"
           type="text"
           autoComplete="username"
           required
@@ -119,6 +136,7 @@ export function LdapLoginForm({
         </label>
         <input
           id={`ldap-password-${slug}`}
+          name="password"
           type="password"
           autoComplete="current-password"
           required

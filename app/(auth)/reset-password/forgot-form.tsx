@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
 import { apiFetch } from "@/lib/client/api-fetch";
+import { readFormFields, useDomFieldSync } from "@/lib/client/form-dom";
 
 export function ForgotPasswordForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) {
   const [email, setEmail] = useState("");
@@ -12,8 +13,17 @@ export function ForgotPasswordForm({ turnstileSiteKey }: { turnstileSiteKey?: st
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
+  // Input typed before this bundle loaded is in the DOM and nowhere else;
+  // adopt it on mount and re-read it on submit (#139).
+  const formRef = useRef<HTMLFormElement>(null);
+  useDomFieldSync(formRef, { email: setEmail });
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const submitted = readFormFields(event.currentTarget, ["email"]);
+    setEmail(submitted.email);
+
     setLoading(true);
     setMessage(null);
     setError(null);
@@ -22,7 +32,7 @@ export function ForgotPasswordForm({ turnstileSiteKey }: { turnstileSiteKey?: st
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email,
+          email: submitted.email,
           ...(captchaToken !== null ? { captchaToken } : {}),
         }),
       });
@@ -63,13 +73,14 @@ export function ForgotPasswordForm({ turnstileSiteKey }: { turnstileSiteKey?: st
   const submitDisabled = loading || (turnstileSiteKey !== undefined && captchaToken === null);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label htmlFor="email" className="block text-sm font-medium">
           Email
         </label>
         <input
           id="email"
+          name="email"
           type="email"
           autoComplete="email"
           required
