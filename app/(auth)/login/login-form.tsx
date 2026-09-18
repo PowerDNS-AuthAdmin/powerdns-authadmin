@@ -21,10 +21,11 @@
  * login page as a peer of the local form (`./passkey-button.tsx`).
  */
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
 import { apiFetch } from "@/lib/client/api-fetch";
+import { readFormFields, useDomFieldSync } from "@/lib/client/form-dom";
 
 type MfaMethod = "totp" | "webauthn";
 
@@ -42,6 +43,11 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
+
+  // Credentials typed before this bundle loaded are in the DOM and nowhere
+  // else; adopt them on mount and re-read them on submit (#139).
+  const formRef = useRef<HTMLFormElement>(null);
+  useDomFieldSync(formRef, { email: setEmail, password: setPassword });
 
   /** MFA second-step state. `mfaToken` is the post-password challenge token. */
   const [mfa, setMfa] = useState<{ mfaToken: string; methods: MfaMethod[] } | null>(null);
@@ -134,6 +140,15 @@ export function LoginForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    // Submit what the fields actually hold, not what state believes they
+    // hold - the two diverge whenever the browser filled them without an
+    // event React recognised. Writing them back keeps the re-render from
+    // blanking the form.
+    const submitted = readFormFields(event.currentTarget, ["email", "password"]);
+    setEmail(submitted.email);
+    setPassword(submitted.password);
+
     setLoading(true);
     setError(null);
 
@@ -142,8 +157,8 @@ export function LoginForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email,
-          password,
+          email: submitted.email,
+          password: submitted.password,
           ...(captchaToken ? { captchaToken } : {}),
         }),
       });
@@ -294,13 +309,14 @@ export function LoginForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label htmlFor="email" className="block text-sm font-medium">
           Email
         </label>
         <input
           id="email"
+          name="email"
           type="email"
           autoComplete="email"
           required
@@ -316,6 +332,7 @@ export function LoginForm({
         </label>
         <input
           id="password"
+          name="password"
           type="password"
           autoComplete="current-password"
           required

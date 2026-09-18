@@ -61,3 +61,7 @@ pnpm-debug.log*
 # Build-time artefacts (generated; never committed)
 /boot/
 .build-cache/
+
+# Playwright (npm run test:e2e) run artifacts
+/test-results/
+/playwright-report/

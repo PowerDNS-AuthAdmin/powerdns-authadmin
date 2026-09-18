@@ -12,10 +12,11 @@
  * Styling mirrors the login form so the two pages feel like one set.
  */
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { MIN_PASSWORD_LENGTH } from "@/lib/validators/password-policy";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
 import { apiFetch } from "@/lib/client/api-fetch";
+import { readFormFields, useDomFieldSync } from "@/lib/client/form-dom";
 
 export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) {
   const [email, setEmail] = useState("");
@@ -28,17 +29,33 @@ export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) 
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
+  // Input typed before this bundle loaded is in the DOM and nowhere else;
+  // adopt it on mount and re-read it on submit (#139).
+  const formRef = useRef<HTMLFormElement>(null);
+  useDomFieldSync(formRef, {
+    email: setEmail,
+    name: setName,
+    password: setPassword,
+    confirm: setConfirm,
+  });
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
+    const submitted = readFormFields(event.currentTarget, ["email", "name", "password", "confirm"]);
+    setEmail(submitted.email);
+    setName(submitted.name);
+    setPassword(submitted.password);
+    setConfirm(submitted.confirm);
+
     // Client-side mirror of the server policy so users get instant feedback;
     // the server re-validates regardless.
-    if (password.length < MIN_PASSWORD_LENGTH) {
+    if (submitted.password.length < MIN_PASSWORD_LENGTH) {
       setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
-    if (password !== confirm) {
+    if (submitted.password !== submitted.confirm) {
       setError("Passwords do not match.");
       return;
     }
@@ -49,9 +66,9 @@ export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email,
-          password,
-          ...(name.trim() ? { name: name.trim() } : {}),
+          email: submitted.email,
+          password: submitted.password,
+          ...(submitted.name.trim() ? { name: submitted.name.trim() } : {}),
           ...(captchaToken ? { captchaToken } : {}),
         }),
       });
@@ -107,13 +124,14 @@ export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) 
   const submitDisabled = loading || (turnstileSiteKey !== undefined && captchaToken === null);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label htmlFor="email" className="block text-sm font-medium">
           Email
         </label>
         <input
           id="email"
+          name="email"
           type="email"
           autoComplete="email"
           required
@@ -129,6 +147,7 @@ export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) 
         </label>
         <input
           id="name"
+          name="name"
           type="text"
           autoComplete="name"
           maxLength={120}
@@ -144,6 +163,7 @@ export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) 
         </label>
         <input
           id="password"
+          name="password"
           type="password"
           autoComplete="new-password"
           required
@@ -163,6 +183,7 @@ export function SignupForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) 
         </label>
         <input
           id="confirm"
+          name="confirm"
           type="password"
           autoComplete="new-password"
           required
