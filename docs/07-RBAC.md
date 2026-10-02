@@ -113,6 +113,11 @@ A role assignment can apply everywhere or be narrowed:
 Example: assign **Zone Editor** scoped to `zone:corp.example.` and the user can
 edit records in that one zone and nothing else.
 
+List pages follow the same rule. A **Team Owner** scoped to `team:<slug>` can open
+**Admin → Teams**, but the list only shows the teams their assignments cover.
+Creating a team still takes a global `team.create`, because a new team has no
+scope to match yet.
+
 ## Assigning roles
 
 - **Admin UI** - assign roles to a user (with a scope) under **Admin → Users**;

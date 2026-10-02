@@ -1,7 +1,7 @@
 /**
  * app/api/admin/teams/route.ts
  *
- * GET  - list teams (team.read).
+ * GET  - list teams the caller can read (team.read at any scope).
  * POST - create a team (team.create).
  */
 
@@ -19,8 +19,10 @@ import { errorResponse } from "@/lib/http/error-response";
 
 export async function GET(): Promise<Response> {
   try {
-    await requireUser({ can: "team.read" });
-    const teams = await listAllTeams();
+    const { ability } = await requireUser({ can: "team.read", anyInstance: true });
+    const teams = (await listAllTeams()).filter((t) =>
+      ability.can("read", { __type: "Team", id: t.id }),
+    );
     return Response.json({ teams });
   } catch (err) {
     return errorResponse(err, "admin.teams.route.error");

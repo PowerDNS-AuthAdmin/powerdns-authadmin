@@ -12,10 +12,17 @@ import { TeamsTable, type TeamRow } from "./_components/teams-table";
 export const metadata: Metadata = { title: "Teams" };
 
 export default async function TeamsListPage() {
-  const { ability } = await requireUserForPage({ can: "team.read" });
-  const teams = await listAllTeams();
+  // A team-scoped Team Owner reaches this list too, seeing only their teams.
+  const { ability, globalPermissions } = await requireUserForPage({
+    can: "team.read",
+    anyInstance: true,
+  });
+  const teams = (await listAllTeams()).filter((t) =>
+    ability.can("read", { __type: "Team", id: t.id }),
+  );
   const counts = await countMembersByTeam(teams.map((t) => t.id));
-  const canCreate = ability.can("create", "Team");
+  // Creating a team isn't bound to an existing one, so only a global grant counts.
+  const canCreate = globalPermissions.has("team.create");
   const canReadAudit = ability.can("read", "Audit");
   const lastEdits =
     canReadAudit && teams.length > 0

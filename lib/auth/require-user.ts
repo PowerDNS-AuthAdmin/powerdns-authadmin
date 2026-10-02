@@ -22,7 +22,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { env } from "@/lib/env";
 import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
-import type { Subject } from "@/lib/rbac/ability";
+import type { Subject, SubjectType } from "@/lib/rbac/ability";
 import { listRoleMfaStatesForUser } from "@/lib/db/repositories/roles";
 import { checkMfaCompliance } from "./mfa-compliance";
 import { getCurrentUser, type AuthenticatedRequest } from "./get-current-user";
@@ -52,6 +52,14 @@ export interface RequireUserOptions {
    */
   on?: Exclude<Subject, string>;
   /**
+   * Without `on`, accept a grant at ANY scope (global, or scoped to at least
+   * one instance) instead of requiring a global grant. Only for collection
+   * views whose caller then filters every row through
+   * `ability.can(action, instance)` - otherwise a scoped grant would leak
+   * every instance of the type.
+   */
+  anyInstance?: boolean;
+  /**
    * Skip the post-authorization compliance gate (forced MFA enrollment +
    * mustChangePassword). Set this ONLY on the self-remediation endpoints a
    * non-compliant operator must reach to fix their state (TOTP enrollment,
@@ -77,6 +85,14 @@ export async function requireUser(opts: RequireUserOptions = {}): Promise<Authen
       // CASL check. A team/zone/server-scoped rule grants the action only
       // when the instance matches the scope's conditions.
       if (!result.ability.can(action, opts.on)) {
+        throw new ForbiddenError(`Missing permission: ${opts.can}`);
+      }
+    } else if (opts.anyInstance) {
+      // Type-level CASL check: true for a global rule or any conditionally
+      // scoped one. Safe only because the caller filters per instance.
+      const resource = opts.can.slice(0, dotIdx);
+      const subjectType = (resource[0]!.toUpperCase() + resource.slice(1)) as SubjectType;
+      if (!result.ability.can(action, subjectType)) {
         throw new ForbiddenError(`Missing permission: ${opts.can}`);
       }
     } else {
