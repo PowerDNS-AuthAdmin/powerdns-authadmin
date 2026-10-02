@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-02
+
+Security patches, a scoped-access fix for the Teams page, and a configurable
+default TTL. **No schema change, no migration.** Pull the new tag and recreate
+the container. The new setting is optional and defaults to the old behaviour
+(3600).
+
 ### Added
 
 - **Configurable default TTL for new records.** The record editor no longer

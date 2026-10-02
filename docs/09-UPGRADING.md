@@ -37,6 +37,16 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.7.0 (from 1.6.2)
+
+No migration, no schema change, no config change - pull the new tag and
+recreate the container. Patches the open dependency advisories (including a
+critical `next` RCE), lets a team-scoped Team Owner open the Teams list, and
+adds an optional **Default TTL for new records** setting (Admin → Settings, or
+`default_record_ttl` in the provisioning YAML). Unset, new records still start
+at 3600. A zone can override the setting with `X-AUTHADMIN-DEFAULT-TTL`
+metadata. See the [CHANGELOG](../CHANGELOG.md#170---2026-10-02).
+
 ### Upgrading to 1.6.2 (from 1.6.1)
 
 No migration, no schema change, no config change - pull the new tag and
