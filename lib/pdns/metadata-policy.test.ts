@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ForbiddenError } from "@/lib/errors";
+import { ZONE_DEFAULT_TTL_KIND } from "@/lib/dns/default-ttl";
+import { ForbiddenError, ValidationError } from "@/lib/errors";
 import type { PdnsMetadata } from "./types";
 import {
   ENABLE_LUA_RECORDS_KIND,
@@ -7,6 +8,7 @@ import {
   isApiWritableMetadataKind,
   isLuaEnabledByZoneMetadata,
   isLuaEnabledGlobally,
+  normalizeMetadataValues,
 } from "./metadata-policy";
 
 const meta = (kind: string, values: string[]): PdnsMetadata => ({
@@ -73,5 +75,23 @@ describe("isLuaEnabledGlobally", () => {
     for (const v of ["no", "NO", undefined, null, "maybe"]) {
       expect(isLuaEnabledGlobally(v)).toBe(false);
     }
+  });
+});
+
+describe("normalizeMetadataValues", () => {
+  it("canonicalises a valid per-zone default TTL", () => {
+    expect(normalizeMetadataValues(ZONE_DEFAULT_TTL_KIND, [" 0300 "])).toEqual(["300"]);
+  });
+
+  it("rejects an invalid per-zone default TTL instead of storing it", () => {
+    expect(() => normalizeMetadataValues(ZONE_DEFAULT_TTL_KIND, ["5m"])).toThrow(ValidationError);
+    expect(() => normalizeMetadataValues(ZONE_DEFAULT_TTL_KIND, [])).toThrow(ValidationError);
+  });
+
+  it("passes other kinds through untouched", () => {
+    expect(normalizeMetadataValues("X-SOMETHING", ["anything", "goes"])).toEqual([
+      "anything",
+      "goes",
+    ]);
   });
 });

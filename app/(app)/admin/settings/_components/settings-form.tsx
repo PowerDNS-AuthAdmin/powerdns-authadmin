@@ -20,6 +20,7 @@ interface SettingsFormProps {
     login_lockout_threshold: number;
     login_lockout_seconds: number;
     allow_password_reset: boolean;
+    default_record_ttl: number;
   };
   canWrite: boolean;
   /**
@@ -56,6 +57,7 @@ export function SettingsForm({ initial, canWrite, lockedByPolicy }: SettingsForm
   const [lockoutThreshold, setLockoutThreshold] = useState(String(initial.login_lockout_threshold));
   const [lockoutSeconds, setLockoutSeconds] = useState(String(initial.login_lockout_seconds));
   const [allowPasswordReset, setAllowPasswordReset] = useState(initial.allow_password_reset);
+  const [defaultRecordTtl, setDefaultRecordTtl] = useState(String(initial.default_record_ttl));
 
   const [saving, setSaving] = useState(false);
   const [ok, setOk] = useState(false);
@@ -134,6 +136,7 @@ export function SettingsForm({ initial, canWrite, lockedByPolicy }: SettingsForm
     // reject out-of-range values with a field error too.
     const parsedThreshold = Number.parseInt(lockoutThreshold, 10);
     const parsedSeconds = Number.parseInt(lockoutSeconds, 10);
+    const parsedTtl = Number.parseInt(defaultRecordTtl, 10);
     const body = {
       site_name: siteName === "" ? null : siteName,
       brand_logo_url: brandLogoUrl === "" ? null : brandLogoUrl,
@@ -142,6 +145,7 @@ export function SettingsForm({ initial, canWrite, lockedByPolicy }: SettingsForm
       login_lockout_threshold: Number.isFinite(parsedThreshold) ? parsedThreshold : null,
       login_lockout_seconds: Number.isFinite(parsedSeconds) ? parsedSeconds : null,
       allow_password_reset: allowPasswordReset,
+      default_record_ttl: Number.isFinite(parsedTtl) ? parsedTtl : null,
     };
 
     try {
@@ -359,6 +363,29 @@ export function SettingsForm({ initial, canWrite, lockedByPolicy }: SettingsForm
             step={1}
             value={lockoutSeconds}
             onChange={(e) => setLockoutSeconds(e.target.value)}
+            disabled={!canWrite}
+            className={inputClass}
+          />
+        </Field>
+      </fieldset>
+
+      <fieldset className="space-y-4 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-4">
+        <legend className="px-1 text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+          Records
+        </legend>
+        <Field
+          id="default_record_ttl"
+          label="Default TTL for new records (seconds)"
+          hint="Pre-filled when adding a record or a zone-template row. A zone can override it with X-AUTHADMIN-DEFAULT-TTL on its Metadata tab. Default: 3600 (1 h)."
+          errors={fieldErrors["default_record_ttl"]}
+        >
+          <input
+            id="default_record_ttl"
+            type="number"
+            min={1}
+            step={1}
+            value={defaultRecordTtl}
+            onChange={(e) => setDefaultRecordTtl(e.target.value)}
             disabled={!canWrite}
             className={inputClass}
           />

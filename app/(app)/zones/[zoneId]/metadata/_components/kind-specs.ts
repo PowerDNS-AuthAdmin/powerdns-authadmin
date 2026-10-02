@@ -15,6 +15,8 @@
  * zone-object fields, so they live on `ZoneSettingsPanel` (see
  * `ZONE_OBJECT_KINDS`) instead of here.
  */
+import { ZONE_DEFAULT_TTL_KIND } from "@/lib/dns/default-ttl";
+
 interface KindShapeBase {
   description: string;
 }
@@ -137,6 +139,11 @@ export const KIND_SPECS: Record<string, KindShape> = {
     type: "list",
     description: "TSIG key name(s) allowed to authorize a zone transfer.",
     lineHint: "key-name",
+  },
+  [ZONE_DEFAULT_TTL_KIND]: {
+    type: "string",
+    description:
+      "AuthAdmin: TTL in seconds pre-filled for new records in this zone. Overrides the global default in Settings; no effect on PowerDNS itself.",
   },
   "TSIG-ALLOW-DNSUPDATE": {
     type: "list",

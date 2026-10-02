@@ -12,6 +12,7 @@
  */
 
 import { z } from "zod";
+import { ZONE_DEFAULT_TTL_KIND, zoneDefaultTtlValuesError } from "@/lib/dns/default-ttl";
 import { slugSchema, ttlSchema } from "./common";
 
 const hostnameSchema = z
@@ -51,10 +52,20 @@ const ZONE_KIND_VALUES = [
 ] as const;
 
 /** Zone metadata bag - keyed by PDNS metadata kind (`ALLOW-AXFR-FROM`, …). */
-const metadataBagSchema = z.record(
-  z.string().regex(/^[A-Z][A-Z0-9-]*$/, "Metadata kinds must be uppercase letters/digits/hyphens."),
-  z.array(z.string().max(2048)).max(256),
-);
+const metadataBagSchema = z
+  .record(
+    z
+      .string()
+      .regex(/^[A-Z][A-Z0-9-]*$/, "Metadata kinds must be uppercase letters/digits/hyphens."),
+    z.array(z.string().max(2048)).max(256),
+  )
+  .superRefine((bag, ctx) => {
+    // Same rule the zone metadata route applies, checked here because zone
+    // creation copies the bag onto the new zone without re-validating it.
+    const values = bag[ZONE_DEFAULT_TTL_KIND];
+    const error = values ? zoneDefaultTtlValuesError(values) : null;
+    if (error) ctx.addIssue({ code: "custom", path: [ZONE_DEFAULT_TTL_KIND], message: error });
+  });
 
 export const createZoneTemplateSchema = z.object({
   slug: slugSchema,

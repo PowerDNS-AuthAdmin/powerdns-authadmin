@@ -6,6 +6,43 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Configurable default TTL for new records.** The record editor no longer
+  always starts at 3600. The value now comes from, in order: the zone's
+  `X-AUTHADMIN-DEFAULT-TTL` metadata, the new **Default TTL for new records**
+  setting (Admin → Settings, or `default_record_ttl` in the provisioning YAML),
+  then 3600. The TTL field says which one it used. The per-zone value is
+  ordinary PowerDNS metadata: set it from the zone's Metadata tab (needs
+  `metadata.write`, audited like any metadata change), or add it to a zone
+  template's metadata to seed it on every zone created from that template.
+  Values are checked on write, so a typo is rejected instead of being saved
+  and silently ignored. New zone-template rows use the global default too.
+  ([#143](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/discussions/143))
+
+### Fixed
+
+- A **Team Owner scoped to one team** saw the Teams link in the sidebar but was
+  bounced off `/admin/teams` with "missing team.read". The list page and
+  `GET /api/admin/teams` only accepted a global grant. Both now accept
+  `team.read` at any scope and list only the teams the caller can read. A
+  global grant still lists every team, and the "Add team" button still needs a
+  global `team.create`.
+  ([#142](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/142))
+
+### Security - dependency advisories
+
+- `next` 16.3.4 → 16.3.6 - remote code execution in `next/og` `ImageResponse`.
+- `undici` 8.10.0 → 8.11.2 - TLS certificate validation bypass in
+  `BalancedPool`, cross-origin cache poisoning, cookie disclosure through shared
+  caches, and several denial-of-service fixes. The copy bundled with `jsdom`
+  moves 7.29.0 → 7.29.1.
+- `nodemailer` 9.1.1 → 10.0.10 - TLS `servername` reused across transports
+  (GHSA-6vj9-mwq6-2f5v) and malformed envelope recipients from quoted local
+  parts (GHSA-g57g-f23g-4646). Version 10's only breaking change is a Node 20
+  minimum; the image runs Node 24.
+- Transitive `brace-expansion` and `dompurify` bumps.
+
 ## [1.6.2] - 2026-09-18
 
 Sign-in reliability. **No schema change, no config change** - pull the new tag

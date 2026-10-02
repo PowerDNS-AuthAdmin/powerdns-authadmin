@@ -60,6 +60,8 @@ interface CreateProps {
   initial?: undefined;
   canEdit?: undefined;
   primaries: PrimaryOption[];
+  /** TTL a newly added record row starts with (the `default_record_ttl` setting). */
+  defaultRecordTtl: number;
 }
 
 interface EditProps {
@@ -67,6 +69,7 @@ interface EditProps {
   initial: InitialState;
   canEdit: boolean;
   primaries: PrimaryOption[];
+  defaultRecordTtl: number;
 }
 
 type Props = CreateProps | EditProps;
@@ -246,7 +249,7 @@ export function ZoneTemplateForm(props: Props) {
   }
 
   function addRecord() {
-    setRecords([...records, { name: "@", type: "A", ttl: 3600, content: "" }]);
+    setRecords([...records, { name: "@", type: "A", ttl: props.defaultRecordTtl, content: "" }]);
   }
   function setRecord(i: number, patch: Partial<TemplateRecord>) {
     setRecords(records.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));

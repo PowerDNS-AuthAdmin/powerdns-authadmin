@@ -1,5 +1,6 @@
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { listAllPrimaries } from "@/lib/db/repositories/pdns-servers";
+import { getAppSettings } from "@/lib/settings/app-settings";
 import { ZoneTemplateForm } from "../_components/zone-template-form";
 
 export const metadata = { title: "New zone template" };
@@ -9,6 +10,7 @@ export default async function NewZoneTemplatePage() {
   const primaries = (await listAllPrimaries())
     .filter((p) => p.disabledAt === null)
     .map((p) => ({ id: p.id, name: p.name }));
+  const { defaultRecordTtl } = await getAppSettings();
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <header>
@@ -18,7 +20,7 @@ export default async function NewZoneTemplatePage() {
           the NS records + SOA timers + prelude records are applied automatically.
         </p>
       </header>
-      <ZoneTemplateForm mode="create" primaries={primaries} />
+      <ZoneTemplateForm mode="create" primaries={primaries} defaultRecordTtl={defaultRecordTtl} />
     </div>
   );
 }

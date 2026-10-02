@@ -18,6 +18,7 @@ interface SettingsBag {
   login_intro?: string;
   login_lockout_threshold?: number;
   login_lockout_seconds?: number;
+  default_record_ttl?: number;
 }
 
 describe("/api/admin/settings", () => {
@@ -85,5 +86,23 @@ describe("/api/admin/settings", () => {
       json: { site_name: "shouldn't apply" },
     });
     expect(res.status).toBe(403);
+  });
+
+  it("round-trips default_record_ttl and rejects out-of-range values", async () => {
+    const admin = await loginAsBootstrap();
+    await admin.sendJson("PATCH", "/api/admin/settings", { default_record_ttl: 300 });
+    const { settings } = await admin.getJson<{ settings: SettingsBag }>("/api/admin/settings");
+    expect(settings.default_record_ttl).toBe(300);
+
+    const bad = await admin.call("/api/admin/settings", {
+      method: "PATCH",
+      json: { default_record_ttl: 0 },
+    });
+    expect(bad.status).toBe(400);
+
+    // The settings table survives resetState, so put the default back.
+    await admin.sendJson("PATCH", "/api/admin/settings", { default_record_ttl: null });
+    const restored = await admin.getJson<{ settings: SettingsBag }>("/api/admin/settings");
+    expect(restored.settings.default_record_ttl).toBe(3600);
   });
 });

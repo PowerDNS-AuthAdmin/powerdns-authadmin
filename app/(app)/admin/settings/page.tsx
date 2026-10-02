@@ -2,7 +2,7 @@
  * app/(app)/admin/settings/page.tsx
  *
  * Runtime-mutable app settings - site name, branding, login intro text,
- * support contact. The values are stored in the `settings` table; static
+ * support contact, default record TTL. The values are stored in the `settings` table; static
  * config (DATABASE_URL, encryption keys, OIDC env fallback) stays env-only
  * and is intentionally not exposed here.
  *
@@ -40,7 +40,8 @@ export default async function SettingsPage() {
     return typeof v === "string" ? v : SETTING_DEFAULTS[key];
   }
   function readNumber(
-    key: KnownSettingKey & ("login_lockout_threshold" | "login_lockout_seconds"),
+    key: KnownSettingKey &
+      ("login_lockout_threshold" | "login_lockout_seconds" | "default_record_ttl"),
   ): number {
     const v = byKey.get(key);
     return typeof v === "number" ? v : SETTING_DEFAULTS[key];
@@ -58,6 +59,7 @@ export default async function SettingsPage() {
     login_lockout_threshold: readNumber("login_lockout_threshold"),
     login_lockout_seconds: readNumber("login_lockout_seconds"),
     allow_password_reset: readBool("allow_password_reset"),
+    default_record_ttl: readNumber("default_record_ttl"),
   };
 
   return (

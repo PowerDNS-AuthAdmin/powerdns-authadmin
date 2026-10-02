@@ -26,9 +26,11 @@ interface Props {
   templateId: string;
   initial: { nameservers: string[]; records: TemplateRecord[] };
   canEdit: boolean;
+  /** TTL a newly added row starts with (the `default_record_ttl` setting). */
+  defaultRecordTtl: number;
 }
 
-export function TemplateRecordsForm({ templateId, initial, canEdit }: Props) {
+export function TemplateRecordsForm({ templateId, initial, canEdit, defaultRecordTtl }: Props) {
   const router = useRouter();
   const { toast } = useDialog();
   const [nameservers, setNameservers] = useState<string[]>(initial.nameservers);
@@ -210,7 +212,10 @@ export function TemplateRecordsForm({ templateId, initial, canEdit }: Props) {
             <button
               type="button"
               onClick={() =>
-                setRecords([...records, { name: "@", type: "A", ttl: 3600, content: "" }])
+                setRecords([
+                  ...records,
+                  { name: "@", type: "A", ttl: defaultRecordTtl, content: "" },
+                ])
               }
               className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-xs hover:bg-[color:var(--color-bg-subtle)]"
             >
