@@ -25,7 +25,7 @@ import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
-import { assertApiWritableMetadataKind } from "@/lib/pdns/metadata-policy";
+import { assertApiWritableMetadataKind, normalizeMetadataValues } from "@/lib/pdns/metadata-policy";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 
@@ -79,6 +79,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
       }
       throw err;
     }
+    const values = normalizeMetadataValues(kind, body.values);
 
     const selected = await resolveServer(body.serverSlug);
     const client = getBackendGateway(selected);
@@ -101,7 +102,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
     // is worth it.
     const before = await snapshotKind(client, zoneName, kind);
 
-    const updated = await client.setZoneMetadata(zoneName, kind, body.values);
+    const updated = await client.setZoneMetadata(zoneName, kind, values);
 
     const hdrs = await headers();
     await appendAudit({

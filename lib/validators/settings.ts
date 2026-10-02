@@ -17,6 +17,7 @@
 
 import "server-only";
 import { z } from "zod";
+import { BUILTIN_DEFAULT_TTL, MAX_DEFAULT_TTL, MIN_DEFAULT_TTL } from "@/lib/dns/default-ttl";
 
 /** Keys the application recognizes. The admin form edits these by name. */
 export const KNOWN_SETTING_KEYS = [
@@ -39,6 +40,10 @@ export const KNOWN_SETTING_KEYS = [
   // (escape hatch: `/login?force-local=1`). Format: `local` | `oidc:<slug>`
   // | `saml:<slug>` | `ldap:<slug>`. Edited from /admin/authentication.
   "auth_default_provider",
+  // TTL a new record starts with in the editor (and new zone-template rows).
+  // A zone's X-AUTHADMIN-DEFAULT-TTL metadata overrides it - see
+  // lib/dns/default-ttl.ts.
+  "default_record_ttl",
 ] as const;
 
 export type KnownSettingKey = (typeof KNOWN_SETTING_KEYS)[number];
@@ -113,6 +118,7 @@ export const SETTING_VALUE_SCHEMAS = {
       /^(local|(?:oidc|saml|ldap):[a-z][a-z0-9-]*)$/,
       "Must be 'local' or '<type>:<slug>' (type ∈ oidc | saml | ldap).",
     ),
+  default_record_ttl: z.coerce.number().int().min(MIN_DEFAULT_TTL).max(MAX_DEFAULT_TTL),
 } satisfies Record<KnownSettingKey, z.ZodTypeAny>;
 
 /**
@@ -128,6 +134,7 @@ export const settingsResponseSchema = z.object({
   login_lockout_seconds: z.number().int().optional(),
   allow_password_reset: z.boolean().optional(),
   auth_default_provider: z.string().optional(),
+  default_record_ttl: z.number().int().optional(),
 });
 
 export type SettingsResponse = z.infer<typeof settingsResponseSchema>;
@@ -151,6 +158,7 @@ export const updateSettingsSchema = z.object({
   auth_default_provider: z
     .union([SETTING_VALUE_SCHEMAS.auth_default_provider, z.null()])
     .optional(),
+  default_record_ttl: z.union([SETTING_VALUE_SCHEMAS.default_record_ttl, z.null()]).optional(),
 });
 
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
@@ -171,4 +179,5 @@ export const SETTING_DEFAULTS: Required<SettingsResponse> = {
   // Default sign-in method. "local" preserves the pre-existing behaviour
   // (show the form) for deployments that don't pick a provider explicitly.
   auth_default_provider: "local",
+  default_record_ttl: BUILTIN_DEFAULT_TTL,
 };

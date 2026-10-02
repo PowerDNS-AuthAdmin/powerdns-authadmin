@@ -52,6 +52,11 @@ export interface AppSettings {
    * Never null - defaults to "local". Edited from /admin/authentication.
    */
   authDefaultProvider: string;
+  /**
+   * TTL a new record starts with, before any per-zone override
+   * (`lib/dns/default-ttl.ts`). Never null - defaults to 3600.
+   */
+  defaultRecordTtl: number;
 }
 
 const KEY_TO_FIELD: Record<KnownSettingKey, keyof AppSettings> = {
@@ -63,6 +68,7 @@ const KEY_TO_FIELD: Record<KnownSettingKey, keyof AppSettings> = {
   login_lockout_seconds: "loginLockoutSeconds",
   allow_password_reset: "allowPasswordReset",
   auth_default_provider: "authDefaultProvider",
+  default_record_ttl: "defaultRecordTtl",
 };
 
 export async function getAppSettings(): Promise<AppSettings> {
@@ -75,6 +81,7 @@ export async function getAppSettings(): Promise<AppSettings> {
     loginLockoutSeconds: SETTING_DEFAULTS.login_lockout_seconds,
     allowPasswordReset: SETTING_DEFAULTS.allow_password_reset,
     authDefaultProvider: SETTING_DEFAULTS.auth_default_provider,
+    defaultRecordTtl: SETTING_DEFAULTS.default_record_ttl,
   };
 
   let rows;
@@ -106,6 +113,8 @@ export async function getAppSettings(): Promise<AppSettings> {
       out.allowPasswordReset = row.value;
     } else if (field === "authDefaultProvider" && typeof row.value === "string") {
       out.authDefaultProvider = row.value || SETTING_DEFAULTS.auth_default_provider;
+    } else if (field === "defaultRecordTtl" && typeof row.value === "number") {
+      out.defaultRecordTtl = row.value;
     }
   }
 

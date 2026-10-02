@@ -14,8 +14,14 @@ describe("/favicon.ico", () => {
     const onDisk = await readFile(path.join(process.cwd(), "app", "icon.svg"), "utf8");
     // Strip the explanatory comment and trailing newline - they're for readers
     // of the file, not bytes the route needs to reproduce.
-    const stripped = onDisk.replace(/<!--[\s\S]*?-->/g, "").trim();
-    expect(stripped).toBe(ICON_SVG);
+    // Repeat until stable so a comment split around another can't leave a
+    // stray `<!--` behind (a single pass isn't a complete strip).
+    let stripped = onDisk;
+    for (let prev = ""; prev !== stripped; ) {
+      prev = stripped;
+      stripped = stripped.replace(/<!--[\s\S]*?-->/g, "");
+    }
+    expect(stripped.trim()).toBe(ICON_SVG);
   });
 
   it("responds 200 with a non-empty SVG body", async () => {

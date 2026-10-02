@@ -133,4 +133,21 @@ describe("zone metadata PUT/DELETE", () => {
       expect(res.status).toBe(403);
     }, 15_000);
   }
+
+  it("stores a valid X-AUTHADMIN-DEFAULT-TTL canonicalised and rejects garbage with 400", async () => {
+    const admin = await loginAsBootstrap();
+    const zone = randomZone();
+    await createZone(admin, zone);
+    const url = `/api/admin/pdns/zones/${encodeURIComponent(zone)}/metadata/X-AUTHADMIN-DEFAULT-TTL`;
+
+    await admin.sendJson("PUT", url, { serverSlug: "standalone", values: [" 0300 "] });
+    expect((await pdnsGetMetadata(zone, "X-AUTHADMIN-DEFAULT-TTL"))?.metadata).toEqual(["300"]);
+
+    const bad = await admin.call(url, {
+      method: "PUT",
+      json: { serverSlug: "standalone", values: ["5m"] },
+    });
+    expect(bad.status).toBe(400);
+    expect((await pdnsGetMetadata(zone, "X-AUTHADMIN-DEFAULT-TTL"))?.metadata).toEqual(["300"]);
+  }, 15_000);
 });

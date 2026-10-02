@@ -15,6 +15,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireUserForPage } from "@/lib/auth/require-user";
+import { getAppSettings } from "@/lib/settings/app-settings";
 import { findZoneTemplateById } from "@/lib/db/repositories/zone-templates";
 import { listAllPrimaries } from "@/lib/db/repositories/pdns-servers";
 import { recentAdminEditsForZoneTemplate } from "@/lib/db/repositories/audit-log";
@@ -41,9 +42,10 @@ export default async function ZoneTemplateEditPage({ params, searchParams }: Pag
   const { tab: requestedTab } = await searchParams;
   const t = await findZoneTemplateById(id);
   if (!t) notFound();
-  const [recentEdits, allPrimaries] = await Promise.all([
+  const [recentEdits, allPrimaries, appSettings] = await Promise.all([
     canReadAudit ? recentAdminEditsForZoneTemplate(id, 10) : Promise.resolve([]),
     listAllPrimaries(),
+    getAppSettings(),
   ]);
   const primaryOptions = allPrimaries
     .filter((p) => p.disabledAt === null)
@@ -72,6 +74,7 @@ export default async function ZoneTemplateEditPage({ params, searchParams }: Pag
           templateId={id}
           initial={{ nameservers: t.nameservers, records: t.records }}
           canEdit={canManage}
+          defaultRecordTtl={appSettings.defaultRecordTtl}
         />
       ) : tab === "settings" ? (
         <TemplateSettingsForm

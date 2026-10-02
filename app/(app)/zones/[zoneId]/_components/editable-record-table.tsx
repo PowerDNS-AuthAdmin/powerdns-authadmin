@@ -35,6 +35,7 @@ import {
   type RRValidationResult,
 } from "@/lib/validators/rr-types";
 import { protectedRRsetPermission } from "@/lib/rbac/protected-rrsets";
+import type { DefaultTtlSource, ResolvedDefaultTtl } from "@/lib/dns/default-ttl";
 import { BareDiff, computeBindDiff } from "./bare-diff";
 import { NumberInput } from "./number-input";
 import { RRContentField } from "@/components/domain/rr-editors";
@@ -84,6 +85,8 @@ interface EditableRecordTableProps {
   canUpdateApexNs: boolean;
   /** Live ENABLE-LUA-RECORDS=1 state for this zone. */
   luaRecordsEnabled: boolean;
+  /** TTL a new record starts with, and where it came from (zone / global / built-in). */
+  defaultTtl: ResolvedDefaultTtl;
 }
 
 interface EditorState {
@@ -139,7 +142,11 @@ interface PatchChange {
   comment?: string;
 }
 
-const DEFAULT_TTL = 3600;
+const DEFAULT_TTL_ORIGIN: Record<DefaultTtlSource, string> = {
+  zone: "this zone's default (X-AUTHADMIN-DEFAULT-TTL metadata)",
+  global: "the default in Settings",
+  builtin: "the built-in default",
+};
 
 export function EditableRecordTable(props: EditableRecordTableProps) {
   const router = useRouter();
@@ -302,7 +309,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
       // Reverse zones default to PTR; forward zones default to A. Saves the
       // operator the extra dropdown click on the common case for that zone.
       type: defaultTypeForZone(props.zoneName),
-      ttl: DEFAULT_TTL,
+      ttl: props.defaultTtl.ttl,
       value: "",
       valuesByType: {},
       disabled: false,
@@ -364,7 +371,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
     }
     await applyPatch({
       changes: [change],
-      rrsetsAfter: applyChangesToRRsets(currentNonSoa, [change]),
+      rrsetsAfter: applyChangesToRRsets(currentNonSoa, [change], props.defaultTtl.ttl),
       summary: "Record deleted.",
     });
   }
@@ -465,7 +472,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
     // would burn an audit row and a PDNS PATCH for nothing. Compare the
     // post-change RRset state against the pre-change state; on equality,
     // refuse with an inline message.
-    const rrsetsAfter = applyChangesToRRsets(nonSoa, changes);
+    const rrsetsAfter = applyChangesToRRsets(nonSoa, changes, props.defaultTtl.ttl);
     if (rrsetsEqual(nonSoa, rrsetsAfter)) {
       setEditorError(
         editor.mode === "edit"
@@ -526,7 +533,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                   kind: "upsert" as const,
                   name: c.name,
                   type: c.type,
-                  ttl: c.ttl ?? DEFAULT_TTL,
+                  ttl: c.ttl ?? props.defaultTtl.ttl,
                   records: c.records ?? [],
                   ...(c.comment !== undefined ? { comment: c.comment } : {}),
                 }
@@ -692,7 +699,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
               hint={
                 editor.mode === "edit"
                   ? "Applies to the whole RRset - changing it here changes the TTL for every value with this name+type."
-                  : undefined
+                  : `Pre-filled with ${props.defaultTtl.ttl} from ${DEFAULT_TTL_ORIGIN[props.defaultTtl.source]}.`
               }
             >
               <NumberInput
@@ -1086,7 +1093,11 @@ function renderRenameHint(
   );
 }
 
-function applyChangesToRRsets(current: RRsetView[], changes: PatchChange[]): RRsetView[] {
+function applyChangesToRRsets(
+  current: RRsetView[],
+  changes: PatchChange[],
+  defaultTtl: number,
+): RRsetView[] {
   let out = current.slice();
   for (const c of changes) {
     if (c.kind === "delete") {
@@ -1097,7 +1108,7 @@ function applyChangesToRRsets(current: RRsetView[], changes: PatchChange[]): RRs
       const updated: RRsetView = {
         name: c.name,
         type: c.type,
-        ttl: c.ttl ?? DEFAULT_TTL,
+        ttl: c.ttl ?? defaultTtl,
         records: c.records ?? [],
         comment: c.comment ?? existing?.comment ?? "",
       };

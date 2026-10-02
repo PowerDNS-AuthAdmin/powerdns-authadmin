@@ -3,11 +3,19 @@
  *
  * /api/admin/teams - CRUD plus member add/remove. Verifies the audit log
  * captures team.create + team.member.added, and that a non-admin operator
- * is forbidden from creating teams.
+ * is forbidden from creating teams. Also covers the team-scoped list view
+ * (a Team Owner scoped to one team sees only that team).
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { createUser, loginAs, loginAsBootstrap, SYSTEM_ROLES, uniqueEmail } from "../helpers/auth";
+import {
+  createUser,
+  loginAs,
+  loginAsBootstrap,
+  resolveRoleId,
+  SYSTEM_ROLES,
+  uniqueEmail,
+} from "../helpers/auth";
 import { dbQuery } from "../helpers/db";
 import { resetState } from "../helpers/reset";
 
@@ -177,5 +185,51 @@ describe("/api/admin/teams", () => {
     const actions = rows.map((r) => r.action);
     expect(actions).toContain("team.create");
     expect(actions).toContain("team.member.added");
+  });
+
+  it("GET lists only the teams a team-scoped Team Owner can read", async () => {
+    const admin = await loginAsBootstrap();
+    const { team: mine } = await admin.sendJson<{ team: TeamRow }>("POST", "/api/admin/teams", {
+      slug: uniqueSlug("scoped-mine"),
+      name: "Mine",
+    });
+    const { team: other } = await admin.sendJson<{ team: TeamRow }>("POST", "/api/admin/teams", {
+      slug: uniqueSlug("scoped-other"),
+      name: "Other",
+    });
+    const owner = await createUser(admin, {
+      email: uniqueEmail("scoped-owner"),
+      name: "Scoped Owner",
+      password: "scoped-owner-pw-123456",
+    });
+    await admin.sendJson("POST", `/api/admin/users/${owner.id}/role-assignments`, {
+      roleId: await resolveRoleId(admin, SYSTEM_ROLES.teamOwner),
+      scopeType: "team",
+      scopeId: mine.id,
+    });
+
+    const client = await loginAs(owner.email, owner.password);
+    const { teams } = await client.getJson<{ teams: TeamRow[] }>("/api/admin/teams");
+    expect(teams.map((t) => t.id)).toEqual([mine.id]);
+    expect(teams.map((t) => t.id)).not.toContain(other.id);
+
+    // A scoped grant must not unlock creation, which has no instance to scope to.
+    const create = await client.call("/api/admin/teams", {
+      method: "POST",
+      json: { slug: uniqueSlug("scoped-create"), name: "Nope" },
+    });
+    expect(create.status).toBe(403);
+  });
+
+  it("GET is forbidden without team.read at any scope", async () => {
+    const admin = await loginAsBootstrap();
+    const nobody = await createUser(admin, {
+      email: uniqueEmail("no-team-read"),
+      name: "No Team Read",
+      password: "no-team-read-pw-123456",
+    });
+    const client = await loginAs(nobody.email, nobody.password);
+    const res = await client.call("/api/admin/teams");
+    expect(res.status).toBe(403);
   });
 });

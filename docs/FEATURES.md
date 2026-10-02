@@ -186,7 +186,9 @@ can jump straight into the code that owns each feature.
 - **What.** Every assignment is `(user, role, scope)` where scope is one of
   `global` / `team:<id>` / `zone:<fqdn>` / `server:<id>`. The CASL builder walks scopes at
   request time so an operator with `record.update` on `zone:example.com.` can edit records
-  there but nowhere else.
+  there but nowhere else. Collection views that accept a scoped grant (e.g. the Teams list
+  for a team-scoped Team Owner) opt in with `requireUser({ can, anyInstance: true })` and
+  filter every row through an instance check; everything else stays global-only.
 - **Where.** `lib/rbac/ability.ts`, `lib/rbac/policy.ts`,
   `lib/db/schema/role-assignments.ts`, `lib/db/schema/zone-grants.ts`.
 - **How.** Issue assignments from `/admin/users/<id>` (gated on `role.assign`) OR auto-issue
@@ -396,6 +398,11 @@ can jump straight into the code that owns each feature.
   to PDNS with an audit row carrying full before/after JSONB snapshots. Every change runs
   through a **Review changes** modal that previews the BIND-style before/after diff - Save is
   the second click, never the first.
+- **Default TTL.** A new record starts with the zone's `X-AUTHADMIN-DEFAULT-TTL` metadata if
+  set, else the `default_record_ttl` setting, else 3600. The TTL field says which one applied.
+  The per-zone value lives in PowerDNS metadata, so it's set from the zone's Metadata tab
+  (`metadata.write`, audited) or seeded on new zones by a template's metadata bag
+  (`lib/dns/default-ttl.ts`).
 - **Where.** `app/(app)/zones/[zoneId]/_components/editable-record-table.tsx`,
   `app/api/admin/pdns/zones/[zoneId]/rrsets/route.ts`.
 - **How.** Per-RR-type validators live in `lib/validators/rr-types/` and run on every change
@@ -463,7 +470,9 @@ can jump straight into the code that owns each feature.
 ## 6. Zone metadata
 
 - **What.** Per-kind GET / PUT / DELETE under `/api/admin/pdns/zones/[zoneId]/metadata/[kind]`.
-  Surfaced as `<MetadataEventLine>` entries on the zone change-history feed.
+  Surfaced as `<MetadataEventLine>` entries on the zone change-history feed. AuthAdmin's own
+  `X-AUTHADMIN-*` kinds are validated before they're written (`normalizeMetadataValues` in
+  `lib/pdns/metadata-policy.ts`).
 - **Where.** `app/(app)/zones/[zoneId]/_components/metadata-section.tsx`,
   `app/api/admin/pdns/zones/[zoneId]/metadata/`.
 
@@ -520,7 +529,8 @@ can jump straight into the code that owns each feature.
 ## 10. Settings
 
 - **What.** Operator-tunable runtime values: site name, support contact, login intro text,
-  brand logo (https:// URL or inline data: URI), failed-login lockout policy.
+  brand logo (https:// URL or inline data: URI), failed-login lockout policy, default TTL for
+  new records (`default_record_ttl`, overridable per zone - see § 4.2).
 - **Where.** `lib/validators/settings.ts`, `app/(app)/admin/settings/`,
   `lib/settings/app-settings.ts`.
 

@@ -81,6 +81,10 @@ settings:
   # local accounts only; SSO users always reset through their IdP.
   allow_password_reset: true
 
+  # TTL pre-filled when adding a record or a zone-template row. Default 3600.
+  # A zone's X-AUTHADMIN-DEFAULT-TTL metadata overrides it for that zone.
+  default_record_ttl: 300 # int 1..2147483647
+
   # Default sign-in method. Decides which provider /login auto-redirects to
   # on a fresh visit. Three accepted forms:
   #

@@ -31,7 +31,12 @@
  * it's usable from server components, route handlers, and client code alike.
  */
 
-import { ForbiddenError } from "@/lib/errors";
+import {
+  parseDefaultTtl,
+  ZONE_DEFAULT_TTL_KIND,
+  zoneDefaultTtlValuesError,
+} from "@/lib/dns/default-ttl";
+import { ForbiddenError, ValidationError } from "@/lib/errors";
 import type { PdnsMetadata } from "./types";
 
 /** Per-zone domain-metadata key that opts a single zone into Lua records. */
@@ -79,6 +84,21 @@ export function assertApiWritableMetadataKind(kind: string): void {
         `Change it on the PowerDNS host (or via pdnsutil), not through the metadata API.`,
     );
   }
+}
+
+/**
+ * Validate and canonicalise the values for a metadata write. PowerDNS stores
+ * any string for a custom `X-` kind, so AuthAdmin's own kinds are checked here
+ * - otherwise a typo would be saved and then silently ignored on read. Other
+ * kinds pass through untouched.
+ */
+export function normalizeMetadataValues(kind: string, values: readonly string[]): string[] {
+  if (kind === ZONE_DEFAULT_TTL_KIND) {
+    const error = zoneDefaultTtlValuesError(values);
+    if (error) throw new ValidationError(error, { fieldErrors: { values: [error] } });
+    return [String(parseDefaultTtl(values[0]!))];
+  }
+  return [...values];
 }
 
 /**
