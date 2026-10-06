@@ -37,6 +37,20 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.8.0 (from 1.7.0)
+
+No migration, no schema change, no config change - pull the new tag and
+recreate the container. Sync checks now compare each secondary against the
+serial the primary actually serves (after SOA-EDIT), so SOA-EDIT and signed
+zones stop showing as DESYNCED. A zone whose secondary is only behind on the
+weekly SOA-EDIT rollover shows as "refresh due" until its next SOA refresh. The
+DNSSEC tab gains Enable / Rectify / Disable, and adding a single key now
+rectifies the zone. New API routes:
+`GET|POST|DELETE /api/admin/pdns/zones/{zone}/dnssec`,
+`PUT .../rectify` and `GET .../cryptokeys`. See
+[04-BACKENDS § DNSSEC](./04-BACKENDS.md#dnssec) for the rollout order and the
+[CHANGELOG](../CHANGELOG.md#180---2026-10-07).
+
 ### Upgrading to 1.7.0 (from 1.6.2)
 
 No migration, no schema change, no config change - pull the new tag and

@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-07
+
+DNSSEC sync fix and zone-level DNSSEC tooling. **No schema change, no
+migration.** Pull the new tag and recreate the container. Zones with SOA-EDIT
+(typically signed zones with presigned secondaries) stop reading as DESYNCED,
+and the header chip goes green again.
+
 ### Added
 
 - **Zone-level DNSSEC: Enable, Disable, Rectify.** The DNSSEC tab and new
@@ -55,6 +62,13 @@ All notable changes to this project are documented here. The format is based on
   rectified for DNSSEC, NXDOMAIN/NODATA proofs stayed broken until the next
   record edit. The cryptokey route now rectifies after creating a key
   (`rectified` in the response).
+
+### Security - dependency advisories
+
+- `sharp` 0.35.4 → 0.35.5 (GHSA-wq5f-xc86-pv6w, librsvg)
+- `source-map-js` 1.2.1 → 1.2.2 (GHSA-68fv-2mgg-jv7q), pinned through
+  `overrides`
+- `fast-copy` 4.0.3 → 4.1.1 (GHSA-jggr-w7fw-pc2j)
 
 ## [1.7.0] - 2026-10-02
 
