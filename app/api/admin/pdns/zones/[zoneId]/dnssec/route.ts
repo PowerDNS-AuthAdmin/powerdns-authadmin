@@ -271,7 +271,10 @@ function statusBody(
     hasMirrors,
     cryptokeys: keys.map(publicKey),
     ds: dsRecordsToPublish(keys),
-    warnings: zone.dnssec ? signedZoneWarnings(zone, replicated) : [],
+    // Unsigned: what Enable would warn about (LUA/ALIAS), so GET works as a pre-flight.
+    warnings: zone.dnssec
+      ? signedZoneWarnings(zone, replicated)
+      : planDnssecEnable(zone, hasMirrors).warnings,
   };
 }
 

@@ -11,7 +11,12 @@ import { PdnsNotFoundError } from "@/lib/pdns/errors";
 import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
 import { freshnessOf } from "@/lib/freshness";
-import { dsRecordsToPublish, isTransferredKind, signedZoneWarnings } from "@/lib/pdns/dnssec-plan";
+import {
+  dsRecordsToPublish,
+  isTransferredKind,
+  planDnssecEnable,
+  signedZoneWarnings,
+} from "@/lib/pdns/dnssec-plan";
 import { zoneHasMirrors } from "@/lib/pdns/sync";
 import type { PdnsServer } from "@/lib/db/schema";
 import type { PdnsCryptokeySummary, PdnsZoneDetail } from "@/lib/pdns/types";
@@ -77,7 +82,9 @@ export async function DnssecSection({
 
   const signed = zone.dnssec === true;
   const replicated = isTransferredKind(zone.kind) || (await zoneHasMirrors(selected, zoneName));
-  const warnings = signed ? signedZoneWarnings(zone, replicated) : [];
+  const warnings = signed
+    ? signedZoneWarnings(zone, replicated)
+    : planDnssecEnable(zone, replicated).warnings;
   const ds = dsRecordsToPublish(keys ?? []);
 
   return (

@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- `GET /api/admin/pdns/zones/{zone}/dnssec` (and the DNSSEC tab) on an
+  **unsigned** zone now returns the warnings Enable would give, such as LUA or
+  ALIAS records on a replicated zone. Before, they only appeared once the zone
+  was signed, so GET couldn't serve as a pre-flight check.
+
 ## [1.8.1] - 2026-10-07
 
 Follow-up to 1.8.0's DNSSEC tooling. **No schema change, no migration.** Pull
