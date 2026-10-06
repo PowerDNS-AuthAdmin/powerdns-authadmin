@@ -8,6 +8,16 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- **`GET .../dnssec` `mirrors[]` flapped between in-sync and "missing"** when
+  `PDNS_BACKGROUND_POLLING` is off (the default). With no live subscriber the
+  poller doesn't refresh zone state, and an API request never went through the
+  page layout's warm-up. So `mirrors[]` read a cold cache, and a cold cache
+  was reported as the zone being missing. The route now observes the backends
+  before reading. A mirror that hasn't been observed recently reports `error`
+  ("Mirror not observed recently") instead of `missing`. The zone page warms
+  the cache itself too, instead of relying on the layout, which renders in
+  parallel.
+
 - `GET /api/admin/pdns/zones/{zone}/dnssec` (and the DNSSEC tab) on an
   **unsigned** zone now returns the warnings Enable would give, such as LUA or
   ALIAS records on a replicated zone. Before, they only appeared once the zone
