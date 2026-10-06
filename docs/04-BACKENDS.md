@@ -206,6 +206,15 @@ transferred (Master/Primary kind, or mirrored by a managed backend) and has no
 SOA-EDIT yet. AuthAdmin then makes sure the served serial actually moved,
 bumping the SOA serial itself if PowerDNS didn't (no SOA-EDIT-API on the zone).
 Finally it NOTIFYs the secondaries so they transfer the signed zone right away.
+
+PowerDNS caches zone metadata, SOA-EDIT included, for
+`zone-metadata-cache-ttl` (60 s by default). A zone PUT doesn't clear that
+cache on 4.6-4.8, and AuthAdmin's cache flush only clears it on 4.9+. So right
+after SOA-EDIT changes, the primary can briefly keep serving and reporting
+the old serial, and the first NOTIFY carries that old serial. When SOA-EDIT
+changed, AuthAdmin therefore sends a second NOTIFY once the cache TTL has
+passed. The response reports this as `followUpNotifyInSeconds`. Until then,
+`servedSerial` may still equal `serial`.
 The call is idempotent. On an already-signed zone it applies the settings,
 rectifies, bumps and notifies, which also repairs a zone that was signed by
 adding keys one at a time.
@@ -276,7 +285,8 @@ warning when the zone holds either type.
    DNSKEY as trust anchor, or an online DNSSEC analyzer against the unsigned
    delegation, catches anything left over.
 3. **Publish the DS** at the registrar. Use the SHA-256 one (digest type 2)
-   from the DNSSEC tab or `GET .../cryptokeys` → `ds`.
+   from the DNSSEC tab or `GET .../cryptokeys` → top-level `ds`, which leaves
+   out SHA-1.
 
 **Rollback** is the reverse: remove the DS at the registrar, wait at least the
 DS TTL at the parent (often 1-2 days), and only then disable DNSSEC. Unsigning
@@ -313,8 +323,12 @@ curl -s -H "Authorization: Bearer $PAT" \
 # → {"zone":"example.com.","dnssec":true,
 #    "cryptokeys":[{"id":1,"keytype":"csk","active":true,"published":true,"flags":257,
 #                   "algorithm":"ECDSAP256SHA256","bits":256,"dnskey":"257 3 13 ...",
-#                   "ds":["<tag> 13 2 <sha256>", "<tag> 13 4 <sha384>"],"cds":[...]}],
-#    "ds":[...]}
+#                   "ds":["<tag> 13 1 <sha1>", "<tag> 13 2 <sha256>", "<tag> 13 4 <sha384>"],
+#                   "cds":[...]}],
+#    "ds":["<tag> 13 2 <sha256>", "<tag> 13 4 <sha384>"]}
+# Per-key ds[] is whatever PowerDNS returns, SHA-1 included. The top-level ds[]
+# leaves out SHA-1 (type 1) and GOST (type 3): RFC 8624 rules SHA-1 out for DS,
+# and registrars warn on it or refuse it. Pick digest type 2 explicitly.
 
 # Rectify (bumpSerial defaults to true for a transferred zone)
 curl -s -X PUT -H "Authorization: Bearer $PAT" -H 'Content-Type: application/json' \

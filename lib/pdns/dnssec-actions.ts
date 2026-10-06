@@ -84,3 +84,72 @@ export async function notifyIfTransferred(
     return false;
   }
 }
+
+// PowerDNS' default zone-metadata-cache-ttl.
+const DEFAULT_METADATA_CACHE_TTL_SECONDS = 60;
+
+/**
+ * How long PowerDNS may keep serving a zone's old metadata (SOA-EDIT
+ * included) after it changes: `zone-metadata-cache-ttl`, or the pre-4.6 name
+ * `domain-metadata-cache-ttl`. Falls back to PowerDNS' default when /config
+ * can't be read.
+ */
+export async function metadataCacheTtlSeconds(client: PdnsClient): Promise<number> {
+  try {
+    const config = await client.getConfig();
+    const entry =
+      config.find((c) => c.name === "zone-metadata-cache-ttl") ??
+      config.find((c) => c.name === "domain-metadata-cache-ttl");
+    const ttl = Number(entry?.value);
+    return Number.isInteger(ttl) && ttl >= 0 ? ttl : DEFAULT_METADATA_CACHE_TTL_SECONDS;
+  } catch {
+    return DEFAULT_METADATA_CACHE_TTL_SECONDS;
+  }
+}
+
+/**
+ * Best-effort: flush the zone from PowerDNS' caches so a just-changed
+ * SOA-EDIT takes effect now (4.9+ clears the metadata cache here; older
+ * versions only purge the packet cache).
+ */
+export async function flushZoneCaches(
+  client: PdnsClient,
+  zoneName: string,
+  serverSlug: string,
+): Promise<void> {
+  try {
+    await client.flushZoneCache(zoneName);
+  } catch (err) {
+    logger.warn(
+      {
+        server: serverSlug,
+        zone: zoneName,
+        err: err instanceof Error ? redact(err.message) : "unknown",
+      },
+      "pdns.dnssec.cache-flush.failed",
+    );
+  }
+}
+
+/**
+ * NOTIFY again once PowerDNS' metadata cache has expired.
+ *
+ * Changing SOA-EDIT changes the served serial, but PowerDNS can keep applying
+ * the cached (old) SOA-EDIT for up to the cache TTL - 4.6-4.8 don't clear it on
+ * a zone PUT at all. The immediate NOTIFY then carries the old serial, the
+ * served serial moves later with no NOTIFY of its own, and secondaries sit on
+ * the old copy until their SOA refresh. A second NOTIFY after the TTL closes
+ * that gap; if nothing changed, secondaries just see the same serial.
+ * In-process timer, so it's lost if the app restarts in between.
+ */
+export function scheduleFollowUpNotify(
+  client: PdnsClient,
+  zone: Pick<PdnsZoneDetail, "name" | "kind">,
+  serverSlug: string,
+  delaySeconds: number,
+): void {
+  const timer = setTimeout(() => {
+    void notifyIfTransferred(client, zone, serverSlug);
+  }, delaySeconds * 1000);
+  timer.unref();
+}

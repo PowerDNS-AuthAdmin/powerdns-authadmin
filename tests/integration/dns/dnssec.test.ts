@@ -227,9 +227,20 @@ describe("zone-level DNSSEC routes", () => {
     expect(enabled.apiRectify).toBe(true);
     expect(enabled.cryptokeys.length).toBeGreaterThan(0);
     expect(enabled.ds.length).toBeGreaterThan(0);
+    // No SHA-1 (digest type 1) in the set handed to the registrar.
+    expect(enabled.ds.every((d) => d.split(/\s+/)[2] !== "1")).toBe(true);
+
     // SOA-EDIT makes the served serial differ from the stored one - the exact
-    // shape that used to read as DESYNCED (#146).
-    expect(enabled.servedSerial).not.toBe(enabled.serial);
+    // shape that used to read as DESYNCED (#146). PowerDNS may keep applying
+    // its cached (empty) SOA-EDIT for up to zone-metadata-cache-ttl (60 s),
+    // and 4.6-4.8 don't clear that cache on a zone PUT, so wait it out.
+    const served = await pollDns(
+      async () => {
+        const s = await admin.getJson<DnssecStatus>(dnssecPath(zone, "?serverSlug=ps-primary"));
+        return s.servedSerial !== null && s.servedSerial !== s.serial ? s.servedSerial : null;
+      },
+      { label: "served serial reflects SOA-EDIT", timeoutMs: 90_000, intervalMs: 2000 },
+    );
 
     // Rectified by the enable itself - no record edit after signing.
     await pollDns(() => hasNsecDenial(zone, DNS_PORTS.psPrimary), {
@@ -248,10 +259,13 @@ describe("zone-level DNSSEC routes", () => {
     // The secondary re-transfers the signed zone (serial bump + NOTIFY) and
     // stores the SERVED serial…
     const secondary = PDNS_BY_TOPOLOGY.psSecondaries[0]!;
-    await pollDns(async () => (await getZone(secondary, zone)).serial === enabled.servedSerial, {
+    // On versions that kept the stale SOA-EDIT, the first NOTIFY carried the
+    // old serial; the route's follow-up NOTIFY (after the metadata cache TTL)
+    // brings the secondary to the served one.
+    await pollDns(async () => (await getZone(secondary, zone)).serial === served, {
       label: "secondary holds the served serial",
-      timeoutMs: 60_000,
-      intervalMs: 2000,
+      timeoutMs: 150_000,
+      intervalMs: 3000,
     });
     await pollDns(() => hasRrsig(name, "A", DNS_PORTS.psSecondary1), {
       label: "secondary RRSIG/A",
@@ -271,7 +285,7 @@ describe("zone-level DNSSEC routes", () => {
       },
       { label: "app reports mirrors in-sync", timeoutMs: 90_000, intervalMs: 3000 },
     );
-    expect(status.mirrors?.every((m) => m.servedSerial === enabled.servedSerial)).toBe(true);
+    expect(status.mirrors?.every((m) => m.servedSerial === served)).toBe(true);
 
     // Enabling again is idempotent.
     const again = await admin.call(dnssecPath(zone), {
@@ -280,7 +294,7 @@ describe("zone-level DNSSEC routes", () => {
     });
     expect(again.status).toBe(200);
     expect(((await again.json()) as { alreadyEnabled: boolean }).alreadyEnabled).toBe(true);
-  }, 240_000);
+  }, 420_000);
 
   it("a key added via POST /cryptokeys is rectified too", async () => {
     const admin = await loginAsBootstrap();
