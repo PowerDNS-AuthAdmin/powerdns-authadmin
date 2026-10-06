@@ -22,6 +22,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { getRedis, getRedisSubscriber, isRedisEnabled } from "@/lib/redis";
 import { logger } from "@/lib/logger";
+import type { SyncState } from "@/lib/pdns/serial-sync";
 
 export type RealtimeEvent =
   | { type: "zone.updated"; zone: string; serverSlug: string; actor: string | null; at: string }
@@ -30,7 +31,7 @@ export type RealtimeEvent =
       zone: string;
       serverSlug: string;
       secondarySlug: string;
-      state: "in-sync" | "ahead" | "lagging" | "missing" | "error";
+      state: SyncState;
       at: string;
     }
   | {

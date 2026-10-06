@@ -45,6 +45,7 @@ import { dedupeZonesByIdentity } from "@/lib/dns/zone-dedupe";
 import { isReadOnlyZoneKind } from "@/lib/pdns/writable-kind";
 import { latestEditTimestampsByZone } from "@/lib/db/repositories/audit-log";
 import { checkZonesSyncBatch, type SecondarySyncStatus } from "@/lib/pdns/sync";
+import { isSettledSyncState } from "@/lib/pdns/serial-sync";
 import { parseSoaSerialDate } from "@/lib/dns/soa-serial";
 import { readCachedZones, type CachedZoneSnapshot } from "@/lib/pdns/zone-state-cache";
 import { derivedParentOf } from "@/lib/pdns/topology-cache";
@@ -232,7 +233,7 @@ export default async function ZonesPage() {
   // chip at all on this page in that mode).
   const anyLagging =
     pdnsBackgroundPollingEnabled &&
-    visibleRows.some((r) => r.syncWorst !== null && r.syncWorst !== "in-sync");
+    visibleRows.some((r) => r.syncWorst !== null && !isSettledSyncState(r.syncWorst));
 
   return (
     <div className="space-y-6">
@@ -352,12 +353,11 @@ async function rowsFromBackend(
   if (!pdnsBackgroundPollingEnabled) {
     syncByZone = new Map();
   } else {
-    const zoneSerials = zones.map((z) => ({ name: z.name, serial: z.serial }));
     if (backend.kind === "server" || backend.secondaries.length > 0) {
       // Standalone primary, or a primary + its secondaries → primary→secondary.
       syncByZone = await checkZonesSyncBatch(
         backend.kind === "cluster" ? backend.representativeServer : backend.server,
-        zoneSerials,
+        zones,
       );
     } else {
       // True multi-primary cluster - compare every peer's cached serials.
@@ -510,12 +510,13 @@ function toZoneRow(
   horizon: ZoneRow["horizon"],
 ): ZoneRow {
   // Worst-case sync verdict across peers/secondaries: error > missing
-  // > lagging > ahead > in-sync. Drives the column's color.
+  // > lagging > ahead > refresh-due > in-sync. Drives the column's color.
   const order: Record<SecondarySyncStatus["state"], number> = {
-    error: 4,
-    missing: 3,
-    lagging: 2,
-    ahead: 1,
+    error: 5,
+    missing: 4,
+    lagging: 3,
+    ahead: 2,
+    "refresh-due": 1,
     "in-sync": 0,
   };
   let worst: SecondarySyncStatus["state"] | null = null;

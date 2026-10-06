@@ -279,6 +279,13 @@ export class PdnsClient {
       soa_edit?: string;
       soa_edit_api?: string;
       api_rectify?: boolean;
+      // DNSSEC on/off. `true` on an unsigned zone makes PDNS add its default
+      // keys (default-ksk/zsk-algorithm), rectify when API-RECTIFY is on, and
+      // bump the serial per SOA-EDIT-API - all in one transaction. `false`
+      // removes every key. `nsec3param` "" switches to NSEC.
+      dnssec?: boolean;
+      nsec3param?: string;
+      nsec3narrow?: boolean;
       // TSIG-secured AXFR - the WRITABLE path for what surfaces read-only as the
       // TSIG-ALLOW-AXFR / AXFR-MASTER-TSIG metadata kinds. Send the full desired
       // array (PDNS replaces it), so callers must read-modify-write to add/remove
@@ -335,6 +342,21 @@ export class PdnsClient {
       method: "PUT",
       path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}/notify`,
       op: "zones.notify",
+    });
+  }
+
+  /**
+   * `PUT /servers/{id}/zones/{zoneId}/rectify` - recompute ordername + auth
+   * for every record. Needed after adding keys through `/cryptokeys`, which
+   * (unlike the zone PUT with `dnssec: true`) doesn't rectify. PDNS refuses
+   * presigned zones. Doesn't change the serial.
+   */
+  public async rectifyZone(zoneName: string): Promise<void> {
+    const id = normalizeZoneId(zoneName);
+    await this.request<unknown>({
+      method: "PUT",
+      path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}/rectify`,
+      op: "zones.rectify",
     });
   }
 

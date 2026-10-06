@@ -239,6 +239,7 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
     if (action === "zone.notify") return all.filter((e) => /notify/i.test(e.op));
     if (action.startsWith("zone.metadata.")) return all.filter((e) => /metadata/i.test(e.op));
     if (action.startsWith("dnssec.cryptokey.")) return all.filter((e) => /cryptokey/i.test(e.op));
+    if (action.startsWith("dnssec.")) return all;
     if (
       action.startsWith("record.") ||
       action === "zone.create" ||

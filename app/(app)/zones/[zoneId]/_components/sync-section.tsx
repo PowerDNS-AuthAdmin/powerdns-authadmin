@@ -70,12 +70,12 @@ async function PrimarySecondariesSync({
   return (
     <DiffList
       headerTitle={`Replication state (${diffs.length} secondar${diffs.length === 1 ? "y" : "ies"})`}
-      headerSubtitle="Each secondary is compared serial-to-serial and record-for-record against the primary. Differences below the header mean replication is in flight or stalled."
+      headerSubtitle="Each secondary is compared against the serial the primary serves (after SOA-EDIT) and record-for-record. Differences below the header mean replication is in flight or stalled."
       diffs={diffs.map((d) => ({
         ...d,
         // For the primary/secondaries mode the labels match what was
         // there before - primary serial / secondary serial.
-        leftLabel: "primary serial",
+        leftLabel: "primary served serial",
         rightLabel: "secondary serial",
         synopsis: "All records match between primary and secondary.",
       }))}
@@ -132,8 +132,10 @@ interface DiffWithLabels {
   server: PdnsServer;
   primarySerial: number | null;
   secondarySerial: number | null;
+  refreshDue: boolean;
   onlyOnPrimary: string[];
   onlyOnSecondary: string[];
+  presignedRecords: number;
   error: string | null;
   leftLabel: string;
   rightLabel: string;
@@ -160,14 +162,15 @@ function DiffList({
 
       <ul className="space-y-4">
         {diffs.map((d) => {
-          const inSync =
-            d.error === null &&
-            d.primarySerial === d.secondarySerial &&
-            d.onlyOnPrimary.length === 0 &&
-            d.onlyOnSecondary.length === 0;
+          const recordsMatch = d.onlyOnPrimary.length === 0 && d.onlyOnSecondary.length === 0;
+          const inSync = d.error === null && d.primarySerial === d.secondarySerial && recordsMatch;
+          // Behind only on the weekly SOA-EDIT rollover: expected until the
+          // mirror's next SOA refresh, so it's not shown as drift.
+          const refreshDue = d.error === null && d.refreshDue && recordsMatch;
+          const settled = inSync || refreshDue;
           const tone = d.error
             ? "border-[color:var(--color-error)]"
-            : inSync
+            : settled
               ? "border-[color:var(--color-success)]"
               : "border-[color:var(--color-warn)]";
           return (
@@ -190,11 +193,19 @@ function DiffList({
                     {d.rightLabel}: <code className="font-mono">{d.secondarySerial ?? "-"}</code>
                   </span>
                   <Badge
-                    text={d.error ? "error" : inSync ? "synced" : "desynced"}
-                    tone={
+                    text={
                       d.error
                         ? "error"
                         : inSync
+                          ? "synced"
+                          : refreshDue
+                            ? "refresh due"
+                            : "desynced"
+                    }
+                    tone={
+                      d.error
+                        ? "error"
+                        : settled
                           ? "success"
                           : d.secondarySerial === null
                             ? "error"
@@ -205,8 +216,13 @@ function DiffList({
               </header>
               {d.error ? (
                 <p className="px-4 py-3 text-xs text-[color:var(--color-error)]">{d.error}</p>
-              ) : inSync ? (
-                <p className="px-4 py-3 text-xs text-[color:var(--color-fg-muted)]">{d.synopsis}</p>
+              ) : settled ? (
+                <p className="px-4 py-3 text-xs text-[color:var(--color-fg-muted)]">
+                  {refreshDue
+                    ? "Records match. The served serial advanced at this week's SOA-EDIT rollover, which PowerDNS doesn't NOTIFY - the secondary picks it up at its next SOA refresh."
+                    : d.synopsis}
+                  {d.presignedRecords > 0 ? <PresignedNote count={d.presignedRecords} /> : null}
+                </p>
               ) : (
                 /* Diff framing: BEFORE = what THIS peer/secondary currently
                    has; AFTER = what the anchor/primary has (the target).
@@ -220,6 +236,16 @@ function DiffList({
         })}
       </ul>
     </div>
+  );
+}
+
+function PresignedNote({ count }: { count: number }) {
+  return (
+    <span className="mt-1 block">
+      Signed zone - {count} DNSSEC record{count === 1 ? "" : "s"} (RRSIG, DNSKEY, CDS, NSEC…) held
+      presigned on this server and not compared; the primary signs on the fly and doesn&apos;t store
+      them.
+    </span>
   );
 }
 

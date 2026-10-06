@@ -19,27 +19,32 @@ import {
   listAllActiveBackends,
   listSecondariesForPrimary,
 } from "@/lib/db/repositories/pdns-servers";
-import { canonicalTxtContent } from "@/lib/dns/txt";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { readCachedZone, readCachedZones } from "@/lib/pdns/zone-state-cache";
 import { derivedMirrorsForPrimary } from "@/lib/pdns/topology-cache";
 import { isWriteCapable } from "@/lib/pdns/capabilities";
+import {
+  classifyMirrorSerial,
+  isSettledSyncState,
+  servedSerial,
+  servedSerialOfZone,
+  soaRefreshSeconds,
+  type SyncState,
+  type ZoneSerials,
+} from "@/lib/pdns/serial-sync";
+import { diffZoneRecords } from "@/lib/pdns/zone-diff";
 import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
 
 import type { PdnsServer } from "@/lib/db/schema";
 import type { PdnsZoneDetail } from "@/lib/pdns/types";
 
-export type SyncState =
-  | "in-sync"
-  | "ahead" // secondary's serial is somehow newer (rare; misconfig)
-  | "lagging"
-  | "missing"
-  | "error";
+export type { SyncState } from "@/lib/pdns/serial-sync";
 
 export interface SecondarySyncStatus {
   server: PdnsServer;
   state: SyncState;
+  /** The primary's SERVED serial (post-SOA-EDIT) - what the mirror should hold. */
   primarySerial: number | null;
   secondarySerial: number | null;
   error: string | null;
@@ -94,25 +99,17 @@ function mirrorsZone(m: MirrorBackend, zoneName: string): boolean {
 function statusFromCache(
   m: MirrorBackend,
   zoneName: string,
-  primarySerial: number | null,
+  primary: ZoneSerials,
+  refreshSeconds: number | null = null,
 ): SecondarySyncStatus {
   const snap = readCachedZone(m.server.id, zoneName);
-  if (!snap) {
-    return {
-      server: m.server,
-      state: "missing",
-      primarySerial,
-      secondarySerial: null,
-      error: null,
-    };
-  }
-  const secondarySerial = snap.serial;
-  let state: SyncState;
-  if (primarySerial === null || secondarySerial === null) state = "error";
-  else if (primarySerial === secondarySerial) state = "in-sync";
-  else if (secondarySerial < primarySerial) state = "lagging";
-  else state = "ahead";
-  return { server: m.server, state, primarySerial, secondarySerial, error: null };
+  return {
+    server: m.server,
+    state: classifyMirrorSerial(primary, snap, { refreshSeconds }),
+    primarySerial: servedSerial(primary),
+    secondarySerial: snap?.serial ?? null,
+    error: null,
+  };
 }
 
 /**
@@ -123,13 +120,24 @@ function statusFromCache(
  */
 export async function checkZoneSync(
   primary: PdnsServer,
-  zoneName: string,
-  primarySerial: number | null,
+  zone: PdnsZoneDetail,
 ): Promise<SecondarySyncStatus[]> {
   const mirrors = await discoverMirrors(primary);
+  const serials = zoneSerialsOf(zone);
+  const refresh = soaRefreshSeconds(zone.name, zone.rrsets ?? []);
   return mirrors
-    .filter((m) => mirrorsZone(m, zoneName))
-    .map((m) => statusFromCache(m, zoneName, primarySerial));
+    .filter((m) => mirrorsZone(m, zone.name))
+    .map((m) => statusFromCache(m, zone.name, serials, refresh));
+}
+
+/** True when any group member or derived mirror replicates this zone of `primary`. */
+export async function zoneHasMirrors(primary: PdnsServer, zoneName: string): Promise<boolean> {
+  const mirrors = await discoverMirrors(primary);
+  return mirrors.some((m) => mirrorsZone(m, zoneName));
+}
+
+function zoneSerialsOf(zone: PdnsZoneDetail): ZoneSerials {
+  return { serial: zone.serial ?? null, editedSerial: zone.edited_serial ?? null };
 }
 
 /**
@@ -176,15 +184,12 @@ export async function globalAnyLagging(): Promise<boolean> {
   for (const primary of primaries) {
     const cached = readCachedZones(primary.id);
     if (!cached) continue;
-    const zoneSerials = [...cached.zones.values()].map((z) => ({
-      name: z.name,
-      serial: z.serial,
-    }));
-    if (zoneSerials.length === 0) continue;
-    const sync = await checkZonesSyncBatch(primary, zoneSerials);
+    const zones = [...cached.zones.values()];
+    if (zones.length === 0) continue;
+    const sync = await checkZonesSyncBatch(primary, zones);
     for (const statuses of sync.values()) {
       for (const s of statuses) {
-        if (s.state !== "in-sync") return true;
+        if (!isSettledSyncState(s.state)) return true;
       }
     }
   }
@@ -198,7 +203,7 @@ export async function globalAnyLagging(): Promise<boolean> {
  */
 export async function checkZonesSyncBatch(
   primary: PdnsServer,
-  zones: ReadonlyArray<{ name: string; serial: number | null }>,
+  zones: ReadonlyArray<{ name: string } & ZoneSerials>,
 ): Promise<Map<string, SecondarySyncStatus[]>> {
   const mirrors = await discoverMirrors(primary);
   if (mirrors.length === 0 || zones.length === 0) return new Map();
@@ -209,7 +214,7 @@ export async function checkZonesSyncBatch(
     if (relevant.length === 0) continue;
     out.set(
       z.name,
-      relevant.map((m) => statusFromCache(m, z.name, z.serial)),
+      relevant.map((m) => statusFromCache(m, z.name, z)),
     );
   }
   return out;
@@ -222,12 +227,20 @@ export async function checkZonesSyncBatch(
  */
 export interface SecondaryRrsetDiff {
   server: PdnsServer;
+  /** Primary mode: the primary's served serial. Cluster mode: the anchor's serial. */
   primarySerial: number | null;
   secondarySerial: number | null;
+  /**
+   * Behind only on the weekly SOA-EDIT rollover, within one SOA refresh of it
+   * (see `classifyMirrorSerial`). Always false in cluster mode.
+   */
+  refreshDue: boolean;
   /** Lines present on primary but not secondary. */
   onlyOnPrimary: string[];
   /** Lines present on secondary but not primary. */
   onlyOnSecondary: string[];
+  /** DNSSEC records the mirror stores presigned, left out of the comparison. */
+  presignedRecords: number;
   error: string | null;
 }
 
@@ -246,19 +259,24 @@ async function probeRrsetDiff(
   s: PdnsServer,
   primaryZone: PdnsZoneDetail,
 ): Promise<SecondaryRrsetDiff> {
+  const primarySerial = servedSerialOfZone(primaryZone);
   try {
     const client = getBackendGateway(s);
     const secondaryZone = await client.getZone(primaryZone.name);
-    const primaryLines = rrsetsToCanonicalLines(primaryZone.rrsets ?? []);
-    const secondaryLines = rrsetsToCanonicalLines(secondaryZone.rrsets ?? []);
-    const primarySet = new Set(primaryLines);
-    const secondarySet = new Set(secondaryLines);
+    const diff = diffZoneRecords(primaryZone.rrsets ?? [], secondaryZone.rrsets ?? [], {
+      signed: primaryZone.dnssec === true,
+    });
+    const state = classifyMirrorSerial(
+      zoneSerialsOf(primaryZone),
+      { serial: secondaryZone.serial ?? null },
+      { refreshSeconds: soaRefreshSeconds(primaryZone.name, primaryZone.rrsets ?? []) },
+    );
     return {
       server: s,
-      primarySerial: primaryZone.serial ?? null,
+      primarySerial,
       secondarySerial: secondaryZone.serial ?? null,
-      onlyOnPrimary: primaryLines.filter((l) => !secondarySet.has(l)),
-      onlyOnSecondary: secondaryLines.filter((l) => !primarySet.has(l)),
+      refreshDue: state === "refresh-due",
+      ...diff,
       error: null,
     };
   } catch (err) {
@@ -269,48 +287,15 @@ async function probeRrsetDiff(
     );
     return {
       server: s,
-      primarySerial: primaryZone.serial ?? null,
+      primarySerial,
       secondarySerial: null,
+      refreshDue: false,
       onlyOnPrimary: [],
       onlyOnSecondary: [],
+      presignedRecords: 0,
       error: message,
     };
   }
-}
-
-function rrsetsToCanonicalLines(
-  rrsets: ReadonlyArray<{
-    name: string;
-    type: string;
-    ttl: number;
-    records: ReadonlyArray<{ content: string; disabled?: boolean }>;
-  }>,
-): string[] {
-  const lines: string[] = [];
-  for (const rr of rrsets) {
-    for (const r of rr.records) {
-      const prefix = r.disabled ? "; DISABLED " : "";
-      const content = canonicalContentForCompare(rr.type, r.content);
-      lines.push(`${prefix}${rr.name}\t${rr.ttl}\tIN\t${rr.type}\t${content}`);
-    }
-  }
-  return lines.sort();
-}
-
-/**
- * Normalize a record's content so cross-peer comparison is by *meaning*,
- * not presentation. The case that bites us is TXT/SPF: the same value can
- * arrive as one long quoted string from one peer and as several adjacent
- * 255-octet character-strings from another (PDNS re-chunks on AXFR), which
- * a raw string compare flags as a spurious diff. Concatenating the
- * character-strings collapses both forms to the same key. Every other RR
- * type already has a single canonical presentation from PDNS, so it passes
- * through untouched.
- */
-function canonicalContentForCompare(type: string, content: string): string {
-  const t = type.toUpperCase();
-  if (t === "TXT" || t === "SPF") return canonicalTxtContent(content);
-  return content;
 }
 
 /**
@@ -367,8 +352,10 @@ export async function compareClusterPeerRecords(
         server: p,
         primarySerial: null,
         secondarySerial: null,
+        refreshDue: false,
         onlyOnPrimary: [],
         onlyOnSecondary: [],
+        presignedRecords: 0,
         error: "every peer is unreachable",
       })),
     };
@@ -381,9 +368,8 @@ export async function compareClusterPeerRecords(
   });
   const anchorEntry = candidates[0]!;
   const anchor = anchorEntry.peer;
-  const anchorLines = rrsetsToCanonicalLines(anchorEntry.zone!.rrsets ?? []);
-  const anchorSet = new Set(anchorLines);
-  const anchorSerial = anchorEntry.zone!.serial ?? null;
+  const anchorZone = anchorEntry.zone!;
+  const anchorSerial = anchorZone.serial ?? null;
 
   const diffs: SecondaryRrsetDiff[] = [];
   for (const f of fetched) {
@@ -393,20 +379,22 @@ export async function compareClusterPeerRecords(
         server: f.peer,
         primarySerial: anchorSerial,
         secondarySerial: null,
+        refreshDue: false,
         onlyOnPrimary: [],
         onlyOnSecondary: [],
+        presignedRecords: 0,
         error: f.error ?? "no zone returned",
       });
       continue;
     }
-    const peerLines = rrsetsToCanonicalLines(f.zone.rrsets ?? []);
-    const peerSet = new Set(peerLines);
     diffs.push({
       server: f.peer,
       primarySerial: anchorSerial,
       secondarySerial: f.zone.serial ?? null,
-      onlyOnPrimary: anchorLines.filter((l) => !peerSet.has(l)),
-      onlyOnSecondary: peerLines.filter((l) => !anchorSet.has(l)),
+      refreshDue: false,
+      ...diffZoneRecords(anchorZone.rrsets ?? [], f.zone.rrsets ?? [], {
+        signed: anchorZone.dnssec === true,
+      }),
       error: null,
     });
   }

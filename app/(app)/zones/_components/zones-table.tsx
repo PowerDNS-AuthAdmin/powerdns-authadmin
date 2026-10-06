@@ -21,6 +21,7 @@ import { isReverseZone } from "@/lib/dns/zone-kind";
 import { displayZoneName } from "@/lib/dns/zone-name";
 import { type ZoneHorizon } from "@/lib/dns/zone-horizon";
 import { ZoneHorizonBadge } from "@/components/domain/zone-horizon-badge";
+import { isSettledSyncState, type SyncState } from "@/lib/pdns/serial-sync";
 
 type ScopeFilter = "all" | "forward" | "reverse";
 const SCOPE_STORAGE_KEY = "pda.zones.scope";
@@ -113,12 +114,12 @@ export interface ZoneRow {
   syncStates: ReadonlyArray<{
     slug: string;
     name: string;
-    state: "in-sync" | "ahead" | "lagging" | "missing" | "error";
+    state: SyncState;
     serial: number | null;
   }>;
   /** Worst sync state across peers (drives the column's color). Null
    *  means "no peers to compare" → the Sync cell renders "-". */
-  syncWorst: "in-sync" | "ahead" | "lagging" | "missing" | "error" | null;
+  syncWorst: SyncState | null;
   /** True when this row is a read-only mirror (an unpinned secondary's zone
    *  that no primary serves). The row links to a read-only zone detail. */
   readOnly?: boolean;
@@ -485,6 +486,7 @@ function syncRank(state: ZoneRow["syncWorst"]): number {
     case "ahead":
       return 2;
     case "in-sync":
+    case "refresh-due":
       return 1;
     default:
       return 0;
@@ -498,7 +500,7 @@ function SyncCell({ row }: { row: ZoneRow }) {
     return <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>;
   }
   const worst = row.syncWorst;
-  const isSynced = worst === "in-sync";
+  const isSynced = worst !== null && isSettledSyncState(worst);
   const tone: "success" | "warn" | "error" = isSynced
     ? "success"
     : worst === "ahead" || worst === "lagging"

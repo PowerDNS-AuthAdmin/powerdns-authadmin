@@ -594,7 +594,7 @@ function isDiffableAction(action: string): boolean {
     action.startsWith("record.") ||
     action.startsWith("zone.metadata.") ||
     action === "zone.settings.update" ||
-    action.startsWith("dnssec.cryptokey.")
+    action.startsWith("dnssec.")
   );
 }
 
@@ -622,7 +622,22 @@ function computeEntryDiff(entry: ZoneAuditEntryClient): { removed: string[]; add
   if (entry.action.startsWith("dnssec.cryptokey.")) {
     return computeCryptokeyDiff(entry);
   }
+  if (entry.action.startsWith("dnssec.")) {
+    return diffFieldChanges(scalarFieldLines(entry.before), scalarFieldLines(entry.after));
+  }
   return { removed: [], added: [] };
+}
+
+/** `<field> = <value>` for every scalar field (zone-level DNSSEC snapshots). */
+function scalarFieldLines(payload: unknown): Map<string, string> {
+  const out = new Map<string, string>();
+  if (typeof payload !== "object" || payload === null) return out;
+  for (const [k, v] of Object.entries(payload as Record<string, unknown>)) {
+    if (v === null || ["string", "number", "boolean"].includes(typeof v)) {
+      out.set(k, v === "" ? "(unset)" : String(v));
+    }
+  }
+  return out;
 }
 
 /**
@@ -969,6 +984,9 @@ function describeResource(entry: ZoneAuditEntryClient, zoneName: string): string
   }
 
   if (entry.action === "zone.settings.update") return "zone settings";
+  if (entry.action === "dnssec.enable") return "DNSSEC enabled";
+  if (entry.action === "dnssec.disable") return "DNSSEC disabled";
+  if (entry.action === "dnssec.rectify") return "rectify";
 
   if (entry.action === "zone.notify") return "NOTIFY";
 
@@ -1020,6 +1038,11 @@ function httpEntriesForAuditAction(
   }
   if (action.startsWith("dnssec.cryptokey.")) {
     return entries.filter((e) => /cryptokey/i.test(e.op));
+  }
+  if (action.startsWith("dnssec.")) {
+    // Zone-level DNSSEC rows own the whole sequence, NOTIFY included (it
+    // has no sibling zone.notify row).
+    return entries;
   }
   if (action === "zone.settings.update") {
     // The zone-settings PUT is a single `zones.settings.update` op; the

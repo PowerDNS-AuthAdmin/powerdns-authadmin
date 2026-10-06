@@ -11,13 +11,16 @@ import { PdnsNotFoundError } from "@/lib/pdns/errors";
 import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
 import { freshnessOf } from "@/lib/freshness";
+import { dsRecordsToPublish, isTransferredKind, signedZoneWarnings } from "@/lib/pdns/dnssec-plan";
+import { zoneHasMirrors } from "@/lib/pdns/sync";
 import type { PdnsServer } from "@/lib/db/schema";
-import type { PdnsCryptokeySummary } from "@/lib/pdns/types";
+import type { PdnsCryptokeySummary, PdnsZoneDetail } from "@/lib/pdns/types";
 import { CryptokeyActions } from "../dnssec/_components/cryptokey-actions";
+import { DnssecZoneActions } from "../dnssec/_components/dnssec-zone-actions";
 
 interface Props {
   zoneIdEncoded: string;
-  zoneName: string;
+  zone: PdnsZoneDetail;
   selected: PdnsServer;
   // Per-zone authorization decided by the parent page (global permission OR
   // a zone_grant for this server+zone) - see app/(app)/zones/[zoneId]/page.tsx.
@@ -27,11 +30,12 @@ interface Props {
 
 export async function DnssecSection({
   zoneIdEncoded,
-  zoneName,
+  zone,
   selected,
   canRead,
   canConfigure,
 }: Props) {
+  const zoneName = zone.name;
   if (!canRead) {
     return (
       <div className="rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 p-4 text-sm">
@@ -71,8 +75,72 @@ export async function DnssecSection({
     }
   }
 
+  const signed = zone.dnssec === true;
+  const replicated = isTransferredKind(zone.kind) || (await zoneHasMirrors(selected, zoneName));
+  const warnings = signed ? signedZoneWarnings(zone, replicated) : [];
+  const ds = dsRecordsToPublish(keys ?? []);
+
   return (
     <div className="space-y-4">
+      <section className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-4">
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-medium">
+              DNSSEC is{" "}
+              <span
+                className={
+                  signed
+                    ? "text-[color:var(--color-success)]"
+                    : "text-[color:var(--color-fg-muted)]"
+                }
+              >
+                {signed ? "enabled" : "off"}
+              </span>
+            </h2>
+            <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-xs">
+              <dt className="text-[color:var(--color-fg-muted)]">Denial of existence</dt>
+              <dd className="font-mono">{zone.nsec3param ? `NSEC3 ${zone.nsec3param}` : "NSEC"}</dd>
+              <dt className="text-[color:var(--color-fg-muted)]">SOA-EDIT</dt>
+              <dd className="font-mono">
+                {zone.soa_edit === undefined || zone.soa_edit === "" ? "(unset)" : zone.soa_edit}
+              </dd>
+              <dt className="text-[color:var(--color-fg-muted)]">API-RECTIFY</dt>
+              <dd className="font-mono">
+                {zone.api_rectify === undefined ? "-" : String(zone.api_rectify)}
+              </dd>
+            </dl>
+          </div>
+          {canConfigure ? (
+            <DnssecZoneActions
+              zoneIdEncoded={zoneIdEncoded}
+              zoneName={zoneName}
+              serverSlug={selected.slug}
+              signed={signed}
+              replicated={replicated}
+              soaEdit={zone.soa_edit ?? ""}
+            />
+          ) : null}
+        </header>
+        {warnings.length > 0 ? (
+          <ul className="mt-3 space-y-1 text-xs text-[color:var(--color-warn)]">
+            {warnings.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        ) : null}
+        {signed && ds.length > 0 ? (
+          <KeyField label="DS to publish at the registrar (SHA-256 is digest type 2)">
+            <ul className="space-y-1">
+              {ds.map((rec) => (
+                <li key={rec}>
+                  <code className="break-all">{rec}</code>
+                </li>
+              ))}
+            </ul>
+          </KeyField>
+        ) : null}
+      </section>
+
       <h2 className="text-lg font-semibold">
         DNSSEC keys{" "}
         <span className="text-sm font-normal text-[color:var(--color-fg-muted)]">
@@ -102,7 +170,8 @@ export async function DnssecSection({
 
       {keys?.length === 0 ? (
         <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-5 text-sm">
-          This zone has no DNSSEC keys configured. The zone is unsigned.
+          This zone has no DNSSEC keys configured. The zone is unsigned. Use Enable DNSSEC above -
+          generating keys one by one here doesn&apos;t rectify the zone.
         </div>
       ) : null}
 

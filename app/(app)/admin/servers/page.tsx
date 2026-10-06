@@ -19,6 +19,7 @@ import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { latestAdminEditTimestampsForServers } from "@/lib/db/repositories/audit-log";
 import { freshnessOf } from "@/lib/freshness";
 import { rawCache } from "@/lib/pdns/zone-state-cache";
+import { classifyMirrorSerial, isSettledSyncState } from "@/lib/pdns/serial-sync";
 import { derivedParentOf } from "@/lib/pdns/topology-cache";
 import { isReadOnlyBackend } from "@/lib/pdns/capabilities";
 import { CapabilityBadges } from "@/components/domain/capability-badges";
@@ -101,7 +102,7 @@ export default async function PdnsServersListPage() {
 
   // Precompute sync chips for secondaries off the zone-state cache -
   // never hits PDNS itself. "in sync" means every cached zone serial on
-  // the secondary matches its primary's cached serial. Skipped entirely
+  // the secondary matches the serial its primary serves (post-SOA-EDIT). Skipped entirely
   // when `PDNS_BACKGROUND_POLLING=false` - the Sync column is hidden, no
   // verdict to compute.
   const syncBySecondary = pdnsBackgroundPollingEnabled
@@ -638,12 +639,8 @@ function computeSecondarySync(
       let anyMatch = false;
       for (const [zoneName, primarySnap] of primaryEntry.zones) {
         if (!isReplicatedKind(primarySnap.kind)) continue;
-        const secondarySnap = secondaryEntry.zones.get(zoneName);
-        if (!secondarySnap) {
-          lagging = true;
-          break;
-        }
-        if (primarySnap.serial === secondarySnap.serial) anyMatch = true;
+        const state = classifyMirrorSerial(primarySnap, secondaryEntry.zones.get(zoneName) ?? null);
+        if (isSettledSyncState(state)) anyMatch = true;
         else {
           lagging = true;
           break;

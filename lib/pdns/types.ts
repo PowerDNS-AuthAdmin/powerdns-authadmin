@@ -104,6 +104,9 @@ export const pdnsZoneSummarySchema = z.object({
   soa_edit: z.string().optional(),
   soa_edit_api: z.string().optional(),
   api_rectify: z.boolean().optional(),
+  /** NSEC3 parameters ("" = NSEC). Detail only; empty for unsigned zones. */
+  nsec3param: z.string().optional(),
+  nsec3narrow: z.boolean().optional(),
   /**
    * TSIG keys securing AXFR, as zone-object fields (NOT the read-only
    * TSIG-ALLOW-AXFR / AXFR-MASTER-TSIG metadata kinds, which the per-kind API
@@ -181,6 +184,8 @@ export const pdnsCryptokeySummarySchema = z.object({
    * "unknown, assume published if active".
    */
   published: z.boolean().optional(),
+  /** DNSKEY flags: 257 for a KSK/CSK (SEP bit), 256 for a ZSK. */
+  flags: z.number().int().nonnegative().optional(),
   /** The DNSKEY record body (RDATA). */
   dnskey: z.string(),
   /**

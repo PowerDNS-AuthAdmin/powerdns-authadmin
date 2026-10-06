@@ -63,6 +63,7 @@ import {
   writeCachedZones,
   type CachedZoneSnapshot,
 } from "@/lib/pdns/zone-state-cache";
+import { classifyMirrorSerial, isSettledSyncState } from "@/lib/pdns/serial-sync";
 import { publishHealthEvent, publishZoneEvent } from "./event-bus";
 import { pdnsBackgroundPollingEnabled } from "@/lib/env";
 
@@ -904,7 +905,7 @@ async function rebuildDerivedTopology(
 
 /**
  * Mirror backends with at least one expected-to-replicate zone NOT yet caught
- * up to its primary's serial - via EITHER explicit group membership OR the
+ * up to its primary's served serial (`classifyMirrorSerial`) - via EITHER explicit group membership OR the
  * site-wide derived (masters[]-based) topology. Native zones aren't AXFR'd, so
  * a Native missing on the secondary is fine; only Master/Primary zones count
  * (else any primary hosting a Native would chain follow-ups forever).
@@ -937,9 +938,9 @@ function computeNotSynced(
     if (!primaryEntry || !secondaryEntry) continue;
     for (const [zoneName, primarySnap] of primaryEntry.zones) {
       if (!isReplicatingPrimaryKind(primarySnap.kind)) continue;
-      // A missing zone on the secondary (undefined) is also "not synced".
-      const secondarySnap = secondaryEntry.zones.get(zoneName);
-      if (secondarySnap?.serial !== primarySnap.serial) {
+      // A missing zone on the secondary is also "not synced".
+      const secondarySnap = secondaryEntry.zones.get(zoneName) ?? null;
+      if (!isSettledSyncState(classifyMirrorSerial(primarySnap, secondarySnap))) {
         out.add(s.id);
         break;
       }
@@ -957,8 +958,8 @@ function computeNotSynced(
     const primarySnap = readCachedZones(primaryId)?.zones.get(zoneName);
     if (!primarySnap || !isReplicatingPrimaryKind(primarySnap.kind)) continue;
     for (const secId of secIds) {
-      const secondarySnap = readCachedZones(secId)?.zones.get(zoneName);
-      if (secondarySnap?.serial !== primarySnap.serial) out.add(secId);
+      const secondarySnap = readCachedZones(secId)?.zones.get(zoneName) ?? null;
+      if (!isSettledSyncState(classifyMirrorSerial(primarySnap, secondarySnap))) out.add(secId);
     }
   }
 

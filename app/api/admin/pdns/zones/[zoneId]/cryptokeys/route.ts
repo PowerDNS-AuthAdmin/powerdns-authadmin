@@ -1,6 +1,11 @@
 /**
  * app/api/admin/pdns/zones/[zoneId]/cryptokeys/route.ts
  *
+ * GET  - list the zone's cryptokeys with DNSKEY + DS (`?serverSlug=`).
+ *        Permission: `dnssec.read`. Never returns private key material.
+ *        Response: `{ cryptokeys: [...], ds: [...] }`, where `ds` is the set
+ *        to publish at the parent (active, published KSK/CSK only).
+ *
  * POST - generate a new DNSSEC cryptokey for the zone. Permission:
  *        `dnssec.configure` (type-level) OR a zone_grant with that
  *        permission. CSRF + audit. PDNS generates the key
@@ -9,6 +14,10 @@
  *
  * Defaults - `keytype: "ksk"`, `active: true`. Operator can override
  * via the request body.
+ *
+ * PowerDNS doesn't rectify on `POST /cryptokeys`, so this route rectifies
+ * afterwards (`rectified` in the response). It doesn't touch SOA-EDIT or the
+ * serial - to sign an unsigned zone, prefer `POST .../dnssec`.
  */
 
 import { headers } from "next/headers";
@@ -27,6 +36,10 @@ import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
+import { redact } from "@/lib/errors/redact";
+import { logger } from "@/lib/logger";
+import { dsRecordsToPublish } from "@/lib/pdns/dnssec-plan";
+import { loadDnssecZone, parseInput, publicKey } from "../_dnssec-context";
 
 const KEYTYPES = ["ksk", "zsk", "csk"] as const;
 
@@ -41,6 +54,29 @@ const createSchema = z.object({
 
 interface RouteContext {
   params: Promise<{ zoneId: string }>;
+}
+
+const listQuerySchema = z.object({ serverSlug: z.string().optional() });
+
+export async function GET(request: Request, context: RouteContext): Promise<Response> {
+  try {
+    const { zoneId } = await context.params;
+    const query = parseInput(
+      listQuerySchema,
+      Object.fromEntries(new URL(request.url).searchParams),
+    );
+    const { server, client, zone } = await loadDnssecZone(zoneId, query.serverSlug, "dnssec.read");
+    const keys = await client.listCryptokeys(zone.name);
+    return Response.json({
+      zone: zone.name,
+      serverSlug: server.slug,
+      dnssec: zone.dnssec === true,
+      cryptokeys: keys.map(publicKey),
+      ds: dsRecordsToPublish(keys),
+    });
+  } catch (err) {
+    return errorResponse(err, "pdns.cryptokey.list.error");
+  }
 }
 
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
@@ -96,6 +132,24 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       ...(body.algorithm !== undefined ? { algorithm: body.algorithm } : {}),
       ...(body.bits !== undefined ? { bits: body.bits } : {}),
     });
+    // POST /cryptokeys doesn't rectify; without it a newly signed zone serves
+    // broken NSEC/NSEC3 denial (NULL ordernames). Best-effort: the key exists
+    // either way, and `rectified: false` tells the caller to retry via
+    // PUT .../rectify.
+    let rectified = false;
+    try {
+      await client.rectifyZone(zoneName);
+      rectified = true;
+    } catch (err) {
+      logger.warn(
+        {
+          server: selected.slug,
+          zone: zoneName,
+          err: err instanceof Error ? redact(err.message) : "unknown",
+        },
+        "pdns.cryptokey.rectify.failed",
+      );
+    }
 
     const hdrs = await headers();
     await appendAudit({
@@ -108,6 +162,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
         active: created.active,
         algorithm: created.algorithm,
         bits: created.bits,
+        rectified,
       },
       request: getRequestContext(hdrs),
     });
@@ -121,7 +176,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     });
     scheduleImmediatePoll();
 
-    return Response.json({ ok: true, cryptokey: created }, { status: 201 });
+    return Response.json({ ok: true, cryptokey: created, rectified }, { status: 201 });
   } catch (err) {
     return errorResponse(err, "pdns.cryptokey.route.error");
   }
