@@ -11,7 +11,8 @@
  *          (see lib/pdns/dnssec-plan.ts for why not `/cryptokeys`). Also sets
  *          API-RECTIFY and, for a transferred zone without one, SOA-EDIT
  *          INCREMENT-WEEKS; then makes sure the served serial moved and
- *          NOTIFYs. Idempotent: an already-signed zone gets the settings,
+ *          NOTIFYs - and, when SOA-EDIT changed, NOTIFYs again once PowerDNS'
+ *          metadata cache has expired (see `scheduleFollowUpNotify`). Idempotent: an already-signed zone gets the settings,
  *          a rectify and the NOTIFY. Permission: `dnssec.configure`.
  * DELETE - disable DNSSEC (removes every key). Requires `confirm=<zone>` -
  *          remove the DS at the registrar and wait out its TTL first, or
@@ -26,7 +27,13 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
-import { ensureServedSerialAdvanced, notifyIfTransferred } from "@/lib/pdns/dnssec-actions";
+import {
+  ensureServedSerialAdvanced,
+  flushZoneCaches,
+  metadataCacheTtlSeconds,
+  notifyIfTransferred,
+  scheduleFollowUpNotify,
+} from "@/lib/pdns/dnssec-actions";
 import {
   dsRecordsToPublish,
   planDnssecEnable,
@@ -121,6 +128,8 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     const servedBefore = servedSerialOfZone(zone);
 
     await withPdnsMessage(() => client.updateZoneSettings(zone.name, plan.settings));
+    const soaEditChanged = plan.settings.soa_edit !== undefined;
+    if (soaEditChanged) await flushZoneCaches(client, zone.name, server.slug);
     // The PUT only rectifies when it changes the signing state AND API-RECTIFY
     // is on. Rectify explicitly otherwise - an already-signed zone (the repair
     // path for keys added via /cryptokeys) or API-RECTIFY turned off.
@@ -135,6 +144,14 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       body.notify && plan.replicated
         ? await notifyIfTransferred(client, after, server.slug)
         : false;
+    let followUpNotifyInSeconds: number | null = null;
+    if (notified && soaEditChanged) {
+      const ttl = await metadataCacheTtlSeconds(client);
+      if (ttl > 0) {
+        followUpNotifyInSeconds = ttl + 5;
+        scheduleFollowUpNotify(client, after, server.slug, followUpNotifyInSeconds);
+      }
+    }
     const keys = await client.listCryptokeys(zone.name);
 
     await appendAudit({
@@ -158,6 +175,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
         alreadyEnabled: wasSigned,
         serialAdvance: advance,
         notified,
+        followUpNotifyInSeconds,
         warnings: plan.warnings,
       },
       { status: wasSigned ? 200 : 201 },

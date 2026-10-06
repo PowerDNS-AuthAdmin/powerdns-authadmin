@@ -153,17 +153,26 @@ export interface CryptokeyLike {
   ds?: string[] | undefined;
 }
 
+// DS digest types not to hand a registrar: SHA-1 (1) and GOST (3). RFC 8624
+// says SHA-1 MUST NOT be used for DS, and many registrars warn on or refuse it.
+const DEPRECATED_DS_DIGESTS = new Set(["1", "3"]);
+
 /**
- * DS records to publish at the parent: from every active, published KSK/CSK.
- * PowerDNS lists each key's DS in several digest types (SHA-1, SHA-256,
- * SHA-384); registrars generally want SHA-256 (digest type 2).
+ * DS records to publish at the parent: from every active, published KSK/CSK,
+ * minus deprecated digest types. PowerDNS lists each key's DS in SHA-1,
+ * SHA-256 and SHA-384; SHA-256 (digest type 2) is the one registrars expect.
+ * The per-key `ds` arrays still carry everything PowerDNS returns.
  */
 export function dsRecordsToPublish(keys: readonly CryptokeyLike[]): string[] {
   const out: string[] = [];
   for (const k of keys) {
     const sep = k.keytype === "ksk" || k.keytype === "csk";
     if (!sep || !k.active || k.published === false) continue;
-    out.push(...(k.ds ?? []));
+    for (const ds of k.ds ?? []) {
+      // keytag algorithm digest-type digest
+      const digestType = ds.trim().split(/\s+/)[2];
+      if (digestType !== undefined && !DEPRECATED_DS_DIGESTS.has(digestType)) out.push(ds);
+    }
   }
   return out;
 }

@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **Enabling DNSSEC on PowerDNS 4.6-4.8 could leave secondaries on the old
+  serial.** PowerDNS caches zone metadata (`zone-metadata-cache-ttl`, 60 s by
+  default), and those versions don't clear the cache when a zone PUT changes
+  SOA-EDIT. The NOTIFY sent right after enabling could carry the pre-SOA-EDIT
+  serial. The served serial then moved up to a minute later with no NOTIFY,
+  and secondaries waited for their SOA refresh. Enable now flushes the zone's
+  caches, which clears the metadata cache on 4.9+. When SOA-EDIT changed, it
+  also sends a second NOTIFY once the cache TTL has passed
+  (`followUpNotifyInSeconds` in the response). The same could happen on 4.9
+  when re-running Enable only to set SOA-EDIT on an already-signed zone.
+- **The DS set to publish no longer includes SHA-1.** The top-level `ds` of
+  `GET .../dnssec` and `GET .../cryptokeys`, and the DS box on the DNSSEC tab,
+  now leave out digest types 1 (SHA-1) and 3 (GOST). RFC 8624 rules SHA-1 out
+  for DS, and registrars warn on or refuse it. Each key's own `ds` array still
+  lists everything PowerDNS returns.
+
 ## [1.8.0] - 2026-10-07
 
 DNSSEC sync fix and zone-level DNSSEC tooling. **No schema change, no

@@ -360,6 +360,20 @@ export class PdnsClient {
     });
   }
 
+  /**
+   * `PUT /servers/{id}/cache/flush?domain={zone}` - purge the zone from the
+   * packet/query caches. From 4.9 this also clears the DNSSEC key + metadata
+   * caches, which a zone PUT that changes SOA-EDIT doesn't do on its own.
+   */
+  public async flushZoneCache(zoneName: string): Promise<void> {
+    const id = normalizeZoneId(zoneName);
+    await this.request<unknown>({
+      method: "PUT",
+      path: `/servers/${encodeURIComponent(this.serverId)}/cache/flush?domain=${encodeURIComponent(id)}`,
+      op: "cache.flush",
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // cryptokeys (DNSSEC) - list/get + create/update/delete.
   // ---------------------------------------------------------------------------

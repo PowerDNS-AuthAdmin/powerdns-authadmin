@@ -90,6 +90,13 @@ describe("dsRecordsToPublish", () => {
     ]);
     expect(ds).toEqual(["1 13 2 AA", "1 13 4 BB"]);
   });
+
+  it("drops SHA-1 and GOST digests", () => {
+    const ds = dsRecordsToPublish([
+      { keytype: "csk", active: true, ds: ["1 13 1 AA", "1 13 2 BB", "1 13 3 CC", "1 13 4 DD"] },
+    ]);
+    expect(ds).toEqual(["1 13 2 BB", "1 13 4 DD"]);
+  });
 });
 
 describe("helpers", () => {
