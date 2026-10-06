@@ -120,6 +120,7 @@
     },
     "postcss": "$postcss",
     "size-sensor": "1.0.3",
+    "source-map-js": "1.2.2",
     "sharp-comment": "RUNTIME dep, unlike the rest here: next/image needs sharp to optimize images in production. next@16 still declares ^0.34.5, but every 0.34.x inherits the libvips CVEs in GHSA-f88m-g3jw-g9cj, and npm audit's only suggested fix is downgrading to next@14. Pinning forward to 0.35.x is the sane direction; drop this once next widens its range.",
     "sharp": "^0.35.4"
   }
