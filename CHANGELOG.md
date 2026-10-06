@@ -6,6 +6,56 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Zone-level DNSSEC: Enable, Disable, Rectify.** The DNSSEC tab and new
+  routes sign a zone the way PowerDNS intends: one `PUT /zones/{id}` with
+  `dnssec: true`. In a single transaction PowerDNS adds its default keys,
+  rectifies the zone and bumps the serial. AuthAdmin turns API-RECTIFY on and,
+  for a zone that's transferred to secondaries and has no SOA-EDIT, sets
+  `INCREMENT-WEEKS` so presigned secondaries re-transfer fresh signatures
+  every week. It then checks that the served serial actually moved and
+  NOTIFYs. **Rectify** recomputes ordername/auth and bumps the serial so
+  presigned secondaries pick up the corrected NSEC chain. **Disable** asks for
+  the zone name (`confirm=<zone>` on the API) and warns to remove the DS at
+  the registrar first. The tab also shows signing state, NSEC/NSEC3, SOA-EDIT,
+  the DS set to publish, and warnings for a transferred zone without
+  SOA-EDIT or with LUA/ALIAS records (a presigned secondary can't sign those
+  answers). Audited as `dnssec.enable`, `dnssec.disable` and `dnssec.rectify`.
+- **DNSSEC state over the API** for PAT clients:
+  `GET /api/admin/pdns/zones/{zone}/dnssec` (signing state, keys, DS to
+  publish, per-mirror sync state) and `GET /api/admin/pdns/zones/{zone}/cryptokeys`
+  (id, keytype, active, published, flags, algorithm, bits, DNSKEY, DS, CDS;
+  never private key material). Every DNSSEC route takes `serverSlug`. See
+  [04-BACKENDS § DNSSEC](docs/04-BACKENDS.md#dnssec) for the rollout order
+  and curl examples.
+
+### Fixed
+
+- **SOA-EDIT / signed zones were permanently DESYNCED.** Sync checks compared
+  the primary's stored serial with the serial the secondary holds. A
+  secondary stores what the primary _serves_, which is the post-SOA-EDIT
+  `edited_serial`. So every zone with SOA-EDIT (the normal setup for a signed
+  zone with presigned secondaries) read as "ahead". One such zone turned the
+  header chip red for the whole fleet and, after 15 minutes, raised a false
+  "Replication is stuck" advisory. The zone page, zones list, header chip,
+  servers page and the poller's drift tracking now share one rule that
+  compares against the served serial.
+  ([#146](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/146))
+- The time-based SOA-EDIT kinds advance the served serial at the weekly
+  boundary without a NOTIFY, so secondaries only follow at their next SOA
+  refresh. For one SOA refresh after the boundary, a mirror that is behind on
+  such a zone now shows as **refresh due** instead of desynced.
+- The record diff on the Sync tab no longer flags a signed zone's presigned
+  mirror. The SOA is compared without its serial, and the RRSIG, DNSKEY, CDS,
+  CDNSKEY and NSEC\* records a presigned secondary stores (and a primary
+  doesn't) are counted rather than shown as drift.
+- **Adding a DNSSEC key no longer leaves NSEC denial broken.** PowerDNS'
+  `POST /cryptokeys` doesn't rectify. On a zone whose records had never been
+  rectified for DNSSEC, NXDOMAIN/NODATA proofs stayed broken until the next
+  record edit. The cryptokey route now rectifies after creating a key
+  (`rectified` in the response).
+
 ## [1.7.0] - 2026-10-02
 
 Security patches, a scoped-access fix for the Teams page, and a configurable
