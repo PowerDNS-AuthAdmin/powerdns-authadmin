@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-07
+
+Follow-up to 1.8.0's DNSSEC tooling. **No schema change, no migration.** Pull
+the new tag and recreate the container.
+
 ### Fixed
 
 - **Enabling DNSSEC on PowerDNS 4.6-4.8 could leave secondaries on the old

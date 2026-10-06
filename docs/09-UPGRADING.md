@@ -37,6 +37,14 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.8.1 (from 1.8.0)
+
+No migration, no schema change, no config change - pull the new tag and
+recreate the container. Enabling DNSSEC now also gets secondaries onto the new
+serial on PowerDNS 4.6-4.8 (a follow-up NOTIFY once the metadata cache
+expires), and the DS set to publish no longer includes SHA-1. See the
+[CHANGELOG](../CHANGELOG.md#181---2026-10-07).
+
 ### Upgrading to 1.8.0 (from 1.7.0)
 
 No migration, no schema change, no config change - pull the new tag and
