@@ -129,7 +129,7 @@ function statusFromCache(
  * Compare a zone's serial on a primary vs. each backend that mirrors it. Reads
  * mirror serials from the zone-state cache (poller-maintained; callers outside
  * the app layout must `ensureBackendsObserved()` first - with no live
- * subscriber the poller only samples stats and the cache goes cold) - the same source
+ * subscriber the poller runs stats-only cycles and the cache goes cold) - the same source
  * the zones list uses, so the two never disagree. Doesn't fetch full rrsets -
  * that's `compareZoneRecords` below.
  */
