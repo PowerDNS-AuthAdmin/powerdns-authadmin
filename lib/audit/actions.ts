@@ -123,6 +123,10 @@ export const AUDIT_ACTIONS = [
   "dnssec.cryptokey.create",
   "dnssec.cryptokey.update",
   "dnssec.cryptokey.delete",
+  // Zone-level signing: PUT /zones/{id} with dnssec true/false, and rectify.
+  "dnssec.enable",
+  "dnssec.disable",
+  "dnssec.rectify",
 
   // TSIG keys
   "tsig.create",

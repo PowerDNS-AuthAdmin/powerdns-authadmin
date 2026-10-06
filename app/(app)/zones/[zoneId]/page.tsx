@@ -58,6 +58,7 @@ import { MetadataSection } from "./_components/metadata-section";
 import { ZoneStatisticsSection } from "./_components/statistics-section";
 import { SyncSection } from "./_components/sync-section";
 import { checkZoneSync } from "@/lib/pdns/sync";
+import { isSettledSyncState } from "@/lib/pdns/serial-sync";
 import { TabBodySkeleton } from "./_components/tab-body-skeleton";
 import { AccessSection } from "./_components/access-section";
 import { ZoneChangeLog, type ZoneAuditEntryClient } from "./_components/zone-change-log";
@@ -427,7 +428,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
     ? latestZoneEdit(auditSlugs, zone.name)
     : Promise.resolve(null);
 
-  const secondaryStatusesPromise = checkZoneSync(selected, zone.name, zone.serial ?? null);
+  const secondaryStatusesPromise = checkZoneSync(selected, zone);
 
   const [auditEntries, lastEdit, secondaryStatuses] = await Promise.all([
     auditEntriesPromise,
@@ -437,7 +438,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
 
   const pdnsHttpByRequestId = await fetchPdnsHttpByRequestIds(auditEntries);
   const syncVerdict = {
-    inSync: secondaryStatuses.length === 0 || secondaryStatuses.every((s) => s.state === "in-sync"),
+    inSync: secondaryStatuses.every((s) => isSettledSyncState(s.state)),
   };
 
   return (
@@ -582,7 +583,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
         ) : tab === "dnssec" ? (
           <DnssecSection
             zoneIdEncoded={encodeURIComponent(zoneId)}
-            zoneName={zone.name}
+            zone={zone}
             selected={selected}
             canRead={canReadDnssec}
             canConfigure={ops.dnssec && zoneCan("dnssec.configure")}

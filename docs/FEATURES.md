@@ -460,10 +460,25 @@ can jump straight into the code that owns each feature.
 
 ## 5. DNSSEC
 
-- **What.** Cryptokey create / update / delete with per-key activity timestamps derived from
-  the audit log. Summary card + per-key list at `/zones/<id>?tab=dnssec`.
+- **What.** Zone-level **Enable / Disable DNSSEC** and **Rectify**, plus cryptokey create /
+  update / delete with per-key activity timestamps derived from the audit log. Enable does
+  PowerDNS' own `PUT /zones/{id}` with `dnssec: true` (default keys + rectify + serial bump),
+  sets API-RECTIFY and, for a transferred zone, SOA-EDIT `INCREMENT-WEEKS` so presigned
+  secondaries re-transfer fresh signatures weekly, then NOTIFYs. Adding a single key also
+  rectifies. Disable is confirm-gated (`confirm=<zone>`) and keeps SOA-EDIT. The tab shows
+  signing state, NSEC/NSEC3, SOA-EDIT, the DS set to publish, and warnings (missing SOA-EDIT,
+  LUA/ALIAS records on a replicated zone). Status, keys and DS are readable over the API for
+  PAT clients. All changes are audited (`dnssec.enable|disable|rectify`,
+  `dnssec.cryptokey.*`).
+- **Sync semantics.** Mirrors are compared against the primary's **served** serial
+  (`edited_serial`), not the stored one, so SOA-EDIT zones don't read as desynced (#146). A
+  mirror behind only on the weekly SOA-EDIT rollover is "refresh due" for one SOA refresh. The
+  record diff masks the SOA serial and, for signed zones, skips the DNSSEC records a presigned
+  mirror stores.
 - **Where.** `app/(app)/zones/[zoneId]/_components/dnssec-section.tsx`,
-  `app/api/admin/pdns/zones/[zoneId]/cryptokeys/`.
+  `app/api/admin/pdns/zones/[zoneId]/{dnssec,rectify,cryptokeys}/`, `lib/pdns/dnssec-plan.ts`,
+  `lib/pdns/serial-sync.ts`, `lib/pdns/zone-diff.ts`. Operator guide:
+  [04-BACKENDS § DNSSEC](./04-BACKENDS.md#dnssec).
 
 ---
 

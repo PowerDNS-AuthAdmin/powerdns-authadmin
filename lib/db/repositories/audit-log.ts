@@ -195,7 +195,7 @@ export async function zoneAuditCounts7d(
     else if (r.action === "zone.notify") out.notify += r.n;
     else if (r.action.startsWith("zone.metadata.")) out.metadata += r.n;
     else if (r.action === "zone.settings.update") out.settings += r.n;
-    else if (r.action.startsWith("dnssec.cryptokey.")) out.dnssec += r.n;
+    else if (r.action.startsWith("dnssec.")) out.dnssec += r.n;
   }
   return out;
 }
