@@ -22,7 +22,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { mutate } from "@/lib/client/api-fetch";
 import { useDialog } from "@/components/ui/dialog";
-import { NumberInput } from "./number-input";
+import { NumberInput } from "@/components/ui/number-input";
 import {
   SOA_DEFAULTS,
   serializeSoaContent,

@@ -63,6 +63,9 @@ export interface RRContentFieldProps {
   fallbackPlaceholder?: string;
   /** Whether to autofocus the first input on mount (mirrors prior behavior). */
   autoFocus?: boolean;
+  /** Forwarded to the single input / raw textarea so a `<label htmlFor>` can reach it. */
+  id?: string;
+  "aria-describedby"?: string;
 }
 
 /**
@@ -85,11 +88,14 @@ export function RRContentField(props: RRContentFieldProps): ReactElement {
   if (!editor) {
     return (
       <input
+        id={props.id}
+        aria-describedby={props["aria-describedby"]}
         value={props.value}
         onChange={(e) => props.onChange(e.target.value)}
         placeholder={props.fallbackPlaceholder}
         className={`${inputClass} font-mono`}
         spellCheck={false}
+        autoComplete="off"
         autoFocus={props.autoFocus}
       />
     );
@@ -102,10 +108,12 @@ function StructuredField({
   editor,
   value,
   onChange,
+  id,
 }: {
   editor: RREditor<unknown>;
   value: string;
   onChange: (next: string) => void;
+  id?: string;
 }): ReactElement {
   // Sticky "raw" mode: once we drop into raw on mount because the value
   // didn't parse, stay there for the rest of this dialog session.
@@ -139,6 +147,7 @@ function StructuredField({
           structure and save to bring it back in line with the RFC.
         </div>
         <textarea
+          id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           rows={3}

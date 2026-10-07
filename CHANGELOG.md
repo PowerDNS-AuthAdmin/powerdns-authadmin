@@ -6,6 +6,38 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Inline record editing.** Enter on a row, double-click, or the row's Edit button opens
+  an edit strip under the record for TTL, value (with the structured per-type editors) and
+  the disabled flag. Enter stages the change into the usual Review diff, Esc cancels.
+  Renames, type changes and comments go through the full dialog (`E`, the ⋯ button, or
+  "Full editor…" from the strip, which carries the draft across). Both paths share one
+  validation + staging routine, so there is still exactly one route to PowerDNS.
+- **Keyboard-first records table.** `/` focuses search (Esc clears, Esc again leaves), `N`
+  adds a record, `↑`/`↓` move between rows, `Enter` edits in place, `E` opens the full
+  editor, `Delete` deletes. The editor and review dialogs are forms: Enter reviews, Enter
+  saves, Ctrl/⌘+Enter submits from a textarea, Esc steps back one level. A legend under
+  the table lists the keys.
+- **Select menus are combo boxes.** Every `<SelectMenu>` (record type, zone kind, template,
+  backend, page size, …) is keyboard-navigable: type-ahead on a closed menu picks the match
+  straight away (`T` → TXT, `T` again → TLSA, `TL` → TLSA), arrows / Home / End / PgUp /
+  PgDn move the highlight, Enter or Space picks, Esc closes. Menus with ten or more options
+  show a filter box that matches label and description (`ipv6` → AAAA, `mail` → MX). The
+  record-type menu now shows each type's plain-English name.
+
+### Fixed
+
+- **Esc on an open select inside a dialog closed the dialog too.** The menu now owns the
+  Escape key while it's open; one press closes the menu, the next closes the dialog.
+- **Clearing a number field in the MX / SRV / CAA / NAPTR / SVCB editors snapped it back to
+  `0`**, so "select all, type 20" could produce `020`. Those fields now use the same
+  draft-aware number input as TTL and the SOA panel (moved to `components/ui/number-input`).
+- **Form labels in the record editor weren't attached to their inputs.** Clicking "TTL" or
+  "Value" now focuses the field, and screen readers announce the field name and hint.
+- **Select menus lost keyboard focus after a pick** made from the mouse or the filter box;
+  focus now returns to the trigger so Tab continues from where the operator was.
+
 ## [1.8.2] - 2026-10-07
 
 Two fixes to the 1.8 DNSSEC API, found during a production rollout. **No
