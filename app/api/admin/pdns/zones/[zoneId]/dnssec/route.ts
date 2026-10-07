@@ -46,7 +46,7 @@ import { servedSerialOfZone } from "@/lib/pdns/serial-sync";
 import { checkZoneSync, zoneHasMirrors } from "@/lib/pdns/sync";
 import { assertEditableZoneKind } from "@/lib/pdns/writable-kind";
 import { publishZoneEvent } from "@/lib/realtime/event-bus";
-import { scheduleImmediatePoll } from "@/lib/realtime/zone-poller";
+import { ensureBackendsObserved, scheduleImmediatePoll } from "@/lib/realtime/zone-poller";
 import { redact } from "@/lib/errors/redact";
 import { ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
@@ -89,14 +89,15 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
     const { zoneId } = await context.params;
     const query = parseInput(querySchema, Object.fromEntries(new URL(request.url).searchParams));
     const { server, client, zone } = await loadDnssecZone(zoneId, query.serverSlug, "dnssec.read");
+    // An API request doesn't pass through the app layout's warm-up, and with
+    // no live subscriber the poller doesn't refresh zone state - observe first
+    // so mirrors[] isn't read from a cold cache.
     const [keys, mirrors] = await Promise.all([
       zone.dnssec ? client.listCryptokeys(zone.name) : Promise.resolve([]),
-      checkZoneSync(server, zone),
+      ensureBackendsObserved().then(() => checkZoneSync(server, zone)),
     ]);
     return Response.json({
       ...statusBody(server.slug, zone, keys, mirrors.length > 0),
-      // Read from the poller's zone-state cache, like the zone page: with
-      // PDNS_BACKGROUND_POLLING off it can be stale or report "missing".
       mirrors: mirrors.map((m) => ({
         serverSlug: m.server.slug,
         state: m.state,
@@ -271,7 +272,10 @@ function statusBody(
     hasMirrors,
     cryptokeys: keys.map(publicKey),
     ds: dsRecordsToPublish(keys),
-    warnings: zone.dnssec ? signedZoneWarnings(zone, replicated) : [],
+    // Unsigned: what Enable would warn about (LUA/ALIAS), so GET works as a pre-flight.
+    warnings: zone.dnssec
+      ? signedZoneWarnings(zone, replicated)
+      : planDnssecEnable(zone, hasMirrors).warnings,
   };
 }
 

@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **`GET .../dnssec` `mirrors[]` flapped between in-sync and "missing"**
+  whenever nobody had the app open in a browser. With no live subscriber, the
+  poller drops to stats-only cycles, even with `PDNS_BACKGROUND_POLLING=true`,
+  so zone state goes stale after 30 s. Pages re-observe through the layout,
+  but an API request never did, and a stale cache was reported as the zone
+  being missing. The route now observes the backends before reading. A mirror
+  that hasn't been observed recently reports `error` ("Mirror not observed
+  recently") instead of `missing`. The zone page also warms the cache itself
+  instead of relying on the layout, which renders in parallel.
+
+- `GET /api/admin/pdns/zones/{zone}/dnssec` (and the DNSSEC tab) on an
+  **unsigned** zone now returns the warnings Enable would give, such as LUA or
+  ALIAS records on a replicated zone. Before, they only appeared once the zone
+  was signed, so GET couldn't serve as a pre-flight check.
+
 ## [1.8.1] - 2026-10-07
 
 Follow-up to 1.8.0's DNSSEC tooling. **No schema change, no migration.** Pull

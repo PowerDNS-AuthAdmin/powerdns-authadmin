@@ -355,6 +355,27 @@ describe("zone-level DNSSEC routes", () => {
     });
   }, 60_000);
 
+  it("GET on an unsigned zone works as a pre-flight: ALIAS records warn", async () => {
+    const admin = await loginAsBootstrap();
+    const zone = randomZone("dnssec-preflight");
+    await createZone(admin, "standalone", zone, ["ns1.example.com.", "ns2.example.com."]);
+    await admin.sendJson("PATCH", `/api/admin/pdns/zones/${encodeURIComponent(zone)}/rrsets`, {
+      serverSlug: "standalone",
+      changes: [
+        {
+          kind: "upsert",
+          name: `app.${zone}`,
+          type: "ALIAS",
+          ttl: 60,
+          records: [{ content: "target.example.net." }],
+        },
+      ],
+    });
+    const status = await admin.getJson<DnssecStatus>(dnssecPath(zone, "?serverSlug=standalone"));
+    expect(status.dnssec).toBe(false);
+    expect(status.warnings.join(" ")).toMatch(/ALIAS records/);
+  }, 30_000);
+
   it("read-only role can read DNSSEC state but not enable it", async () => {
     const admin = await loginAsBootstrap();
     const zone = randomZone("dnssec-ro");

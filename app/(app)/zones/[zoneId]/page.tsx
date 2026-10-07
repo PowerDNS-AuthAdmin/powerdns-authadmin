@@ -58,6 +58,7 @@ import { MetadataSection } from "./_components/metadata-section";
 import { ZoneStatisticsSection } from "./_components/statistics-section";
 import { SyncSection } from "./_components/sync-section";
 import { checkZoneSync } from "@/lib/pdns/sync";
+import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { isSettledSyncState } from "@/lib/pdns/serial-sync";
 import { TabBodySkeleton } from "./_components/tab-body-skeleton";
 import { AccessSection } from "./_components/access-section";
@@ -428,7 +429,11 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
     ? latestZoneEdit(auditSlugs, zone.name)
     : Promise.resolve(null);
 
-  const secondaryStatusesPromise = checkZoneSync(selected, zone);
+  // The layout warms the zone-state cache too, but renders in parallel with
+  // this page, so don't rely on it having finished.
+  const secondaryStatusesPromise = ensureBackendsObserved().then(() =>
+    checkZoneSync(selected, zone),
+  );
 
   const [auditEntries, lastEdit, secondaryStatuses] = await Promise.all([
     auditEntriesPromise,

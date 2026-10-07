@@ -20,7 +20,7 @@ import {
   listSecondariesForPrimary,
 } from "@/lib/db/repositories/pdns-servers";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
-import { readCachedZone, readCachedZones } from "@/lib/pdns/zone-state-cache";
+import { readCachedZones } from "@/lib/pdns/zone-state-cache";
 import { derivedMirrorsForPrimary } from "@/lib/pdns/topology-cache";
 import { isWriteCapable } from "@/lib/pdns/capabilities";
 import {
@@ -102,7 +102,20 @@ function statusFromCache(
   primary: ZoneSerials,
   refreshSeconds: number | null = null,
 ): SecondarySyncStatus {
-  const snap = readCachedZone(m.server.id, zoneName);
+  const entry = readCachedZones(m.server.id);
+  if (!entry) {
+    // No recent observation of this mirror at all (cold or expired cache, or
+    // the mirror is unreachable). That says nothing about whether it holds
+    // the zone, so it must not read as "missing".
+    return {
+      server: m.server,
+      state: "error",
+      primarySerial: servedSerial(primary),
+      secondarySerial: null,
+      error: "Mirror not observed recently.",
+    };
+  }
+  const snap = entry.zones.get(zoneName) ?? null;
   return {
     server: m.server,
     state: classifyMirrorSerial(primary, snap, { refreshSeconds }),
@@ -114,7 +127,9 @@ function statusFromCache(
 
 /**
  * Compare a zone's serial on a primary vs. each backend that mirrors it. Reads
- * mirror serials from the zone-state cache (poller-maintained) - the same source
+ * mirror serials from the zone-state cache (poller-maintained; callers outside
+ * the app layout must `ensureBackendsObserved()` first - with no live
+ * subscriber the poller runs stats-only cycles and the cache goes cold) - the same source
  * the zones list uses, so the two never disagree. Doesn't fetch full rrsets -
  * that's `compareZoneRecords` below.
  */
