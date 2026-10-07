@@ -53,7 +53,9 @@ import { protectedRRsetPermission } from "@/lib/rbac/protected-rrsets";
 import type { DefaultTtlSource, ResolvedDefaultTtl } from "@/lib/dns/default-ttl";
 import { BareDiff, computeBindDiff } from "./bare-diff";
 import { NumberInput } from "@/components/ui/number-input";
-import { RRContentField } from "@/components/domain/rr-editors";
+import { getRREditor, RRContentField } from "@/components/domain/rr-editors";
+import { Field as EditorField } from "@/components/domain/rr-editors/_form";
+import { Switch } from "@/components/ui/switch";
 
 interface RecordValue {
   content: string;
@@ -1116,6 +1118,7 @@ function InlineRecordEditor({
 }) {
   const rootRef = useRef<HTMLFormElement>(null);
   const validator = getRRTypeValidator(draft.row.type);
+  const structured = getRREditor(draft.row.type) !== null;
   const validation = validator.validate(draft.value);
   const dirty =
     draft.value !== draft.row.value ||
@@ -1155,33 +1158,53 @@ function InlineRecordEditor({
       aria-label={`Edit ${displayName(draft.row.name, zoneName) || "@"} ${draft.row.type}`}
       className="space-y-3 pt-3"
     >
-      <div className="grid gap-3 md:grid-cols-[7rem_minmax(0,1fr)_auto]">
-        <Field label="TTL">
+      {/* One label row, one input row: every field here uses the structured
+          editors' compact <Field> so TTL / Preference / Exchange / Disabled
+          share a baseline. A structured type renders its own labelled fields,
+          so it gets no extra "Value" label stacked on top. */}
+      <div className="grid gap-3 md:grid-cols-[7rem_minmax(0,1fr)_auto] md:items-start">
+        <EditorField label="TTL">
           <NumberInput
             value={draft.ttl}
             onChange={(n) => onChange({ ttl: n })}
             min={0}
             className={inputClass}
           />
-        </Field>
+        </EditorField>
         <div data-inline-value>
-          <Field label="Value" hint={validator.description}>
-            <RRContentField
-              type={draft.row.type}
-              value={draft.value}
-              onChange={(next) => onChange({ value: next })}
-              fallbackPlaceholder={validator.placeholder}
-            />
-          </Field>
+          {structured ? (
+            <>
+              <RRContentField
+                type={draft.row.type}
+                value={draft.value}
+                onChange={(next) => onChange({ value: next })}
+                fallbackPlaceholder={validator.placeholder}
+              />
+              <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
+                {validator.description}
+              </p>
+            </>
+          ) : (
+            <EditorField label="Value" hint={validator.description}>
+              <RRContentField
+                type={draft.row.type}
+                value={draft.value}
+                onChange={(next) => onChange({ value: next })}
+                fallbackPlaceholder={validator.placeholder}
+              />
+            </EditorField>
+          )}
         </div>
-        <label className="flex items-center gap-2 pt-6 text-sm md:pt-7">
-          <input
-            type="checkbox"
-            checked={draft.disabled}
-            onChange={(e) => onChange({ disabled: e.target.checked })}
-          />
-          Disabled
-        </label>
+        <EditorField label="Disabled">
+          {/* Sized to the text inputs' box so the switch sits on the input row. */}
+          <div className="mt-1 flex min-h-[2.375rem] items-center">
+            <Switch
+              checked={draft.disabled}
+              onChange={(next) => onChange({ disabled: next })}
+              ariaLabel="Disabled"
+            />
+          </div>
+        </EditorField>
       </div>
 
       {draft.value.trim() !== "" ? <ValidationIssues result={validation} /> : null}

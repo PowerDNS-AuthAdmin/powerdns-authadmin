@@ -31,7 +31,7 @@ export const mxEditor: RREditor<MxStruct> = {
   },
   Editor({ value, onChange }) {
     return (
-      <div className="grid grid-cols-[7rem_1fr] gap-3">
+      <div className="grid grid-cols-[9rem_1fr] gap-3">
         <Field label="Preference" hint="0–65535. Lower wins.">
           {uintInput(value.preference, 65535, (n) => onChange({ ...value, preference: n }))}
         </Field>
