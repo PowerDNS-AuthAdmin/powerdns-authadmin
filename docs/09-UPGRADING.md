@@ -37,6 +37,14 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.8.2 (from 1.8.1)
+
+No migration, no schema change, no config change - pull the new tag and
+recreate the container. `GET .../dnssec` now reports mirror sync reliably when
+nobody has the app open, and returns LUA/ALIAS warnings for unsigned zones so
+it works as a pre-flight check. See the
+[CHANGELOG](../CHANGELOG.md#182---2026-10-07).
+
 ### Upgrading to 1.8.1 (from 1.8.0)
 
 No migration, no schema change, no config change - pull the new tag and

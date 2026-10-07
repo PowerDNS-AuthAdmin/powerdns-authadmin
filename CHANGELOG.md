@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-10-07
+
+Two fixes to the 1.8 DNSSEC API, found during a production rollout. **No
+schema change, no migration.** Pull the new tag and recreate the container.
+
 ### Fixed
 
 - **`GET .../dnssec` `mirrors[]` flapped between in-sync and "missing"**
