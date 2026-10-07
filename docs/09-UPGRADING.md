@@ -37,6 +37,13 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.8.4 (from 1.8.3)
+
+No migration, no schema change, no config change - pull the new tag and
+recreate the container. Fixes the misaligned inline edit strip on MX / SRV /
+CAA and other structured record types. See the
+[CHANGELOG](../CHANGELOG.md#184---2026-10-07).
+
 ### Upgrading to 1.8.3 (from 1.8.2)
 
 No migration, no schema change, no config change - pull the new tag and

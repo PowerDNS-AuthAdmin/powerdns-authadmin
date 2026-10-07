@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.8.4] - 2026-10-07
+
+Layout fix for the inline record editor introduced in 1.8.3. **No schema
+change, no migration.** Pull the new tag and recreate the container.
+
+### Fixed
+
+- **Inline edit strip misaligned on structured record types** (MX, SRV, CAA,
+  NAPTR, SSHFP, TLSA, URI, SVCB/HTTPS). The TTL label and the editor's own
+  field labels sat on two baselines under a redundant "Value" label, and the
+  Disabled checkbox floated at a fixed offset on the right. Every field in the
+  strip now shares one label row and one input row, Disabled is a labelled
+  switch on that row, and the MX Preference column is wide enough that its
+  hint no longer wraps. ([#151](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/151))
+
 ## [1.8.3] - 2026-10-07
 
 A usability release: edit records in place, drive the records table and every
