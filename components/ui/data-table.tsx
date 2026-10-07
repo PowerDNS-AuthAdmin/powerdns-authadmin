@@ -59,7 +59,7 @@ import {
 } from "@tanstack/react-table";
 import { ChevronDown, ChevronsUpDown, ChevronUp, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parsePageSizeParam, parseSortParam, serializeSortParam } from "./data-table-url-sync";
 import { SelectMenu } from "./select-menu";
 
@@ -150,7 +150,24 @@ export interface DataTableProps<TData> {
    * name link still work. Pair it with the same href the name cell links to.
    */
   rowHref?: (row: TData) => string;
+  /**
+   * Extra attributes for each desktop `<tr>` / mobile card. Lets a caller
+   * make rows keyboard-reachable (`tabIndex`, `onKeyDown`, `aria-*`) or
+   * mark one as being edited, without the table knowing the semantics.
+   * `className` is appended to the table's own row classes.
+   */
+  getRowProps?: (row: TData) => RowProps;
+  /**
+   * Focus the search box when "/" is pressed anywhere on the page outside
+   * a text field (the convention GitHub, Linear and friends share).
+   * Enable it on the one primary list of a page only.
+   */
+  searchShortcut?: boolean;
 }
+
+/** Attributes a caller may put on a row: standard HTML attributes plus `data-*` markers. */
+export type RowProps = React.HTMLAttributes<HTMLElement> &
+  Record<`data-${string}`, string | undefined>;
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -178,8 +195,11 @@ export function DataTable<TData>({
   layout = "auto",
   renderRowDetail,
   rowHref,
+  getRowProps,
+  searchShortcut = false,
 }: DataTableProps<TData>) {
   const router = useRouter();
+  const searchRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -336,6 +356,22 @@ export function DataTable<TData>({
     return flexRender(def, h.getContext());
   };
 
+  // "/" → jump to the search box. Ignored while typing in any field (so a
+  // "/" inside a TXT record value stays a "/") and when a dialog is open.
+  useEffect(() => {
+    if (!searchShortcut || hideSearch) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isTypingTarget(e.target)) return;
+      if (document.querySelector("[role=dialog]")) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+      searchRef.current?.select();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [searchShortcut, hideSearch]);
+
   // Row/card click → navigate, unless the click landed on an interactive
   // element (link, button, form control) so per-row actions keep working.
   const activateRow = (target: EventTarget | null, original: TData) => {
@@ -355,15 +391,39 @@ export function DataTable<TData>({
               className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-[color:var(--color-fg-muted)]"
             />
             <input
+              ref={searchRef}
               type="search"
               value={globalFilter}
               onChange={(e) => {
                 setGlobalFilter(e.target.value);
                 table.setPageIndex(0);
               }}
+              onKeyDown={(e) => {
+                // Esc clears the filter first; a second Esc (empty field)
+                // hands focus back to the page so row shortcuts work again.
+                if (e.key !== "Escape") return;
+                if (globalFilter) {
+                  e.preventDefault();
+                  setGlobalFilter("");
+                  table.setPageIndex(0);
+                } else {
+                  e.currentTarget.blur();
+                }
+              }}
               placeholder={searchPlaceholder}
-              className="block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] py-1.5 pr-3 pl-8 text-sm focus:ring-2 focus:ring-[color:var(--color-accent)] focus:outline-none"
+              aria-keyshortcuts={searchShortcut ? "/" : undefined}
+              className={`block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] py-1.5 pl-8 text-sm focus:ring-2 focus:ring-[color:var(--color-accent)] focus:outline-none ${
+                searchShortcut ? "pr-9" : "pr-3"
+              }`}
             />
+            {searchShortcut ? (
+              <kbd
+                aria-hidden
+                className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-1.5 font-mono text-[0.65rem] text-[color:var(--color-fg-muted)]"
+              >
+                /
+              </kbd>
+            ) : null}
           </div>
           {globalFilter ? (
             <span className="text-xs text-[color:var(--color-fg-muted)]">
@@ -401,15 +461,20 @@ export function DataTable<TData>({
           rows.map((row) => {
             const cells = row.getVisibleCells();
             const detail = renderRowDetail?.(row.original);
+            const extra = getRowProps?.(row.original) ?? {};
             return (
               <div
                 key={row.id}
-                onClick={(e) => activateRow(e.target, row.original)}
-                className={`rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-4 ${
+                {...extra}
+                onClick={(e) => {
+                  extra.onClick?.(e);
+                  activateRow(e.target, row.original);
+                }}
+                className={`rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent)] ${
                   rowHref
                     ? "cursor-pointer transition-colors active:bg-[color:var(--color-bg-subtle)]"
                     : ""
-                }`}
+                } ${extra.className ?? ""}`}
               >
                 {cells.map((cell, i) => {
                   const label = headerLabel(cell.column.id);
@@ -519,10 +584,15 @@ export function DataTable<TData>({
               ) : (
                 rows.map((row) => {
                   const detail = renderRowDetail?.(row.original);
+                  const extra = getRowProps?.(row.original) ?? {};
                   return (
                     <Fragment key={row.id}>
                       <tr
-                        onClick={(e) => activateRow(e.target, row.original)}
+                        {...extra}
+                        onClick={(e) => {
+                          extra.onClick?.(e);
+                          activateRow(e.target, row.original);
+                        }}
                         // Four visually distinct row states, all token-driven so
                         // both themes track automatically:
                         //   header → bg-muted (the strongest neutral, anchors the top)
@@ -534,9 +604,9 @@ export function DataTable<TData>({
                         // it reads identically on odd and even rows. Tailwind emits
                         // the `hover:` variant after `even:`, so hover wins the
                         // cascade on striped rows without needing `!important`.
-                        className={`border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)] ${
+                        className={`border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)] focus:outline-none focus-visible:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)] focus-visible:shadow-[inset_2px_0_0_var(--color-accent)] ${
                           rowHref ? "cursor-pointer" : ""
-                        }`}
+                        } ${extra.className ?? ""}`}
                       >
                         {row.getVisibleCells().map((cell) => (
                           <td
@@ -586,6 +656,15 @@ export function DataTable<TData>({
       ) : null}
     </div>
   );
+}
+
+/** True when a keystroke belongs to a text field, so global shortcuts stay out of the way. */
+export function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  if (el.isContentEditable) return true;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 }
 
 /**

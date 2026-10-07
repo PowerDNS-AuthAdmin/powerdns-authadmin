@@ -763,7 +763,35 @@ The per-RRset editor now insists on a **Review changes** modal between Save and 
 PATCH - see [§ 4.2](#42-per-rrset-editor-with-diff-before-apply) for the full story. Validation
 errors are gated behind an explicit "Save anyway" checkbox so an override is never accidental.
 
-### 19.8 Compliance hard-stops
+### 19.8 Inline record editing
+
+- **What.** Enter on a row, a double-click, or the row's **Edit** button opens an edit strip
+  directly beneath the record: TTL, value (the same structured MX / SRV / CAA / TXT editors
+  the dialog uses) and the disabled flag. Enter stages the change, Esc backs out. Anything
+  that would move the record to a different RRset - name, type, comment - escalates to the
+  full dialog via **Full editor…** (or `E` on the row), carrying the in-progress draft along.
+  Both paths stage through the same code and land in the same **Review changes** diff
+  (§ 19.7), so there is one route to PowerDNS whichever editor the operator used.
+- **Where.** `app/(app)/zones/[zoneId]/_components/editable-record-table.tsx`
+  (`InlineRecordEditor`, `stageDraft`); row hooks via `DataTable`'s `getRowProps`.
+
+### 19.9 Keyboard model
+
+- **What.** The records table is fully drivable without a mouse: `/` focuses search (Esc
+  clears it, Esc again leaves it), `N` opens Add record, `↑`/`↓` move between rows,
+  `Enter` edits in place, `E` opens the full editor, `Delete` deletes. The editor and review
+  dialogs are real forms - Enter reviews, Enter again saves, Esc steps back one level. A
+  legend under the table lists the keys.
+- **Selects are combo boxes.** `<SelectMenu>` follows the native `<select>` habits: on a
+  closed menu `T` picks TXT, `T` again TLSA, `TL` TLSA directly; `↑`/`↓`/Home/End/PgUp/PgDn
+  move the highlight, Enter or Space picks, Esc closes just the menu (the dialog around it
+  stays open). Lists of ten or more options get a filter box that matches label _and_
+  description, so `ipv6` finds AAAA and `mail` finds MX. The record-type menu shows each
+  type's plain-English name as the second line.
+- **Where.** `components/ui/select-menu.tsx` (+ `select-menu-keys.ts`, unit-tested),
+  `components/ui/data-table.tsx` (`searchShortcut`, `getRowProps`).
+
+### 19.10 Compliance hard-stops
 
 - **What.** Operators with `must_change_password = true` or unmet MFA-per-role requirements
   are pinned to `/profile` (or an allow-list of self-service routes) on every navigation -

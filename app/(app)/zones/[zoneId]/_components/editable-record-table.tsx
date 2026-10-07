@@ -8,6 +8,21 @@
  * deleted independently. On save the editor groups rows back into RRsets
  * (PDNS's atomic unit) and emits one REPLACE per (name, type).
  *
+ * Two ways to edit, one way to save:
+ *
+ *   - **Inline strip** (Enter on a row, double-click, or the Edit button):
+ *     TTL, value and the disabled flag edited right under the row. Covers
+ *     the everyday "bump this IP" change without leaving the table.
+ *   - **Full dialog** (E, the ⋯ button, or "Full editor…" from the strip):
+ *     adds name, type and comment - anything that moves the record to a
+ *     different RRset - plus the "save anyway" override.
+ *
+ *   Both stage their change through `stageDraft` into the same diff review
+ *   dialog, so there is exactly one path to PowerDNS and one set of checks.
+ *
+ * Keyboard: `/` search, `N` add, ↑/↓ rows, Enter / E / Delete on a row,
+ * Enter reviews a draft, Esc backs out at every level.
+ *
  * SOA is intentionally absent: it's edited through `<SoaPanel>` above the
  * records table, and filtered out of every view here (table, type dropdown,
  * BIND diff).
@@ -19,11 +34,11 @@
  */
 
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { cloneElement, isValidElement, useEffect, useId, useMemo, useRef, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
-import { Plus } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus } from "lucide-react";
 import { Dialog, useDialog } from "@/components/ui/dialog";
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable, isTypingTarget, type RowProps } from "@/components/ui/data-table";
 import { createCtaClass } from "@/components/ui/create-button";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { mutate } from "@/lib/client/api-fetch";
@@ -37,7 +52,7 @@ import {
 import { protectedRRsetPermission } from "@/lib/rbac/protected-rrsets";
 import type { DefaultTtlSource, ResolvedDefaultTtl } from "@/lib/dns/default-ttl";
 import { BareDiff, computeBindDiff } from "./bare-diff";
-import { NumberInput } from "./number-input";
+import { NumberInput } from "@/components/ui/number-input";
 import { RRContentField } from "@/components/domain/rr-editors";
 
 interface RecordValue {
@@ -173,6 +188,11 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
   const [overrideErrors, setOverrideErrors] = useState(false);
   const [pending, setPending] = useState<PendingPatch | null>(null);
   const [saving, setSaving] = useState(false);
+  // In-place editor for one row (TTL, value, disabled). Lives under the row
+  // as an expansion strip; anything that changes the RRset key (name, type)
+  // or the comment escalates to the full dialog.
+  const [inline, setInline] = useState<InlineDraft | null>(null);
+  const [inlineError, setInlineError] = useState<string | null>(null);
 
   const showActions = props.canUpdate || props.canDelete;
 
@@ -184,6 +204,31 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
   const isLockedRow = (row: { name: string; type: string }): boolean =>
     !props.canUpdateApexNs &&
     protectedRRsetPermission(row.name, row.type, props.zoneName) === "record.update.apex-ns";
+
+  // If the row under inline edit vanished (saved, deleted elsewhere, zone
+  // reloaded), drop the strip rather than keep a draft nothing anchors to.
+  useEffect(() => {
+    if (!inline) return;
+    if (!rows.some((r) => rowKey(r) === rowKey(inline.row))) setInline(null);
+  }, [rows, inline]);
+
+  // Page-level shortcut: "n" opens Add record. Stays out of the way while
+  // typing and while any dialog is open.
+  useEffect(() => {
+    if (!props.canCreate) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "n" || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isTypingTarget(e.target)) return;
+      if (document.querySelector("[role=dialog]")) return;
+      e.preventDefault();
+      openCreate();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // openCreate only reads props through the closure it's defined in; the
+    // listener is re-bound whenever canCreate flips, which is all it needs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.canCreate]);
 
   const columns = useMemo<Array<ColumnDef<RecordRow, unknown>>>(() => {
     const base: Array<ColumnDef<RecordRow, unknown>> = [
@@ -263,24 +308,35 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
             );
           }
           return (
-            <span className="text-xs">
+            <span className="inline-flex items-center gap-1 text-xs">
+              {props.canUpdate ? (
+                <button
+                  type="button"
+                  onClick={() => openInline(row)}
+                  title="Edit TTL and value in place (Enter)"
+                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[color:var(--color-accent)] hover:bg-[color:var(--color-bg-subtle)] hover:underline"
+                >
+                  <Pencil className="h-3 w-3" aria-hidden />
+                  Edit
+                </button>
+              ) : null}
               {props.canUpdate ? (
                 <button
                   type="button"
                   onClick={() => openEdit(row)}
-                  className="text-[color:var(--color-accent)] hover:underline"
+                  title="Full editor: rename, change type, comment (E)"
+                  aria-label="Open full editor"
+                  className="rounded px-1.5 py-0.5 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-subtle)] hover:text-[color:var(--color-fg)]"
                 >
-                  Edit
+                  <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
                 </button>
-              ) : null}
-              {props.canUpdate && props.canDelete ? (
-                <span className="px-2 text-[color:var(--color-fg-subtle)]">·</span>
               ) : null}
               {props.canDelete ? (
                 <button
                   type="button"
                   onClick={() => handleDeleteRow(row)}
-                  className="text-[color:var(--color-error)] hover:underline"
+                  title="Delete this value (Delete)"
+                  className="rounded px-1.5 py-0.5 text-[color:var(--color-error)] hover:bg-[color:var(--color-bg-subtle)] hover:underline"
                 >
                   Delete
                 </button>
@@ -291,16 +347,17 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
       });
     }
     return base;
-    // openEdit/handleDeleteRow are intentionally omitted: both are stale-safe
-    // by construction (functional setState + handleDeleteRow reads the live
-    // `nonSoaRef.current`, see below), so rebuilding the column defs when they
-    // change would be churn without correctness benefit.
+    // openEdit/openInline/handleDeleteRow are intentionally omitted: all are
+    // stale-safe by construction (functional setState + handleDeleteRow reads
+    // the live `nonSoaRef.current`, see below), so rebuilding the column defs
+    // when they change would be churn without correctness benefit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.canUpdate, props.canDelete, props.canUpdateApexNs, props.zoneName, showActions]);
 
   // ===== Editor handlers =====================================================
 
   function openCreate() {
+    setInline(null);
     setEditorError(null);
     setOverrideErrors(false);
     setEditor({
@@ -318,8 +375,15 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
     });
   }
 
+  /**
+   * Open the full dialog for a row. When an inline draft for the same row
+   * is in progress its TTL / value / disabled edits carry over, so "I need
+   * to rename this too" doesn't throw away what was already typed.
+   */
   function openEdit(row: RecordRow) {
     if (isLockedRow(row)) return;
+    const draft = inline && rowKey(inline.row) === rowKey(row) ? inline : null;
+    setInline(null);
     setEditorError(null);
     setOverrideErrors(false);
     setEditor({
@@ -327,15 +391,26 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
       originalRow: row,
       name: displayName(row.name, props.zoneName),
       type: row.type,
-      ttl: row.ttl,
-      value: row.value,
+      ttl: draft?.ttl ?? row.ttl,
+      value: draft?.value ?? row.value,
       // Seed with the original type's value so switching away and back
       // restores it. Other types start empty and accumulate as visited.
-      valuesByType: { [row.type]: row.value },
-      disabled: row.disabled,
+      valuesByType: { [row.type]: draft?.value ?? row.value },
+      disabled: draft?.disabled ?? row.disabled,
       comment: row.comment,
       valueTouched: true,
     });
+  }
+
+  function openInline(row: RecordRow) {
+    if (isLockedRow(row) || !props.canUpdate) return;
+    setInlineError(null);
+    setInline({ row, ttl: row.ttl, value: row.value, disabled: row.disabled });
+  }
+
+  function closeInline() {
+    setInline(null);
+    setInlineError(null);
   }
 
   async function handleDeleteRow(row: RecordRow) {
@@ -377,95 +452,70 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
   }
 
   /**
-   * Validate the editor draft and stage a patch for the review dialog. The
-   * caller already confirmed the override toggle (when needed).
+   * Validate a draft and stage a patch for the review dialog. Shared by the
+   * full dialog and the inline strip - both end in the same diff review, so
+   * every path to PowerDNS goes through one set of checks.
+   *
+   * Returns an error message to show next to the draft, or `null` when the
+   * patch was staged.
    *
    * Supports rename: when the actor changes name or type on an edit, the
    * patch emits a DELETE-or-shrink for the original (name, type) plus an
    * UPSERT-or-append for the new (name, type), in a single API call.
    */
-  function handleEditorReview() {
-    if (!editor) return;
-    setEditorError(null);
-    // Flip touched on submit so any validation issues we were hiding
-    // (user clicked Review without ever blurring) become visible.
-    setEditor({ ...editor, valueTouched: true });
-
-    if (editor.value.trim() === "") {
-      setEditorError("Value is required.");
-      return;
+  function stageDraft(draft: StagedDraft): string | null {
+    if (draft.value.trim() === "") return "Value is required.";
+    if (draft.ttl < 0 || !Number.isInteger(draft.ttl)) {
+      return "TTL must be a non-negative integer.";
     }
-    if (editor.ttl < 0 || !Number.isInteger(editor.ttl)) {
-      setEditorError("TTL must be a non-negative integer.");
-      return;
-    }
-    if (editor.type === "SOA") {
-      setEditorError("Edit SOA through the SOA panel above the records table.");
-      return;
-    }
-    if (editor.type === "LUA" && !props.luaRecordsEnabled) {
-      setEditorError(
-        "LUA records require ENABLE-LUA-RECORDS to be set to 1 in this zone's metadata.",
-      );
-      return;
+    if (draft.type === "SOA") return "Edit SOA through the SOA panel above the records table.";
+    if (draft.type === "LUA" && !props.luaRecordsEnabled) {
+      return "LUA records require ENABLE-LUA-RECORDS to be set to 1 in this zone's metadata.";
     }
 
-    const validation = getRRTypeValidator(editor.type).validate(editor.value);
-    if (hasErrors(validation) && !overrideErrors) {
+    const validation = getRRTypeValidator(draft.type).validate(draft.value);
+    if (hasErrors(validation) && !draft.overrideErrors) {
       // Surface errors inline - the form already shows the list; this is the
       // generic catch-all message under the save button.
-      setEditorError(
-        "The value has validation errors. Fix them or tick 'Save anyway' to override.",
-      );
-      return;
+      return "The value has validation errors. Fix them or tick 'Save anyway' to override.";
     }
 
-    const canonicalName = canonicalizeName(editor.name, props.zoneName);
-    const canonicalType = editor.type.toUpperCase();
+    const canonicalName = canonicalizeName(draft.name, props.zoneName);
+    const canonicalType = draft.type.toUpperCase();
 
-    if (editor.mode === "edit" && editor.originalRow) {
+    if (draft.originalRow) {
       const sameKey =
-        editor.originalRow.name === canonicalName && editor.originalRow.type === canonicalType;
-      const targetIsNewKey = !sameKey;
+        draft.originalRow.name === canonicalName && draft.originalRow.type === canonicalType;
       if (
-        targetIsNewKey &&
-        nonSoa.some((rr) => rr.name === canonicalName && rr.type === canonicalType) &&
-        canonicalType === "CNAME"
+        !sameKey &&
+        canonicalType === "CNAME" &&
+        nonSoa.some((rr) => rr.name === canonicalName && rr.type === canonicalType)
       ) {
-        setEditorError(
-          "An RRset already exists at the new name and CNAME can't coexist with other types or values there (RFC 1034 § 3.6.2). Delete it first or pick a different name.",
-        );
-        return;
+        return "An RRset already exists at the new name and CNAME can't coexist with other types or values there (RFC 1034 § 3.6.2). Delete it first or pick a different name.";
       }
     }
 
     const changes = buildRecordChanges({
       current: nonSoa,
-      original: editor.mode === "edit" ? (editor.originalRow ?? null) : null,
+      original: draft.originalRow ?? null,
       target: {
         name: canonicalName,
         type: canonicalType,
-        ttl: editor.ttl,
+        ttl: draft.ttl,
         value: validation.normalized,
-        disabled: editor.disabled,
-        comment: editor.comment,
+        disabled: draft.disabled,
+        comment: draft.comment,
       },
     });
 
-    if (changes.length === 0) {
-      setEditorError("Nothing to change.");
-      return;
-    }
+    if (changes.length === 0) return "Nothing to change.";
 
     // A rename can move a record ONTO the apex NS RRset (or off it), so
     // check the changes the edit actually produces rather than the form's
     // target alone. The RRset route rejects the same set - this just says
     // so before the operator has staged a diff.
     if (changes.some((c) => isLockedRow(c))) {
-      setEditorError(
-        "The apex NS records are this zone's delegation and need the record.update.apex-ns permission.",
-      );
-      return;
+      return "The apex NS records are this zone's delegation and need the record.update.apex-ns permission.";
     }
 
     // Block no-op submits - Edit → Review → Apply with no actual change
@@ -474,24 +524,58 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
     // refuse with an inline message.
     const rrsetsAfter = applyChangesToRRsets(nonSoa, changes, props.defaultTtl.ttl);
     if (rrsetsEqual(nonSoa, rrsetsAfter)) {
-      setEditorError(
-        editor.mode === "edit"
-          ? "No changes to apply - the new values match the current record."
-          : "Nothing to change.",
-      );
-      return;
+      return draft.originalRow
+        ? "No changes to apply - the new values match the current record."
+        : "Nothing to change.";
     }
 
     setPending({
       changes,
       rrsetsAfter,
-      summary:
-        editor.mode === "create"
-          ? "Record created."
-          : changes.length > 1
-            ? "Record moved."
-            : "Record saved.",
+      summary: !draft.originalRow
+        ? "Record created."
+        : changes.length > 1
+          ? "Record moved."
+          : "Record saved.",
     });
+    return null;
+  }
+
+  function handleEditorReview() {
+    if (!editor) return;
+    setEditorError(null);
+    // Flip touched on submit so any validation issues we were hiding
+    // (user clicked Review without ever blurring) become visible.
+    setEditor({ ...editor, valueTouched: true });
+    const error = stageDraft({
+      originalRow: editor.mode === "edit" ? editor.originalRow : undefined,
+      name: editor.name,
+      type: editor.type,
+      ttl: editor.ttl,
+      value: editor.value,
+      disabled: editor.disabled,
+      comment: editor.comment,
+      overrideErrors,
+    });
+    if (error) setEditorError(error);
+  }
+
+  function handleInlineReview() {
+    if (!inline) return;
+    setInlineError(null);
+    const error = stageDraft({
+      originalRow: inline.row,
+      name: displayName(inline.row.name, props.zoneName),
+      type: inline.row.type,
+      ttl: inline.ttl,
+      value: inline.value,
+      disabled: inline.disabled,
+      comment: inline.row.comment,
+      // The strip has no "save anyway" - validation errors send the operator
+      // to the full editor, which carries the draft across and offers it.
+      overrideErrors: false,
+    });
+    if (error) setInlineError(error);
   }
 
   /**
@@ -570,11 +654,72 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
       });
       setEditor(null);
       setPending(null);
+      setInline(null);
+      setInlineError(null);
       setOverrideErrors(false);
       router.refresh();
     } finally {
       setSaving(false);
     }
+  }
+
+  // ===== Row keyboard model ===================================================
+
+  /**
+   * Rows are focusable so the table drives from the keyboard: ↑/↓ move,
+   * Enter edits in place, E opens the full editor, Delete deletes. Keys
+   * typed inside the inline strip never reach here - the strip is its own
+   * row.
+   */
+  function rowProps(row: RecordRow): RowProps {
+    const editable = showActions && !isLockedRow(row);
+    const editing = inline !== null && rowKey(inline.row) === rowKey(row);
+    return {
+      tabIndex: editable ? 0 : -1,
+      "data-editing": editing ? "true" : undefined,
+      className: editing
+        ? "bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)] shadow-[inset_2px_0_0_var(--color-accent)]"
+        : undefined,
+      onDoubleClick: (e) => {
+        if (!editable || !props.canUpdate) return;
+        if ((e.target as HTMLElement).closest("a,button,input,textarea,label")) return;
+        openInline(row);
+      },
+      onKeyDown: (e) => {
+        if (e.target !== e.currentTarget) return; // a control inside the row has focus
+        switch (e.key) {
+          case "ArrowDown":
+          case "ArrowUp": {
+            e.preventDefault();
+            focusSiblingRow(e.currentTarget, e.key === "ArrowDown" ? 1 : -1);
+            return;
+          }
+          case "Enter":
+            if (props.canUpdate && editable) {
+              e.preventDefault();
+              openInline(row);
+            }
+            return;
+          case "e":
+          case "E":
+            if (props.canUpdate && editable && !e.ctrlKey && !e.metaKey) {
+              e.preventDefault();
+              openEdit(row);
+            }
+            return;
+          case "Delete":
+          case "Backspace":
+            if (props.canDelete && editable) {
+              e.preventDefault();
+              void handleDeleteRow(row);
+            }
+            return;
+          case "Escape":
+            if (editing) closeInline();
+            return;
+        }
+      },
+    };
   }
 
   // ===== Render =============================================================
@@ -593,11 +738,30 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
     liveValidation !== null && valueIsNonEmpty && editor?.valueTouched === true;
   const hasValidationErrors = showValidation && liveValidation ? hasErrors(liveValidation) : false;
 
+  const typeOptions = useMemo(() => {
+    // Allow-list narrowed by zone kind (reverse zones drop A, MX, SRV, …
+    // forward zones drop PTR). If we're editing an existing record whose
+    // type sits outside that menu (legacy data), thread it back in as the
+    // first option so the operator can still see + save the row.
+    const allowed = typesForZone(props.zoneName).filter(
+      (type) => type !== "LUA" || props.luaRecordsEnabled,
+    );
+    const editing = editor?.mode === "edit" ? editor.type : null;
+    const opts = editing && !allowed.includes(editing) ? [editing, ...allowed] : allowed;
+    return opts.map((t) => ({ value: t, label: t, description: getRRTypeValidator(t).label }));
+  }, [props.zoneName, props.luaRecordsEnabled, editor?.mode, editor?.type]);
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-end gap-3">
         {props.canCreate ? (
-          <button type="button" onClick={openCreate} className={createCtaClass}>
+          <button
+            type="button"
+            onClick={openCreate}
+            className={createCtaClass}
+            aria-keyshortcuts="n"
+            title="Add record (N)"
+          >
             <Plus className="h-4 w-4" aria-hidden />
             Add record
           </button>
@@ -608,11 +772,34 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
         columns={columns}
         data={rows}
         searchPlaceholder="Search records by name, type, value…"
+        searchShortcut
         noDataMessage="No records on this zone yet."
         initialSort={[{ id: "name", desc: false }]}
         stateKey="records"
         layout="fixed"
+        getRowProps={showActions ? rowProps : undefined}
+        renderRowDetail={(row) =>
+          inline && rowKey(inline.row) === rowKey(row) ? (
+            <InlineRecordEditor
+              key={rowKey(row)}
+              draft={inline}
+              zoneName={props.zoneName}
+              error={inlineError}
+              onChange={(next) => {
+                setInlineError(null);
+                setInline((cur) => (cur ? { ...cur, ...next } : cur));
+              }}
+              onReview={handleInlineReview}
+              onCancel={closeInline}
+              onOpenFull={() => openEdit(row)}
+            />
+          ) : null
+        }
       />
+
+      {showActions ? (
+        <ShortcutLegend canCreate={props.canCreate} canDelete={props.canDelete} />
+      ) : null}
 
       {/* Editor dialog ====================================================== */}
       <Dialog
@@ -622,7 +809,21 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
         maxWidthClass="max-w-xl"
       >
         {editor ? (
-          <div className="mt-4 space-y-4">
+          <form
+            className="mt-4 space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleEditorReview();
+            }}
+            onKeyDown={(e) => {
+              // Enter inside a textarea inserts a newline; Ctrl/⌘+Enter
+              // submits from anywhere, matching the inline strip.
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                handleEditorReview();
+              }
+            }}
+          >
             <div className="grid grid-cols-2 gap-3">
               <Field
                 label="Name"
@@ -634,6 +835,8 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                   value={editor.name}
                   onChange={(e) => setEditor({ ...editor, name: e.target.value })}
                   placeholder="www"
+                  autoComplete="off"
+                  spellCheck={false}
                   className={inputClass}
                 />
               </Field>
@@ -642,14 +845,9 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                 hint={
                   editor.mode === "edit"
                     ? "Changing type moves the record to a different RRset. The value field clears so it can be re-validated."
-                    : undefined
+                    : "Type a letter to jump: T for TXT, T again for TLSA."
                 }
               >
-                {/* Allow-list narrowed by zone kind (reverse zones drop A,
-                    MX, SRV, … forward zones drop PTR). If we're editing
-                    an existing record whose type sits outside that menu
-                    (legacy data), thread it back in as the first option
-                    so the operator can still see + save the row. */}
                 <SelectMenu
                   value={editor.type}
                   onChange={(nextType) => {
@@ -666,16 +864,8 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                       valueTouched: restored !== "",
                     });
                   }}
-                  options={(() => {
-                    const allowed = typesForZone(props.zoneName).filter(
-                      (type) => type !== "LUA" || props.luaRecordsEnabled,
-                    );
-                    const opts =
-                      editor.mode === "edit" && !allowed.includes(editor.type)
-                        ? [editor.type, ...allowed]
-                        : allowed;
-                    return opts.map((t) => ({ value: t, label: t }));
-                  })()}
+                  options={typeOptions}
+                  searchPlaceholder="Filter types (TXT, mail, IPv6…)"
                   ariaLabel="Type"
                   className="mt-1 w-full"
                 />
@@ -768,7 +958,10 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
               </p>
             ) : null}
 
-            <div className="mt-4 flex items-center justify-end gap-3">
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+              <KeyHint className="mr-auto">
+                <Kbd>Enter</Kbd> review · <Kbd>Esc</Kbd> cancel
+              </KeyHint>
               <button
                 type="button"
                 onClick={() => setEditor(null)}
@@ -777,16 +970,14 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                 Cancel
               </button>
               <button
-                type="button"
-                onClick={handleEditorReview}
+                type="submit"
                 disabled={hasValidationErrors && !overrideErrors}
-                data-dialog-focus="true"
                 className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
               >
                 Review changes
               </button>
             </div>
-          </div>
+          </form>
         ) : null}
       </Dialog>
 
@@ -808,7 +999,10 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                 </div>
               );
             })()}
-            <div className="flex items-center justify-end gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <KeyHint className="mr-auto">
+                <Kbd>Enter</Kbd> save · <Kbd>Esc</Kbd> back
+              </KeyHint>
               <button
                 type="button"
                 onClick={() => setPending(null)}
@@ -856,6 +1050,224 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
 }
 
 // =============================================================================
+// Inline editor strip
+// =============================================================================
+
+interface InlineDraft {
+  row: RecordRow;
+  ttl: number;
+  value: string;
+  disabled: boolean;
+}
+
+/** What both editors hand to `stageDraft`. `originalRow` is unset for a create. */
+interface StagedDraft {
+  originalRow?: RecordRow;
+  name: string;
+  type: string;
+  ttl: number;
+  value: string;
+  disabled: boolean;
+  comment: string;
+  overrideErrors: boolean;
+}
+
+function rowKey(row: RecordRow): string {
+  return `${row.name}|${row.type}|${row.recordIdx}`;
+}
+
+/**
+ * Move focus to the previous/next focusable row, skipping detail rows (the
+ * inline strip) that sit between data rows in the DOM.
+ */
+function focusSiblingRow(from: HTMLElement, direction: 1 | -1): void {
+  let el: Element | null = from;
+  while (el) {
+    el = direction === 1 ? el.nextElementSibling : el.previousElementSibling;
+    if (el instanceof HTMLElement && el.getAttribute("tabindex") === "0") {
+      el.focus();
+      return;
+    }
+  }
+}
+
+/**
+ * The in-place editor rendered beneath a row. Edits TTL, value and the
+ * disabled flag - the fields that don't change which RRset the record
+ * belongs to. Enter stages the diff review, Esc cancels, and "Full editor"
+ * hands the draft to the dialog for renames, type changes and comments.
+ */
+function InlineRecordEditor({
+  draft,
+  zoneName,
+  error,
+  onChange,
+  onReview,
+  onCancel,
+  onOpenFull,
+}: {
+  draft: InlineDraft;
+  zoneName: string;
+  error: string | null;
+  onChange: (next: Partial<Pick<InlineDraft, "ttl" | "value" | "disabled">>) => void;
+  onReview: () => void;
+  onCancel: () => void;
+  onOpenFull: () => void;
+}) {
+  const rootRef = useRef<HTMLFormElement>(null);
+  const validator = getRRTypeValidator(draft.row.type);
+  const validation = validator.validate(draft.value);
+  const dirty =
+    draft.value !== draft.row.value ||
+    draft.ttl !== draft.row.ttl ||
+    draft.disabled !== draft.row.disabled;
+
+  // Land the cursor in the value field (first input of the structured
+  // editor for MX/SRV/…, the single input otherwise) so Enter-on-row →
+  // type → Enter is a closed loop.
+  useEffect(() => {
+    const first = rootRef.current?.querySelector<HTMLElement>(
+      "[data-inline-value] input, [data-inline-value] textarea",
+    );
+    first?.focus();
+    if (first instanceof HTMLInputElement && first.type === "text") first.select();
+  }, []);
+
+  return (
+    <form
+      ref={rootRef}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onReview();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          onCancel();
+          return;
+        }
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          onReview();
+        }
+      }}
+      aria-label={`Edit ${displayName(draft.row.name, zoneName) || "@"} ${draft.row.type}`}
+      className="space-y-3 pt-3"
+    >
+      <div className="grid gap-3 md:grid-cols-[7rem_minmax(0,1fr)_auto]">
+        <Field label="TTL">
+          <NumberInput
+            value={draft.ttl}
+            onChange={(n) => onChange({ ttl: n })}
+            min={0}
+            className={inputClass}
+          />
+        </Field>
+        <div data-inline-value>
+          <Field label="Value" hint={validator.description}>
+            <RRContentField
+              type={draft.row.type}
+              value={draft.value}
+              onChange={(next) => onChange({ value: next })}
+              fallbackPlaceholder={validator.placeholder}
+            />
+          </Field>
+        </div>
+        <label className="flex items-center gap-2 pt-6 text-sm md:pt-7">
+          <input
+            type="checkbox"
+            checked={draft.disabled}
+            onChange={(e) => onChange({ disabled: e.target.checked })}
+          />
+          Disabled
+        </label>
+      </div>
+
+      {draft.value.trim() !== "" ? <ValidationIssues result={validation} /> : null}
+      {error ? (
+        <p className="text-sm text-[color:var(--color-error)]" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="submit"
+          disabled={!dirty}
+          className="rounded-md bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+        >
+          Review changes
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={onOpenFull}
+          className="text-sm text-[color:var(--color-accent)] hover:underline"
+          title="Rename, change the type, edit the comment, or save with validation errors"
+        >
+          Full editor…
+        </button>
+        <KeyHint className="ml-auto">
+          <Kbd>Enter</Kbd> review · <Kbd>Esc</Kbd> cancel
+        </KeyHint>
+      </div>
+    </form>
+  );
+}
+
+/** One-line reminder of the table's keyboard model. Desktop only - there's no keyboard to speak of on a phone. */
+function ShortcutLegend({ canCreate, canDelete }: { canCreate: boolean; canDelete: boolean }) {
+  return (
+    <KeyHint className="hidden flex-wrap gap-x-3 gap-y-1 md:flex">
+      <span>
+        <Kbd>/</Kbd> search
+      </span>
+      {canCreate ? (
+        <span>
+          <Kbd>N</Kbd> add record
+        </span>
+      ) : null}
+      <span>
+        <Kbd>↑</Kbd>
+        <Kbd>↓</Kbd> rows
+      </span>
+      <span>
+        <Kbd>Enter</Kbd> edit in place
+      </span>
+      <span>
+        <Kbd>E</Kbd> full editor
+      </span>
+      {canDelete ? (
+        <span>
+          <Kbd>Del</Kbd> delete
+        </span>
+      ) : null}
+    </KeyHint>
+  );
+}
+
+function KeyHint({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <p className={`text-xs text-[color:var(--color-fg-muted)] ${className ?? ""}`}>{children}</p>
+  );
+}
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="mx-0.5 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-1 py-px font-mono text-[0.65rem]">
+      {children}
+    </kbd>
+  );
+}
+
+// =============================================================================
 // Display helpers
 // =============================================================================
 
@@ -879,6 +1291,11 @@ function ValidationIssues({ result }: { result: RRValidationResult | null }) {
   );
 }
 
+/**
+ * Label + control + hint. A single element child without an `id` gets one
+ * so the label's `htmlFor` reaches it - clicking "TTL" focuses the TTL box
+ * and screen readers announce the field by name.
+ */
 function Field({
   label,
   hint,
@@ -888,11 +1305,28 @@ function Field({
   hint?: string;
   children: React.ReactNode;
 }) {
+  const autoId = useId();
+  const hintId = `${autoId}-hint`;
+  let control = children;
+  let controlId: string | undefined;
+  if (isValidElement<{ id?: string; "aria-describedby"?: string }>(children)) {
+    controlId = children.props.id ?? autoId;
+    control = cloneElement(children, {
+      id: controlId,
+      ...(hint && !children.props["aria-describedby"] ? { "aria-describedby": hintId } : {}),
+    });
+  }
   return (
     <div>
-      <label className="block text-sm font-medium">{label}</label>
-      {children}
-      {hint ? <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">{hint}</p> : null}
+      <label htmlFor={controlId} className="block text-sm font-medium">
+        {label}
+      </label>
+      {control}
+      {hint ? (
+        <p id={hintId} className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
 /**
+ * components/ui/number-input.tsx
+ *
  * Integer-valued number input that lets the operator clear the field
  * mid-edit without it snapping back to `0` (the default behavior when
  * you back the parent state with a plain `Number()` parse). We keep a
@@ -18,9 +20,24 @@ interface Props {
   max?: number;
   disabled?: boolean;
   className?: string;
+  id?: string;
+  placeholder?: string;
+  ariaLabel?: string;
+  autoFocus?: boolean;
 }
 
-export function NumberInput({ value, onChange, min = 0, max, disabled, className }: Props) {
+export function NumberInput({
+  value,
+  onChange,
+  min = 0,
+  max,
+  disabled,
+  className,
+  id,
+  placeholder,
+  ariaLabel,
+  autoFocus,
+}: Props) {
   const [draft, setDraft] = useState<string>(() => String(value));
   // Tracks whether the input is currently focused. While focused, we
   // don't overwrite the operator's in-flight typing with whatever the
@@ -43,12 +60,16 @@ export function NumberInput({ value, onChange, min = 0, max, disabled, className
 
   return (
     <input
+      id={id}
       type="number"
       inputMode="numeric"
       min={min}
       max={max}
       value={draft}
       disabled={disabled}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      autoFocus={autoFocus}
       onFocus={() => {
         focusedRef.current = true;
       }}

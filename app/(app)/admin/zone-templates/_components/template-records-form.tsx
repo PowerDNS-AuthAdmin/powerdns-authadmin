@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
 import { SUPPORTED_TYPES, getRRTypeValidator } from "@/lib/validators/rr-types";
-import { NumberInput } from "@/app/(app)/zones/[zoneId]/_components/number-input";
+import { NumberInput } from "@/components/ui/number-input";
 import { SelectMenu } from "@/components/ui/select-menu";
 
 interface TemplateRecord {

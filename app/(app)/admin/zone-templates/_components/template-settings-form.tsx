@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
 import { Switch } from "@/components/ui/switch";
-import { NumberInput } from "@/app/(app)/zones/[zoneId]/_components/number-input";
+import { NumberInput } from "@/components/ui/number-input";
 
 interface InitialState {
   id: string;
