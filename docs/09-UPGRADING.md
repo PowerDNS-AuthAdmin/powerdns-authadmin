@@ -37,6 +37,14 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.8.3 (from 1.8.2)
+
+No migration, no schema change, no config change - pull the new tag and
+recreate the container. Records can now be edited in place (Enter on a row),
+the records table and all select menus are keyboard-drivable (type `T` on the
+type menu to jump to TXT), and the record editor's number fields no longer snap
+to `0` when cleared. See the [CHANGELOG](../CHANGELOG.md#183---2026-10-07).
+
 ### Upgrading to 1.8.2 (from 1.8.1)
 
 No migration, no schema change, no config change - pull the new tag and

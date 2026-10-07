@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-10-07
+
+A usability release: edit records in place, drive the records table and every
+select menu from the keyboard, and a handful of form fixes found on the way.
+**No schema change, no migration.** Pull the new tag and recreate the container.
+
 ### Added
 
 - **Inline record editing.** Enter on a row, double-click, or the row's Edit button opens
