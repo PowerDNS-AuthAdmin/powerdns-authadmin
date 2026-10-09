@@ -143,7 +143,7 @@ function classForToken(token: BindToken): string {
     case "comment":
       return "text-[color:var(--color-fg-subtle)] italic";
     case "disabled":
-      return "text-[color:var(--color-warn)] italic";
+      return "text-[color:var(--color-warn-fg)] italic";
     case "ttl":
       return "text-[color:var(--color-fg-muted)]";
     case "class":

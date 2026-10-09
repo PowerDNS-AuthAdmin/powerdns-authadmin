@@ -234,7 +234,7 @@ export function SettingsForm({ initial, canWrite, lockedByPolicy }: SettingsForm
           ) : null}
         </div>
         {uploadError ? (
-          <p className="mt-1 text-xs text-[color:var(--color-error)]" role="alert">
+          <p className="mt-1 text-xs text-[color:var(--color-error-fg)]" role="alert">
             {uploadError}
           </p>
         ) : null}
@@ -417,11 +417,11 @@ export function SettingsForm({ initial, canWrite, lockedByPolicy }: SettingsForm
       </fieldset>
 
       {error ? (
-        <p className="text-sm text-[color:var(--color-error)]" role="alert">
+        <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
           {error}
         </p>
       ) : null}
-      {ok ? <p className="text-sm text-[color:var(--color-success)]">Settings saved.</p> : null}
+      {ok ? <p className="text-sm text-[color:var(--color-success-fg)]">Settings saved.</p> : null}
 
       {canWrite ? (
         <button

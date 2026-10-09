@@ -128,7 +128,7 @@ export function ServerActions({ id }: ServerActionsProps) {
           type="button"
           onClick={handleDelete}
           disabled={deleting}
-          className="ml-auto rounded-md border border-[color:var(--color-error)] px-4 py-2 text-sm text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+          className="ml-auto rounded-md border border-[color:var(--color-error)] px-4 py-2 text-sm text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
         >
           {deleting ? "Deleting…" : "Delete"}
         </button>

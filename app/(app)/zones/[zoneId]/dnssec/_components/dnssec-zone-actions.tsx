@@ -159,7 +159,7 @@ export function DnssecZoneActions(props: Props) {
             type="button"
             onClick={handleDisable}
             disabled={busy !== null}
-            className="rounded border border-[color:var(--color-error)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+            className="rounded border border-[color:var(--color-error)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
           >
             {busy === "disable" ? "Disabling…" : "Disable DNSSEC"}
           </button>

@@ -137,7 +137,7 @@ export function SessionsPanel({ userId, canManage, isSelf, sessions }: Props) {
             type="button"
             onClick={handleRevokeAll}
             disabled={busyId !== null}
-            className="rounded border border-[color:var(--color-error)] px-3 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+            className="rounded border border-[color:var(--color-error)] px-3 py-1 text-xs text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
           >
             {busyId === "all" ? "Revoking…" : "Revoke all"}
           </button>
@@ -168,7 +168,7 @@ export function SessionsPanel({ userId, canManage, isSelf, sessions }: Props) {
                   type="button"
                   onClick={() => handleRevokeOne(s.id)}
                   disabled={busyId !== null}
-                  className="shrink-0 rounded border border-[color:var(--color-error)] px-2 py-1 text-[0.6875rem] text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+                  className="shrink-0 rounded border border-[color:var(--color-error)] px-2 py-1 text-[0.6875rem] text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
                 >
                   {busyId === s.id ? "Revoking…" : "Revoke"}
                 </button>

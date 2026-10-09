@@ -86,7 +86,7 @@ export function ChangeEmailForm() {
           className="mt-1 block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm focus:ring-2 focus:ring-[color:var(--color-accent)] focus:outline-none"
         />
         {fieldErrors["newEmail"]?.length ? (
-          <p className="mt-1 text-xs text-[color:var(--color-error)]" role="alert">
+          <p className="mt-1 text-xs text-[color:var(--color-error-fg)]" role="alert">
             {fieldErrors["newEmail"].join(" ")}
           </p>
         ) : null}
@@ -105,19 +105,19 @@ export function ChangeEmailForm() {
           className="mt-1 block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm focus:ring-2 focus:ring-[color:var(--color-accent)] focus:outline-none"
         />
         {fieldErrors["currentPassword"]?.length ? (
-          <p className="mt-1 text-xs text-[color:var(--color-error)]" role="alert">
+          <p className="mt-1 text-xs text-[color:var(--color-error-fg)]" role="alert">
             {fieldErrors["currentPassword"].join(" ")}
           </p>
         ) : null}
       </div>
 
       {error ? (
-        <p className="text-sm text-[color:var(--color-error)]" role="alert">
+        <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
           {error}
         </p>
       ) : null}
       {sent ? (
-        <p className="text-sm text-[color:var(--color-success)]">
+        <p className="text-sm text-[color:var(--color-success-fg)]">
           Confirmation link issued. Until transactional email lands, your administrator must share
           the URL from the audit log with you.
         </p>

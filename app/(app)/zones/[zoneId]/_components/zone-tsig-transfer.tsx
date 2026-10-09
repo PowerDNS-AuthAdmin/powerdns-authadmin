@@ -114,7 +114,7 @@ export function ZoneTsigTransfer({
                   onClick={() => void change(k, "remove")}
                   disabled={busy === k}
                   aria-label={`Remove ${k}`}
-                  className="text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-error)] disabled:opacity-50"
+                  className="text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-error-fg)] disabled:opacity-50"
                 >
                   ×
                 </button>

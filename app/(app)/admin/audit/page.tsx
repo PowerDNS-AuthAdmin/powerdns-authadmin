@@ -122,7 +122,7 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
   const parsed = auditQuerySchema.safeParse(flat);
   if (!parsed.success) {
     return (
-      <div className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-4 text-sm text-[color:var(--color-error)]">
+      <div className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-4 text-sm text-[color:var(--color-error-fg)]">
         Invalid filters in URL.
       </div>
     );
@@ -343,7 +343,7 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
         rows={buildAuditRows(page.entries, navAbilities, userEmailById, httpEntriesFor)}
       />
 
-      <nav className="flex items-center justify-between text-sm">
+      <nav aria-label="Audit log pages" className="flex items-center justify-between text-sm">
         {prevHref ? (
           <Link href={prevHref} className="text-[color:var(--color-accent)] hover:underline">
             ← Newer

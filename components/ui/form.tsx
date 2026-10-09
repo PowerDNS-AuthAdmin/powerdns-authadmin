@@ -150,7 +150,7 @@ export function Field({
   const caption = (
     <>
       {label}
-      {required ? <span className="text-[color:var(--color-error)]"> *</span> : null}
+      {required ? <span className="text-[color:var(--color-error-fg)]"> *</span> : null}
     </>
   );
   const wrapperClass = [styles.wrapper, className ?? ""].filter(Boolean).join(" ");
@@ -177,7 +177,7 @@ export function Field({
         </p>
       ) : null}
       {hasErrors ? (
-        <p id={errorId} className="mt-1 text-xs text-[color:var(--color-error)]" role="alert">
+        <p id={errorId} className="mt-1 text-xs text-[color:var(--color-error-fg)]" role="alert">
           {errors.join(" ")}
         </p>
       ) : null}

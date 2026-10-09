@@ -200,7 +200,7 @@ export function PdnsRequestsTable(props: Props) {
           const isFailure =
             row.error !== null || (row.responseStatus !== null && row.responseStatus >= 400);
           return (
-            <span className={`font-mono ${isFailure ? "text-[color:var(--color-error)]" : ""}`}>
+            <span className={`font-mono ${isFailure ? "text-[color:var(--color-error-fg)]" : ""}`}>
               {row.responseStatus ?? (row.error ? "ERR" : "-")}
             </span>
           );
@@ -339,7 +339,7 @@ export function PdnsRequestsTable(props: Props) {
             Clear
           </button>
           {props.windowCapped ? (
-            <span className="ml-auto text-[0.625rem] text-[color:var(--color-warn)]">
+            <span className="ml-auto text-[0.625rem] text-[color:var(--color-warn-fg)]">
               Showing the most recent {props.rows.length} rows - narrow with filters to see older
               entries.
             </span>

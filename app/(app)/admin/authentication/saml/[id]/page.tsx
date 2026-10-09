@@ -144,7 +144,7 @@ export default async function SamlProviderEditPage({
 
       {canManage ? (
         <section className="mt-12 rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/5 p-4">
-          <h2 className="text-base font-medium text-[color:var(--color-error)]">Danger zone</h2>
+          <h2 className="text-base font-medium text-[color:var(--color-error-fg)]">Danger zone</h2>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
             Deleting this provider removes it from the login page immediately. In-flight sign-ins
             fail with <code>saml-unknown-provider</code>. Audit history is preserved.

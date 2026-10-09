@@ -57,7 +57,7 @@ export function VerifyEmailForm({ token }: { token: string }) {
   if (status === "error") {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-[color:var(--color-error)]" role="alert">
+        <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
           {error}
         </p>
         <button

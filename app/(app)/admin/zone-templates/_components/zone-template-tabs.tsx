@@ -11,7 +11,7 @@ export function ZoneTemplateTabs({ active, templateId }: Props) {
   const base = `/admin/zone-templates/${templateId}`;
   return (
     <div className="border-b border-[color:var(--color-border)]">
-      <nav className="-mb-px flex gap-6 text-sm">
+      <nav aria-label="Template sections" className="-mb-px flex gap-6 text-sm">
         <TabLink href={base} active={active === "records"}>
           Records
         </TabLink>

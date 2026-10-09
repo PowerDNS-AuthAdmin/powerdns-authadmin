@@ -80,7 +80,7 @@ export function PasskeyButton({ next = "/dashboard" }: { next?: string }) {
         <span>{busy ? "Waiting for device…" : "Passkey"}</span>
       </button>
       {error ? (
-        <p className="text-xs text-[color:var(--color-error)]" role="alert">
+        <p className="text-xs text-[color:var(--color-error-fg)]" role="alert">
           {error}
         </p>
       ) : null}

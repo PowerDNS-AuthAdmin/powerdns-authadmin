@@ -101,7 +101,7 @@ export function SessionsList({ sessions }: { sessions: SessionSummary[] }) {
               type="button"
               onClick={() => revoke(row.id)}
               disabled={busy === row.id}
-              className="text-xs text-[color:var(--color-error)] hover:underline disabled:opacity-50"
+              className="text-xs text-[color:var(--color-error-fg)] hover:underline disabled:opacity-50"
             >
               {busy === row.id ? "Revoking…" : "Revoke"}
             </button>

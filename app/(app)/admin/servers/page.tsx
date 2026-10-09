@@ -372,7 +372,7 @@ function HealthBadge({
   // "Reachable". Cleared the moment the poll reaches it again.
   if (reachability) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-[color:var(--color-error)]">
+      <span className="inline-flex items-center gap-1 text-xs text-[color:var(--color-error-fg)]">
         <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-error)]" />
         {reachability === "auth" ? "API rejected" : "Unreachable"}
       </span>
@@ -602,7 +602,7 @@ function SyncChip({ verdict, isMirror }: { verdict: SyncVerdict | null; isMirror
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 text-[color:var(--color-error)]">
+    <span className="inline-flex items-center gap-1.5 text-[color:var(--color-error-fg)]">
       <SyncIndicator state="desynced" />
       Desynced
     </span>

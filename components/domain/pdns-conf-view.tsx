@@ -22,7 +22,7 @@ interface ConfRow {
 /** Booleans carry meaning in pdns.conf, so tint yes/no; everything else neutral. */
 function valueClass(value: string): string {
   const v = value.toLowerCase();
-  if (v === "yes") return "text-[color:var(--color-success)]";
+  if (v === "yes") return "text-[color:var(--color-success-fg)]";
   if (v === "no") return "text-[color:var(--color-fg-muted)]";
   return "text-[color:var(--color-fg)]";
 }

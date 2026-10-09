@@ -49,7 +49,7 @@ export function ZoneTemplatesTable({
                 <div className="text-xs text-[color:var(--color-fg-muted)]">{r.description}</div>
               ) : null}
               {r.defaultForNames.length > 0 ? (
-                <div className="mt-1 inline-flex items-center gap-1 text-xs text-[color:var(--color-success)]">
+                <div className="mt-1 inline-flex items-center gap-1 text-xs text-[color:var(--color-success-fg)]">
                   <svg aria-hidden viewBox="0 0 16 16" className="h-3 w-3" fill="currentColor">
                     <path d="M6.173 11.207 2.93 7.964l1.06-1.06 2.183 2.182 5.834-5.834 1.06 1.06z" />
                   </svg>

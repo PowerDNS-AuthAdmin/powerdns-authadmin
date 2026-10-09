@@ -76,7 +76,7 @@ export function MfaPanel({ userId, canManage, totpEnabled, isSelf }: Props) {
           <div className="font-medium">
             TOTP:{" "}
             {totpEnabled ? (
-              <span className="text-[color:var(--color-success)]">enrolled</span>
+              <span className="text-[color:var(--color-success-fg)]">enrolled</span>
             ) : (
               <span className="text-[color:var(--color-fg-muted)]">not enrolled</span>
             )}
@@ -92,7 +92,7 @@ export function MfaPanel({ userId, canManage, totpEnabled, isSelf }: Props) {
             type="button"
             onClick={handleReset}
             disabled={busy}
-            className="shrink-0 rounded border border-[color:var(--color-error)] px-3 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+            className="shrink-0 rounded border border-[color:var(--color-error)] px-3 py-1 text-xs text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
           >
             {busy ? "Resetting…" : "Reset MFA"}
           </button>

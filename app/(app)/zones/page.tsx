@@ -257,7 +257,7 @@ export default async function ZonesPage() {
       </header>
 
       {errors.length > 0 ? (
-        <div className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-4 text-sm text-[color:var(--color-error)]">
+        <div className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-4 text-sm text-[color:var(--color-error-fg)]">
           <strong>Some backends are unreachable.</strong>
           <ul className="mt-2 list-disc pl-5 text-xs">
             {errors.map((e) => (

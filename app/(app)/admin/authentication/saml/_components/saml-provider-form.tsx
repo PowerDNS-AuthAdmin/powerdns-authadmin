@@ -731,7 +731,7 @@ export function SamlProviderForm(props: Props) {
                   onClick={() => removeGroupMapping(i)}
                   disabled={!canEdit}
                   title="Remove this mapping"
-                  className="self-end rounded border border-[color:var(--color-border)] px-2 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-bg-muted)] disabled:opacity-50"
+                  className="self-end rounded border border-[color:var(--color-border)] px-2 py-1 text-xs text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-bg-muted)] disabled:opacity-50"
                 >
                   Remove
                 </button>
@@ -749,7 +749,7 @@ export function SamlProviderForm(props: Props) {
           </button>
         ) : null}
         {fieldErrors["groupMappings"] ? (
-          <p className="text-xs text-[color:var(--color-error)]" role="alert">
+          <p className="text-xs text-[color:var(--color-error-fg)]" role="alert">
             {fieldErrors["groupMappings"].join(" ")}
           </p>
         ) : null}
@@ -766,7 +766,7 @@ export function SamlProviderForm(props: Props) {
       </label>
 
       {error ? (
-        <p className="text-sm text-[color:var(--color-error)]" role="alert">
+        <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
           {error}
         </p>
       ) : null}

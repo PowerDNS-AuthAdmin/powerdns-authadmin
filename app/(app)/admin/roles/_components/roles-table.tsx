@@ -78,7 +78,7 @@ export function RolesTable({
         header: "MFA required",
         cell: (ctx) =>
           ctx.getValue<boolean>() ? (
-            <span className="rounded bg-[color:var(--color-warn)]/15 px-1.5 py-0.5 font-mono text-[0.625rem] text-[color:var(--color-warn)]">
+            <span className="rounded bg-[color:var(--color-warn)]/15 px-1.5 py-0.5 font-mono text-[0.625rem] text-[color:var(--color-warn-fg)]">
               required
             </span>
           ) : (

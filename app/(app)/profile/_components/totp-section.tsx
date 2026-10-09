@@ -192,12 +192,12 @@ export function TotpSection({
 
       {initialEnabled ? (
         <div className="flex items-center justify-between gap-3 text-sm">
-          <span className="text-[color:var(--color-success)]">Enabled</span>
+          <span className="text-[color:var(--color-success-fg)]">Enabled</span>
           <button
             type="button"
             onClick={handleDisable}
             disabled={busy}
-            className="rounded border border-[color:var(--color-error)] px-3 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+            className="rounded border border-[color:var(--color-error)] px-3 py-1 text-xs text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
           >
             Disable
           </button>

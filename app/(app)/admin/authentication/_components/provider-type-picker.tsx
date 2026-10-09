@@ -105,7 +105,7 @@ export function ProviderTypePicker({ selected, onSelect }: Props) {
                 </span>
                 <span className="font-medium">{c.title}</span>
                 {c.comingChip ? (
-                  <span className="ml-auto rounded-full border border-[color:var(--color-warn)]/40 bg-[color:var(--color-warn)]/10 px-2 py-0.5 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-warn)] uppercase">
+                  <span className="ml-auto rounded-full border border-[color:var(--color-warn)]/40 bg-[color:var(--color-warn)]/10 px-2 py-0.5 text-[0.625rem] font-medium tracking-wide text-[color:var(--color-warn-fg)] uppercase">
                     {c.comingChip}
                   </span>
                 ) : null}

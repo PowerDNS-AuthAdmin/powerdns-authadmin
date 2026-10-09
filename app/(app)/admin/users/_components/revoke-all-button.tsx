@@ -106,7 +106,7 @@ export function RevokeAllSessionsButton() {
       onClick={handleClick}
       disabled={busy}
       title="Force every signed-in user to re-authenticate. Use for incident response."
-      className="rounded-md border border-[color:var(--color-error)] px-3 py-2 text-sm font-medium text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+      className="rounded-md border border-[color:var(--color-error)] px-3 py-2 text-sm font-medium text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
     >
       {busy ? "Revoking…" : "Revoke all sessions"}
     </button>

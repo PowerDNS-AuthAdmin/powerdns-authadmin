@@ -330,7 +330,7 @@ export function ZoneTemplateForm(props: Props) {
                 <button
                   type="button"
                   onClick={() => removeNs(i)}
-                  className="text-xs text-[color:var(--color-error)] hover:underline"
+                  className="text-xs text-[color:var(--color-error-fg)] hover:underline"
                 >
                   Remove
                 </button>
@@ -510,7 +510,7 @@ export function ZoneTemplateForm(props: Props) {
                     <button
                       type="button"
                       onClick={() => removeRecord(i)}
-                      className="text-xs text-[color:var(--color-error)] hover:underline"
+                      className="text-xs text-[color:var(--color-error-fg)] hover:underline"
                     >
                       Remove
                     </button>
@@ -531,8 +531,8 @@ export function ZoneTemplateForm(props: Props) {
                         key={idx}
                         className={
                           issue.level === "error"
-                            ? "text-[color:var(--color-error)]"
-                            : "text-[color:var(--color-warn)]"
+                            ? "text-[color:var(--color-error-fg)]"
+                            : "text-[color:var(--color-warn-fg)]"
                         }
                       >
                         <span className="font-medium uppercase">{issue.level}</span> {issue.message}
@@ -556,7 +556,7 @@ export function ZoneTemplateForm(props: Props) {
       </Section>
 
       {error ? (
-        <p className="text-sm text-[color:var(--color-error)]" role="alert">
+        <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
           {error}
         </p>
       ) : null}

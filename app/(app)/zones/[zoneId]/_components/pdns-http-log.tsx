@@ -73,7 +73,7 @@ export function PdnsHttpLog({ entries, collapsible = true }: Props) {
       label={`PowerDNS HTTP requests (${count})`}
       accessory={
         failures > 0 ? (
-          <span className="text-[color:var(--color-error)]">{failures} failed</span>
+          <span className="text-[color:var(--color-error-fg)]">{failures} failed</span>
         ) : null
       }
     >
@@ -90,7 +90,7 @@ function HttpBlock({ entry }: { entry: PdnsHttpLogEntry }) {
       <div className="flex flex-wrap items-baseline justify-between gap-2 py-1 text-[0.625rem] tracking-wide text-[color:var(--color-fg-muted)] uppercase">
         <span>
           <span
-            className={`font-mono ${isFailure ? "text-[color:var(--color-error)]" : "text-[color:var(--color-fg)]"}`}
+            className={`font-mono ${isFailure ? "text-[color:var(--color-error-fg)]" : "text-[color:var(--color-fg)]"}`}
           >
             {entry.op}
           </span>

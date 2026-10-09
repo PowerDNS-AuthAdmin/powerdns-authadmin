@@ -109,7 +109,7 @@ export function TemplateRecordsForm({ templateId, initial, canEdit, defaultRecor
                 <button
                   type="button"
                   onClick={() => setNameservers(nameservers.filter((_, idx) => idx !== i))}
-                  className="text-xs text-[color:var(--color-error)] hover:underline"
+                  className="text-xs text-[color:var(--color-error-fg)] hover:underline"
                 >
                   Remove
                 </button>
@@ -179,7 +179,7 @@ export function TemplateRecordsForm({ templateId, initial, canEdit, defaultRecor
                     <button
                       type="button"
                       onClick={() => setRecords(records.filter((_, idx) => idx !== i))}
-                      className="text-xs text-[color:var(--color-error)] hover:underline"
+                      className="text-xs text-[color:var(--color-error-fg)] hover:underline"
                     >
                       Remove
                     </button>
@@ -200,8 +200,8 @@ export function TemplateRecordsForm({ templateId, initial, canEdit, defaultRecor
                         key={idx}
                         className={
                           issue.level === "error"
-                            ? "text-[color:var(--color-error)]"
-                            : "text-[color:var(--color-warn)]"
+                            ? "text-[color:var(--color-error-fg)]"
+                            : "text-[color:var(--color-warn-fg)]"
                         }
                       >
                         <span className="font-medium uppercase">{issue.level}</span> {issue.message}

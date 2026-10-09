@@ -253,7 +253,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
         <Link href={backLink} className="text-sm text-[color:var(--color-accent)] hover:underline">
           ← Back to zones
         </Link>
-        <div className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-4 text-sm text-[color:var(--color-error)]">
+        <div className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-4 text-sm text-[color:var(--color-error-fg)]">
           <strong>Could not load zone.</strong> {fetchError ?? "Empty response from PowerDNS."}
         </div>
       </div>

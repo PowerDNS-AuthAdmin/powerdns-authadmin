@@ -39,7 +39,9 @@
   --color-bg-muted: oklch(94% 0 0);
   --color-fg: oklch(20% 0 0);
   --color-fg-muted: oklch(45% 0 0);
-  --color-fg-subtle: oklch(60% 0 0);
+  /* 52% keeps "subtle" readable at the 10–11px sizes it's used at: 60% was
+   * 3.8:1 on the page and 3.3:1 on bg-muted, under the AA 4.5:1 for text. */
+  --color-fg-subtle: oklch(52% 0 0);
   --color-border: oklch(90% 0 0);
 
   /* Accent - indigo placeholder. Per-deployment branding will override. */
@@ -52,12 +54,17 @@
   --color-orange: oklch(65% 0.18 55);
   --color-error: oklch(55% 0.22 25);
 
-  /* Foreground variants for tinted badges. Yellow/orange at their semantic
-   * lightness are unreadable on top of a /15 tint of themselves - these are
-   * the darker hue used for text in that pairing (CLUSTER works because the
-   * accent indigo is already dark enough; warn/orange aren't). */
+  /* Foreground variants for text. The semantic colours above are tuned as
+   * fills - borders, dots, badge tints - and at that lightness they fail AA
+   * as text on the page background (warn 2.6:1, success 3.9:1 in light).
+   * Whenever a semantic colour is used for words, use the `-fg` token; it
+   * is the same hue pushed to a readable lightness. Yellow/orange also need
+   * it on top of a /15 tint of themselves (CLUSTER works because the accent
+   * indigo is already dark enough; warn/orange aren't). */
   --color-warn-fg: oklch(38% 0.12 80);
   --color-orange-fg: oklch(40% 0.13 55);
+  --color-success-fg: oklch(42% 0.13 145);
+  --color-error-fg: oklch(50% 0.2 25);
 
   /* Typography - system stack, zero font downloads, instant render. No CDN. */
   --font-sans:
@@ -170,7 +177,9 @@
   --color-bg-muted: oklch(25% 0 0);
   --color-fg: oklch(98% 0 0);
   --color-fg-muted: oklch(70% 0 0);
-  --color-fg-subtle: oklch(55% 0 0);
+  /* Lightened from 55% for the same reason the light value darkened: small
+   * subtle text on bg-muted was 3.3:1. */
+  --color-fg-subtle: oklch(62% 0 0);
   --color-border: oklch(30% 0 0);
   --color-accent: oklch(65% 0.18 270);
   --color-accent-fg: oklch(15% 0 0);
@@ -180,6 +189,10 @@
    * still tinted enough to read as "yellow" / "orange". */
   --color-warn-fg: oklch(96% 0.06 80);
   --color-orange-fg: oklch(95% 0.07 55);
+  /* Success is already light enough on the dark page; error at 55% L is only
+   * 3.6:1 against it, so the text variant is lifted. */
+  --color-success-fg: oklch(78% 0.14 145);
+  --color-error-fg: oklch(76% 0.17 25);
 }
 
 /* ---------------------------------------------------------------------------
@@ -279,6 +292,12 @@ body {
   .pda-skeleton {
     animation: none;
     background: var(--color-bg-muted);
+  }
+  /* Safety net for Tailwind's own `animate-pulse` (header dot, skeleton
+   * blocks). Sites use `motion-safe:animate-pulse`; this catches any that
+   * don't. Unlayered, so it wins over the utility layer. */
+  .animate-pulse {
+    animation: none;
   }
 }
 

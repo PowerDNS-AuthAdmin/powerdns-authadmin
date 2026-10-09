@@ -36,7 +36,7 @@ export default async function ChangeEmailPage({
       {token ? (
         <ConfirmEmailChangeForm token={token} />
       ) : (
-        <p className="text-sm text-[color:var(--color-error)]">
+        <p className="text-sm text-[color:var(--color-error-fg)]">
           Missing token. Open the link from the audit log again.
         </p>
       )}
