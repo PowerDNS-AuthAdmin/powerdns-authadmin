@@ -179,10 +179,26 @@ export class PdnsClient {
     return pdnsZoneListSchema.parse(body);
   }
 
-  /** `GET /servers/{id}/zones/{zoneId}` - detail, with optional `rrsets` elision. */
-  public async getZone(zoneName: string, opts?: { rrsets?: boolean }): Promise<PdnsZoneDetail> {
+  /**
+   * `GET /servers/{id}/zones/{zoneId}` - detail. `rrsets: false` elides the
+   * record sets entirely; `rrsetName` (+ optional `rrsetType`) asks PDNS for
+   * just that RRset, so a single-record edit doesn't pull a 10k-record zone
+   * twice. Check `supports("supportsRrsetFilter")` first - a daemon that
+   * predates the filter ignores the parameter and returns every RRset, which
+   * is still correct but defeats the point.
+   */
+  public async getZone(
+    zoneName: string,
+    opts?: { rrsets?: boolean; rrsetName?: string; rrsetType?: string },
+  ): Promise<PdnsZoneDetail> {
     const id = normalizeZoneId(zoneName);
-    const query = opts?.rrsets === undefined ? "" : `?rrsets=${opts.rrsets ? "true" : "false"}`;
+    const params = new URLSearchParams();
+    if (opts?.rrsets !== undefined) params.set("rrsets", opts.rrsets ? "true" : "false");
+    if (opts?.rrsetName !== undefined) {
+      params.set("rrset_name", opts.rrsetName);
+      if (opts.rrsetType !== undefined) params.set("rrset_type", opts.rrsetType);
+    }
+    const query = params.size > 0 ? `?${params.toString()}` : "";
     const body = await this.request<unknown>({
       method: "GET",
       path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}${query}`,

@@ -438,6 +438,11 @@ export interface PdnsVersionCache {
      * "install on secondaries" flow; older daemons fall back to manual pdnsutil.
      */
     supportsTsigApi: boolean;
+    /**
+     * `rrset_name` / `rrset_type` filters on the zone GET (≥ 4.5), so a
+     * record edit can fetch just the RRsets it touches instead of the zone.
+     */
+    supportsRrsetFilter: boolean;
   };
   /** When this snapshot was taken (ISO timestamp). */
   fetchedAt: string;

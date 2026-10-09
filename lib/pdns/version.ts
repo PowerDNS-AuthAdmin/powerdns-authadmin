@@ -50,6 +50,7 @@ function gte(a: ParsedVersion, b: ParsedVersion): boolean {
  *   - Catalog zones: PDNS ≥ 4.7.
  *   - Views/Networks: PDNS ≥ 5.0.
  *   - TSIG API (import/get-secret): PDNS ≥ 4.1.
+ *   - `rrset_name`/`rrset_type` filters on the zone GET: PDNS ≥ 4.5.
  */
 export function buildVersionCache(rawVersion: string, serverId: string): PdnsVersionCache {
   const parsed = parseVersion(rawVersion) ?? { major: 0, minor: 0, patch: 0 };
@@ -60,6 +61,7 @@ export function buildVersionCache(rawVersion: string, serverId: string): PdnsVer
   const supportsCatalogZones = gte(parsed, { major: 4, minor: 7, patch: 0 });
   const supportsViews = gte(parsed, { major: 5, minor: 0, patch: 0 });
   const supportsTsigApi = gte(parsed, { major: 4, minor: 1, patch: 0 });
+  const supportsRrsetFilter = gte(parsed, { major: 4, minor: 5, patch: 0 });
 
   return {
     version: rawVersion,
@@ -70,6 +72,7 @@ export function buildVersionCache(rawVersion: string, serverId: string): PdnsVer
       supportsCatalogZones,
       supportsViews,
       supportsTsigApi,
+      supportsRrsetFilter,
     },
     fetchedAt: new Date().toISOString(),
   };

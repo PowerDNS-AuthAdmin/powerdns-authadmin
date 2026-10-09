@@ -29,12 +29,18 @@ export interface DnssecRouteContext {
 /**
  * Pass `csrfRequest` on mutating routes: the CSRF check runs straight after
  * authentication, before anything touches PowerDNS.
+ *
+ * `rrsets: false` skips the record sets on the zone GET. Only the status
+ * body and the enable plan look at them (the LUA/ALIAS warnings); disable,
+ * rectify and the key listing don't, and a large zone pays a full transfer
+ * for every one of those calls otherwise.
  */
 export async function loadDnssecZone(
   rawZoneId: string,
   serverSlug: string | undefined,
   permission: "dnssec.read" | "dnssec.configure",
   csrfRequest?: Request,
+  opts: { rrsets?: boolean } = {},
 ): Promise<DnssecRouteContext> {
   const { user: actor, globalPermissions, zoneGrants } = await requireUser();
   if (csrfRequest) await requireCsrf(csrfRequest);
@@ -65,7 +71,7 @@ export async function loadDnssecZone(
   const client = getBackendGateway(server);
   let zone: PdnsZoneDetail;
   try {
-    zone = await client.getZone(zoneName);
+    zone = await client.getZone(zoneName, opts.rrsets === false ? { rrsets: false } : undefined);
   } catch (err) {
     if (err instanceof PdnsNotFoundError) {
       throw new NotFoundError(`Zone "${zoneName}" not found on backend.`);
