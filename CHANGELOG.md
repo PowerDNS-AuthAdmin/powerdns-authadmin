@@ -81,6 +81,31 @@ All notable changes to this project are documented here. The format is based on
   `[id]` the caller typed; PAT plaintext reveals are now audited
   (`auth.token.revealed`).
 
+### Changed
+
+- "Skip to content" link and labelled navigation landmarks; the Sync chip names the
+  actual state ("lagging", "missing", "error") instead of "desynced"; hover-only badge
+  tooltips are repeated as screen-reader text; "PowerDNS" replaces "PDNS" in
+  operator-facing copy; list tables name the next action when empty; the admin list
+  pages show loading skeletons.
+
+- **SAML sign-in was rejected with "InResponseTo is not valid".** The
+  AuthnRequest id was recorded in a throwaway node-saml instance while the
+  Response was validated by another, so `validateInResponseTo: always`
+  never found it. The expected id (from the signed cookie) is now seeded
+  into the validating instance, and a Response with no `InResponseTo` is
+  refused as unsolicited.
+- Query-string validation failures on TSIG delete, cryptokey delete and
+  metadata delete returned 500 instead of 400; malformed bodies on
+  forgot-password, reset-password and email-verify did the same.
+- Bulk zone export/import no longer echo raw upstream error strings;
+  they're redacted like every other PowerDNS error.
+- Backup export awaits its audit row; backup restore caps the body at 64 MiB;
+  RRset PATCH bodies are bounded (500 changes, 1000 records per RRset).
+- Team member role changes are audited as `team.member.role_changed`,
+  OIDC discovery probes as `oidc.provider.tested`, instead of borrowing
+  unrelated actions.
+
 ### Fixed
 
 - **Session expiry showed the local login form even when the default sign-in
@@ -113,30 +138,16 @@ All notable changes to this project are documented here. The format is based on
   NAPTR / CAA / URI editors reflow below `sm`; team members and role assignments use the
   shared data table with its card layout.
 
-### Changed
-
-- "Skip to content" link and labelled navigation landmarks; the Sync chip names the
-  actual state ("lagging", "missing", "error") instead of "desynced"; hover-only badge
-  tooltips are repeated as screen-reader text; "PowerDNS" replaces "PDNS" in
-  operator-facing copy; list tables name the next action when empty; the admin list
-  pages show loading skeletons.
-
-- **SAML sign-in was rejected with "InResponseTo is not valid".** The
-  AuthnRequest id was recorded in a throwaway node-saml instance while the
-  Response was validated by another, so `validateInResponseTo: always`
-  never found it. The expected id (from the signed cookie) is now seeded
-  into the validating instance, and a Response with no `InResponseTo` is
-  refused as unsolicited.
-- Query-string validation failures on TSIG delete, cryptokey delete and
-  metadata delete returned 500 instead of 400; malformed bodies on
-  forgot-password, reset-password and email-verify did the same.
-- Bulk zone export/import no longer echo raw upstream error strings;
-  they're redacted like every other PowerDNS error.
-- Backup export awaits its audit row; backup restore caps the body at 64 MiB;
-  RRset PATCH bodies are bounded (500 changes, 1000 records per RRset).
-- Team member role changes are audited as `team.member.role_changed`,
-  OIDC discovery probes as `oidc.provider.tested`, instead of borrowing
-  unrelated actions.
+- **SQLite upgrades lost zone grants and metrics.** Release 1.1.0's migration
+  rebuilt the `pdns_servers` table while SQLite foreign-key enforcement was still
+  on (drizzle-kit's `PRAGMA foreign_keys=OFF` is a no-op inside the migrator's
+  transaction), so the `DROP TABLE` cascaded into `zone_grants`, `metric_samples`
+  and `pdns_server_stats` and nulled `pdns_requests.server_id`. The migration
+  runner now disables foreign keys on the connection before applying migrations
+  and verifies referential integrity afterwards, so this cannot recur on future
+  table rebuilds. **If you run SQLite and upgraded through 1.1.0, check Admin →
+  Users for missing per-zone grants** - they were deleted at that upgrade and need
+  to be re-created (see [Upgrading](./docs/09-UPGRADING.md#unreleased)).
 
 ## [1.8.4] - 2026-10-07
 
