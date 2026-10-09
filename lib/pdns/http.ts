@@ -5,7 +5,8 @@
  *   - X-API-Key injection
  *   - JSON serialization
  *   - Per-request timeout via AbortController
- *   - Retries with exponential backoff on transport + 5xx errors
+ *   - Retries with exponential backoff on transport + 5xx errors - only for
+ *     idempotent requests (or when the request provably never reached PDNS)
  *   - Telemetry (a Pino log line per request)
  *   - Error normalization through `classifyPdnsHttpError`
  *
@@ -78,20 +79,48 @@ export interface PdnsRequestInit {
   op: string;
   /** Optional AbortSignal to cancel from above the client. */
   signal?: AbortSignal;
+  /**
+   * Whether repeating this request after an ambiguous failure (timeout, 5xx)
+   * is safe. Defaults by method - GET/PUT/DELETE yes, POST/PATCH no. A PATCH
+   * whose changetypes are all REPLACE/DELETE may opt in; a POST never should:
+   * PDNS may have committed the first attempt (a `POST /cryptokeys` that
+   * timed out at 10 s after PDNS stored the key at 9.8 s), and a repeat would
+   * create a second key or turn a just-created zone into a 409.
+   */
+  idempotent?: boolean;
 }
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_TIMEOUT_MS = 10_000;
 /** Status codes worth retrying. 408 too: PDNS rarely emits it, but the spec is clear. */
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+/** Methods whose repeat is safe by HTTP semantics (RFC 9110 §9.2.2). */
+const IDEMPOTENT_METHODS = new Set(["GET", "HEAD", "PUT", "DELETE"]);
+/**
+ * Transport error codes that prove the request never reached PDNS, so even a
+ * non-idempotent request can be repeated without risk of a double write.
+ * Anything else (socket reset mid-body, headers timeout, abort) is ambiguous.
+ */
+const NEVER_REACHED_SERVER_CODES = new Set([
+  "ECONNREFUSED",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "UND_ERR_CONNECT_TIMEOUT",
+]);
+/** Our own SSRF refusal - deterministic, so repeating it is pointless. */
+const UNSAFE_URL_CODE = "PDNS_UNSAFE_URL";
 
 /**
  * Execute a request against PDNS. Returns the parsed JSON response or throws
  * a {@link PdnsError} subclass on failure.
  *
- * The transport retries up to `maxAttempts` on network errors and on
- * retryable HTTP statuses with exponential-jittered backoff. A non-retryable
- * 4xx surfaces immediately.
+ * The transport retries up to `maxAttempts` with exponential-jittered backoff
+ * on network errors and retryable HTTP statuses - but only when a repeat is
+ * safe: the request is idempotent (see {@link PdnsRequestInit.idempotent}) or
+ * the failure proves it never reached the server. A non-retryable 4xx surfaces
+ * immediately.
  */
 export async function pdnsRequest<T>(config: PdnsHttpConfig, init: PdnsRequestInit): Promise<T> {
   const maxAttempts = config.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
@@ -126,65 +155,74 @@ export async function pdnsRequest<T>(config: PdnsHttpConfig, init: PdnsRequestIn
     op: init.op,
   };
 
-  const runWithRetries = async (): Promise<T> => {
-    let lastError: unknown;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const start = Date.now();
-      try {
-        const result = await singleRequest<T>({
-          url,
-          method,
-          body: init.body,
-          apiKey: config.apiKey,
-          timeoutMs,
-          externalSignal: init.signal,
-          log: logCtx,
-        });
-        const elapsed = Date.now() - start;
-        recordPdnsLatency(config.serverSlug, elapsed);
-        log.info({ attempt, ms: elapsed, status: 200 }, "pdns.request.ok");
-        return result;
-      } catch (err) {
-        const elapsed = Date.now() - start;
-        // Do NOT record failure latency. The latency buffer feeds the p50 in
-        // `metric_samples`, which the cluster picker reads to route writes
-        // (`lowest_latency` strategy). A peer that fails *fast* (instant 5xx,
-        // refused connection) would otherwise post a tiny latency and become
-        // the preferred write target - exactly backwards. Keeping the buffer
-        // success-only also makes the operator-facing latency percentile mean
-        // "latency of requests that worked," not a number a flapping backend
-        // can drag down. Failures are still fully observable via the
-        // `pdns.request.failed` log line below and the `pdns_requests` audit
-        // row; error-rate/up belongs in those signals, not in a latency p50.
-        lastError = err;
-        const retryable = isRetryable(err);
-        log.warn(
-          {
-            attempt,
-            ms: elapsed,
-            retryable,
-            status: err instanceof PdnsError ? err.status : 0,
-            error: err instanceof Error ? redact(err.message) : "unknown",
-          },
-          "pdns.request.failed",
-        );
-        if (!retryable || attempt === maxAttempts) break;
-        await sleepWithJitter(attempt);
-      }
-    }
-    // After retries exhaust, re-throw the last error. Already classified by
-    // `singleRequest` - no double-wrap.
-    throw lastError;
-  };
-
   // Coordinate per backend so the app doesn't read + write the same store at
   // once (notably gsqlite3, where a concurrent reader can stall a writer into a
   // 500). WRITES always take the lock; reads only when the caller opts in (the
   // poll's probe client) - interactive reads stay fully concurrent. Keyed by
   // the backend's DB id, falling back to its slug for registry-less clients.
+  //
+  // The lock wraps ONE attempt, not the retry loop: holding it across the
+  // backoff sleeps (and up to `maxAttempts` timeouts - ~31 s against a hung
+  // backend) would queue every other write and probe read behind a request
+  // that isn't even on the wire.
   const coordinate = method !== "GET" || config.coordinateAllRequests === true;
-  if (!coordinate) return runWithRetries();
-  return withBackendLock(config.serverDbId ?? config.serverSlug, runWithRetries);
+  const lockKey = config.serverDbId ?? config.serverSlug;
+  const attemptOnce = (): Promise<{ value: T; status: number }> => {
+    const run = () =>
+      singleRequest<T>({
+        url,
+        method,
+        body: init.body,
+        apiKey: config.apiKey,
+        timeoutMs,
+        externalSignal: init.signal,
+        log: logCtx,
+      });
+    return coordinate ? withBackendLock(lockKey, run) : run();
+  };
+
+  const idempotent = init.idempotent ?? IDEMPOTENT_METHODS.has(method);
+
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const start = Date.now();
+    try {
+      const { value, status } = await attemptOnce();
+      const elapsed = Date.now() - start;
+      recordPdnsLatency(config.serverSlug, elapsed);
+      log.info({ attempt, ms: elapsed, status }, "pdns.request.ok");
+      return value;
+    } catch (err) {
+      const elapsed = Date.now() - start;
+      // Do NOT record failure latency. The latency buffer feeds the p50 in
+      // `metric_samples`, which the cluster picker reads to route writes
+      // (`lowest_latency` strategy). A peer that fails *fast* (instant 5xx,
+      // refused connection) would otherwise post a tiny latency and become
+      // the preferred write target - exactly backwards. Keeping the buffer
+      // success-only also makes the operator-facing latency percentile mean
+      // "latency of requests that worked," not a number a flapping backend
+      // can drag down. Failures are still fully observable via the
+      // `pdns.request.failed` log line below and the `pdns_requests` audit
+      // row; error-rate/up belongs in those signals, not in a latency p50.
+      lastError = err;
+      const retryable = isRetryable(err) && (idempotent || neverReachedServer(err));
+      log.warn(
+        {
+          attempt,
+          ms: elapsed,
+          retryable,
+          status: err instanceof PdnsError ? err.status : 0,
+          error: err instanceof Error ? redact(err.message) : "unknown",
+        },
+        "pdns.request.failed",
+      );
+      if (!retryable || attempt === maxAttempts) break;
+      await sleepWithJitter(attempt);
+    }
+  }
+  // After retries exhaust, re-throw the last error. Already classified by
+  // `singleRequest` - no double-wrap.
+  throw lastError;
 }
 
 interface SingleRequestArgs {
@@ -203,7 +241,7 @@ interface SingleRequestArgs {
   };
 }
 
-async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
+async function singleRequest<T>(args: SingleRequestArgs): Promise<{ value: T; status: number }> {
   const { url, method, body, apiKey, timeoutMs, externalSignal, log: logCtx } = args;
 
   /**
@@ -217,22 +255,34 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
     ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
   };
 
-  /** Fire-and-forget audit row writer. Same shape on every code path. */
+  /**
+   * Fire-and-forget audit row writer. Same shape on every code path. The
+   * recorder swallows its own insert failures, but the dynamic import ahead
+   * of it can reject too - observed here so it can't surface as an unhandled
+   * rejection (fatal under Node's default policy).
+   */
   const writeAudit = (responseStatus: number | null, error: string | null) => {
-    void loadRecorder().then((rec) =>
-      rec({
-        requestId: logCtx.requestId,
-        serverDbId: logCtx.serverDbId,
-        serverSlug: logCtx.serverSlug,
-        op: logCtx.op,
-        method,
-        url,
-        requestHeaders: outboundHeaders,
-        requestBody: body ?? null,
-        responseStatus,
-        error,
-      }),
-    );
+    void loadRecorder()
+      .then((rec) =>
+        rec({
+          requestId: logCtx.requestId,
+          serverDbId: logCtx.serverDbId,
+          serverSlug: logCtx.serverSlug,
+          op: logCtx.op,
+          method,
+          url,
+          requestHeaders: outboundHeaders,
+          requestBody: body ?? null,
+          responseStatus,
+          error,
+        }),
+      )
+      .catch((err: unknown) => {
+        logger.warn(
+          { err: err instanceof Error ? redact(err.message) : "unknown", op: logCtx.op },
+          "pdns.request-log.recorder-unavailable",
+        );
+      });
   };
 
   // DNS-rebinding defense. The hostname passed config-time safety, but DNS is
@@ -248,6 +298,7 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
     writeAudit(null, `Refusing to call unsafe URL: ${safety.reason}`);
     throw new PdnsUpstreamError(`Refusing to call unsafe URL: ${safety.reason}`, {
       status: 0,
+      cause: Object.assign(new Error(safety.reason), { code: UNSAFE_URL_CODE }),
     });
   }
 
@@ -307,7 +358,7 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
 
   // 204 No Content / empty body - return undefined as the inferred T. Callers
   // typing the call as `<void>` for DELETE etc. get the right thing.
-  if (response.status === 204) return undefined as T;
+  if (response.status === 204) return { value: undefined as T, status: 204 };
 
   const text = await response.text();
   const parsed = parseJsonSafe(text);
@@ -316,7 +367,7 @@ async function singleRequest<T>(args: SingleRequestArgs): Promise<T> {
     const message = extractPdnsErrorMessage(parsed) ?? response.statusText;
     throw classifyPdnsHttpError(response.status, parsed, redact(message));
   }
-  return parsed as T;
+  return { value: parsed as T, status: response.status };
 }
 
 /**
@@ -390,10 +441,36 @@ function extractPdnsErrorMessage(body: unknown): string | null {
   return null;
 }
 
+/** Whether the failure class is one a repeat could fix (transport / 5xx). */
 function isRetryable(err: unknown): boolean {
-  if (err instanceof PdnsUpstreamError) return true;
+  if (err instanceof PdnsUpstreamError) return !causeCodes(err).has(UNSAFE_URL_CODE);
   if (err instanceof PdnsError) return RETRYABLE_STATUSES.has(err.status);
   return false;
+}
+
+/**
+ * Whether the error proves the request never reached PDNS (connect-phase
+ * failure), making a repeat safe even for a non-idempotent request.
+ */
+function neverReachedServer(err: unknown): boolean {
+  for (const code of causeCodes(err)) {
+    if (NEVER_REACHED_SERVER_CODES.has(code)) return true;
+  }
+  return false;
+}
+
+/** Every `code` found on the error and down its `.cause` chain. */
+function causeCodes(err: unknown): Set<string> {
+  const codes = new Set<string>();
+  let current: unknown = err;
+  let depth = 0;
+  while (current instanceof Error && depth < 5) {
+    const code = (current as Error & { code?: unknown }).code;
+    if (typeof code === "string") codes.add(code);
+    current = (current as Error & { cause?: unknown }).cause;
+    depth += 1;
+  }
+  return codes;
 }
 
 /** Exponential backoff: 100ms, 300ms, 700ms, 1500ms (± 30% jitter). */
