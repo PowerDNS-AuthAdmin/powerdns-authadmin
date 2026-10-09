@@ -568,32 +568,42 @@ function RestoreResultStep({
         </Panel>
       ) : (
         <Panel title="Rows by table">
-          <table className="w-full text-sm">
-            <thead className="text-xs text-[color:var(--color-fg-muted)] uppercase">
-              <tr>
-                <th className="pb-2 text-left">Table</th>
-                <th className="pb-2 text-right">Attempted</th>
-                <th className="pb-2 text-right">Inserted</th>
-                <th className="pb-2 text-right">Skipped</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tables.map(([name, c]) => (
-                <tr key={name} className="border-t border-[color:var(--color-border)]">
-                  <td className="py-1.5">
-                    <code className="font-mono text-xs">{name}</code>
-                  </td>
-                  <td className="py-1.5 text-right tabular-nums">{c.attempted}</td>
-                  <td className="py-1.5 text-right text-[color:var(--color-success-fg)] tabular-nums">
-                    {c.inserted}
-                  </td>
-                  <td className="py-1.5 text-right text-[color:var(--color-fg-muted)] tabular-nums">
-                    {c.skipped}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs text-[color:var(--color-fg-muted)] uppercase">
+                <tr>
+                  <th scope="col" className="pb-2 text-left">
+                    Table
+                  </th>
+                  <th scope="col" className="pb-2 text-right">
+                    Attempted
+                  </th>
+                  <th scope="col" className="pb-2 text-right">
+                    Inserted
+                  </th>
+                  <th scope="col" className="pb-2 text-right">
+                    Skipped
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {tables.map(([name, c]) => (
+                  <tr key={name} className="border-t border-[color:var(--color-border)]">
+                    <td className="py-1.5">
+                      <code className="font-mono text-xs">{name}</code>
+                    </td>
+                    <td className="py-1.5 text-right tabular-nums">{c.attempted}</td>
+                    <td className="py-1.5 text-right text-[color:var(--color-success-fg)] tabular-nums">
+                      {c.inserted}
+                    </td>
+                    <td className="py-1.5 text-right text-[color:var(--color-fg-muted)] tabular-nums">
+                      {c.skipped}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Panel>
       )}
 

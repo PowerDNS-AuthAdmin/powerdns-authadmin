@@ -9,6 +9,8 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { type ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/ui/data-table";
 import { useDialog } from "@/components/ui/dialog";
 import { LocalTime } from "@/components/ui/local-time";
 import { SelectMenu } from "@/components/ui/select-menu";
@@ -128,6 +130,71 @@ export function RoleAssignmentsPanel(props: PanelProps) {
     }
   }
 
+  // Shared <DataTable> so the list reflows to cards under `md` like every
+  // other list; Remove is a per-row cell.
+  const columns = useMemo<Array<ColumnDef<Assignment, unknown>>>(
+    () => [
+      {
+        accessorKey: "roleName",
+        header: "Role",
+        cell: (ctx) => {
+          const a = ctx.row.original;
+          return (
+            <>
+              <span className="font-medium">{a.roleName}</span>
+              {a.isSystem ? (
+                <span className="ml-2 rounded bg-[color:var(--color-bg-muted)] px-1.5 py-0.5 text-[0.65rem] tracking-wide uppercase">
+                  system
+                </span>
+              ) : null}
+            </>
+          );
+        },
+      },
+      {
+        accessorKey: "scopeLabel",
+        header: "Scope",
+        cell: (ctx) => (
+          <span className="font-mono text-xs break-words">{ctx.getValue<string>()}</span>
+        ),
+      },
+      {
+        accessorKey: "createdAt",
+        header: "Assigned",
+        cell: (ctx) => (
+          <span className="text-xs">
+            <LocalTime ts={ctx.getValue<string>()} />
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: (ctx) => {
+          const a = ctx.row.original;
+          return props.canManage ? (
+            <button
+              type="button"
+              onClick={() => handleRemove(a.assignmentId)}
+              disabled={removing === a.assignmentId}
+              className="text-xs text-[color:var(--color-error-fg)] hover:underline disabled:opacity-50"
+            >
+              {removing === a.assignmentId ? "Removing…" : "Remove"}
+              <span className="sr-only">
+                {" "}
+                {a.roleName} ({a.scopeLabel})
+              </span>
+            </button>
+          ) : null;
+        },
+      },
+    ],
+    // handleRemove closes over props + router only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [props.canManage, props.userId, removing],
+  );
+
   return (
     <section className="space-y-4 rounded-md border border-[color:var(--color-border)] p-5">
       <header>
@@ -139,55 +206,16 @@ export function RoleAssignmentsPanel(props: PanelProps) {
         </p>
       </header>
 
-      {props.assignments.length === 0 ? (
-        <p className="text-sm text-[color:var(--color-fg-muted)]">No role assignments yet.</p>
-      ) : (
-        <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)]">
-          <table className="w-full text-sm">
-            <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-              <tr>
-                <th className="px-4 py-2.5">Role</th>
-                <th className="px-4 py-2.5">Scope</th>
-                <th className="px-4 py-2.5">Assigned</th>
-                <th className="px-4 py-2.5"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {props.assignments.map((a) => (
-                <tr
-                  key={a.assignmentId}
-                  className="border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
-                >
-                  <td className="px-4 py-3 align-top">
-                    <span className="font-medium">{a.roleName}</span>
-                    {a.isSystem ? (
-                      <span className="ml-2 rounded bg-[color:var(--color-bg-muted)] px-1.5 py-0.5 text-[0.65rem] tracking-wide uppercase">
-                        system
-                      </span>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3 align-top font-mono text-xs">{a.scopeLabel}</td>
-                  <td className="px-4 py-3 align-top text-xs">
-                    <LocalTime ts={a.createdAt} />
-                  </td>
-                  <td className="px-4 py-3 text-right align-top">
-                    {props.canManage ? (
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(a.assignmentId)}
-                        disabled={removing === a.assignmentId}
-                        className="text-xs text-[color:var(--color-error-fg)] hover:underline disabled:opacity-50"
-                      >
-                        {removing === a.assignmentId ? "Removing…" : "Remove"}
-                      </button>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={props.assignments}
+        pageSize={Math.max(props.assignments.length, 10)}
+        hideSearch
+        hidePagination
+        noDataMessage={
+          props.canManage ? "No role assignments yet - add one below." : "No role assignments yet."
+        }
+      />
 
       {props.canManage ? (
         <form

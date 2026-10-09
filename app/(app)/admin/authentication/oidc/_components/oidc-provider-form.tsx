@@ -359,7 +359,7 @@ export function OidcProviderForm(props: Props) {
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field
           id="claimEmail"
           label="Email claim"
@@ -489,7 +489,7 @@ export function OidcProviderForm(props: Props) {
             {groupMappings.map((m, i) => (
               <li
                 key={i}
-                className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-2"
+                className="grid grid-cols-1 gap-2 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-2 sm:grid-cols-2 md:grid-cols-[1fr_1fr_1fr_1fr_auto]"
               >
                 <label className="text-xs">
                   IdP group

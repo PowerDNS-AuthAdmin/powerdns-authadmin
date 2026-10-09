@@ -216,13 +216,31 @@ export default async function PdnsServersListPage() {
               <table className="w-full text-sm">
                 <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
                   <tr>
-                    <th className="px-4 py-2.5">Name</th>
-                    <th className="px-4 py-2.5">Base URL</th>
-                    <th className="px-4 py-2.5">Status</th>
-                    <th className="px-4 py-2.5">Version</th>
-                    {pdnsBackgroundPollingEnabled ? <th className="px-4 py-2.5">Sync</th> : null}
-                    {canReadAudit ? <th className="px-4 py-2.5">Last admin edit</th> : null}
-                    <th className="w-px px-4 py-2.5 whitespace-nowrap"></th>
+                    <th scope="col" className="px-4 py-2.5">
+                      Name
+                    </th>
+                    <th scope="col" className="px-4 py-2.5">
+                      Base URL
+                    </th>
+                    <th scope="col" className="px-4 py-2.5">
+                      Status
+                    </th>
+                    <th scope="col" className="px-4 py-2.5">
+                      Version
+                    </th>
+                    {pdnsBackgroundPollingEnabled ? (
+                      <th scope="col" className="px-4 py-2.5">
+                        Sync
+                      </th>
+                    ) : null}
+                    {canReadAudit ? (
+                      <th scope="col" className="px-4 py-2.5">
+                        Last admin edit
+                      </th>
+                    ) : null}
+                    <th scope="col" className="w-px px-4 py-2.5 whitespace-nowrap">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

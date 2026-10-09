@@ -213,11 +213,21 @@ export function ZoneChangeLog({ entries, zoneName, pdnsHttpByRequestId }: ZoneCh
             <table className="w-full text-sm">
               <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
                 <tr>
-                  <th className="w-8 px-4 py-2.5"></th>
-                  <th className="px-4 py-2.5">When</th>
-                  <th className="px-4 py-2.5">Action</th>
-                  <th className="px-4 py-2.5">Resource</th>
-                  <th className="px-4 py-2.5">Actor</th>
+                  <th scope="col" className="w-8 px-4 py-2.5">
+                    <span className="sr-only">Details</span>
+                  </th>
+                  <th scope="col" className="px-4 py-2.5">
+                    When
+                  </th>
+                  <th scope="col" className="px-4 py-2.5">
+                    Action
+                  </th>
+                  <th scope="col" className="px-4 py-2.5">
+                    Resource
+                  </th>
+                  <th scope="col" className="px-4 py-2.5">
+                    Actor
+                  </th>
                 </tr>
               </thead>
               <tbody>
