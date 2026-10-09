@@ -39,6 +39,22 @@ export function isSettledSyncState(state: SyncState): boolean {
 export interface ZoneSerials {
   serial: number | null;
   editedSerial: number | null;
+  /**
+   * The primary's SOA-EDIT kind, when known. Only `EPOCH` changes the rule:
+   * every other time-based kind rolls over weekly, EPOCH serves `time()`.
+   */
+  soaEdit?: string | null;
+}
+
+/**
+ * SOA-EDIT=EPOCH serves the current Unix time as the serial, so a mirror's
+ * stored serial is the second its last transfer happened and the primary's
+ * served serial is always ahead of it. Comparing them can only ever say
+ * "lagging"; what the mirror's serial really tells us is how long ago it
+ * refreshed.
+ */
+function isEpochSoaEdit(kind: string | null | undefined): boolean {
+  return (kind ?? "").trim().toUpperCase() === "EPOCH";
 }
 
 /** The serial a primary serves (SOA answers + AXFR): post-SOA-EDIT, else raw. */
@@ -105,6 +121,15 @@ export function classifyMirrorSerial(
   if (served === null || mirror.serial === null) return "error";
   if (mirror.serial === served) return "in-sync";
   if (mirror.serial > served) return "ahead";
+  if (isEpochSoaEdit(primary.soaEdit)) {
+    // The mirror's serial is the Unix time of its last transfer. It is current
+    // if that was within one SOA refresh (plus margin) - the mirror re-transfers
+    // on every refresh because the served serial always moved - and genuinely
+    // lagging only when it has missed that cycle.
+    const nowMs = opts.now ?? Date.now();
+    const ageMs = nowMs - mirror.serial * 1000;
+    return ageMs <= soaEditRolloverGraceMs(opts.refreshSeconds ?? null) ? "refresh-due" : "lagging";
+  }
   const soaEditActive =
     primary.editedSerial !== null &&
     primary.serial !== null &&

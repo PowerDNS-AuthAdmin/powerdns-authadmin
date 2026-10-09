@@ -91,6 +91,74 @@ describe("classifyMirrorSerial", () => {
     expect(classifyMirrorSerial({ serial: null, editedSerial: null }, { serial: 1 })).toBe("error");
     expect(classifyMirrorSerial({ serial: 1, editedSerial: 1 }, { serial: null })).toBe("error");
   });
+
+  describe("SOA-EDIT=EPOCH (served serial is the current Unix time)", () => {
+    const nowSec = Math.floor(MID_WEEK / 1000);
+    // Raw serial in YYYYMMDDnn form, as most operators keep it; served = time().
+    const primary = { serial: 2026100401, editedSerial: nowSec, soaEdit: "EPOCH" };
+
+    it("a mirror that transferred within one refresh is refresh-due, not lagging", () => {
+      // The mirror stored the epoch second of its last AXFR, 20 minutes ago.
+      expect(classifyMirrorSerial(primary, { serial: nowSec - 20 * 60 }, { now: MID_WEEK })).toBe(
+        "refresh-due",
+      );
+      expect(isSettledSyncState("refresh-due")).toBe(true);
+    });
+
+    it("a mirror that missed its refresh cycle is lagging", () => {
+      const oneRefreshPlusMargin = DEFAULT_SOA_REFRESH_SECONDS + 5 * 60;
+      expect(
+        classifyMirrorSerial(
+          primary,
+          { serial: nowSec - oneRefreshPlusMargin - 1 },
+          { now: MID_WEEK },
+        ),
+      ).toBe("lagging");
+    });
+
+    it("uses the zone's own refresh when known", () => {
+      const twoHoursAgo = nowSec - 2 * 3600;
+      expect(
+        classifyMirrorSerial(
+          primary,
+          { serial: twoHoursAgo },
+          { now: MID_WEEK, refreshSeconds: 600 },
+        ),
+      ).toBe("lagging");
+      expect(
+        classifyMirrorSerial(
+          primary,
+          { serial: twoHoursAgo },
+          { now: MID_WEEK, refreshSeconds: 4 * 3600 },
+        ),
+      ).toBe("refresh-due");
+    });
+
+    it("the kind is matched case-insensitively and an equal serial is still in-sync", () => {
+      expect(
+        classifyMirrorSerial(
+          { ...primary, soaEdit: "epoch" },
+          { serial: nowSec - 60 },
+          { now: MID_WEEK },
+        ),
+      ).toBe("refresh-due");
+      expect(classifyMirrorSerial(primary, { serial: nowSec }, { now: MID_WEEK })).toBe("in-sync");
+    });
+  });
+
+  it("SOA-EDIT=INCEPTION-EPOCH keeps the weekly-rollover rule", () => {
+    // INCEPTION-EPOCH serves max(raw, start-of-week), so it moves weekly.
+    const primary = { serial: 100, editedSerial: BOUNDARY / 1000, soaEdit: "INCEPTION-EPOCH" };
+    expect(
+      classifyMirrorSerial(primary, { serial: BOUNDARY / 1000 - 1 }, { now: BOUNDARY + HOUR_MS }),
+    ).toBe("refresh-due");
+    expect(classifyMirrorSerial(primary, { serial: BOUNDARY / 1000 - 1 }, { now: MID_WEEK })).toBe(
+      "lagging",
+    );
+    expect(classifyMirrorSerial(primary, { serial: BOUNDARY / 1000 }, { now: MID_WEEK })).toBe(
+      "in-sync",
+    );
+  });
 });
 
 describe("isSettledSyncState", () => {

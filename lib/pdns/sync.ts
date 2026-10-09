@@ -152,7 +152,11 @@ export async function zoneHasMirrors(primary: PdnsServer, zoneName: string): Pro
 }
 
 function zoneSerialsOf(zone: PdnsZoneDetail): ZoneSerials {
-  return { serial: zone.serial ?? null, editedSerial: zone.edited_serial ?? null };
+  return {
+    serial: zone.serial ?? null,
+    editedSerial: zone.edited_serial ?? null,
+    soaEdit: zone.soa_edit ?? null,
+  };
 }
 
 /**

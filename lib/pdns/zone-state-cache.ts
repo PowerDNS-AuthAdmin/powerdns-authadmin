@@ -22,6 +22,8 @@ export interface CachedZoneSnapshot {
   serial: number | null;
   editedSerial: number | null;
   notifiedSerial: number | null;
+  /** The zone's SOA-EDIT kind (`""`/null when unset) - EPOCH changes how mirrors are judged. */
+  soaEdit: string | null;
   kind: string;
   dnssec: boolean;
   /** AXFR source addresses for a mirror zone - drives derived topology. */
