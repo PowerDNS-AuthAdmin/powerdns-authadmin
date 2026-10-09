@@ -16,9 +16,10 @@
  * permission each one costs, so the RRset write path and the record
  * editor agree on the answer without either re-deriving it.
  *
- * Deliberately pure and dependency-free (no `server-only`): the record
- * editor is a client component and needs the same predicate to decide
- * which rows to lock, and the unit tests want it without a DB.
+ * Deliberately pure (no `server-only`, only the equally pure zone-name
+ * helper): the record editor is a client component and needs the same
+ * predicate to decide which rows to lock, and the unit tests want it
+ * without a DB.
  *
  * NS *below* the apex is an ordinary record - a child delegation is
  * content, not this zone's own authority - so it needs only `record.*`.
@@ -27,6 +28,8 @@
  * `soa.update` REPLACES the record permission) while the apex NS stays a
  * record with an extra cost (`record.update.apex-ns` is ADDITIVE).
  */
+
+import { canonicalZoneName } from "@/lib/dns/zone-name";
 
 /**
  * Extra permission a write to this RRset costs, or `null` when the
@@ -57,11 +60,7 @@ export type ProtectedRRsetPermission = "soa.update" | "record.update.apex-ns";
  * anyway, so neither case is reachable with a real zone.
  */
 function sameName(a: string, b: string): boolean {
-  const norm = (s: string): string => {
-    const t = s.trim().toLowerCase();
-    return t.endsWith(".") ? t : `${t}.`;
-  };
-  return norm(a) === norm(b);
+  return canonicalZoneName(a) === canonicalZoneName(b);
 }
 
 /** True when `name` is the zone apex (`@`, empty, or the zone name itself). */

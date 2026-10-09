@@ -23,11 +23,11 @@ import { describe, expect, it } from "vitest";
 const ROOT = new URL("../../", import.meta.url).pathname;
 
 /**
- * Routes outside this change's ownership that still use a bare zone name.
- * Listed so the contract fails loudly if a NEW offender appears while the
- * known one is fixed in its own change (app/nic is a separate workstream).
+ * Routes allowed to keep a bare zone name. Empty on purpose: every zone
+ * audit row is now slug-prefixed, and a new offender fails the contract
+ * below rather than silently joining this list.
  */
-const KNOWN_EXCEPTIONS = new Set(["app/nic/update/route.ts"]);
+const KNOWN_EXCEPTIONS = new Set<string>();
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {

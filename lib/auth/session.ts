@@ -16,6 +16,7 @@
  */
 
 import "server-only";
+import { logger } from "@/lib/logger";
 import { randomBytes, randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { cookieDomain, env, isProduction } from "@/lib/env";
@@ -166,7 +167,12 @@ export async function readSession(): Promise<Session | null> {
 
   // Fire-and-forget the lastSeenAt update. We don't await it on the read path
   // so request latency isn't held hostage by an UPDATE.
-  void touchSession(session.id);
+  // Fire-and-forget by design (a slow DB must not stall the request), but
+  // observed: an unhandled rejection takes the process down under Node's
+  // default policy, and this runs on every authenticated request.
+  void touchSession(session.id).catch((err: unknown) => {
+    logger.warn({ err: err instanceof Error ? err.message : "unknown" }, "session.touch.failed");
+  });
 
   return session;
 }

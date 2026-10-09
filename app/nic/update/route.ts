@@ -226,7 +226,7 @@ export async function GET(request: Request): Promise<Response> {
     await appendAudit({
       actor: { type: "token", id: tokenRow.id },
       action: "record.update",
-      resource: { type: "zone", id: zoneName },
+      resource: { type: "zone", id: `${server.slug}:${zoneName}` },
       after: {
         source: "dyndns",
         hostname: `${hostname}.`,

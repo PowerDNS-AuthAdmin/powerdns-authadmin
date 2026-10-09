@@ -46,7 +46,6 @@ import { backupJsonReplacer } from "@/lib/db/backup-codec";
 import { APP_VERSION_LABEL } from "@/lib/app-meta";
 import { errorResponse } from "@/lib/http/error-response";
 import { ForbiddenError } from "@/lib/errors";
-import { logger } from "@/lib/logger";
 
 export async function GET(): Promise<Response> {
   try {
