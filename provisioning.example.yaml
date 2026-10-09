@@ -11,9 +11,9 @@
 #   1. On startup the app calls `applyProvisioning()` if `PROVISIONING_FILE`
 #      is set AND the `settings.provisioned_at` row is absent.
 #   2. Each top-level block is processed in order: settings → roles → teams
-#      → zone_templates → clusters → pdns_servers → demo_zones → oidc.
-#      Inter-block references resolve by slug (e.g. an oidc group_mapping
-#      pointing to a role defined a few blocks up just works).
+#      → zone_templates → clusters → pdns_servers → oidc → saml → ldap
+#      → demo_zones. Inter-block references resolve by slug (e.g. an oidc
+#      group_mapping pointing to a role defined a few blocks up just works).
 #   3. On success the applier writes `settings.provisioned_at = <ISO ts>`.
 #      Subsequent boots skip the file - the admin UI is the source of truth
 #      from that point on. To force a re-apply on a running database:
@@ -153,7 +153,7 @@ roles:
   - slug: zone-noc # lowercase kebab-case
     name: NOC Zone Operator
     description: "Read everything; write only records inside zones the NOC owns."
-    requires_mfa: true # forces TOTP enrollment before any action
+    requires_mfa: true # forces second-factor enrolment (TOTP or passkey) before any action
     permissions:
       - zone.read
       - record.create

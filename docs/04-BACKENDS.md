@@ -35,15 +35,19 @@ Two ways, both equivalent - they write the same `pdns_servers` row:
 - **Admin UI** → **Admin → PowerDNS servers → Add server**.
 - **Provisioning** → the `pdns_servers:` block (see [Provisioning](./06-PROVISIONING.md)).
 
-| Field               | Notes                                                                                                            |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Name** / **slug** | Display name and URL-safe identifier.                                                                            |
-| **Base URL**        | The API root, ending in `/api/v1`. `https://` required in production unless `APP_PDNS_ALLOW_INSECURE_HTTP=true`. |
-| **Server ID**       | The PDNS server-id path segment - almost always `localhost`.                                                     |
-| **API key**         | The `X-API-Key`. Encrypted at rest with `APP_ENCRYPTION_KEY`; never sent back to the browser.                    |
-| **Role**            | `primary` (read/write) or `secondary` (read-only mirror).                                                        |
-| **Primary**         | For secondaries: which primary this mirrors.                                                                     |
-| **Cluster**         | For multi-primary peers: the cluster this peer belongs to.                                                       |
+| Field               | Notes                                                                                                                                         |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Name** / **slug** | Display name and URL-safe identifier.                                                                                                         |
+| **Base URL**        | The API root, ending in `/api/v1`. `https://` required in production unless `APP_PDNS_ALLOW_INSECURE_HTTP=true`.                              |
+| **Server ID**       | The PDNS server-id path segment - almost always `localhost`.                                                                                  |
+| **API key**         | The `X-API-Key`. Encrypted at rest with `APP_ENCRYPTION_KEY`; never sent back to the browser.                                                 |
+| **Cluster**         | The group this backend belongs to - a multi-primary cluster, or a primary with its secondaries (`cluster_slug`).                              |
+| **Read-only**       | **Never write to this backend** (`write_mode: read_only`) - see [hidden primary](#hidden-primary--read-only-public-nameservers-native-zones). |
+
+There is no role field. Whether a backend is a primary or a secondary is
+**observed** from its `/config` (`primary`, `secondary`, `autosecondary` - see
+[ADR-0014](./adr/0014-backend-capability-model.md)) and shown as capability
+badges; you only say which backends belong together.
 
 The API key is stored encrypted, redacted in logs, and never round-tripped to the
 client.
@@ -67,12 +71,15 @@ are permissive in dev and strict in production - see [Configuration](./03-CONFIG
 
 ## Reachability and status
 
-A background poller contacts every active backend every ~30 s (zone list) and
-~60 s (statistics). The **Status** column on the servers page shows **Reachable ·
-\<when\>** based on the last _successful_ contact (`last_seen_at`), so a healthy,
-actively-polled backend reads "Reachable · just now". A backend with no successful
-contact ever shows "Not yet reached"; one not reached in over 24 h is flagged on
-the dashboard's "PDNS backends needing attention" widget.
+With `PDNS_BACKGROUND_POLLING=true` (see below) a background poller refreshes
+zone state every ~30 s, daemon capabilities every ~60 s and statistics every
+~5 min against every active backend; otherwise `last_seen_at` only moves on page
+loads, **Test** and **Refresh all**. The **Status** column on the servers page
+shows **Reachable · \<when\>** based on the last _successful_ contact
+(`last_seen_at`), so a healthy, actively-polled backend reads "Reachable · just
+now". A backend with no successful contact ever shows "Not yet reached"; one not
+reached in over 24 h is flagged on the dashboard's "PDNS backends needing
+attention" widget.
 
 - **Test** (per row) does an immediate version probe and updates the status.
 - **Refresh all** re-probes every active backend's version at once.
@@ -107,16 +114,18 @@ the **Test** button on `/admin/servers`.
 
 ### Standalone primary
 
-A single read/write backend. Add it with `role: primary`, mark one backend
+A single read/write backend. Add it with no cluster, and mark one backend
 `is_default` so requests without an explicit server target resolve to it.
 
 ### Primary + secondaries
 
 A writable primary plus one or more read-only mirrors that receive zones via
-AXFR/IXFR after a NOTIFY. Add the primary as `role: primary` and each mirror as
-`role: secondary` pointing at it. AuthAdmin routes **all writes to the primary**;
-secondary sync state + stats are surfaced when
-`PDNS_BACKGROUND_POLLING=true` (see [above](#background-polling--opt-in-for-multi-peer-topologies)).
+AXFR/IXFR after a NOTIFY. Add each backend, then put the primary and its
+secondaries in **one group** (the same `cluster_slug`) - which member is the
+primary is observed from the daemon (`primary=yes` vs `secondary=yes` in its
+`/config`), and the group renders as **Primary + secondaries**. AuthAdmin routes
+**all writes to the primary**; secondary sync state + stats are surfaced when
+`PDNS_BACKGROUND_POLLING=true` (see [above](#background-polling---opt-in-for-multi-peer-topologies)).
 
 For secondaries to auto-bootstrap a zone via PowerDNS supermaster, each zone's NS
 set must include the receiving secondary's registered nameserver - see the
@@ -127,8 +136,8 @@ each secondary's serial against the primary's.
 ### Multi-primary cluster
 
 `N` writable peers sharing a replicated store (Galera, Postgres logical
-replication, …). Define a `cluster`, then add each peer as `role: primary` bound to
-that cluster. The cluster appears as **one logical backend** in every picker; a
+replication, …). Define a `cluster`, then add each peer bound to that cluster
+(`cluster_slug`). The cluster appears as **one logical backend** in every picker; a
 **peer-selection strategy** routes each request to a peer:
 
 | Strategy         | Behaviour                                                                   |
@@ -138,7 +147,9 @@ that cluster. The cluster appears as **one logical backend** in every picker; a
 | `lowest_latency` | Peer with the lowest sampled p50 (falls back to round-robin until sampled). |
 | `least_load`     | Peer with the fewest zones.                                                 |
 
-Secondaries can't belong to a cluster - clusters are peer-groups of primaries.
+Both writable peers and read-only mirrors can be group members; what makes a
+group a **multi-primary cluster** is that every member reports itself writable.
+One writable member plus mirrors renders as **Primary + secondaries** instead.
 
 ### Hidden primary + read-only public nameservers (native zones)
 

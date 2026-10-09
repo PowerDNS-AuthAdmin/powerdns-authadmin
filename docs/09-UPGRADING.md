@@ -31,7 +31,9 @@ half-migrated schema; fix the cause and restart.
 
 ## Verify
 
-- `GET /readyz` returns 200 once migrations match the expected version.
+- `GET /readyz` returns 200 (the server only starts listening after the
+  entrypoint has applied migrations, so a 200 means the new schema is in place
+  and the database is reachable).
 - Sign in; check **Admin → PowerDNS servers** shows backends **Reachable**, and
   the dashboard has no unexpected attention banners.
 
@@ -385,9 +387,8 @@ silently dropped (they're no longer in the master vocabulary).
 | `/admin/ldap-providers`      | `/admin/authentication/ldap`      |
 | `/admin/ldap-providers/<id>` | `/admin/authentication/ldap/<id>` |
 
-Every old URL keeps a server-side redirect to the new one, so external links,
-bookmarks, and audit-log references continue to resolve. Update your own docs
-and runbooks at your leisure. The internal API routes
+The old URLs are **not** redirected - they 404. Update bookmarks, runbooks and
+any external links to the new paths. The internal API routes
 (`/api/admin/oidc-providers/...` etc.) are **not** moved - they're a stable
 contract for external automation.
 
@@ -736,9 +737,9 @@ path.
 ## Multi-replica notes (Postgres)
 
 Several replicas can boot at once - the migration step takes a `pg_advisory_lock`
-so exactly one applies migrations while the others wait. Combined with `/readyz`
-gating, a rolling deploy won't send traffic to a replica until its schema is
-current. To run migrations as a separate pipeline step instead, set
+so exactly one applies migrations while the others wait. Because the server only
+starts listening after that step, a replica that passes `/readyz` already has the
+current schema. To run migrations as a separate pipeline step instead, set
 `MIGRATE_ON_BOOT=false` and run `npm run db:migrate` before rolling the app.
 
 For replicas > 1 you also need `REDIS_URL` set so auth rate limiting, reveal-once

@@ -13,19 +13,21 @@ explains the ones with sharp edges.
 
 ## Runtime
 
-| Variable    | Default          | Notes                                                                                        |
-| ----------- | ---------------- | -------------------------------------------------------------------------------------------- |
-| `APP_URL`   | - (**required**) | Public, browser-visible URL. No trailing slash. Drives OIDC redirect URIs, email links, CSP. |
-| `PORT`      | `3000`           | Port the server listens on.                                                                  |
-| `NODE_ENV`  | `development`    | The published image runs `production`.                                                       |
-| `LOG_LEVEL` | `info`           | `trace` \| `debug` \| `info` \| `warn` \| `error` \| `fatal`.                                |
+| Variable      | Default          | Notes                                                                                                                       |
+| ------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `APP_URL`     | - (**required**) | Public, browser-visible URL. No trailing slash. Drives OIDC redirect URIs, email links, CSP.                                |
+| `PORT`        | `3000`           | Port the server listens on.                                                                                                 |
+| `NODE_ENV`    | `development`    | The published image runs `production`.                                                                                      |
+| `LOG_LEVEL`   | `info`           | `trace` \| `debug` \| `info` \| `warn` \| `error` \| `fatal`.                                                               |
+| `APP_GIT_SHA` | unset            | Build provenance stamped into the published image (the commit the image was built from). Leave unset in local `.env` files. |
+| `APP_RELEASE` | `false`          | `true` marks a tagged `vX.Y.Z` release build (also injected by the image build). Leave unset locally.                       |
 
 ## Secrets (required)
 
-| Variable             | Constraint          | Notes                                                                                                                           |
-| -------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `APP_SECRET_KEY`     | ≥ 32 chars          | Signs sessions, CSRF tokens, API-token HMACs.                                                                                   |
-| `APP_ENCRYPTION_KEY` | base64 → ≥ 32 bytes | AES-256 envelope for PowerDNS API keys + OIDC client secrets at rest. **Don't rotate** without re-entering every stored secret. |
+| Variable             | Constraint          | Notes                                                                                                                                                                                                        |
+| -------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `APP_SECRET_KEY`     | ≥ 32 chars          | Signs sessions, CSRF tokens, API-token HMACs.                                                                                                                                                                |
+| `APP_ENCRYPTION_KEY` | base64 → ≥ 32 bytes | AES-256 envelope for PowerDNS API keys, OIDC/SAML/LDAP provider secrets (client secrets, SP private keys, bind passwords) and MFA secrets at rest. **Don't rotate** without re-entering every stored secret. |
 
 Generate each with `openssl rand -base64 32`. Obvious placeholders are rejected.
 
@@ -76,10 +78,12 @@ normal installs.
 
 ## Sessions
 
-| Variable              | Default                     | Notes                                        |
-| --------------------- | --------------------------- | -------------------------------------------- |
-| `SESSION_TTL_SECONDS` | `43200` (12 h)              | Session lifetime.                            |
-| `COOKIE_DOMAIN`       | derived from `APP_URL` host | Set explicitly only for cross-subdomain SSO. |
+| Variable                         | Default                     | Notes                                                                                                                                                                                                          |
+| -------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SESSION_TTL_SECONDS`            | `43200` (12 h)              | Session lifetime. Must be between `300` (5 min) and `2592000` (30 days) - a value outside that range fails the boot.                                                                                           |
+| `COOKIE_DOMAIN`                  | derived from `APP_URL` host | Set explicitly only for cross-subdomain SSO.                                                                                                                                                                   |
+| `TOKEN_IDP_FALLBACK_TTL_SECONDS` | `86400` (24 h)              | How old the latest session's IdP-derived-permissions snapshot may be before an SSO user's API tokens stop carrying the IdP-derived slice (they fall back to admin-issued permissions until the user signs in). |
+| `IDP_PERMS_CACHE_TTL_SECONDS`    | `60`                        | Cache window for the live IdP group re-fetch on the API-token path (OIDC refresh-token → userinfo, LDAP service-account search). Lower = fresher permissions, more IdP load.                                   |
 
 ## Local authentication
 
@@ -103,15 +107,17 @@ page.
 
 **`SMTP_*` must be configured** (see [Email / SMTP](#email--smtp-optional)) for verification
 links to be **delivered**. Without SMTP the signup flow still works, but the
-verification link is only recorded in the audit log (action
-`auth.email.verify.sent`, field `after.url`) for an operator to share out-of-band
-
-- the same fallback the password-reset and email-change flows use.
+verification link is only printed **once in the server log** (warn level) - it is
+never stored in the audit log - so an operator has to read it from the container
+logs and hand it to the user out-of-band. The password-reset and email-change
+flows behave the same way; for a forgotten password the supported alternative is
+the admin **Reset password** action on `/admin/users/<id>`, which issues a
+one-time temporary password.
 
 **Boot-time guard.** When `SIGNUP_ENABLED=true`, the seed step validates
 `SIGNUP_DEFAULT_ROLE` _after_ the system roles are upserted: it must resolve to an
 existing role that is **not** admin-equivalent (no `user.*`, `role.*`,
-`settings.write`, `oidc.manage`, `audit.read`, `server.*`, `team.create/delete`,
+`settings.write`, `auth.manage`, `audit.read`, `server.*`, `team.create/delete`,
 or `token.*.all` permission, and never the `super-admin` slug). A missing or
 over-privileged value **fails the boot loudly** rather than silently turning
 public signup into an admin-account vending machine. The check is inert when
@@ -137,7 +143,7 @@ signup is off.
 ## OIDC single sign-on
 
 The `OIDC_*` variables configure a **single, read-only provider** that appears on
-the login page and in **Admin → OIDC providers** badged **"Configured by ENV"** -
+the login page and in **Admin → Authentication** badged **"Configured by ENV"** -
 alongside any DB providers, not as a hidden fallback. It's edited by changing env
 vars (not the UI), can't do group → role mapping, and is shadowed by a DB provider
 that shares its slug. For multiple providers, icons, group → role mapping, and
@@ -227,11 +233,38 @@ pair of flags. Same rule: link-local / cloud-metadata is always blocked.
 | `APP_OIDC_ALLOW_PRIVATE_NETWORKS` | `false` in production, `true` otherwise | Allow an OIDC issuer that resolves to a private-network address (internal IdP).                      |
 | `APP_OIDC_ALLOW_INSECURE_HTTP`    | requires `https://` in production       | Allow an `http://` issuer URL. Both flags must be opted in for an internal `http://idp:port` issuer. |
 
+## LDAP transport (optional)
+
+LDAP providers themselves are rows added under **Admin → Authentication** (or the
+`ldap:` provisioning block) - see [LDAP sign-in](./12-LDAP.md). These two env
+knobs only relax the transport defaults; they don't enable LDAP on their own.
+
+| Variable                        | Default | Notes                                                                                                                                                     |
+| ------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LDAP_ALLOW_INSECURE_PORT_389`  | `false` | Permit plain `ldap://` (no TLS, no StartTLS). Off, an `ldap://` provider without `start_tls` is refused so a bind password never leaves the box in clear. |
+| `LDAP_TLS_INSECURE_SKIP_VERIFY` | `false` | Accept self-signed / mismatched certificates at the LDAP TLS handshake. Lab use only - pin a CA on the provider row for production.                       |
+
+## WebAuthn / passkeys (optional)
+
+On by default. Full reference with the reverse-proxy notes in
+[Passkeys & security keys](./11-PASSKEYS.md#configuration).
+
+| Variable                          | Default                          | Notes                                                                                              |
+| --------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `WEBAUTHN_ENABLED`                | `true`                           | Master kill-switch for passkey sign-in + enrolment.                                                |
+| `WEBAUTHN_RP_ID`                  | `APP_URL` hostname               | Bare hostname (no scheme, no path). Override only for apex/sub-domain credential sharing.          |
+| `WEBAUTHN_RP_NAME`                | site name from `/admin/settings` | Shown by the platform at the registration prompt.                                                  |
+| `WEBAUTHN_USER_VERIFICATION`      | `preferred`                      | `required` \| `preferred` \| `discouraged`.                                                        |
+| `WEBAUTHN_ATTESTATION`            | `none`                           | `none` \| `direct`. `indirect` is **not** accepted (dropped by SimpleWebAuthn v13) and fails boot. |
+| `WEBAUTHN_ALLOW_INSECURE_ORIGINS` | `false`                          | Allow `http://` origins for LAN development without TLS. Never in production.                      |
+
 ## Email / SMTP (optional)
 
-With `SMTP_HOST` unset, mail is skipped (logged) - verify-email, password reset,
-and email-change links simply aren't sent. With it set, the rest must be coherent
-(validated at boot). Pick **one** encryption shape.
+With `SMTP_HOST` unset, mail is skipped - verify-email, password reset, and
+email-change links aren't sent; each flow instead prints its link once in the
+server log (warn level) for an operator to pass on, and nothing is written to
+the audit log. With it set, the rest must be coherent (validated at boot). Pick
+**one** encryption shape.
 
 | Variable                          | Default            | Notes                                                   |
 | --------------------------------- | ------------------ | ------------------------------------------------------- |
@@ -258,11 +291,11 @@ Set both for a public-facing login.
 
 ## Observability (optional)
 
-| Variable                      | Default | Notes                                                                                               |
-| ----------------------------- | ------- | --------------------------------------------------------------------------------------------------- |
-| `METRICS_ENABLED`             | `true`  | Exposes Prometheus `GET /metrics`. Protect it (see below).                                          |
-| `METRICS_TOKEN`               | unset   | Require `Authorization: Bearer <token>` (≥ 16 chars) to scrape. Unset = open; rely on network ACLs. |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset   | OTLP traces endpoint.                                                                               |
+| Variable                      | Default | Notes                                                                                                                                                                                                                                                                                                        |
+| ----------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `METRICS_ENABLED`             | `true`  | Exposes Prometheus `GET /metrics`. Set `false` to remove the endpoint entirely.                                                                                                                                                                                                                              |
+| `METRICS_TOKEN`               | unset   | Bearer token (≥ 16 chars) **required** to scrape (`Authorization: Bearer <token>`). If unset, the app generates a random token on every boot and prints it once in the boot log - pin one here for a stable scrape config, or set `METRICS_ENABLED=false` to disable the endpoint. `/metrics` is never open. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset   | OTLP traces endpoint.                                                                                                                                                                                                                                                                                        |
 
 ## Redis - horizontal scale (optional)
 

@@ -177,4 +177,4 @@ schema.
   - **`wantAuthnResponseSigned` failed** - the IdP signs only the inner
     assertion; turn off **Require signed Response** on the provider.
 - **`saml-not-authorized`** - the email domain wasn't in the allow-list.
-  Check the provider's **Override OIDC_ALLOWED_EMAIL_DOMAINS** setting.
+  Check the provider's **Allowed email domains** field (`allowed_email_domains` in provisioning YAML).
