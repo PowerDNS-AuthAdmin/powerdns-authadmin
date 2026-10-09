@@ -48,6 +48,7 @@ import {
 } from "./types";
 import { buildVersionCache, isVersionCacheFresh } from "./version";
 import type { ZoneRRsetPatchBody } from "./rrsets";
+import { canonicalZoneName } from "@/lib/dns/zone-name";
 
 // Backstop only. Every real caller forces a live probe now: the poller
 // re-reads the version on its 60 s daemon refresh, and an explicit
@@ -772,13 +773,11 @@ export class PdnsClient {
 
 /**
  * Canonicalize a user-provided zone identifier. PDNS treats the zone id as
- * the FQDN with a trailing dot; we trim whitespace, lowercase, and append
- * the dot if it's missing.
+ * the FQDN with a trailing dot. Alias of `canonicalZoneName` kept under the
+ * client's historical name; the rule itself lives in `lib/dns/zone-name.ts`.
  */
 export function normalizeZoneId(name: string): string {
-  const trimmed = name.trim().toLowerCase();
-  if (trimmed === "") return trimmed;
-  return trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
+  return canonicalZoneName(name);
 }
 
 /**

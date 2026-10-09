@@ -16,7 +16,7 @@ import { redact } from "@/lib/errors/redact";
 import { getBackendGateway } from "./backend-gateway";
 import { listPrimarySecondaries } from "./tsig-replication";
 
-const AUTHORITATIVE_KINDS = new Set(["master", "primary"]);
+import { isTransferredKind } from "@/lib/pdns/zone-kinds";
 
 export interface EligibleTsigKey {
   name: string;
@@ -73,7 +73,7 @@ async function authoritativeZones(server: PdnsServer): Promise<PdnsZoneSummary[]
       return [];
     });
 
-  return zones.filter((z) => AUTHORITATIVE_KINDS.has(z.kind.toLowerCase()));
+  return zones.filter((z) => isTransferredKind(z.kind));
 }
 
 async function countZonesByKey(

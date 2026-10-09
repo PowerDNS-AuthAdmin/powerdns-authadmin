@@ -39,6 +39,8 @@
  *   - `$GENERATE` (rarely used in practice).
  */
 
+import { canonicalZoneName } from "./zone-name";
+
 export interface ParsedRecord {
   content: string;
 }
@@ -489,9 +491,9 @@ function scanLine(line: string, parenDepth: number): ScannedLine {
 }
 
 function canonicalize(name: string): string | null {
-  const trimmed = name.trim().toLowerCase();
-  if (!/^[a-z0-9._-]+\.?$/.test(trimmed)) return null;
-  return trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
+  const canonical = canonicalZoneName(name);
+  if (!/^[a-z0-9._-]+\.$/.test(canonical)) return null;
+  return canonical;
 }
 
 function expandOwner(owner: string, origin: string): string {

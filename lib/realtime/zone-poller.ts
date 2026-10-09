@@ -64,6 +64,7 @@ import {
   type CachedZoneSnapshot,
 } from "@/lib/pdns/zone-state-cache";
 import { classifyMirrorSerial, isSettledSyncState } from "@/lib/pdns/serial-sync";
+import { isMirrorKind, isTransferredKind } from "@/lib/pdns/zone-kinds";
 import { publishHealthEvent, publishZoneEvent } from "./event-bus";
 import { pdnsBackgroundPollingEnabled } from "@/lib/env";
 
@@ -568,7 +569,7 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
       for (const s of r.snapshots ?? []) {
         const k = s.kind.toLowerCase();
         zoneKinds[k] = (zoneKinds[k] ?? 0) + 1;
-        if (MIRROR_KINDS.has(k) && s.masters.length === 0) mirrorZonesWithoutMasters += 1;
+        if (isMirrorKind(k) && s.masters.length === 0) mirrorZonesWithoutMasters += 1;
       }
       try {
         return await syncBackendAdvisories(
@@ -847,8 +848,6 @@ async function computeTsigMissing(
   return missing;
 }
 
-const MIRROR_KINDS = new Set(["slave", "secondary", "consumer"]);
-
 /**
  * Recompute the site-wide derived topology (ADR-0014) from this cycle's
  * masters[]. Builds an `address → primary id` index from every write-target's
@@ -873,7 +872,7 @@ async function rebuildDerivedTopology(
   for (const r of pollResults) {
     if (r.snapshots === null) continue;
     for (const z of r.snapshots) {
-      if (!MIRROR_KINDS.has(z.kind.toLowerCase()) || z.masters.length === 0) continue;
+      if (!isMirrorKind(z.kind) || z.masters.length === 0) continue;
       const primaryId = await resolveMastersToBackendId(z.masters, addrToPrimary);
       if (!primaryId || primaryId === r.backendId) continue;
       const k = `${primaryId} ${z.name}`;
@@ -918,8 +917,9 @@ function computeNotSynced(
   }>,
 ): Set<string> {
   const out = new Set<string>();
-  const isReplicatingPrimaryKind = (kind: string): boolean =>
-    kind === "Master" || kind === "Primary";
+  // Master/Primary and the catalog Producer all reach the group's secondaries
+  // over AXFR, so all three count for "has the mirror caught up".
+  const isReplicatingPrimaryKind = (kind: string): boolean => isTransferredKind(kind);
 
   // 1. Explicit group edges: a mirror's primary is its group's representative
   //    write target.

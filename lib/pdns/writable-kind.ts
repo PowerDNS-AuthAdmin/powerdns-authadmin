@@ -20,12 +20,11 @@
  */
 
 import { ConflictError } from "@/lib/errors";
-
-const READ_ONLY_KINDS = new Set(["slave", "secondary", "consumer"]);
+import { isMirrorKind } from "./zone-kinds";
 
 /** True for AXFR-mirror kinds whose records/DNSSEC come from the primary. */
 export function isReadOnlyZoneKind(kind: string): boolean {
-  return READ_ONLY_KINDS.has(kind.toLowerCase());
+  return isMirrorKind(kind);
 }
 
 /** The operations PowerDNS permits on a zone, decided by its `kind`. */

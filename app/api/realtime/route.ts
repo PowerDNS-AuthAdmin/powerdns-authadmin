@@ -19,6 +19,7 @@
  */
 
 import { requireUser } from "@/lib/auth/require-user";
+import { canonicalZoneName } from "@/lib/dns/zone-name";
 import { subscribeAll, type RealtimeEvent } from "@/lib/realtime/event-bus";
 import { registerPollerSubscriber } from "@/lib/realtime/zone-poller";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
@@ -38,12 +39,6 @@ declare global {
 }
 const conns = (globalThis.__pdnsRealtimeConns ??= new Map<string, number>());
 const MAX_CONNS_PER_USER = 8;
-
-/** Canonical zone name (lowercase + trailing dot) for grant matching. */
-function canonicalZone(z: string): string {
-  const lower = z.trim().toLowerCase();
-  return lower.endsWith(".") ? lower : `${lower}.`;
-}
 
 export async function GET(request: Request): Promise<Response> {
   try {
@@ -83,7 +78,7 @@ export async function GET(request: Request): Promise<Response> {
       const slugById = new Map(servers.map((s) => [s.id, s.slug]));
       for (const g of zoneGrants) {
         const slug = slugById.get(g.serverId);
-        if (slug) grantKeys.add(`${slug}:${canonicalZone(g.zoneName)}`);
+        if (slug) grantKeys.add(`${slug}:${canonicalZoneName(g.zoneName)}`);
       }
     }
 
@@ -145,7 +140,7 @@ export async function GET(request: Request): Promise<Response> {
             if (
               !globalZoneRead &&
               (event.type === "zone.updated" || event.type === "zone.sync.changed") &&
-              !grantKeys.has(`${event.serverSlug}:${canonicalZone(event.zone)}`)
+              !grantKeys.has(`${event.serverSlug}:${canonicalZoneName(event.zone)}`)
             ) {
               return;
             }
