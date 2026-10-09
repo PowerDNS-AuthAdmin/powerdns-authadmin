@@ -360,14 +360,22 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
               ) : null}
               {canReadServers ? (
                 <Card title="Backends snapshot">
-                  <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)] text-sm">
+                  <div className="overflow-x-auto rounded-lg border border-[color:var(--color-border)] text-sm">
                     <table className="w-full">
                       <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
                         <tr>
-                          <th className="px-3 py-2.5">Backend</th>
-                          <th className="px-3 py-2.5">Zones</th>
-                          <th className="px-3 py-2.5">p50</th>
-                          <th className="px-3 py-2.5">p95</th>
+                          <th scope="col" className="px-3 py-2.5">
+                            Backend
+                          </th>
+                          <th scope="col" className="px-3 py-2.5">
+                            Zones
+                          </th>
+                          <th scope="col" className="px-3 py-2.5">
+                            p50
+                          </th>
+                          <th scope="col" className="px-3 py-2.5">
+                            p95
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -442,14 +450,22 @@ export default async function DashboardPage({ searchParams }: DashboardProps) {
               {recent.length === 0 ? (
                 <p className="text-sm text-[color:var(--color-fg-muted)]">No audit entries yet.</p>
               ) : (
-                <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)] text-sm">
+                <div className="overflow-x-auto rounded-lg border border-[color:var(--color-border)] text-sm">
                   <table className="w-full">
                     <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
                       <tr>
-                        <th className="px-3 py-2.5">When</th>
-                        <th className="px-3 py-2.5">Actor</th>
-                        <th className="px-3 py-2.5">Action</th>
-                        <th className="px-3 py-2.5">Resource</th>
+                        <th scope="col" className="px-3 py-2.5">
+                          When
+                        </th>
+                        <th scope="col" className="px-3 py-2.5">
+                          Actor
+                        </th>
+                        <th scope="col" className="px-3 py-2.5">
+                          Action
+                        </th>
+                        <th scope="col" className="px-3 py-2.5">
+                          Resource
+                        </th>
                       </tr>
                     </thead>
                     <tbody>

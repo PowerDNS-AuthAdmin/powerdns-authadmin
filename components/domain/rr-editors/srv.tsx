@@ -33,7 +33,9 @@ export const srvEditor: RREditor<SrvStruct> = {
   },
   Editor({ value, onChange }) {
     return (
-      <div className="grid grid-cols-[6rem_6rem_6rem_1fr] gap-3">
+      // Two columns on a phone (the record dialog is ~300px wide there);
+      // the fixed-width layout needs sm+.
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-[6rem_6rem_6rem_1fr]">
         <Field label="Priority">
           {uintInput(value.priority, 65535, (n) => onChange({ ...value, priority: n }))}
         </Field>

@@ -36,22 +36,26 @@ export const uriEditor: RREditor<UriStruct> = {
   },
   Editor({ value, onChange }) {
     return (
-      <div className="grid grid-cols-[6rem_6rem_1fr] gap-3">
+      // Two columns on a phone (the record dialog is ~300px wide there);
+      // the fixed-width layout needs sm+.
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-[6rem_6rem_1fr]">
         <Field label="Priority">
           {uintInput(value.priority, 65535, (n) => onChange({ ...value, priority: n }))}
         </Field>
         <Field label="Weight">
           {uintInput(value.weight, 65535, (n) => onChange({ ...value, weight: n }))}
         </Field>
-        <Field label="Target" hint="The URI; auto-quoted on save.">
-          <input
-            value={value.target}
-            onChange={(e) => onChange({ ...value, target: e.target.value })}
-            placeholder="https://example.com/path"
-            className={`${inputClass} font-mono`}
-            spellCheck={false}
-          />
-        </Field>
+        <div className="col-span-2 sm:col-span-1">
+          <Field label="Target" hint="The URI; auto-quoted on save.">
+            <input
+              value={value.target}
+              onChange={(e) => onChange({ ...value, target: e.target.value })}
+              placeholder="https://example.com/path"
+              className={`${inputClass} font-mono`}
+              spellCheck={false}
+            />
+          </Field>
+        </div>
       </div>
     );
   },

@@ -56,7 +56,9 @@ export const caaEditor: RREditor<CaaStruct> = {
   Editor({ value, onChange }) {
     const tagIsKnown = (KNOWN_TAGS as readonly string[]).includes(value.tag);
     return (
-      <div className="grid grid-cols-[6rem_10rem_1fr] gap-3">
+      // Two columns on a phone (the record dialog is ~300px wide there);
+      // the fixed-width layout needs sm+.
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-[6rem_10rem_1fr]">
         <Field label="Flags" hint="0 or 128 (critical).">
           {uintInput(value.flags, 255, (n) => onChange({ ...value, flags: n }))}
         </Field>
@@ -83,15 +85,17 @@ export const caaEditor: RREditor<CaaStruct> = {
             />
           ) : null}
         </Field>
-        <Field label="Value" hint="Auto-quoted on save.">
-          <input
-            value={value.value}
-            onChange={(e) => onChange({ ...value, value: e.target.value })}
-            placeholder="letsencrypt.org"
-            className={`${inputClass} font-mono`}
-            spellCheck={false}
-          />
-        </Field>
+        <div className="col-span-2 sm:col-span-1">
+          <Field label="Value" hint="Auto-quoted on save.">
+            <input
+              value={value.value}
+              onChange={(e) => onChange({ ...value, value: e.target.value })}
+              placeholder="letsencrypt.org"
+              className={`${inputClass} font-mono`}
+              spellCheck={false}
+            />
+          </Field>
+        </div>
       </div>
     );
   },

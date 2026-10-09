@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+import { type ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/ui/data-table";
 import { useDialog } from "@/components/ui/dialog";
 import { LocalTime } from "@/components/ui/local-time";
 import { SelectMenu } from "@/components/ui/select-menu";
@@ -99,6 +101,80 @@ export function TeamMembersPanel(props: PanelProps) {
     router.refresh();
   }
 
+  // Shared <DataTable> so the list reflows to cards under `md` like every
+  // other list; the role select and Remove button are per-row cells.
+  const columns = useMemo<Array<ColumnDef<Member, unknown>>>(
+    () => [
+      {
+        accessorKey: "email",
+        header: "Email",
+        cell: (ctx) => {
+          const m = ctx.row.original;
+          return (
+            <>
+              <div className="font-medium break-words">{m.email}</div>
+              {m.name ? (
+                <div className="text-xs text-[color:var(--color-fg-muted)]">{m.name}</div>
+              ) : null}
+            </>
+          );
+        },
+      },
+      {
+        accessorKey: "teamRole",
+        header: "Role",
+        cell: (ctx) => {
+          const m = ctx.row.original;
+          return props.canManage ? (
+            <SelectMenu
+              value={m.teamRole}
+              onChange={(v) => handleSetRole(m.userId, v)}
+              options={[
+                { value: "member", label: "member" },
+                { value: "owner", label: "owner" },
+              ]}
+              ariaLabel={`Team role for ${m.email}`}
+              className="w-32 text-xs"
+            />
+          ) : (
+            <span className="text-xs">{m.teamRole}</span>
+          );
+        },
+      },
+      {
+        accessorKey: "addedAt",
+        header: "Joined",
+        cell: (ctx) => (
+          <span className="text-xs">
+            <LocalTime ts={ctx.getValue<string>()} />
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: (ctx) => {
+          const m = ctx.row.original;
+          return props.canManage ? (
+            <button
+              type="button"
+              onClick={() => handleRemove(m.userId)}
+              disabled={removing === m.userId}
+              className="text-xs text-[color:var(--color-error-fg)] hover:underline disabled:opacity-50"
+            >
+              {removing === m.userId ? "Removing…" : "Remove"}
+              <span className="sr-only"> {m.email}</span>
+            </button>
+          ) : null;
+        },
+      },
+    ],
+    // handleRemove / handleSetRole close over props + router only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [props.canManage, props.teamId, removing],
+  );
+
   return (
     <section className="space-y-4 rounded-md border border-[color:var(--color-border)] p-5">
       <header>
@@ -107,68 +183,16 @@ export function TeamMembersPanel(props: PanelProps) {
         </h2>
       </header>
 
-      {props.members.length === 0 ? (
-        <p className="text-sm text-[color:var(--color-fg-muted)]">No members yet.</p>
-      ) : (
-        <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)]">
-          <table className="w-full text-sm">
-            <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-              <tr>
-                <th className="px-4 py-2.5">Email</th>
-                <th className="px-4 py-2.5">Role</th>
-                <th className="px-4 py-2.5">Joined</th>
-                <th className="px-4 py-2.5"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {props.members.map((m) => (
-                <tr
-                  key={m.userId}
-                  className="border-t border-[color:var(--color-border)] transition-colors even:bg-[color:var(--color-bg-subtle)] hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
-                >
-                  <td className="px-4 py-3 align-top">
-                    <div className="font-medium">{m.email}</div>
-                    {m.name ? (
-                      <div className="text-xs text-[color:var(--color-fg-muted)]">{m.name}</div>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3 align-top text-xs">
-                    {props.canManage ? (
-                      <SelectMenu
-                        value={m.teamRole}
-                        onChange={(v) => handleSetRole(m.userId, v)}
-                        options={[
-                          { value: "member", label: "member" },
-                          { value: "owner", label: "owner" },
-                        ]}
-                        ariaLabel="Team role"
-                        className="w-32 text-xs"
-                      />
-                    ) : (
-                      m.teamRole
-                    )}
-                  </td>
-                  <td className="px-4 py-3 align-top text-xs">
-                    <LocalTime ts={m.addedAt} />
-                  </td>
-                  <td className="px-4 py-3 text-right align-top">
-                    {props.canManage ? (
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(m.userId)}
-                        disabled={removing === m.userId}
-                        className="text-xs text-[color:var(--color-error-fg)] hover:underline disabled:opacity-50"
-                      >
-                        {removing === m.userId ? "Removing…" : "Remove"}
-                      </button>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={props.members}
+        pageSize={Math.max(props.members.length, 10)}
+        hideSearch
+        hidePagination
+        noDataMessage={
+          props.canManage ? "No members yet - add one below." : "No members in this team yet."
+        }
+      />
 
       {props.canManage ? (
         <form

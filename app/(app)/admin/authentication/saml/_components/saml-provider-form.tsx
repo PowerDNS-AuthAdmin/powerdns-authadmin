@@ -634,7 +634,7 @@ export function SamlProviderForm(props: Props) {
             {groupMappings.map((m, i) => (
               <li
                 key={i}
-                className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-2"
+                className="grid grid-cols-1 gap-2 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-2 sm:grid-cols-2 md:grid-cols-[1fr_1fr_1fr_1fr_auto]"
               >
                 <label className="text-xs">
                   IdP group

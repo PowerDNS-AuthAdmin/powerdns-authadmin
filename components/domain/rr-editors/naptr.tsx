@@ -58,7 +58,9 @@ export const naptrEditor: RREditor<NaptrStruct> = {
   Editor({ value, onChange }) {
     return (
       <div className="space-y-3">
-        <div className="grid grid-cols-[6rem_6rem_6rem_6rem] gap-3">
+        {/* Two columns on a phone (the record dialog is ~300px wide there);
+            the fixed-width layout needs sm+. */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-[6rem_6rem_6rem_6rem]">
           <Field label="Order">
             {uintInput(value.order, 65535, (n) => onChange({ ...value, order: n }))}
           </Field>
