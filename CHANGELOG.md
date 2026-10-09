@@ -90,6 +90,36 @@ All notable changes to this project are documented here. The format is based on
   the IdP like a plain visit (carrying `next`); explicit sign-out,
   `?force-local=1` and real error codes still keep the form.
   ([#153](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/153))
+- **Keyboard operability.** Table column sorting is a real button (it was a click-only
+  header that advertised `aria-sort`), the zone-kind / SOA-EDIT / metadata pickers are
+  the shared select menu instead of mouse-only lists, the user menu follows the menu-button
+  keyboard model, the zones filter tabs take arrow keys, and the mobile navigation drawer
+  is `inert` while closed so phone users no longer tab through twenty hidden links.
+- **Form labels.** Every field caption is wired to its control (`htmlFor` / `id` /
+  `aria-describedby`) through one shared `Field`; inputs in dense rows carry an
+  `aria-label`; the eight panels that were `<div>`s with a button are real forms that
+  submit on Enter; the import/export zone picker's checkbox has an accessible name.
+- **Dialogs and toasts.** Destructive confirms open with focus on Cancel, modals make the
+  page behind them `inert`, the record editor no longer discards an edit on a stray
+  backdrop click, settings panels with unsaved edits ask before the tab closes, error
+  toasts stay until dismissed and auto-dismiss pauses on hover/focus, the TSIG wizard
+  uses the shared dialog (focus trap + restore), and the health bell closes on Escape,
+  speaks severity and reports a failed acknowledge.
+- **Contrast and motion.** Semantic colours used as text now meet WCAG AA in both themes
+  via new `--color-success-fg` / `--color-error-fg` tokens, `--color-fg-subtle` is
+  darker/lighter, and the header dot and dashboard skeletons honour
+  `prefers-reduced-motion`.
+- **Small screens.** Provider group-mapping rows, the Before/After diff and the SRV /
+  NAPTR / CAA / URI editors reflow below `sm`; team members and role assignments use the
+  shared data table with its card layout.
+
+### Changed
+
+- "Skip to content" link and labelled navigation landmarks; the Sync chip names the
+  actual state ("lagging", "missing", "error") instead of "desynced"; hover-only badge
+  tooltips are repeated as screen-reader text; "PowerDNS" replaces "PDNS" in
+  operator-facing copy; list tables name the next action when empty; the admin list
+  pages show loading skeletons.
 
 - **SAML sign-in was rejected with "InResponseTo is not valid".** The
   AuthnRequest id was recorded in a throwaway node-saml instance while the
