@@ -148,6 +148,53 @@ All notable changes to this project are documented here. The format is based on
   table rebuilds. **If you run SQLite and upgraded through 1.1.0, check Admin →
   Users for missing per-zone grants** - they were deleted at that upgrade and need
   to be re-created (see [Upgrading](./docs/09-UPGRADING.md#unreleased)).
+- **Backup export and restore did not work.** On Postgres the export answered 500
+  whenever the audit log had rows (bigserial ids are not JSON-serialisable); on both
+  databases the restore converted no timestamps, so every row was rejected while the
+  response said `ok: true` and an audit entry claimed a restore had happened. Export
+  now serialises ids and dates explicitly, restore converts them back by column type,
+  counts real inserts (the result table shows Inserted / Skipped / Failed), reports
+  `ok: false` when any row failed, and moves the Postgres audit-id sequence past the
+  restored rows so the next audited action does not collide. **Backups taken with
+  earlier versions are incomplete - take a fresh export after upgrading.**
+- **Retried writes could double-apply on PowerDNS.** A `POST` that timed out after
+  PowerDNS had committed it (new cryptokey, new zone, new TSIG key, new autoprimary)
+  was sent again, producing a second KSK or a spurious "already exists" error. Writes
+  are now repeated only when safe: idempotent requests (GET/PUT/DELETE, PATCH with
+  REPLACE/DELETE changetypes) or a failure that proves the request never reached the
+  daemon (connection refused, DNS failure).
+- **Zonefile import mis-read common BIND syntax.** Blank-owner continuation lines
+  (`    300 IN A 192.0.2.5` under a previous owner) imported as `300.<zone>` /
+  `in.<zone>` records, and unit TTLs (`1h`) produced a record of type `1H` - all with
+  no diagnostic. Blank owners now inherit the previous owner, TTL units are parsed on
+  records and in `$TTL`, and a token that cannot be a record type is a reported error
+  rather than a bogus record.
+- **Per-zone grants did not match some URL spellings.** Deleting a zone, saving zone
+  settings or editing metadata as a grant holder returned 403 when the zone was
+  requested without the trailing dot or in a different case, and the audit resource id
+  varied with the caller's spelling. The three routes now canonicalise the zone name
+  like every other route.
+- **Cloned, imported and exported zones had no entry in the zone's History.** Their
+  audit rows were written without the backend prefix the change-log filters on.
+- **A slow backend held up every other write to it.** The per-backend lock was held
+  across all retry attempts and their back-off (~31 s against a hung daemon), so
+  concurrent saves queued N × 31 s. The lock now covers one attempt at a time.
+- **Mirrors of SOA-EDIT=EPOCH zones were permanently "lagging"** and raised a
+  replication-drift advisory that never cleared. A mirror of such a zone is now judged
+  by how recently it transferred (within one SOA refresh is in sync).
+- **Catalog Producer zones were not NOTIFYed on create**, leaving their Consumers to
+  the SOA refresh; they are now treated as transferred zones everywhere (NOTIFY, sync
+  checks, TSIG eligibility), consistent with the DNSSEC code that already did.
+- **Record edits on large zones were slow.** A single-record change fetched every
+  record of the zone twice; on PowerDNS 4.5+ the editor now fetches only the record
+  sets it touches (and DNSSEC disable/rectify/key listing no longer fetch records).
+- **The PowerDNS request log grew without bound.** `pdns_requests` rows older than
+  `PDNS_REQUEST_LOG_RETENTION_DAYS` (new setting, default 7) are now pruned alongside
+  the metrics tables.
+- Zones deleted outside the app (pdnsutil, another client) now refresh open zone
+  lists instead of lingering until the next navigation; classless reverse zones
+  (`0/25.2.0.192.in-addr.arpa.`) are addressed with PowerDNS' own zone-id encoding;
+  the delete-record API validates the record type like the create/update API.
 
 ## [1.8.4] - 2026-10-07
 
