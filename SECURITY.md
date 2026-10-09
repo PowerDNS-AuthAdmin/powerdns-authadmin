@@ -26,8 +26,9 @@ _Security_ tab → _Report a vulnerability_. This sends an encrypted report dire
 maintainers and creates a private draft advisory.
 
 If private reporting is unavailable, email the lead maintainer (contact published on the project
-website / GitHub profile) with `[SECURITY]` in the subject line. PGP keys are listed in
-`docs/security/pgp-keys.md`.
+website / GitHub profile) with `[SECURITY]` in the subject line. There is no published PGP key
+at the moment; use GitHub's private reporting if the report is sensitive enough to need
+encryption in transit.
 
 ### What to include
 
@@ -54,7 +55,8 @@ website / GitHub profile) with `[SECURITY]` in the subject line. PGP keys are li
 
 In scope:
 
-- This repository and all artifacts it produces (the Docker images on Docker Hub).
+- This repository and all artifacts it produces (the container images on
+  `ghcr.io/powerdns-authadmin/powerdns-authadmin` and the signed release assets).
 - Configuration recommendations in `docs/`.
 
 Out of scope:
@@ -66,12 +68,14 @@ Out of scope:
 ## Hardening recommendations
 
 PowerDNS-AuthAdmin ships secure defaults, but deployment hardening is the operator's responsibility.
-A future hardening runbook will cover TLS termination, secret storage, network policies, and
-monitoring; until then the documented env defaults + `docs/FEATURES.md` § 17 cover the basics.
+[`docs/08-HARDENING.md`](./docs/08-HARDENING.md) is the checklist (TLS termination, secret
+storage, network exposure, MFA, image-signature verification); `docs/FEATURES.md` § 17 lists
+the built-in security posture.
 
 ## Recognition
 
-We maintain a public list of researchers who have responsibly disclosed vulnerabilities at
-`docs/security/credits.md`. By default we credit reporters; you may opt out at report time.
+Researchers who responsibly disclose a vulnerability are credited in the GitHub security advisory
+and in the `CHANGELOG.md` entry for the fix. By default we credit reporters; you may opt out at
+report time.
 
 We do not currently offer a monetary bug bounty. We do offer profuse thanks.

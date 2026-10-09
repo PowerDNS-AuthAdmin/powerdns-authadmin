@@ -10,11 +10,12 @@
  *
  * Per-protocol edit pages live elsewhere:
  *   - Local Auth → /admin/settings
- *   - OIDC (DB) → /admin/oidc-providers/<id>
+ *   - OIDC (DB) → /admin/authentication/oidc/<id>
  *   - OIDC (env) → no editor (env vars only - row badged "ENV")
+ *   - SAML → /admin/authentication/saml/<id>
+ *   - LDAP → /admin/authentication/ldap/<id>
  *
- * PR 2 (LDAP) and PR 3 (SAML) add their own rows + detail pages and plug
- * into this same table by adding to the parent's `AuthRow[]`.
+ * Each protocol contributes its rows by adding to the parent's `AuthRow[]`.
  */
 
 import Link from "next/link";

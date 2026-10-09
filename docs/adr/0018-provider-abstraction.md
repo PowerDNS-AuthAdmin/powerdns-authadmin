@@ -3,6 +3,11 @@
 - **Status:** Accepted
 - **Date:** 2026-05-28
 - **Deciders:** @jad-seifeddine
+- **Update (2026-05-28, 1.3.0):** the "one admin page that lists all configured providers"
+  overlay described below shipped as `/admin/authentication`; the per-protocol pages moved
+  under it (`/admin/authentication/{oidc,saml,ldap}/<id>`) and `/admin/oidc-providers/` no
+  longer exists. The underlying tables stayed separate, as decided. The `oidc.read` /
+  `oidc.manage` permissions were renamed `auth.read` / `auth.manage` at the same time.
 
 ## Context
 

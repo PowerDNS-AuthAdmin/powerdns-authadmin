@@ -62,31 +62,49 @@ the committed `.actrc` pins the runner image + workflow + host-native arch). Run
 
 ```
 app/                  Next.js App Router
-  (auth)/login/       sign-in form
+  (auth)/             login, signup, reset-password, verify-email (no app shell)
   (app)/              app shell, requires auth
-    dashboard/        landing widgets (operator attention surfaces)
-    zones/            amalgamated zone list + per-zone detail
-    admin/            users, teams, roles, servers, clusters, oidc, tsig, autoprimaries,
-                      zone-templates, settings, audit
-    profile/          per-user account: password, sessions, MFA, API tokens
-  api/                route handlers (REST + a couple of SSE streams)
+    dashboard/        landing widgets (operator attention surfaces, PDNS metrics tab)
+    zones/            amalgamated zone list + per-zone detail (+ new/, [zoneId]/dnssec, metadata)
+    admin/            users, teams, roles, servers, clusters, authentication/{oidc,saml,ldap},
+                      tsig-keys, autoprimaries, zone-templates, import-export, requests (PDNS
+                      request log), settings (+ settings/backup), audit
+    profile/          per-user account: password, sessions, MFA (TOTP + passkeys), API tokens
+    change-email/     confirm page for the email-change token
+  api/                route handlers (REST + SSE under api/realtime, CSP report sink)
+  nic/update/         DynDNS 2 endpoint (ddclient-compatible)
   healthz, readyz     liveness + readiness probes
+  metrics/            Prometheus exposition (bearer-gated)
 
 components/
-  ui/                 generic primitives (data-table, dialog, toast, user-menu, …)
-  domain/             feature-specific (record-table, admin-audit-panel, freshness chip, …)
+  ui/                 generic primitives (data-table, dialog, select-menu, turnstile-widget, …)
+  domain/             feature-specific (record-table, health-bell, capability-badges, …)
+  auth/               compliance guard (must-change-password / MFA hard-stop)
+  realtime/           SSE provider + header status chip
 
 lib/                  domain code, three-layer architecture enforced via ESLint
-  auth/               sessions, providers (local, OIDC), MFA, CSRF, rate limit
-  rbac/               CASL ability builder + scope matching
-  pdns/               typed HTTP client, sync probes, cluster picker, zone operations
-  db/                 Drizzle schemas (pg + sqlite-core), repositories
+  auth/               sessions, providers (local, OIDC, SAML, LDAP), WebAuthn, TOTP, CSRF,
+                      rate limit, tokens, demo locks (bootstrap-admin, settings-lock)
+  rbac/               CASL ability builder, scope matching, zone grants, protected RRsets
+  pdns/               typed HTTP client, sync probes, cluster picker, zone operations, TSIG,
+                      capabilities, Lua gate, zone-state cache
+  db/                 Drizzle schemas (schema/ pg + schema-sqlite/), repositories, backup
   audit/              append-only audit log, action vocabulary, secret redaction
-  email/              SMTP transport + send API (env-driven, AUTH optional)
+  dns/                zonefile parser/formatter, zone dedupe + horizons, default TTL
+  diff/               rrset before/after diffing for the review modal + change history
+  dyndns/             DynDNS 2 request parsing + response vocabulary (pure)
+  email/              SMTP transport, send API, message templates (env-driven, AUTH optional)
   crypto/             AES-256-GCM envelope encryption + HKDF subkeys
-  validators/         Zod schemas at every boundary
-  provisioning/       first-boot YAML applier (settings, roles, teams, templates, servers, oidc)
-  realtime/           SSE event bus + zone-state poller
+  health/             backend advisory evaluator (the notification bell)
+  http/               shared route-handler helpers (error responses)
+  metrics/            Prometheus exposition, PDNS statistics sampler, retention
+  net/                outbound URL safety (SSRF guard primitives)
+  security/           CSP builder
+  settings/           cached app-settings reader
+  validators/         Zod schemas at every boundary (incl. rr-types/)
+  provisioning/       first-boot YAML applier (settings, roles, teams, templates, clusters,
+                      servers, oidc, saml, ldap, demo zones)
+  realtime/           SSE event bus, zone-state poller, backend gateway, TSIG replication
   client/             api-fetch (CSRF header injection)
   errors/             typed error hierarchy + secret redaction
   env.ts              boot-time env validation
@@ -98,8 +116,9 @@ docker/               entrypoint that runs migrations then boots the server
 drizzle/              generated PG migrations
 drizzle-sqlite/       generated SQLite migrations
 scripts/              migrate.ts, seed.ts, provision.ts, screenshots.mjs
-tests/                vitest unit + integration (the latter wants a real Postgres on $TEST_DB_URL)
-docs/                 ADRs, FEATURES, dev-setup
+tests/                vitest unit + integration (the latter wants a real Postgres on
+                      $TEST_DATABASE_URL) + Playwright e2e
+docs/                 ADRs, FEATURES, operator guides (01-13), dev-setup
 screenshots/          gallery of every page in 4 variants - desktop+light, desktop+dark,
                       mobile+light, mobile+dark; regen with `npm run screenshots`
                       (Playwright + iPhone-frame CSS, optional pngquant+oxipng post-pass)
@@ -185,4 +204,4 @@ cleared on `admin@example.com` - full prereqs in
 - **Standards live in `CONTRIBUTING.md`.** Read it before writing code - the rules are
   enforced and following them from the start saves review iterations.
 - **No new top-level docs without consensus.** ADRs go in `docs/adr/`; runbooks in
-  `docs/runbooks/`; everything else is a section in an existing doc.
+  `docs/runbooks/` (none yet); everything else is a section in an existing doc.

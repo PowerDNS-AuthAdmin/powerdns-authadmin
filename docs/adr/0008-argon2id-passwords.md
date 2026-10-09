@@ -3,6 +3,11 @@
 - **Status:** Accepted
 - **Date:** 2026-05-16
 - **Deciders:** @jseifeddine
+- **Update (2026-05-28):** the implementation moved from the `argon2` package to
+  `@node-rs/argon2` (a napi-rs binding to the Rust `argon2` crate - prebuilt binaries, no
+  node-gyp at install time). The algorithm, parameters and decision are unchanged.
+  `@node-rs/argon2` exports no `needsRehash`, so `lib/auth/password.ts` implements its own by
+  parsing the PHC string's `m`, `t` and `p` parameters and comparing them to the current set.
 
 ## Context
 

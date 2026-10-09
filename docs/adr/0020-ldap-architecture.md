@@ -3,6 +3,11 @@
 - **Status:** Accepted
 - **Date:** 2026-05-28
 - **Deciders:** @jadseifeddine
+- **Update (2026-05-28, 1.3.0):** the admin pages named in Consequences landed under the
+  unified Authentication surface instead: the form is
+  `app/(app)/admin/authentication/ldap/_components/ldap-provider-form.tsx` and the edit page
+  `app/(app)/admin/authentication/ldap/[id]/page.tsx` (`/admin/authentication/ldap/<id>`).
+  Everything else below is as shipped.
 
 ## Context
 

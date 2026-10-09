@@ -3,6 +3,11 @@
 - **Status:** Accepted
 - **Date:** 2026-05-16
 - **Deciders:** @jseifeddine
+- **Update (2026-10-09):** the `session-prune` job mentioned under Consequences was never
+  built. Expired rows are excluded at lookup time instead - every read in
+  `lib/db/repositories/sessions.ts` filters on `expires_at > now()` - and are deleted when the
+  user or an admin revokes them, so they are inert but accumulate until a revoke or a manual
+  `DELETE FROM sessions WHERE expires_at < now()`. A periodic sweep remains open work.
 
 ## Context
 

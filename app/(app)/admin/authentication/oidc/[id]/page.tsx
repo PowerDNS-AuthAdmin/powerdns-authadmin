@@ -1,5 +1,5 @@
 /**
- * app/(app)/admin/oidc-providers/[id]/page.tsx
+ * app/(app)/admin/authentication/oidc/[id]/page.tsx
  *
  * Edit / delete page for an OIDC provider.
  */

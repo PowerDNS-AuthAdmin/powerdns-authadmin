@@ -1,8 +1,11 @@
 # ADR 0010 - Per-RRset optimistic concurrency for the editor
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-17
 - **Deciders:** @jseifeddine
+- **Update (2026-05-26):** implemented - the RRset route
+  (`app/api/admin/pdns/zones/[zoneId]/rrsets/route.ts`) compares the client's `If-Match`
+  against the per-RRset hash from `lib/pdns/rrset-hash.ts` and answers 412 on a mismatch.
 
 ## Context
 

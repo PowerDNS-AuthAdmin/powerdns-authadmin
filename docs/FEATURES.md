@@ -255,8 +255,10 @@ the audit trail behave identically whichever door the user came through.
   public-facing login. The verifier reads no env itself, so each route decides when captcha
   is required.
 - **Where.** `lib/auth/captcha.ts`, `components/ui/turnstile-widget.tsx`; the Turnstile script
-  is allowed by the per-request CSP nonce (`lib/security/csp.ts`). A missing or failed token
-  is audited as `auth.login.failure` with `after.reason: captcha-missing|captcha-failed`.
+  is allowed by the per-request CSP nonce (`lib/security/csp.ts`). The login routes audit a
+  missing or failed token as `auth.login.failure` with
+  `after.reason: captcha-missing|captcha-failed`; forgot-password records it as
+  `auth.password.reset.invalid` with the same reason.
 
 ### 1.13 IdP-derived permissions and API tokens
 

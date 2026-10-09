@@ -1,5 +1,5 @@
 /**
- * app/(app)/admin/saml-providers/[id]/page.tsx
+ * app/(app)/admin/authentication/saml/[id]/page.tsx
  *
  * Edit / delete page for a SAML provider. Mirrors the OIDC equivalent
  * (`/admin/authentication/oidc/[id]/page.tsx`): pickers + audit panel + danger zone.

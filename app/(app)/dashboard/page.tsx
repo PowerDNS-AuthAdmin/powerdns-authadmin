@@ -726,7 +726,7 @@ function PdnsAttentionWidget({ counts }: { counts: { neverProbed: number; unreac
  * either missing entirely (`Never probed`) or actively failing
  * (`Failing probe` - discovery_cache.ok=false). Hidden when both
  * counts are zero so healthy fleets see nothing. Tiles deep-link
- * to /admin/oidc-providers where each row's discovery badge
+ * to /admin/authentication where each row's discovery badge
  * carries the human-readable reason.
  */
 function hasOidcAttention(c: { neverProbed: number; failing: number }): boolean {
