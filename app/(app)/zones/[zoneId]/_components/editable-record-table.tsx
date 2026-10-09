@@ -810,6 +810,9 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
         onClose={() => setEditor(null)}
         title={editor?.mode === "edit" ? "Edit record" : "Add record"}
         maxWidthClass="max-w-xl"
+        // A stray click outside must not throw away a half-typed record;
+        // Cancel and Esc remain the deliberate ways out.
+        dismissOnBackdrop={false}
       >
         {editor ? (
           <form

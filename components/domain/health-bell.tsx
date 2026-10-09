@@ -11,11 +11,12 @@
  * Presentational only - no lib/db / lib/pdns imports (three-layer boundary).
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { apiFetch } from "@/lib/client/api-fetch";
+import { useDialog } from "@/components/ui/dialog";
 import { useRealtimeEvent } from "@/components/realtime/realtime-provider";
 
 export interface BellAdvisory {
@@ -35,10 +36,21 @@ function dotClass(severity: string): string {
   return "bg-[color:var(--color-fg-muted)]";
 }
 
+/** The dot's colour, spelled out for people who can't see it. */
+function severityWord(severity: string): string {
+  if (severity === "error") return "Error";
+  if (severity === "warn") return "Warning";
+  return "Info";
+}
+
 export function HealthBell({ advisories }: { advisories: BellAdvisory[] }) {
   const router = useRouter();
+  const { toast } = useDialog();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Live-update over the SSE bus (ADR-0015): the poller publishes `health.updated`
   // only when the visible advisory set moves, so we refresh the server-rendered
@@ -54,6 +66,32 @@ export function HealthBell({ advisories }: { advisories: BellAdvisory[] }) {
     },
   );
 
+  // Click outside closes; Escape closes and hands focus back to the bell so a
+  // keyboard user isn't dropped at the top of the document.
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setOpen(false);
+      bellRef.current?.focus();
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  // Move focus into the panel on open so the list is the next thing read.
+  useEffect(() => {
+    if (open) panelRef.current?.focus();
+  }, [open]);
+
   const unacked = advisories.filter((a) => !a.acknowledged);
   const hasError = unacked.some((a) => a.severity === "error");
   const count = unacked.length;
@@ -62,24 +100,42 @@ export function HealthBell({ advisories }: { advisories: BellAdvisory[] }) {
     setBusy(id);
     try {
       const res = await apiFetch(`/api/admin/backend-advisories/${id}/ack`, { method: "POST" });
-      if (res.ok) router.refresh();
+      if (res.ok) {
+        router.refresh();
+        return;
+      }
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      toast({
+        kind: "error",
+        title: "Could not dismiss advisory",
+        description: data?.error ?? `The server answered ${res.status}.`,
+      });
+    } catch {
+      toast({
+        kind: "error",
+        title: "Could not dismiss advisory",
+        description: "Network error - the advisory is still active.",
+      });
     } finally {
       setBusy(null);
     }
   }
 
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
+        ref={bellRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={`Backend health: ${count} active ${count === 1 ? "issue" : "issues"}`}
         aria-expanded={open}
+        aria-haspopup="dialog"
         className="relative flex h-9 w-9 items-center justify-center rounded-md hover:bg-[color:var(--color-bg-subtle)]"
       >
         <Bell aria-hidden className="h-5 w-5 text-[color:var(--color-fg-muted)]" />
         {count > 0 ? (
           <span
+            aria-hidden
             className={`absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.6rem] font-semibold text-white ${
               hasError ? "bg-[color:var(--color-error)]" : "bg-[color:var(--color-warn)]"
             }`}
@@ -90,74 +146,74 @@ export function HealthBell({ advisories }: { advisories: BellAdvisory[] }) {
       </button>
 
       {open ? (
-        <>
-          {/* click-away catcher */}
-          <button
-            type="button"
-            aria-hidden
-            tabIndex={-1}
-            className="fixed inset-0 z-10 cursor-default"
-            onClick={() => setOpen(false)}
-          />
-          {/* Mobile: fixed to the viewport with small gutters so the dropdown
-              can't overflow the right edge (the bell sits near it). sm+: back
-              to absolute-anchored under the bell at a fixed 24rem width. */}
-          <div className="fixed inset-x-3 top-14 z-20 mt-2 overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] shadow-lg sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:w-96">
-            <div className="border-b border-[color:var(--color-border)] px-3 py-2 text-xs font-semibold tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-              Backend health
-            </div>
-            {advisories.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-[color:var(--color-fg-muted)]">
-                All backends healthy.
-              </p>
-            ) : (
-              <ul className="max-h-[60vh] divide-y divide-[color:var(--color-border)] overflow-y-auto">
-                {advisories.map((a) => (
-                  <li
-                    key={a.id}
-                    className={`px-3 py-2.5 text-sm ${a.acknowledged ? "opacity-50" : ""}`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <span
-                        aria-hidden
-                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dotClass(a.severity)}`}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="font-medium">{a.title}</span>
-                          <Link
-                            href={`/admin/servers/${a.backendId}`}
-                            className="shrink-0 text-xs text-[color:var(--color-accent)] hover:underline"
-                            onClick={() => setOpen(false)}
-                          >
-                            {a.backendName}
-                          </Link>
-                        </div>
-                        <p className="mt-0.5 text-xs text-[color:var(--color-fg-muted)]">
-                          {a.detail}
-                        </p>
-                        {!a.acknowledged ? (
-                          <button
-                            type="button"
-                            onClick={() => acknowledge(a.id)}
-                            disabled={busy === a.id}
-                            className="mt-1 text-xs text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)] hover:underline disabled:opacity-50"
-                          >
-                            {busy === a.id ? "Dismissing…" : "Dismiss"}
-                          </button>
-                        ) : (
-                          <span className="mt-1 inline-block text-xs text-[color:var(--color-fg-subtle)]">
-                            Dismissed
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+        // Mobile: fixed to the viewport with small gutters so the dropdown
+        // can't overflow the right edge (the bell sits near it). sm+: back
+        // to absolute-anchored under the bell at a fixed 24rem width.
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-label="Backend health"
+          tabIndex={-1}
+          className="fixed inset-x-3 top-14 z-20 mt-2 overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] shadow-lg outline-none sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:w-96"
+        >
+          <div className="border-b border-[color:var(--color-border)] px-3 py-2 text-xs font-semibold tracking-wide text-[color:var(--color-fg-muted)] uppercase">
+            Backend health
           </div>
-        </>
+          {advisories.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-[color:var(--color-fg-muted)]">
+              All backends healthy.
+            </p>
+          ) : (
+            <ul className="max-h-[60vh] divide-y divide-[color:var(--color-border)] overflow-y-auto">
+              {advisories.map((a) => (
+                <li
+                  key={a.id}
+                  className={`px-3 py-2.5 text-sm ${a.acknowledged ? "opacity-50" : ""}`}
+                >
+                  <div className="flex items-start gap-2">
+                    <span
+                      aria-hidden
+                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dotClass(a.severity)}`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="font-medium">
+                          <span className="sr-only">{severityWord(a.severity)}: </span>
+                          {a.title}
+                        </span>
+                        <Link
+                          href={`/admin/servers/${a.backendId}`}
+                          className="shrink-0 text-xs text-[color:var(--color-accent)] hover:underline"
+                          onClick={() => setOpen(false)}
+                        >
+                          {a.backendName}
+                        </Link>
+                      </div>
+                      <p className="mt-0.5 text-xs text-[color:var(--color-fg-muted)]">
+                        {a.detail}
+                      </p>
+                      {!a.acknowledged ? (
+                        <button
+                          type="button"
+                          onClick={() => acknowledge(a.id)}
+                          disabled={busy === a.id}
+                          className="mt-1 text-xs text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)] hover:underline disabled:opacity-50"
+                        >
+                          {busy === a.id ? "Dismissing…" : "Dismiss"}
+                          <span className="sr-only"> {a.title}</span>
+                        </button>
+                      ) : (
+                        <span className="mt-1 inline-block text-xs text-[color:var(--color-fg-subtle)]">
+                          Dismissed
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       ) : null}
     </div>
   );
