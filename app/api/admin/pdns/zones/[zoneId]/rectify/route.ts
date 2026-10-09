@@ -50,6 +50,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
       body.serverSlug,
       "dnssec.configure",
       request,
+      { rrsets: false },
     );
     assertEditableZoneKind(zone.kind);
 

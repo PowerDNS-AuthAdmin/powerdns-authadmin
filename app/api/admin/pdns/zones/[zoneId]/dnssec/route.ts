@@ -198,6 +198,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
       query.serverSlug,
       "dnssec.configure",
       request,
+      { rrsets: false },
     );
     assertEditableZoneKind(zone.kind);
     if (!query.confirm || !sameZoneName(query.confirm, zone.name)) {

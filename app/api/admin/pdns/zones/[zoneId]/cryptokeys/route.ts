@@ -65,7 +65,13 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
       listQuerySchema,
       Object.fromEntries(new URL(request.url).searchParams),
     );
-    const { server, client, zone } = await loadDnssecZone(zoneId, query.serverSlug, "dnssec.read");
+    const { server, client, zone } = await loadDnssecZone(
+      zoneId,
+      query.serverSlug,
+      "dnssec.read",
+      undefined,
+      { rrsets: false },
+    );
     const keys = await client.listCryptokeys(zone.name);
     return Response.json({
       zone: zone.name,

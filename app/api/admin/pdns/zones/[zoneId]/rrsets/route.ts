@@ -42,7 +42,9 @@ import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositori
 import { assertEditableZoneKind } from "@/lib/pdns/writable-kind";
 import { assertZoneAllowsLua } from "@/lib/pdns/lua-enablement";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
-import { normalizeZoneId } from "@/lib/pdns/client";
+import { normalizeZoneId, type PdnsClient } from "@/lib/pdns/client";
+import { isTransferredKind } from "@/lib/pdns/zone-kinds";
+import type { PdnsZoneDetail } from "@/lib/pdns/types";
 import { deleteRRset, replaceRRset, zonePatchBody, type RRsetPatch } from "@/lib/pdns/rrsets";
 import { detectRRsetConflicts } from "@/lib/pdns/rrset-hash";
 import { PdnsError, PdnsNotFoundError } from "@/lib/pdns/errors";
@@ -158,7 +160,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     const client = getBackendGateway(server);
     let zoneBefore;
     try {
-      zoneBefore = await client.getZone(zoneName);
+      zoneBefore = await loadZoneBefore(client, zoneName, input.changes);
     } catch (err) {
       if (err instanceof PdnsNotFoundError) {
         throw new NotFoundError(`Zone "${zoneName}" not found on backend.`);
@@ -381,7 +383,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     // to a DISTINCT operation rather than leaking the parent rrset PATCH's
     // X-Request-Id (which would otherwise attribute every async background
     // call from this handler to one request id at confusingly varying times).
-    if (zoneBefore.kind === "Master" || zoneBefore.kind === "Primary") {
+    if (isTransferredKind(zoneBefore.kind)) {
       const notifyRequestId = newSystemRequestId();
       void withRequestId(notifyRequestId, async () => {
         let notified = false;
@@ -478,4 +480,42 @@ function normalizeName(raw: string, zoneName: string): string {
   if (trimmed === "" || trimmed === "@") return zoneName;
   if (trimmed.endsWith(".")) return trimmed;
   return `${trimmed}.${zoneName}`;
+}
+
+/**
+ * Above this many distinct RRsets in one batch, one full zone GET is cheaper
+ * than a filtered GET per RRset (each is a round-trip plus a backend query).
+ */
+const MAX_FILTERED_RRSET_FETCHES = 3;
+
+/**
+ * The zone state the patch is checked against: kind, metadata and the RRsets
+ * the batch touches (for the conflict hashes, the audit `before` snapshots and
+ * the comment carry-through). A typical edit touches one RRset, so on a daemon
+ * with the `rrset_name` filter we fetch the zone header without records plus
+ * one filtered GET per touched RRset instead of transferring every record of
+ * the zone - twice per edit, once here and once for the after-snapshot - which
+ * is what made single-record edits on large zones slow. Larger batches and
+ * older daemons fall back to the full GET.
+ */
+async function loadZoneBefore(
+  client: PdnsClient,
+  zoneName: string,
+  changes: ReadonlyArray<{ name: string; type: string }>,
+): Promise<PdnsZoneDetail> {
+  const keys = new Map<string, { name: string; type: string }>();
+  for (const change of changes) {
+    const name = normalizeName(change.name, zoneName);
+    keys.set(`${name}|${change.type}`, { name, type: change.type });
+  }
+  if (!client.supports("supportsRrsetFilter") || keys.size > MAX_FILTERED_RRSET_FETCHES) {
+    return client.getZone(zoneName);
+  }
+  const [header, ...parts] = await Promise.all([
+    client.getZone(zoneName, { rrsets: false }),
+    ...[...keys.values()].map((k) =>
+      client.getZone(zoneName, { rrsetName: k.name, rrsetType: k.type }),
+    ),
+  ]);
+  return { ...header, rrsets: parts.flatMap((p) => p.rrsets ?? []) };
 }
