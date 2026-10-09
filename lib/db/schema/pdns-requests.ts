@@ -9,9 +9,9 @@
  * bodies) is redacted at write time - the row stores something readable
  * for an operator without leaking credentials to anyone with audit.read.
  *
- * Retention: not yet enforced. A periodic job should prune rows older
- * than ~30 days once volume becomes meaningful (every page-load triggers
- * `listZones`; this fills up fast on busy installs).
+ * Retention: `lib/metrics/retention.ts` prunes rows older than
+ * `PDNS_REQUEST_LOG_RETENTION_DAYS` (default 7) on the poller's sweep - the
+ * background poll alone writes several rows per backend per minute.
  */
 
 import {
