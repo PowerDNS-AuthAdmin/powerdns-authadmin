@@ -14,7 +14,9 @@
  *
  * For Postgres in multi-instance deployments, the migrate step takes a
  * `pg_advisory_lock` so only one pod actually applies migrations even if
- * several boot simultaneously. SQLite is single-writer so no lock is needed.
+ * several boot simultaneously. SQLite is single-writer so no lock is needed,
+ * but it needs foreign-key enforcement OFF around drizzle's transaction - see
+ * `lib/db/migrate-sqlite.ts` for why.
  *
  * Logging is deliberately loud: a list of pending migrations before the
  * run, a list of applied migrations after, an explicit "0 pending - DB is
@@ -131,79 +133,10 @@ async function readAppliedCountPg(client: {
 }
 
 async function migrateSqlite(databaseUrl: string): Promise<void> {
-  const { default: Database } = await import("better-sqlite3");
-  const { drizzle } = await import("drizzle-orm/better-sqlite3");
-  const { migrate } = await import("drizzle-orm/better-sqlite3/migrator");
-
-  const journal = readJournal(MIGRATIONS_DIR_SQLITE);
-  logger.info(
-    {
-      dir: MIGRATIONS_DIR_SQLITE,
-      total: journal.length,
-      tags: journal.map((e) => e.tag),
-    },
-    "migrate.sqlite.journal",
-  );
-
-  const filePath = stripSqlitePrefix(databaseUrl);
-  const handle = new Database(filePath);
-  try {
-    handle.pragma("journal_mode = WAL");
-    handle.pragma("busy_timeout = 5000");
-    handle.pragma("foreign_keys = ON");
-
-    const beforeCount = readAppliedCountSqlite(handle);
-    const beforeStatus = diffByOrdinal(journal, beforeCount);
-    if (beforeStatus.pending.length === 0) {
-      logger.info(
-        { applied: beforeCount, total: journal.length, file: filePath },
-        "migrate.sqlite.up-to-date",
-      );
-    } else {
-      logger.info(
-        { pending: beforeStatus.pending, count: beforeStatus.pending.length, file: filePath },
-        "migrate.sqlite.pending",
-      );
-    }
-
-    const db = drizzle(handle);
-    migrate(db, { migrationsFolder: MIGRATIONS_DIR_SQLITE });
-
-    const afterCount = readAppliedCountSqlite(handle);
-    const justApplied = journal.slice(beforeCount, afterCount).map((e) => e.tag);
-    logger.info(
-      {
-        applied: justApplied,
-        appliedCount: justApplied.length,
-        totalApplied: afterCount,
-        totalExpected: journal.length,
-        file: filePath,
-      },
-      "migrate.sqlite.complete",
-    );
-
-    const finalStatus = diffByOrdinal(journal, afterCount);
-    if (finalStatus.pending.length > 0) {
-      logger.error({ stillPending: finalStatus.pending }, "migrate.sqlite.incomplete");
-      throw new Error(
-        `Drizzle migrate returned but ${finalStatus.pending.length} migration(s) are still pending: ${finalStatus.pending.join(", ")}`,
-      );
-    }
-  } finally {
-    handle.close();
-  }
-}
-
-function readAppliedCountSqlite(handle: {
-  prepare: (sql: string) => { get: () => Record<string, unknown> | undefined };
-}): number {
-  try {
-    const row = handle.prepare("SELECT COUNT(*) AS n FROM __drizzle_migrations").get();
-    const n = row?.["n"];
-    return typeof n === "number" ? n : 0;
-  } catch {
-    return 0;
-  }
+  // The SQLite path lives in lib/ so the exact code the container boots
+  // through is unit-tested against a real database (lib/db/migrate-sqlite.test.ts).
+  const { migrateSqliteDatabase } = await import("@/lib/db/migrate-sqlite");
+  migrateSqliteDatabase(stripSqlitePrefix(databaseUrl), MIGRATIONS_DIR_SQLITE);
 }
 
 async function main(): Promise<void> {

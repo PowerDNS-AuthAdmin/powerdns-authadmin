@@ -39,6 +39,24 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Unreleased
+
+No schema change, no migration. Two things to know:
+
+- **SQLite installs that upgraded through 1.1.0** may have lost data at that
+  upgrade: the `pdns_servers` table rebuild in migration 0003 cascaded into
+  `zone_grants` (per-zone permissions for users and teams), `metric_samples` and
+  `pdns_server_stats` (dashboard history), and detached `pdns_requests` rows from
+  their backend. Postgres installs are unaffected. The migration runner is fixed
+  so this cannot recur; the lost rows cannot be recovered by the app. Check
+  **Admin → Users** (and Teams) for per-zone grants you expect to see and
+  re-create any that are missing. Metrics history refills over the retention
+  window.
+- **Backup / restore now works.** `GET /api/admin/backup/export` returned 500 on
+  Postgres whenever the audit log had rows, and `POST /api/admin/backup/restore`
+  inserted nothing while reporting success. Backups taken with earlier versions
+  are empty or incomplete - take a fresh export after upgrading.
+
 ### Upgrading to 1.8.4 (from 1.8.3)
 
 No migration, no schema change, no config change - pull the new tag and
