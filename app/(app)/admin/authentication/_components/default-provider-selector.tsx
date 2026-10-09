@@ -18,6 +18,7 @@
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { useDialog } from "@/components/ui/dialog";
+import { useUnsavedChangesGuard } from "@/components/ui/use-unsaved-changes-guard";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { mutate } from "@/lib/client/api-fetch";
 
@@ -46,6 +47,7 @@ export function DefaultProviderSelector({ initial, options, canEdit }: Props) {
   const selectId = useId();
 
   const dirty = value !== initial;
+  useUnsavedChangesGuard(dirty);
 
   // The setting may resolve to a value whose backing provider no longer
   // exists (deleted after being set as default). Show a synthetic "stale"

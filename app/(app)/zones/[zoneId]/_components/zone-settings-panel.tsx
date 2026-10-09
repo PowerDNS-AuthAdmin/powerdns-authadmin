@@ -19,6 +19,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDialog } from "@/components/ui/dialog";
+import { useUnsavedChangesGuard } from "@/components/ui/use-unsaved-changes-guard";
 import { mutate } from "@/lib/client/api-fetch";
 import { Switch } from "@/components/ui/switch";
 import { SelectMenu, type SelectOption } from "@/components/ui/select-menu";
@@ -104,6 +105,7 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
     soaEditApi !== (initial.soa_edit_api ?? "") ||
     apiRectify !== (initial.api_rectify ?? false) ||
     internal !== initialInternal;
+  useUnsavedChangesGuard(dirty);
 
   async function handleSave() {
     setSaving(true);

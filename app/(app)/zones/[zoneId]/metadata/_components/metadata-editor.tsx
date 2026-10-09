@@ -10,6 +10,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useDialog } from "@/components/ui/dialog";
+import { useUnsavedChangesGuard } from "@/components/ui/use-unsaved-changes-guard";
 import { mutate } from "@/lib/client/api-fetch";
 import { isKindApiWritable } from "./kind-specs";
 import { MetadataValuesInput } from "./metadata-values-input";
@@ -29,6 +30,7 @@ export function MetadataEditor({ zoneIdEncoded, serverSlug, kind, initialValues 
   const [deleting, setDeleting] = useState(false);
 
   const dirty = !sameValues(values, initialValues);
+  useUnsavedChangesGuard(dirty);
   const writable = isKindApiWritable(kind);
 
   if (!writable) {
