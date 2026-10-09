@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { getKindSpec, isBoolTrue } from "./kind-specs";
 import { Switch } from "@/components/ui/switch";
+import { SelectMenu } from "@/components/ui/select-menu";
 
 interface Props {
   kind: string;
@@ -14,12 +15,16 @@ interface Props {
 /**
  * Renders the right input control for the given metadata `kind`:
  *   bool   → "On / Off" pill toggle
- *   enum   → React-style dropdown
+ *   enum   → themed select
  *   list   → textarea (one per line) + per-line validation
  *   string → single-line text input
  *
  * Anything not in `KIND_SPECS` falls through to a textarea - covers
  * X-prefixed custom kinds and any new PDNS kinds we don't know yet.
+ *
+ * The controls carry the kind name as their accessible name: the visible
+ * heading on the metadata page is the kind itself, and the editor rows
+ * have no `<label>` of their own.
  */
 export function MetadataValuesInput({ kind, values, onChange }: Props) {
   const spec = getKindSpec(kind);
@@ -32,7 +37,7 @@ export function MetadataValuesInput({ kind, values, onChange }: Props) {
         <Switch
           checked={on}
           onChange={(next) => onChange([next ? "1" : "0"])}
-          ariaLabel="Toggle value"
+          ariaLabel={`${kind} value`}
         />
         <span className="font-mono text-xs">{on ? "1 (enabled)" : "0 (disabled)"}</span>
       </div>
@@ -42,7 +47,13 @@ export function MetadataValuesInput({ kind, values, onChange }: Props) {
   if (spec.type === "enum") {
     const current = values[0] ?? "";
     return (
-      <EnumSelect value={current} options={spec.options} onChange={(next) => onChange([next])} />
+      <SelectMenu
+        value={current}
+        options={spec.options.map((o) => ({ value: o, label: o }))}
+        onChange={(next) => onChange([next])}
+        placeholder="Select…"
+        ariaLabel={`${kind} value`}
+      />
     );
   }
 
@@ -54,6 +65,7 @@ export function MetadataValuesInput({ kind, values, onChange }: Props) {
         value={current}
         onChange={(e) => onChange(e.target.value.trim() === "" ? [] : [e.target.value])}
         placeholder="Single value"
+        aria-label={`${kind} value`}
         className="block w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-2 font-mono text-xs"
       />
     );
@@ -88,6 +100,8 @@ function ListTextarea({ kind, values, onChange }: Props) {
         onChange={(e) => onChange(e.target.value.split(/\r?\n/))}
         rows={Math.max(2, text.split(/\r?\n/).length + 1)}
         placeholder={lineHint ? `One value per line, e.g. ${lineHint}` : "One value per line"}
+        aria-label={`${kind} values, one per line`}
+        aria-invalid={lineErrors.length > 0 ? true : undefined}
         className="block w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-2 font-mono text-xs"
       />
       {lineErrors.length > 0 ? (
@@ -95,78 +109,6 @@ function ListTextarea({ kind, values, onChange }: Props) {
           {lineErrors.map((e) => (
             <li key={e.line}>
               Line {e.line} (<code className="font-mono">{e.value}</code>): {e.error}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
-
-interface EnumSelectProps {
-  value: string;
-  options: readonly string[];
-  onChange: (next: string) => void;
-}
-
-function EnumSelect({ value, options, onChange }: EnumSelectProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className="flex w-full items-center justify-between rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5 text-left font-mono text-xs hover:border-[color:var(--color-fg-muted)]"
-      >
-        <span className={value ? "" : "text-[color:var(--color-fg-muted)]"}>
-          {value || "Select…"}
-        </span>
-        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden className="ml-2 opacity-60">
-          <path
-            d="M2 4l3 3 3-3"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-      {open ? (
-        <ul
-          role="listbox"
-          className="absolute right-0 left-0 z-10 mt-1 max-h-60 overflow-auto rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] py-1 text-xs shadow-lg"
-        >
-          {options.map((o) => (
-            <li
-              key={o}
-              role="option"
-              aria-selected={o === value}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                onChange(o);
-                setOpen(false);
-              }}
-              className={`cursor-pointer px-2 py-1.5 font-mono ${
-                o === value
-                  ? "bg-[color:var(--color-bg-subtle)] font-medium"
-                  : "hover:bg-[color:var(--color-bg-subtle)]"
-              }`}
-            >
-              {o}
             </li>
           ))}
         </ul>

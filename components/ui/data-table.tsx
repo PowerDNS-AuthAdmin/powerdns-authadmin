@@ -411,6 +411,7 @@ export function DataTable<TData>({
                 }
               }}
               placeholder={searchPlaceholder}
+              aria-label={searchPlaceholder.replace(/…$/, "")}
               aria-keyshortcuts={searchShortcut ? "/" : undefined}
               className={`block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] py-1.5 pl-8 text-sm focus:ring-2 focus:ring-[color:var(--color-accent)] focus:outline-none ${
                 searchShortcut ? "pr-9" : "pr-3"
@@ -523,24 +524,34 @@ export function DataTable<TData>({
                   {headerGroup.headers.map((header) => {
                     const canSort = header.column.getCanSort();
                     const sortDir = header.column.getIsSorted();
+                    const label = header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext());
+                    const sortIcon = canSort ? (
+                      sortDir === "asc" ? (
+                        <ChevronUp className="h-3 w-3" aria-hidden />
+                      ) : sortDir === "desc" ? (
+                        <ChevronDown className="h-3 w-3" aria-hidden />
+                      ) : (
+                        <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden />
+                      )
+                    ) : null;
                     return (
                       <th
                         key={header.id}
                         scope="col"
                         className={[
-                          "px-4 py-2.5",
+                          // Sortable headers carry their padding on the inner
+                          // button so the whole cell stays the click target.
+                          canSort ? "p-0" : "px-4 py-2.5",
                           // Action columns (no header text) shrink to content so
                           // the table's spare width spreads across the data
                           // columns instead of opening a gap before the actions.
                           layout === "auto" && isUnlabeledColumn(header.column.columnDef)
                             ? "w-px whitespace-nowrap"
                             : "",
-                          canSort
-                            ? "cursor-pointer select-none hover:bg-[color:var(--color-bg-muted)]"
-                            : "",
                           header.column.columnDef.meta?.className ?? "",
                         ].join(" ")}
-                        onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                         aria-sort={
                           sortDir === "asc"
                             ? "ascending"
@@ -551,20 +562,23 @@ export function DataTable<TData>({
                                 : undefined
                         }
                       >
-                        <span className="inline-flex items-center gap-1.5">
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(header.column.columnDef.header, header.getContext())}
-                          {canSort ? (
-                            sortDir === "asc" ? (
-                              <ChevronUp className="h-3 w-3" aria-hidden />
-                            ) : sortDir === "desc" ? (
-                              <ChevronDown className="h-3 w-3" aria-hidden />
-                            ) : (
-                              <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden />
-                            )
-                          ) : null}
-                        </span>
+                        {canSort ? (
+                          // A real button so the sort is reachable from the
+                          // keyboard - `aria-sort` on a click-only <th> advertised
+                          // a control that didn't exist. Preflight resets
+                          // `text-transform` on buttons, so the thead's
+                          // `uppercase` is restated here.
+                          <button
+                            type="button"
+                            onClick={header.column.getToggleSortingHandler()}
+                            className="flex w-full items-center gap-1.5 px-4 py-2.5 text-left tracking-wide uppercase select-none hover:bg-[color:var(--color-bg-muted)] focus-visible:-outline-offset-2"
+                          >
+                            {label}
+                            {sortIcon}
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5">{label}</span>
+                        )}
                       </th>
                     );
                   })}
