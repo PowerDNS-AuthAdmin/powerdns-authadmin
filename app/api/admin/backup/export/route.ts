@@ -42,9 +42,11 @@ import {
   zoneGrants,
   zoneTemplates,
 } from "@/lib/db/schema";
+import { backupJsonReplacer } from "@/lib/db/backup-codec";
 import { APP_VERSION_LABEL } from "@/lib/app-meta";
 import { errorResponse } from "@/lib/http/error-response";
 import { ForbiddenError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 
 export async function GET(): Promise<Response> {
   try {
@@ -155,8 +157,9 @@ export async function GET(): Promise<Response> {
 
     // Pretty-printed for diff-ability. The size cost (~2x vs minified)
     // is acceptable for a DR artifact; operators frequently want to
-    // inspect a backup with `less` before restoring.
-    const body = JSON.stringify(bundle, dateReplacer, 2);
+    // inspect a backup with `less` before restoring. The replacer carries
+    // the two values JSON can't: Postgres bigserial ids (BigInt) and Dates.
+    const body = JSON.stringify(bundle, backupJsonReplacer, 2);
     const filename = `pda-backup-${new Date().toISOString().slice(0, 10)}.json`;
     return new Response(body, {
       status: 200,
@@ -169,15 +172,4 @@ export async function GET(): Promise<Response> {
   } catch (err) {
     return errorResponse(err, "admin.backup.export.route.error");
   }
-}
-
-/**
- * `Date` instances → ISO strings. Drizzle returns timestamps as Date
- * objects; JSON.stringify would otherwise call their `.toJSON()`
- * (already ISO), which is fine - this replacer is belt-and-braces in
- * case any column type surprises us with a different Date variant.
- */
-function dateReplacer(_key: string, value: unknown): unknown {
-  if (value instanceof Date) return value.toISOString();
-  return value;
 }

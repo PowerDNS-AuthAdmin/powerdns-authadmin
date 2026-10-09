@@ -46,6 +46,23 @@ export function countStar(): SQL<number> {
 }
 
 /**
+ * After inserting rows with explicit ids into a table whose primary key is a
+ * Postgres `serial`/`bigserial`, move the backing sequence past the highest id
+ * present. Postgres does not advance a sequence on explicit-id inserts, so a
+ * restore into a fresh database would otherwise leave `nextval()` at 1 and the
+ * next ordinary insert would collide with a restored row. SQLite's AUTOINCREMENT
+ * tracks the max rowid on every insert, so there the statement is `null` (nothing
+ * to run). `table` and `column` are compile-time constants at every call site -
+ * never pass user input.
+ */
+export function serialSequenceResync(table: string, column: string): SQL | null {
+  if (isSqlite) return null;
+  // `setval` is strict: a table without a sequence makes
+  // `pg_get_serial_sequence` return NULL and the call a harmless no-op.
+  return sql`SELECT setval(pg_get_serial_sequence(${table}, ${column}), COALESCE((SELECT MAX(${sql.identifier(column)}) FROM ${sql.identifier(table)}), 0) + 1, false)`;
+}
+
+/**
  * Extract a top-level string field from a JSON column in the active dialect.
  * Postgres uses `->>`; SQLite uses `json_extract(col, '$.key')`. The key is
  * embedded as a JSON-path component without escaping (call sites use

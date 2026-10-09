@@ -12,7 +12,7 @@
  *   - meta.schema_version must be 1.
  *   - tables must be an object keyed by known names.
  *   - row shapes are trusted (the export was produced by this app);
- *     a malformed row fails the per-table insert and audit reports it.
+ *     a malformed row fails the per-row insert and is counted as `failed`.
  *
  * Encrypted columns ride through as-is - the restore target MUST
  * share the source `APP_ENCRYPTION_KEY`, or operator-issued secrets
@@ -21,13 +21,14 @@
  */
 
 import { headers } from "next/headers";
-import { getTableColumns, sql } from "drizzle-orm";
 import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { assertSettingsBackupAllowed } from "@/lib/auth/settings-lock";
 import { db } from "@/lib/db";
+import { normalizeBackupRow } from "@/lib/db/backup-codec";
+import { serialSequenceResync } from "@/lib/db/sql-dialect";
 import {
   apiTokens,
   auditLog,
@@ -81,6 +82,23 @@ const TABLE_ORDER = [
   ["audit_log", auditLog],
 ] as const;
 
+/**
+ * Tables whose primary key is a database-generated serial. Restored rows carry
+ * their original ids, so the sequence has to be moved past them afterwards or
+ * the next ordinary insert collides (Postgres only - see `serialSequenceResync`).
+ */
+const SERIAL_PK_TABLES: ReadonlyArray<readonly [string, string]> = [["audit_log", "id"]];
+
+export interface RestoreTableCounts {
+  attempted: number;
+  /** Rows the database actually added. */
+  inserted: number;
+  /** Rows that already existed (ON CONFLICT DO NOTHING). */
+  skipped: number;
+  /** Rows the database rejected; each one is logged. */
+  failed: number;
+}
+
 export async function POST(request: Request): Promise<Response> {
   try {
     const { user, globalPermissions } = await requireUser();
@@ -116,57 +134,50 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    const counts: Record<string, { attempted: number; inserted: number; skipped: number }> = {};
+    const counts: Record<string, RestoreTableCounts> = {};
 
     await db.transaction(async (tx) => {
       for (const [name, table] of TABLE_ORDER) {
         const rows = bundle.tables?.[name];
         if (!Array.isArray(rows) || rows.length === 0) continue;
 
-        // Date columns ride through as ISO strings in the JSON; Drizzle
-        // converts them on insert when the column type expects a Date.
-        // Postgres-side timestamp columns accept ISO strings verbatim.
-        // SQLite stores timestamps as integers - Drizzle parses the ISO
-        // string back to a Date via its `mode: "timestamp_ms"` mapping.
-        //
-        // The allowlist is the table's real column names - keys in the
-        // uploaded JSON that aren't columns (including prototype-polluting
-        // `__proto__` / `constructor`) are dropped before we ever write to
-        // a property named after user input.
-        const validColumns = new Set(Object.keys(getTableColumns(table)));
-        const prepared = rows.map((r) => normalizeRow(r as Record<string, unknown>, validColumns));
+        // JSON carried dates as ISO strings and bigserial ids as decimal
+        // strings; the codec converts them back by COLUMN TYPE and drops any
+        // key that isn't a column (so user-supplied keys can never name a
+        // property outside the table's fixed allowlist).
+        const prepared = rows.map((r) =>
+          normalizeBackupRow(table, (r ?? {}) as Record<string, unknown>),
+        );
 
         let inserted = 0;
+        let failed = 0;
         for (const row of prepared) {
           try {
-            const res = await tx.insert(table).values(row).onConflictDoNothing();
-            // Drizzle's `.returning()` would tell us rowsAffected; without it
-            // we trust onConflictDoNothing's silent skip and report by diff.
-            // For now we count the attempt; the truth is in row count
-            // before vs after, but that's costly per-row. Good enough:
-            // attempted minus failed = inserted-or-skipped.
-            void res;
-            inserted += 1;
+            // `.returning()` yields the inserted row, or nothing when the
+            // conflict clause swallowed it - the only way to tell a real
+            // insert from a no-op without a before/after count.
+            const written = await tx.insert(table).values(row).onConflictDoNothing().returning();
+            if (written.length > 0) inserted += 1;
           } catch (err) {
+            failed += 1;
             logger.warn(
-              {
-                table: name,
-                err: err instanceof Error ? err.message : "unknown",
-              },
+              { table: name, err: err instanceof Error ? err.message : "unknown" },
               "admin.backup.restore.row-failed",
             );
           }
         }
         counts[name] = {
           attempted: prepared.length,
-          // Without per-row insert telemetry we surface attempted vs
-          // failed; "inserted" here means "successfully sent to DB",
-          // which conflates real inserts with no-op conflicts. Good enough
-          // for an audit row - operators wanting exact deltas should
-          // diff the export against a fresh export post-restore.
           inserted,
-          skipped: prepared.length - inserted,
+          skipped: prepared.length - inserted - failed,
+          failed,
         };
+      }
+
+      for (const [tableName, column] of SERIAL_PK_TABLES) {
+        if (!counts[tableName] || counts[tableName].inserted === 0) continue;
+        const statement = serialSequenceResync(tableName, column);
+        if (statement) await tx.execute(statement);
       }
 
       const hdrs = await headers();
@@ -182,41 +193,9 @@ export async function POST(request: Request): Promise<Response> {
       );
     });
 
-    return Response.json({ ok: true, counts });
+    const anyFailed = Object.values(counts).some((c) => c.failed > 0);
+    return Response.json({ ok: !anyFailed, counts });
   } catch (err) {
     return errorResponse(err, "admin.backup.restore.route.error");
   }
 }
-
-/**
- * Project a user-supplied row onto the table's real columns and convert
- * any ISO-string `*_at` field back to a Date instance.
- *
- * Keys are checked against `validColumns` (the table's actual column
- * names) before any write - so a key derived from the uploaded JSON can
- * never name a property outside that fixed allowlist. This closes the
- * remote-property-injection / prototype-pollution vector (a malicious
- * bundle with a `__proto__` or `constructor` key is simply ignored,
- * since those aren't columns) and incidentally drops junk fields that
- * Drizzle would reject on insert anyway.
- */
-function normalizeRow(
-  row: Record<string, unknown>,
-  validColumns: ReadonlySet<string>,
-): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const key of Object.keys(row)) {
-    if (!validColumns.has(key)) continue;
-    const value = row[key];
-    if (key.endsWith("_at") && typeof value === "string") {
-      const d = new Date(value);
-      out[key] = Number.isNaN(d.getTime()) ? value : d;
-    } else {
-      out[key] = value;
-    }
-  }
-  return out;
-}
-
-// Re-export so the linter sees `sql` is used elsewhere in this module if needed.
-void sql;
