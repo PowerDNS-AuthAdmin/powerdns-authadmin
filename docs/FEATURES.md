@@ -230,10 +230,12 @@ the audit trail behave identically whichever door the user came through.
     ownership, and signup users have no session yet), redeemed on `/verify-email`.
   - **Email change.** From `/profile`, with the current password re-entered; the token is
     bound to `(user, new email)` and confirmed on `/change-email`.
-  - **Delivery.** Sent by mail when `SMTP_*` is configured (§ 13). Otherwise the link is
-    printed once in the server log at warn level and is never stored in the audit log; the
-    operator hands it over out-of-band, or uses the admin **Reset password** action on
-    `/admin/users/<id>` (one-time temporary password, sessions revoked) instead.
+  - **Delivery.** Sent by mail when `SMTP_*` is configured (§ 13). Otherwise the
+    verification and email-change links are recorded on their audit row (`after.url`) for an
+    operator with `audit.read` to hand over out-of-band. The password-reset link is the
+    exception: it is printed once in the server log at warn level and never stored in the
+    audit log; the supported alternative is the admin **Reset password** action on
+    `/admin/users/<id>` (one-time temporary password, sessions revoked).
 - **Where.** `app/api/auth/{signup,forgot-password,reset-password}/`,
   `app/api/auth/email/{send-verification,verify}/`, `app/api/profile/email/change/` (+
   `confirm/`), `app/(auth)/{signup,reset-password,verify-email}/`,
@@ -924,11 +926,11 @@ vocabulary where a 1:1 mapping exists. Rows written before a rename keep the old
 ## 13. Email / SMTP
 
 - **What.** Optional transactional mail. With `SMTP_HOST` unset, `sendEmail()` no-ops with
-  `{ ok: true, skipped: true }`; the password-reset, email-verification and email-change
-  flows then print their link once in the server log (warn level) and never store it in the
-  audit log - an operator reads it from the container logs and hands it over out-of-band,
-  or uses the admin **Reset password** action on `/admin/users/<id>` instead. With it set,
-  three encryption shapes are supported:
+  `{ ok: true, skipped: true }`; the email-verification and email-change flows then record
+  their link on the audit row (`after.url`) for an operator to pass on, while the
+  password-reset flow prints its link once in the server log (warn level) and never stores it
+  in the audit log - the admin **Reset password** action on `/admin/users/<id>` is the
+  supported alternative. With it set, three encryption shapes are supported:
   implicit TLS (`SMTP_SECURE=true`), STARTTLS required, STARTTLS opportunistic (default), or
   plaintext-only for local fakemail. AUTH is optional - omit `SMTP_USERNAME` + `SMTP_PASSWORD`
   for a relay that allow-lists this app's source IP.

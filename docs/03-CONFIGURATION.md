@@ -107,12 +107,13 @@ page.
 
 **`SMTP_*` must be configured** (see [Email / SMTP](#email--smtp-optional)) for verification
 links to be **delivered**. Without SMTP the signup flow still works, but the
-verification link is only printed **once in the server log** (warn level) - it is
-never stored in the audit log - so an operator has to read it from the container
-logs and hand it to the user out-of-band. The password-reset and email-change
-flows behave the same way; for a forgotten password the supported alternative is
-the admin **Reset password** action on `/admin/users/<id>`, which issues a
-one-time temporary password.
+verification link is only recorded in the audit log (action
+`auth.email.verify.sent`, field `after.url`) for an operator with `audit.read` to
+share out-of-band - the same fallback the email-change flow uses. The
+**password-reset** link is handled differently: it is printed once in the server
+log (warn level) and never stored in the audit log; for a forgotten password the
+supported alternative is the admin **Reset password** action on
+`/admin/users/<id>`, which issues a one-time temporary password.
 
 **Boot-time guard.** When `SIGNUP_ENABLED=true`, the seed step validates
 `SIGNUP_DEFAULT_ROLE` _after_ the system roles are upserted: it must resolve to an
@@ -261,10 +262,12 @@ On by default. Full reference with the reverse-proxy notes in
 ## Email / SMTP (optional)
 
 With `SMTP_HOST` unset, mail is skipped - verify-email, password reset, and
-email-change links aren't sent; each flow instead prints its link once in the
-server log (warn level) for an operator to pass on, and nothing is written to
-the audit log. With it set, the rest must be coherent (validated at boot). Pick
-**one** encryption shape.
+email-change links aren't sent. Verification and email-change links are then
+recorded on their audit row (`after.url`) for an operator to pass on; the
+password-reset link is printed once in the server log (warn level) and never
+stored in the audit log - use the admin **Reset password** action instead. With
+it set, the rest must be coherent (validated at boot). Pick **one** encryption
+shape.
 
 | Variable                          | Default            | Notes                                                   |
 | --------------------------------- | ------------------ | ------------------------------------------------------- |
