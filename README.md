@@ -80,6 +80,9 @@ ready-to-use install without a single click.
   reference.
 - **Observability.** Pino structured logs (secret-redacted), bearer-gated Prometheus `/metrics`,
   `/healthz` liveness, `/readyz` readiness (200 when the database is reachable, 503 otherwise).
+- **Natural-language DNS (MCP).** A built-in [Model Context Protocol](./docs/14-MCP.md) server
+  lets Claude Code, Codex, Cursor and any MCP client manage zones and records from a prompt,
+  with every call scoped to a personal access token and written to the audit log.
 - **Self-contained.** One Docker image, no CDN, no telemetry phone-home. Migrations run inside
   the app entrypoint; on Postgres they're serialized by an advisory lock so multi-replica boots
   are safe.
@@ -175,6 +178,37 @@ cleanly. Screenshots are rendered inside an iPhone 16 Pro bezel by
 
 Full gallery - every page, four variants:
 [**screenshots/README.md**](./screenshots/README.md).
+
+## Talk to your DNS
+
+PowerDNS-AuthAdmin ships an **MCP server** at `/api/mcp`, so an AI assistant can manage your
+zones the way you would describe it to a colleague:
+
+> "Point `www` on example.com at 192.0.2.10 and add an AAAA for 2001:db8::10."
+> "Which zones still have the old mail server? Replace their MX with mail.example.net."
+> "Create staging.example.com from the template and give it the same NS set as example.com."
+
+Three steps:
+
+1. **Profile → API tokens → Create**, pick the scopes the assistant may use (for example
+   `zone.read` + `record.*`, or a single per-zone grant).
+2. Connect your client to `https://<your-app>/api/mcp` with `Authorization: Bearer pda_pat_…`:
+
+   ```sh
+   claude mcp add --transport http powerdns https://dns.example.com/api/mcp \
+     --header "Authorization: Bearer pda_pat_xxxxxxxx"
+   ```
+
+   Codex, Cursor and others take the same URL and header - see
+   [docs/14-MCP.md](./docs/14-MCP.md) for each client.
+
+3. Ask.
+
+The assistant gets nine task-shaped tools (`list_zones`, `list_records`, `set_records`,
+`add_record`, `delete_records`, `create_zone`, …), never more power than the token's owner,
+and every change lands in the audit log under that owner's name with the client's user agent.
+Read-only tokens see a read-only server. Destructive tools are annotated so clients can ask
+before running them.
 
 ## Run it
 

@@ -1089,6 +1089,20 @@ folder (`drizzle/`, `drizzle-sqlite/`); the boot entrypoint picks one based on
 
 ---
 
+### 18.2 MCP server (natural-language DNS)
+
+- **What.** `POST /api/mcp` is a Model Context Protocol server (Streamable HTTP, stateless,
+  JSON responses) authenticated with a personal access token. It exposes nine task-shaped
+  tools - `list_backends`, `list_zones`, `get_zone`, `list_records`, `set_records`,
+  `add_record`, `delete_records`, `create_zone`, `delete_zone` - so Claude Code, Codex,
+  Cursor or any MCP client can manage zones from a prompt. Reads go through the same
+  `canActOnZone` gate as the pages; writes are dispatched into the existing REST route
+  handlers, so RBAC ceilings, validation, optimistic concurrency, audit and NOTIFY are the
+  ones the UI uses. Write tools are only advertised to tokens that can write somewhere;
+  browser sessions are refused on the endpoint.
+- **Where.** `app/api/mcp/route.ts`, `app/api/mcp/_server.ts`, `app/api/mcp/_dispatch.ts`,
+  `app/api/mcp/_records.ts`. Operator guide: [`docs/14-MCP.md`](./14-MCP.md).
+
 ## 19. Operator UX & responsive design
 
 Landed in v1.1.4 ([#51](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/51) /
