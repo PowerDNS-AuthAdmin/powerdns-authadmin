@@ -78,7 +78,7 @@ components/  React components. No data fetching, no secrets.
   domain/    Feature-specific (zone editor, record table).
 drizzle/     SQL migrations (generated, hand-edited only when necessary).
 tests/       Integration + e2e. Unit tests live next to the source file.
-docs/        Long-form docs, ADRs, runbooks.
+docs/        Long-form docs, ADRs (runbooks would go in docs/runbooks/ - none yet).
 ```
 
 ### Errors
@@ -110,7 +110,8 @@ explaining **what it does and why it exists**. Not what each line does - that's 
  * and telemetry happen in exactly one place.
  *
  * The PDNS API key is god-mode (no per-zone scoping); RBAC is enforced *above* this
- * client, never inside it. See docs/adr/0003-pdns-trust-boundary.md.
+ * client, never inside it. See docs/adr/0004-three-layer-architecture.md and
+ * docs/adr/0013-pdns-db-bridge.md.
  */
 ```
 
@@ -144,7 +145,7 @@ export async function applyRRsetChange(/* ... */) {
 
 The rule: **comment the _why_, not the _what_.**
 
-- ✅ `// Trailing dot is canonical at the PDNS API layer (see docs/adr/0004-naming).`
+- ✅ `// Trailing dot is canonical at the PDNS API layer (PowerDNS returns zone names with it).`
 - ❌ `// Append a dot to the zone name.`
 
 If a comment is just narrating the next line of code, delete it.
@@ -276,9 +277,10 @@ Conventions:
 ### Per-RR-type validator template
 
 The editor's record-content validators live in `lib/validators/rr-types/`. Currently typed:
-A, AAAA, CAA, CNAME, DNAME, DS, HTTPS, MX, NAPTR, NS, OPENPGPKEY, PTR, SMIMEA, SRV, SSHFP, SVCB,
-TLSA, TXT, URI (18 registered types across 17 files - `svcb.ts` holds both SVCB and HTTPS since
-RFC 9460 § 7 makes them wire-format-identical). Anything else falls through to a generic validator
+A, AAAA, CAA, CNAME, DNAME, DS, HTTPS, LUA, MX, NAPTR, NS, OPENPGPKEY, PTR, SMIMEA, SRV, SSHFP,
+SVCB, TLSA, TXT, URI (19 registered types across 18 files - `svcb.ts` holds both SVCB and HTTPS
+since RFC 9460 § 7 makes them wire-format-identical; `lua.ts` is the PowerDNS-specific LUA type,
+gated at write time by `lib/pdns/lua-enablement.ts`). Anything else falls through to a generic validator
 that warns about missing type-aware checks. Pick the canonical reference closest to your new
 type's shape:
 
@@ -363,9 +365,13 @@ because the inline backticks terminate the template.
 
 - **WCAG 2.1 AA is the target.** Keyboard navigation works everywhere. Forms have labels. Color is
   never the only signal.
-- **All user-visible strings go through i18n from day one.** No `<p>Welcome</p>` - `<p>{t('welcome')}</p>`.
-  Retrofitting i18n later is a nightmare we're not signing up for.
-- **`react-aria` / Radix primitives** are preferred over hand-rolled focus management.
+- **i18n is not wired up yet.** The UI ships English strings inline; there is no translation
+  layer or string catalogue in the codebase today. Keep user-visible copy in the component (not
+  in shared constants scattered across `lib/`) so a future extraction pass has one place to look.
+- **Accessible primitives are hand-rolled** in `components/ui/` (dialog, select-menu, data-table,
+  disclosure, switch) - there is no `react-aria` or Radix dependency. Reuse those primitives rather
+  than adding a new focus-management implementation; if one of them is missing a behaviour, fix it
+  there so every consumer gets it.
 
 ---
 

@@ -4,7 +4,7 @@
  * app/(app)/admin/authentication/saml/_components/saml-provider-form.tsx
  *
  * Shared create / edit form for a SAML provider. Structurally parallel to
- * the OIDC form (`../../oidc-providers/_components/oidc-provider-form.tsx`).
+ * the OIDC form (`../../oidc/_components/oidc-provider-form.tsx`).
  * SP private-key material is required on create and optional on edit (blank
  * keeps the existing encrypted value).
  */

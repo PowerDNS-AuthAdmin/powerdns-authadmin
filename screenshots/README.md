@@ -61,7 +61,7 @@ automatically.
   </picture>
 </p>
 
-→ [Backend health advisories](../docs/FEATURES.md#37-backend-health-advisories)
+→ [Backend health advisories](../docs/FEATURES.md#38-backend-health-advisories)
 · [ADR-0015](../docs/adr/0015-backend-health-advisories.md)
 
 ---
@@ -86,7 +86,7 @@ view. Live-updates over SSE; sort/filter/paginate client-side.
 </p>
 
 → [Amalgamated zones list](../docs/FEATURES.md#41-amalgamated-zones-list)
-· [Sync probes](../docs/FEATURES.md#33-sync-probes)
+· [Sync probes](../docs/FEATURES.md#34-sync-probes)
 
 ---
 
@@ -94,7 +94,9 @@ view. Live-updates over SSE; sort/filter/paginate client-side.
 
 Per-zone landing: kind / serial / DNSSEC status; last-edit attribution;
 backend (with cluster + RRset count); Clone-zone button; tabs for
-**Records**, **SOA**, **Zone settings**, **DNSSEC**, **Change history**.
+**Records**, **SOA**, **Zone settings**, **DNSSEC**, **Metadata & TSIG**,
+**Sync** and **Statistics** (with `PDNS_BACKGROUND_POLLING=true`), **Access**,
+**Change history** - each shown only to users holding its read permission.
 The records table groups records by RRset and surfaces type / TTL /
 value / comment in a per-row editor.
 
@@ -253,7 +255,7 @@ the team's resources.
   </picture>
 </p>
 
-→ [Scoped assignments](../docs/FEATURES.md#23-scoped-assignments)
+→ [Scoped assignments](../docs/FEATURES.md#24-scoped-assignments)
 
 ---
 
@@ -326,34 +328,35 @@ audit row points at a PDNS failure and you need the raw exchange.
   </picture>
 </p>
 
-→ [PDNS request log](../docs/FEATURES.md#36-pdns-request-log)
-· [PDNS HTTP client](../docs/FEATURES.md#35-pdns-http-client)
+→ [PDNS request log](../docs/FEATURES.md#37-pdns-request-log)
+· [PDNS HTTP client](../docs/FEATURES.md#36-pdns-http-client)
 
 ---
 
-## OIDC providers
+## Authentication
 
-Identity providers that show up on the sign-in page. Each provider's
-discovery cache is probed in the background; the row turns red if
-discovery fails. The env-configured provider (`OIDC_*`) is folded into
-the same table badged **Configured by ENV** so it isn't a hidden
-fallback. Per-provider email-domain allow-lists, group → role mapping,
-and a one-click Test discovery probe.
+The unified sign-in methods page (`/admin/authentication`): Local Auth plus
+every OIDC, SAML and LDAP provider in one table, with the **Default sign-in
+method** picker at the top. Each OIDC provider's discovery cache is probed
+in the background; the row turns red if discovery fails. The env-configured
+provider (`OIDC_*`) is folded into the same table badged **Configured by
+ENV** so it isn't a hidden fallback. Per-provider email-domain allow-lists,
+group → role mapping, and a one-click Test discovery probe.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/oidc-providers.png" />
-  <img src="./light/oidc-providers.png" alt="OIDC providers" />
+  <img src="./light/oidc-providers.png" alt="Authentication providers" />
 </picture>
 
 <p align="center">
   <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/oidc-providers-mobile.png" />
-  <img src="./light/oidc-providers-mobile.png" alt="OIDC providers on mobile" width="300" />
+  <img src="./light/oidc-providers-mobile.png" alt="Authentication providers on mobile" width="300" />
   </picture>
 </p>
 
 → [OIDC SSO](../docs/FEATURES.md#12-oidc-sso)
-· [Group → role mapping](../docs/FEATURES.md#13-group--role-mapping-oidc)
+· [Group → role mapping](../docs/FEATURES.md#13-group--role-mapping-oidc--saml--ldap)
 · [OIDC doc](../docs/05-OIDC.md)
 
 ---

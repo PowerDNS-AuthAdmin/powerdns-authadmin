@@ -1,5 +1,5 @@
 /**
- * app/(app)/admin/ldap-providers/[id]/page.tsx
+ * app/(app)/admin/authentication/ldap/[id]/page.tsx
  *
  * Edit / delete page for an LDAP provider. Same shape as the OIDC edit page
  * but without the discovery-probe header (LDAP has no analogue of OIDC
