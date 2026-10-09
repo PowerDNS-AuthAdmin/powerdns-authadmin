@@ -26,6 +26,16 @@ All notable changes to this project are documented here. The format is based on
   ([GHSA-cjq9-62q9-8jv4](https://github.com/advisories/GHSA-cjq9-62q9-8jv4)).
   `npm audit --omit=dev` is back to 0 vulnerabilities.
 
+### Fixed
+
+- **Session expiry showed the local login form even when the default sign-in
+  method is OIDC or SAML.** An expired or revoked session lands on
+  `/login?flash=session-required`, and the page treated any flash as a reason
+  not to auto-bounce to the default provider. A lost session now bounces to
+  the IdP like a plain visit (carrying `next`); explicit sign-out,
+  `?force-local=1` and real error codes still keep the form.
+  ([#153](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/153))
+
 ## [1.8.4] - 2026-10-07
 
 Layout fix for the inline record editor introduced in 1.8.3. **No schema
