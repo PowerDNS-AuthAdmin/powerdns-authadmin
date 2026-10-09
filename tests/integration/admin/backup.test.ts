@@ -40,7 +40,7 @@ describe("backup export + restore", () => {
       password: "backup-subject-pw-12345",
       roleSlug: SYSTEM_ROLES.readOnly,
     });
-    const team = await admin.sendJson<{ id: string }>("POST", "/api/admin/teams", {
+    const { team } = await admin.sendJson<{ team: { id: string } }>("POST", "/api/admin/teams", {
       name: "Backup Team",
       slug: `backup-team-${Date.now()}`,
     });
