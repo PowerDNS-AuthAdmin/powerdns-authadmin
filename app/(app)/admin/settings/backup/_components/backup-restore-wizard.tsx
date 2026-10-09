@@ -26,7 +26,10 @@ import { mutate } from "@/lib/client/api-fetch";
 
 type Step = "choose" | "backup" | "restore-upload" | "restore-confirm" | "restore-result";
 
-type RestoreCounts = Record<string, { attempted: number; inserted: number; skipped: number }>;
+type RestoreCounts = Record<
+  string,
+  { attempted: number; inserted: number; skipped: number; failed?: number }
+>;
 
 const CONFIRM_PHRASE = "RESTORE";
 
@@ -584,6 +587,9 @@ function RestoreResultStep({
                   <th scope="col" className="pb-2 text-right">
                     Skipped
                   </th>
+                  <th scope="col" className="pb-2 text-right">
+                    Failed
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -598,6 +604,15 @@ function RestoreResultStep({
                     </td>
                     <td className="py-1.5 text-right text-[color:var(--color-fg-muted)] tabular-nums">
                       {c.skipped}
+                    </td>
+                    <td
+                      className={`py-1.5 text-right tabular-nums ${
+                        (c.failed ?? 0) > 0
+                          ? "text-[color:var(--color-error-fg)]"
+                          : "text-[color:var(--color-fg-muted)]"
+                      }`}
+                    >
+                      {c.failed ?? 0}
                     </td>
                   </tr>
                 ))}
