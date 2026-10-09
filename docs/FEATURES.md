@@ -15,6 +15,11 @@ can jump straight into the code that owns each feature.
 
 ## 1. Authentication
 
+Operator guides: [OIDC](./05-OIDC.md), [SAML 2.0](./13-SAML.md), [LDAP](./12-LDAP.md),
+[Passkeys & security keys](./11-PASSKEYS.md). Every sign-in method ends in the same
+`VerifiedIdentity` → `startSession()` path (ADR-0018), so sessions, CSRF, MFA policy and
+the audit trail behave identically whichever door the user came through.
+
 ### 1.1 Local accounts (email + password)
 
 - **What.** Sign in with email + Argon2id-hashed password. OWASP 2024 parameters. Hashes are
@@ -114,11 +119,12 @@ can jump straight into the code that owns each feature.
 - **Where.** `lib/auth/tokens.ts`, `lib/db/repositories/api-tokens.ts`,
   `app/(app)/profile/_components/api-tokens-section.tsx`,
   `app/(app)/admin/users/_components/tokens-panel.tsx`,
-  `app/api/profile/api-tokens/`.
+  `app/api/profile/tokens/`.
 - **How.** From `/profile#api-tokens`, **Create token**, pick scopes + optional expiry. The
   plaintext value is shown ONCE and never round-tripped again. Use the token by sending it
   as `Authorization: Bearer pda_pat_…` or `X-API-Key: pda_pat_…`. Admins with `token.read.all`
-  see every user's token inventory under `/admin/users/<id>/tokens`.
+  see every user's token inventory on the **API tokens** tab of `/admin/users/<id>`. For SSO
+  users the token's permissions follow the IdP live - see § 1.13.
 
 ### 1.6 Sessions
 
@@ -128,7 +134,8 @@ can jump straight into the code that owns each feature.
 - **Where.** `lib/auth/session.ts`, `lib/auth/csrf.ts`, `lib/db/schema/sessions.ts`.
 - **How.** The per-user **Active sessions** panel at `/profile#sessions` lists every browser
   cookie tied to your account with its IP, last-seen timestamp, and a revoke button. Admins
-  manage other users' sessions from `/admin/users/<id>/sessions` (gated on `user.update`).
+  manage other users' sessions from the **Sessions** tab of `/admin/users/<id>` (gated on
+  `user.update`).
 
 ### 1.7 Rate limiting
 
@@ -141,6 +148,128 @@ can jump straight into the code that owns each feature.
   (`login_lockout_threshold` / `login_lockout_seconds`, § 1.1). Client IP for keys comes
   from the fronting proxy's `X-Forwarded-For`/`X-Real-IP` (`lib/client-ip.ts`); deploy behind a
   proxy that overwrites client-supplied XFF.
+
+### 1.8 Passkeys & security keys (WebAuthn)
+
+- **What.** WebAuthn credentials - platform passkeys (Touch ID, Windows Hello, iCloud Keychain,
+  password-manager passkeys) and roaming security keys (YubiKey and friends) - usable two ways:
+  **passwordless sign-in** via the "Sign in with passkey" button on `/login`, and as the
+  **second factor** after a password (the MFA step offers TOTP or Passkey). Either satisfies a
+  role's `requires_mfa`. A user can enrol any number of named credentials and remove them
+  individually; an admin can remove a credential from `/admin/users/<id>`, subject to the
+  target-privilege ceiling. Ceremonies run through `@simplewebauthn/server`; the RP ID defaults
+  to the `APP_URL` hostname and the RP name to the configured site name.
+- **Where.** `lib/auth/webauthn/{config,registration,assertion}.ts`,
+  `app/api/auth/webauthn/{assertion-options,assertion-verify}/` (sign-in),
+  `app/api/profile/mfa/webauthn/{registration-options,registration-verify,[credentialId]}/`
+  (enrol / rename / remove), `lib/auth/mfa-compliance.ts` (the `requires_mfa` check). Audit:
+  `auth.mfa.webauthn.enrolled|renamed|removed`. Decision record:
+  [ADR-0019](./adr/0019-webauthn-passkeys.md).
+- **How.** **Profile → Two-factor → Add a passkey.** `WEBAUTHN_*` env knobs (kill-switch, RP
+  ID override for apex/sub-domain sharing, user-verification and attestation policy) are in
+  [03-CONFIGURATION](./03-CONFIGURATION.md#webauthn--passkeys-optional); the full operator
+  guide, including the reverse-proxy notes, is [11-PASSKEYS](./11-PASSKEYS.md).
+
+### 1.9 SAML 2.0 single sign-on
+
+- **What.** A SAML service provider built on `@node-saml/node-saml`. Sign-in builds a signed
+  AuthnRequest and redirects via the HTTP-Redirect binding; the IdP POSTs its Response to the
+  ACS endpoint, where the signature is verified against the stored IdP certificate (optionally
+  requiring a signed Response as well as a signed Assertion), encrypted assertions are
+  decrypted with the SP encryption key, and the attributes are mapped to a `VerifiedIdentity`.
+  SP metadata is served per provider for one-click IdP registration; single logout is
+  supported. Per-provider `allowed_email_domains` and group → role mappings run through the
+  shared group sync (§ 1.3). SP private keys are encrypted at rest and never returned by the
+  API.
+- **Where.** `lib/auth/providers/saml.ts`,
+  `app/api/auth/saml/[slug]/{login,acs,metadata,slo}/`,
+  `app/(app)/admin/authentication/saml/`, `lib/db/schema/saml-providers.ts`,
+  `lib/validators/saml-providers.ts`, the `saml:` provisioning block. Audit:
+  `saml.provider.created|updated|deleted`; sign-ins reuse `auth.login.success|failure` with
+  `after.method: "saml"` and `after.provider`. Decision record:
+  [ADR-0021](./adr/0021-saml-architecture.md).
+- **How.** Generate the SP keypair, add the provider under **Admin → Authentication → Add
+  provider → SAML**, register `<APP_URL>/api/auth/saml/<slug>/acs` (or the metadata URL) at the
+  IdP. Worked examples for Authentik, Keycloak and AD FS in [13-SAML](./13-SAML.md).
+
+### 1.10 LDAP sign-in (Active Directory / OpenLDAP)
+
+- **What.** Direct bind-then-search-then-rebind against an existing directory: bind as a
+  service account, find the user with an operator-configured filter (`{{username}}`
+  substituted with RFC 4515 escaping), bind again as the user to check the password, then
+  resolve groups from a `memberOf`-style attribute or a group search. Strict TLS by default -
+  `ldaps://` or StartTLS, plain `ldap://` refused unless `LDAP_ALLOW_INSECURE_PORT_389=true`,
+  per-provider CA pin. The bind password is encrypted at rest. The login page shows a
+  username + password form per enabled LDAP provider; the route applies the same captcha and
+  rate limit as local login. Group → role mappings use the shared sync (§ 1.3).
+- **Where.** `lib/auth/providers/ldap.ts` (on `ldapts`),
+  `app/api/auth/ldap/[slug]/login/route.ts`, `app/(app)/admin/authentication/ldap/`,
+  `lib/db/schema/ldap-providers.ts`, `lib/validators/ldap-providers.ts`, the `ldap:`
+  provisioning block. Audit: `ldap.provider.created|updated|deleted`; sign-ins reuse
+  `auth.login.success|failure` with `after.method: "ldap"`. Decision record:
+  [ADR-0020](./adr/0020-ldap-architecture.md).
+- **How.** Add the directory under **Admin → Authentication → Add provider → LDAP**. Worked
+  Active Directory and OpenLDAP examples, plus the transport env knobs, in
+  [12-LDAP](./12-LDAP.md).
+
+### 1.11 Self-service signup, password reset, email verification and email change
+
+- **What.** Four signed-token flows for local accounts, all built so the response never
+  reveals whether an email exists:
+  - **Signup** (`SIGNUP_ENABLED`, off by default - `/signup` and `POST /api/auth/signup` are
+    404 when off). Creates an **unverified** user holding exactly `SIGNUP_DEFAULT_ROLE`
+    (the boot guard refuses an admin-equivalent role), enforces
+    `SIGNUP_ALLOWED_EMAIL_DOMAINS`, and blocks login until the address is verified.
+  - **Forgot password** (`allow_password_reset` setting; local accounts only).
+    `POST /api/auth/forgot-password` always answers 200, mints a `pdr_…` token, and
+    `/reset-password` consumes it. Single use without a consumed-tokens table: the token's
+    `issuedAt` must be newer than the user's `passwordHashUpdatedAt`. Every session is
+    revoked on completion.
+  - **Email verification.** `pde_…` tokens; `POST /api/auth/email/send-verification`
+    (authenticated) and `POST /api/auth/email/verify` (unauthenticated - the token proves
+    ownership, and signup users have no session yet), redeemed on `/verify-email`.
+  - **Email change.** From `/profile`, with the current password re-entered; the token is
+    bound to `(user, new email)` and confirmed on `/change-email`.
+  - **Delivery.** Sent by mail when `SMTP_*` is configured (§ 13). Otherwise the link is
+    printed once in the server log at warn level and is never stored in the audit log; the
+    operator hands it over out-of-band, or uses the admin **Reset password** action on
+    `/admin/users/<id>` (one-time temporary password, sessions revoked) instead.
+- **Where.** `app/api/auth/{signup,forgot-password,reset-password}/`,
+  `app/api/auth/email/{send-verification,verify}/`, `app/api/profile/email/change/` (+
+  `confirm/`), `app/(auth)/{signup,reset-password,verify-email}/`,
+  `app/(app)/change-email/`, `lib/auth/{password-reset-token,email-verification-token}.ts`,
+  `lib/auth/signup-policy.ts` (the boot guard), `lib/email/templates.ts`. Audit:
+  `auth.signup.rejected`, `auth.password.reset.{requested,completed,invalid}`,
+  `auth.email.verify.{sent,completed,invalid}`, `auth.email.change.{requested,completed,invalid}`.
+- **How.** Env and the end-to-end signup flow:
+  [03-CONFIGURATION → Self-service signup](./03-CONFIGURATION.md#self-service-signup).
+
+### 1.12 Captcha (Cloudflare Turnstile)
+
+- **What.** Optional bot gate on the credential-bearing POSTs: local login, LDAP login, signup,
+  forgot-password and change-password. With `TURNSTILE_SECRET_KEY` set the route requires a
+  token and verifies it server-side against Cloudflare's `siteverify` (the token is never
+  logged); with `TURNSTILE_SITE_KEY` set the forms render the widget. Set both for a
+  public-facing login. The verifier reads no env itself, so each route decides when captcha
+  is required.
+- **Where.** `lib/auth/captcha.ts`, `components/ui/turnstile-widget.tsx`; the Turnstile script
+  is allowed by the per-request CSP nonce (`lib/security/csp.ts`). A missing or failed token
+  is audited as `auth.login.failure` with `after.reason: captcha-missing|captcha-failed`.
+
+### 1.13 IdP-derived permissions and API tokens
+
+- **What.** Group-derived permissions live on the session (`sessions.derived_permissions`),
+  not in `role_assignments`, so they expire with the session. When an **API token** of an
+  OIDC or LDAP user is used, the app re-fetches the user's current groups live - OIDC via the
+  encrypted refresh token → userinfo, LDAP via a service-account search - recomputes
+  permissions through the same `computeGroupSync` that sign-in uses, and caches the result
+  for `IDP_PERMS_CACHE_TTL_SECONDS` (default 60 s). If the live call fails, or for SAML
+  (no back-channel), the token falls back to the latest session snapshot for up to
+  `TOKEN_IDP_FALLBACK_TTL_SECONDS` (default 24 h); after that it carries admin-issued
+  permissions only until the user signs in again. Token scopes still narrow the result.
+- **Where.** `lib/auth/providers/idp-perms-recompute.ts`, `lib/auth/providers/idp-perms-cache.ts`,
+  `lib/auth/providers/group-sync.ts`, `lib/auth/token-scope-narrowing.ts`. Audit:
+  `auth.token.idp_perms_refreshed` (one row per cache miss).
 
 ---
 
@@ -199,9 +328,32 @@ can jump straight into the code that owns each feature.
   filter every row through an instance check; everything else stays global-only.
 - **Where.** `lib/rbac/ability.ts`, `lib/rbac/policy.ts`,
   `lib/db/schema/role-assignments.ts`, `lib/db/schema/zone-grants.ts`.
-- **How.** Issue assignments from `/admin/users/<id>` (gated on `role.assign`) OR auto-issue
-  via OIDC group mapping (see § 1.3). The `provider_id` column distinguishes admin-issued
-  from OIDC-sourced; only OIDC-sourced ones get reconciled on sign-in.
+- **How.** Issue assignments from `/admin/users/<id>` (gated on `role.assign`), or let IdP
+  group mapping derive them per session (see § 1.3 and § 1.13). Admin-issued assignments and
+  IdP-derived permissions never overwrite each other.
+
+### 2.5 Per-zone grants and the Access tab
+
+- **What.** A `zone_grants` row gives a **user or a team** a list of permissions on exactly one
+  `(server, zone)` - no role needed. Team grants flow to every member through `team_members`,
+  so removing someone from the team revokes the access without touching per-user rows. On a
+  multi-primary cluster a grant on one peer authorizes the zone on every peer, so the
+  rotating peer picker never produces a spurious 403. Every zone-scoped permission in the
+  vocabulary (records, SOA, apex NS, DNSSEC, metadata, zone settings, export) works as a
+  grant, including the authority split from § 2.3. The zone's **Access** tab (gated on
+  `user.read`, since it reveals emails and team membership) lists every principal with
+  access to the zone: roles that carry any zone-scope permission, teams with grants, and
+  users with direct grants.
+- **Where.** `lib/db/schema/zone-grants.ts`, `lib/db/repositories/zone-grants.ts`,
+  `lib/rbac/zone-permissions.ts` (`canActOnZone`, cluster expansion),
+  `app/api/admin/users/[id]/zone-grants/` and `app/api/admin/teams/[id]/zone-grants/` (+
+  `[grantId]`), `app/(app)/zones/[zoneId]/_components/access-section.tsx`. Audit:
+  `zone.grant.create|delete`.
+- **How.** From the **Zone grants** tab on `/admin/users/<id>` (`user.update`) or the
+  Zone-grants section on `/admin/teams/<id>` (`team.update` on that team), pick a backend,
+  type the zone name (any case,
+  with or without the trailing dot - the route canonicalizes it) and tick permissions. The
+  grant can't exceed what the issuing operator holds themselves.
 
 ---
 
@@ -218,7 +370,7 @@ can jump straight into the code that owns each feature.
     MariaDB). Cluster appears as ONE entry in every selector.
 - **Where.** `lib/db/schema/pdns-servers.ts`, `lib/db/schema/pdns-clusters.ts`,
   `lib/db/repositories/{pdns-servers,pdns-clusters,selectable-backends}.ts`,
-  `app/(app)/admin/{servers,pdns-clusters}/`.
+  `app/(app)/admin/{servers,clusters}/`.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/powerdns-servers.png" />
@@ -464,6 +616,42 @@ can jump straight into the code that owns each feature.
   <img src="../screenshots/light/zone-change-history.png" alt="Zone change history" width="720" />
 </picture>
 
+### 4.6 Zone import / export (BIND zonefiles)
+
+- **What.** An **Import / Export** hub at `/admin/import-export` (sidebar: PowerDNS → Zones).
+  **Import** takes one or many zones in BIND format, pasted or uploaded (2 MiB cap): the
+  RFC 1035 parser splits multi-zone input at `$ORIGIN` boundaries, handles `$TTL`, `@`,
+  comments and parenthesised multi-line SOAs, refuses `$INCLUDE` (file-traversal vector) and
+  skips DNSSEC types (PowerDNS owns those). Each zone becomes one `createZone` call with its
+  rrsets pre-populated; failures are reported per zone instead of aborting the batch, and a
+  TSIG key can be attached to imported Master zones in the same pass (§ 7). The Lua gate
+  (§ 4.7) applies to imported `LUA` records. **Export** picks a backend and any number of
+  zones and downloads a single BIND bundle (`$TTL`, `$ORIGIN`, owner names relativised, the
+  apex as `@`); the per-zone `GET /api/admin/pdns/zones/[zoneId]/export` returns
+  `<zone>.zone` and is what the delete dialog uses to force a backup download first. Output
+  round-trips through BIND, NSD and `pdnsutil load-zone`.
+- **Where.** `app/(app)/admin/import-export/`, `app/api/admin/pdns/zones/{import,export}/`,
+  `app/api/admin/pdns/zones/[zoneId]/export/`, `lib/dns/zonefile-parser.ts`,
+  `lib/dns/zonefile-formatter.ts`, `lib/dns/zonefile.ts`. Audit: one `zone.create`
+  (`after.source: zonefile-import`) per imported zone, one `zone.export` per exported zone.
+- **How.** `zone.read` opens the hub and exports; `zone.create` imports. The `zone.import` /
+  `zone.export` permissions in the vocabulary are reserved for finer-grained gating and are
+  held by Operator and above.
+
+### 4.7 Lua records
+
+- **What.** The editor offers - and the write path accepts - the PowerDNS `LUA` type only when
+  the daemon actually has Lua armed: the global `enable-lua-records` setting **or** the zone's
+  `ENABLE-LUA-RECORDS` metadata. The check is re-read live from PowerDNS on every Lua write
+  (RRset PATCH and zonefile import alike) and fails closed, so a stale tab or crafted request
+  can't land executable records on a server that has Lua off. The content validator checks the
+  presentation format (`<query-type> "<snippet>"`, adjacent quoted chunks, `\DDD` escapes,
+  the 255-octet boundary) without attempting to parse Lua. Which backends have Lua armed is
+  visible from the capability badges (§ 3.10); the DNSSEC tab warns about Lua records on
+  replicated signed zones (§ 5).
+- **Where.** `lib/pdns/lua-enablement.ts`, `lib/pdns/metadata-policy.ts`,
+  `lib/validators/rr-types/lua.ts`.
+
 ---
 
 ## 5. DNSSEC
@@ -506,7 +694,25 @@ can jump straight into the code that owns each feature.
 - **What.** Manage shared-secret keys for AXFR + DDNS. Permission model splits `tsig.read`
   (list-only - name + algorithm) from `tsig.manage` (create / regenerate / reveal / delete)
   so an operator can audit the inventory without ever seeing the secret material.
-- **Where.** `lib/pdns/tsigkeys.ts`, `app/(app)/admin/tsig-keys/`.
+- **Replication helpers.**
+  - **Install on secondaries** - `POST /api/admin/pdns/tsig-keys/[id]/install` fetches the
+    key server-side and POSTs it to each of the primary's secondaries over their TSIG API; the
+    secret never reaches the browser. Version-gated (`supportsTsigApi`): older daemons report
+    `unsupported`, and a key with the same name but a different secret is reported, not
+    overwritten. Audit `tsig.install-secondaries`.
+  - **Manual install script** - `POST .../manual` returns a copy-paste script
+    (`pdnsutil import-tsig-key` + `set-meta`) for daemons without the TSIG API or air-gapped
+    boxes. It contains the secret, so it's returned as `text/plain` and audited as
+    `tsig.manual-reveal`.
+  - **Zone transfer key** - `POST /api/admin/pdns/zones/[zoneId]/tsig-transfer` adds or
+    removes a key on both ends at once: `TSIG-ALLOW-AXFR` on the primary's copy and
+    `AXFR-MASTER-TSIG` on each secondary that hosts the zone (additive, so other keys stay).
+    Gated on `metadata.write` like the raw metadata route; audited as
+    `zone.tsig-transfer.set`. The create-zone and import forms expose the same choice - a key
+    is selectable only when it exists on the primary and every participating secondary
+    (`lib/realtime/tsig-eligibility.ts`).
+- **Where.** `lib/pdns/tsig.ts`, `lib/pdns/tsig-install.ts`, `lib/realtime/tsig-replication.ts`,
+  `app/api/admin/pdns/tsig-keys/`, `app/(app)/admin/tsig-keys/`.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/tsig-keys.png" />
@@ -518,8 +724,10 @@ can jump straight into the code that owns each feature.
 ## 8. Autoprimaries
 
 - **What.** Configure supermaster registrations on a secondary PDNS so it auto-creates zones
-  on NOTIFY from a registered primary.
-- **Where.** `lib/pdns/autoprimaries.ts`, `app/(app)/admin/servers/[id]/_components/autoprimaries-panel.tsx`.
+  on NOTIFY from a registered primary. Gated on `autoprimary.manage`; audited as
+  `autoprimary.create|delete`.
+- **Where.** `lib/pdns/types.ts` (autoprimary schemas), `lib/pdns/client.ts`,
+  `app/api/admin/pdns/autoprimaries/`, `app/(app)/admin/autoprimaries/`.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/autoprimaries.png" />
@@ -547,6 +755,89 @@ can jump straight into the code that owns each feature.
   <img src="../screenshots/light/audit-log.png" alt="Audit log" width="720" />
 </picture>
 
+### 9.1 Audit action vocabulary
+
+Every row's `action` is one of the strings below (`lib/audit/actions.ts` is the source of
+truth; add there first). Names follow `<resource>.<verb>` and line up with the permission
+vocabulary where a 1:1 mapping exists. Rows written before a rename keep the old name.
+
+| Action                                                 | Written when                                                                                                                                                    |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------- |
+| `auth.login.success`                                   | A sign-in completed (any method; `after.method` is `local`, `oidc`, `saml`, `ldap`, `webauthn-primary` or `webauthn-second-factor`, `after.provider` the slug). |
+| `auth.login.failure`                                   | A sign-in was refused - bad credentials, lockout, captcha missing/failed, unverified email, MFA step failed.                                                    |
+| `auth.logout`                                          | A session was ended by its owner.                                                                                                                               |
+| `auth.password.changed`                                | A user changed their own password.                                                                                                                              |
+| `auth.mfa.enrolled`                                    | TOTP enrolled on the actor's own account.                                                                                                                       |
+| `auth.mfa.removed`                                     | TOTP removed (self-service, or by an admin - `actor` tells which).                                                                                              |
+| `auth.mfa.webauthn.enrolled`                           | A passkey / security key was registered.                                                                                                                        |
+| `auth.mfa.webauthn.removed`                            | A passkey / security key was deleted.                                                                                                                           |
+| `auth.mfa.webauthn.renamed`                            | A passkey / security key was given a new label.                                                                                                                 |
+| `auth.session.revoked`                                 | A user revoked one of their own sessions from `/profile`.                                                                                                       |
+| `auth.token.issued`                                    | An API token was created (`after` carries prefix, scopes, expiry - never the secret).                                                                           |
+| `auth.token.revoked`                                   | An API token was revoked.                                                                                                                                       |
+| `auth.idp.linked`                                      | Reserved in the vocabulary - not emitted today; an SSO first sign-in that provisions a user writes `user.create`.                                               |
+| `auth.idp.rejected_provisioning`                       | An SSO sign-in was refused before a user row was created (email domain not allowed, unverified email, disabled account).                                        |
+| `auth.signup.rejected`                                 | A self-service signup was refused by the email-domain allow-list (`after` carries the domain only).                                                             |
+| `auth.password.reset.requested`                        | A forgot-password request matched a real user and a reset token was minted.                                                                                     |
+| `auth.password.reset.completed`                        | A reset token was redeemed and the password replaced (sessions revoked).                                                                                        |
+| `auth.password.reset.invalid`                          | A reset token was rejected (expired, already used, bad signature).                                                                                              |
+| `auth.email.verify.sent`                               | A verification token was minted for a user.                                                                                                                     |
+| `auth.email.verify.completed`                          | An address was verified (`email_verified_at` set).                                                                                                              |
+| `auth.email.verify.invalid`                            | A verification token was rejected.                                                                                                                              |
+| `auth.email.change.requested`                          | A user asked to move their account to a new address (token bound to the new email).                                                                             |
+| `auth.email.change.completed`                          | The new address was confirmed and swapped in.                                                                                                                   |
+| `auth.email.change.invalid`                            | An email-change token was rejected.                                                                                                                             |
+| `auth.group_sync.mapping_unresolved`                   | A group → role mapping named a role / team / server that no longer exists; the mapping was skipped (`after.provider`).                                          |
+| `auth.token.idp_perms_refreshed`                       | An API token triggered a live IdP group re-fetch (one row per `IDP_PERMS_CACHE_TTL_SECONDS` window).                                                            |
+| `user.create`                                          | A user was created by an admin, by signup (`after.source: signup`) or by SSO auto-provisioning.                                                                 |
+| `user.update`                                          | Profile fields, flags or MFA requirement changed by an admin.                                                                                                   |
+| `user.disable`                                         | An account was disabled.                                                                                                                                        |
+| `user.enable`                                          | Reserved in the vocabulary - not emitted today; re-enabling is written as `user.update` (the PATCH route only splits out `user.disable`).                       |
+| `user.delete`                                          | An account was deleted.                                                                                                                                         |
+| `user.password.reset`                                  | An admin issued a temporary password (the reveal is a separate one-time read).                                                                                  |
+| `user.session.revoked`                                 | An admin revoked one session of another user.                                                                                                                   |
+| `user.sessions.revoked`                                | An admin revoked every session of one user.                                                                                                                     |
+| `user.sessions.revoked_all`                            | An admin revoked every session in the system (`/api/admin/sessions`).                                                                                           |
+| `team.create` / `team.update` / `team.delete`          | Team lifecycle.                                                                                                                                                 |
+| `team.member.added` / `team.member.removed`            | Team membership changed.                                                                                                                                        |
+| `role.create` / `role.update` / `role.delete`          | Role lifecycle (permissions, `requires_mfa`, description).                                                                                                      |
+| `role.assignment.created` / `role.assignment.deleted`  | A `(user, role, scope)` assignment was issued or removed by an admin.                                                                                           |
+| `settings.write`                                       | One or more settings changed on `/admin/settings` (before/after per key).                                                                                       |
+| `audit.export`                                         | The audit log was exported as CSV (filters in `after`).                                                                                                         |
+| `oidc.provider.created                                 | updated                                                                                                                                                         | deleted` | OIDC provider lifecycle (client secret redacted). |
+| `oidc.provider.refresh-all`                            | Operator re-probed discovery for every enabled OIDC provider (one row per click).                                                                               |
+| `saml.provider.created                                 | updated                                                                                                                                                         | deleted` | SAML provider lifecycle (SP keys redacted).       |
+| `ldap.provider.created                                 | updated                                                                                                                                                         | deleted` | LDAP provider lifecycle (bind password redacted). |
+| `pdns_server.refresh-all`                              | Operator re-probed every active backend's version / capabilities (one row per click).                                                                           |
+| `backend_advisory.acknowledge`                         | An operator dismissed a health-bell advisory; the condition stays monitored.                                                                                    |
+| `zone.create`                                          | A zone was created - UI, API, clone, template, import (`after.source`) or provisioning.                                                                         |
+| `zone.update`                                          | Reserved in the vocabulary - not emitted today; zone-object changes are written as `zone.settings.update`.                                                      |
+| `zone.delete`                                          | A zone was deleted (and its horizon classification dropped).                                                                                                    |
+| `zone.notify`                                          | A NOTIFY was sent to the zone's secondaries (explicit, or as part of a write).                                                                                  |
+| `zone.metadata.set` / `zone.metadata.delete`           | A metadata kind was written or removed.                                                                                                                         |
+| `zone.settings.update`                                 | Kind, masters, SOA-EDIT(-API) or API-RECTIFY changed on the Zone settings tab.                                                                                  |
+| `zone.horizon.update`                                  | A zone was reclassified public ↔ internal (§ 4.1.1).                                                                                                            |
+| `zone.grant.create` / `zone.grant.delete`              | A per-zone grant was issued to or removed from a user or team (§ 2.5).                                                                                          |
+| `zone.export`                                          | A zone was rendered as a BIND zonefile for download.                                                                                                            |
+| `zone.tsig-transfer.set`                               | The zone's AXFR TSIG key was added or removed on primary + secondaries.                                                                                         |
+| `dnssec.cryptokey.create                               | update                                                                                                                                                          | delete`  | A cryptokey changed (create also rectifies).      |
+| `dnssec.enable` / `dnssec.disable` / `dnssec.rectify`  | Zone-level signing state changed or the zone was rectified (§ 5).                                                                                               |
+| `record.create` / `record.update` / `record.delete`    | An RRset changed (before/after snapshots; DynDNS updates are `record.update` with `after.source: dyndns`).                                                      |
+| `tsig.create` / `tsig.delete`                          | TSIG key lifecycle.                                                                                                                                             |
+| `tsig.reveal`                                          | A key's secret was shown to an operator.                                                                                                                        |
+| `tsig.install-secondaries`                             | A key was copied to the primary's secondaries over the TSIG API.                                                                                                |
+| `tsig.manual-reveal`                                   | The `pdnsutil` install script (containing the secret) was generated.                                                                                            |
+| `autoprimary.create` / `autoprimary.delete`            | Autoprimary (supermaster) registration changed.                                                                                                                 |
+| `template.create                                       | update                                                                                                                                                          | delete`  | Zone template lifecycle.                          |
+| `server.create` / `server.update` / `server.delete`    | PowerDNS backend lifecycle (API key redacted).                                                                                                                  |
+| `server.cluster.assigned` / `server.cluster.removed`   | Reserved in the vocabulary - not emitted today; a group change is a `server.update` whose before/after carries `clusterId`.                                     |
+| `cluster.create` / `cluster.update` / `cluster.delete` | Group / cluster lifecycle (peer-selection strategy).                                                                                                            |
+| `provisioning.applied`                                 | First-boot provisioning finished (`after` carries per-block counts).                                                                                            |
+| `provisioning.skipped`                                 | The file was present but the `provisioned_at` sentinel already existed.                                                                                         |
+| `provisioning.failed`                                  | The applier aborted (the boot fails too).                                                                                                                       |
+| `system.backup.exported`                               | The app-DB JSON backup was downloaded (`after` carries row counts per table).                                                                                   |
+| `system.backup.restored`                               | A backup was merged into the database (`after` carries inserted counts per table).                                                                              |
+
 ---
 
 ## 10. Settings
@@ -565,6 +856,26 @@ can jump straight into the code that owns each feature.
   <img src="../screenshots/light/settings.png" alt="Settings" width="720" />
 </picture>
 
+### 10.1 Backup & Restore
+
+- **What.** A super-admin wizard at `/admin/settings/backup` (every step inline, with a back
+  button). **Export** streams a JSON dump of the app database - users, roles, assignments,
+  teams, grants, tokens, providers, backends, clusters, templates, settings, advisories, the
+  audit log - as `{ meta, tables }`. It deliberately excludes PowerDNS zone data (the daemon
+  owns it) and the symmetric secrets (`APP_SECRET_KEY` / `APP_ENCRYPTION_KEY`, which stay in
+  the environment); encrypted columns export as ciphertext, so the file is useless without the
+  encryption key and safe to store next to the database. **Restore** is merge-mode only:
+  every row is inserted with `ON CONFLICT DO NOTHING` in forward-FK order inside one
+  transaction, guarded by a typed `RESTORE` confirmation, so it adds missing rows and never
+  overwrites existing ones. The restore target must share the source's
+  `APP_ENCRYPTION_KEY`. `SETTINGS_RO=true` blocks both directions (§ 17.1).
+- **Where.** `app/(app)/admin/settings/backup/`, `app/api/admin/backup/{export,restore}/`,
+  `lib/auth/settings-lock.ts`. Permission: `system.backup`, default-granted only to the seeded
+  Super Admin role. Audit: `system.backup.exported|restored` with per-table row counts.
+- **How.** For a true wipe-and-restore, or for PowerDNS zone data, use `pg_dump` /
+  `sqlite3 .backup` and your PowerDNS backend's own backups - see
+  [02-INSTALLATION → Backups](./02-INSTALLATION.md#backups).
+
 ---
 
 ## 11. Dashboard
@@ -572,12 +883,20 @@ can jump straight into the code that owns each feature.
 - **What.** At-a-glance widgets for operator attention surfaces:
   - **Users** - locked-out, no-MFA, unverified, must-change-password counts.
   - **PDNS backends** - never probed, stale > 24h.
-  - **OIDC providers** - never probed, failing.
+  - **OIDC providers** - never probed, failing discovery.
 
   Widgets are hidden when zero, so the dashboard stays quiet during steady-state.
 
-- **Where.** `app/(app)/dashboard/page.tsx`,
-  `lib/db/repositories/dashboard.ts`.
+- **PowerDNS metrics tab.** With `PDNS_BACKGROUND_POLLING=true`, a second tab charts each
+  backend's `/statistics` over time - query rate, latency, cache hit ratio, response
+  composition by qtype / rcode / size - from the `pdns_server_stats` time-series the poller
+  samples every ~60 s (plus a 5-minute snapshot). Counter metrics are plotted as per-second
+  rates, map metrics as donuts. Retention is pruned on the same cadence, bounded to the window
+  the dashboard reads. With polling off the tab is hidden and the heading carries an `(i)` hint
+  naming the env var.
+- **Where.** `app/(app)/dashboard/page.tsx`, `lib/db/repositories/dashboard.ts`,
+  `lib/metrics/{pdns-stats-sampler,dashboard-windows,retention}.ts`,
+  `components/domain/pdns-stat-chart.tsx`; sampling lives in `lib/realtime/zone-poller.ts`.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/dashboard.png" />
@@ -623,7 +942,7 @@ can jump straight into the code that owns each feature.
   up without a manual refresh. Backed by a single in-process zone-state poller; per-request
   PDNS calls are eliminated.
 - **Where.** `lib/realtime/event-bus.ts`, `lib/realtime/zone-poller.ts`,
-  `lib/realtime/zone-state-cache.ts`.
+  `lib/pdns/zone-state-cache.ts`.
 
 ---
 
@@ -638,7 +957,13 @@ can jump straight into the code that owns each feature.
   - **Health.** `/healthz` (liveness) + `/readyz` (readiness - 200 when the database is
     reachable, 503 otherwise; it does not yet check migration state. Migrations run before
     the server starts listening, so a booted replica has already applied them).
-- **Where.** `lib/logger.ts`, `app/metrics/`, `lib/metrics/`, `app/healthz/`, `app/readyz/`.
+  - **CSP violation reports.** `POST /api/csp-report` receives browser reports in both the
+    legacy `report-uri` shape and the Reporting-API shape, logs them at warn level and
+    answers 204. Unauthenticated by design (the most interesting violations come from
+    visitors who aren't signed in), so it is IP rate-limited and truncates oversized bodies.
+    Wired in via the `report-uri` + `report-to` directives the proxy emits.
+- **Where.** `lib/logger.ts`, `app/metrics/`, `lib/metrics/`, `app/healthz/`, `app/readyz/`,
+  `app/api/csp-report/`, `lib/security/csp.ts`.
 
 ---
 
@@ -662,6 +987,9 @@ All stacks use the official `powerdns/pdns-auth` image - there is no custom Powe
   auto-bootstrap.
 - `docker-compose-multi-primary.yml` - three writable peers sharing MariaDB.
 - `docker-compose-combined.yml` - all three topologies in one stack with seeded demo zones.
+- `docker-compose.ha.yml` - Postgres + Redis with three app replicas behind your own load
+  balancer; the reference for [running more than one replica](../README.md#high-availability-replicas--1)
+  (ADR-0016).
 
 ### 16.3 Storage
 
@@ -684,6 +1012,25 @@ folder (`drizzle/`, `drizzle-sqlite/`); the boot entrypoint picks one based on
 - **No telemetry phone-home.** Air-gapped enterprises are first-class.
 - **`SECURITY.md`** for the vulnerability disclosure policy.
 
+### 17.1 Public-demo locks (`BOOTSTRAP_ADMIN_RO`, `SETTINGS_RO`)
+
+- **What.** Two env switches for an install whose login is published (the hosted demo). Both
+  are pure env flags - no schema column, no migration - and no-ops when off, so real installs
+  are unaffected.
+  - **`BOOTSTRAP_ADMIN_RO=true`** (requires `BOOTSTRAP_ADMIN_EMAIL`) freezes the bootstrap
+    admin's own identity and credentials: password, email, name, TOTP / passkey enrolment,
+    disable / delete and role changes all return 403, whether attempted from `/profile` or by
+    another admin. Everything else the account can do is untouched - it is an identity lock,
+    not a read-only mode. The seed creates the account already compliant
+    (`must_change_password=false`) because it can no longer change its password.
+  - **`SETTINGS_RO=true`** freezes the whole Settings surface: `PATCH /api/admin/settings`
+    returns 403 for everyone, the form renders read-only, and Backup & Restore (§ 10.1) is
+    disabled in both directions.
+- **Where.** `lib/auth/bootstrap-admin.ts` (`isBootstrapAdminLocked` /
+  `assertBootstrapAdminMutable`), `lib/auth/settings-lock.ts` (`isSettingsReadOnly` /
+  `assertSettingsMutable` / `assertSettingsBackupAllowed`). Enforcement is at the route
+  handlers; the disabled UI affordances only exist to avoid dead-end clicks.
+
 ---
 
 ## 18. API
@@ -695,6 +1042,46 @@ folder (`drizzle/`, `drizzle-sqlite/`); the boot entrypoint picks one based on
   it automatically; programmatic clients omit it when authenticating via a PAT (the PAT itself
   proves the request is intentional).
 - The full route surface mirrors the admin UI - see `app/api/admin/` and `app/api/profile/`.
+
+### 18.1 DynDNS (`GET /nic/update`)
+
+- **What.** A DynDNS 2 endpoint for routers and `ddclient`-style updaters, so an existing
+  dynamic-DNS setup can point at AuthAdmin without a custom script. The client authenticates
+  with **HTTP Basic** where the user is the account **email** and the password is one of that
+  account's **API tokens** (`pda_pat_…`). The token must carry `record.update`, held either
+  globally or through a per-zone grant for the zone the hostname falls under (§ 2.5). The
+  route lists the zones of every active backend, picks the **longest matching zone** for the
+  hostname (label-anchored, so `evil-example.com` never matches `example.com`) and replaces
+  the hostname's `A` or `AAAA` RRset - chosen by the shape of the IP - with TTL 300. The
+  update is audited as `record.update` with `after.source: dyndns`.
+- **Contract.** As the protocol demands, the response is **always HTTP 200** with a
+  `text/plain` body the client parses: `good <ip>` on success, `badauth` (with a Basic
+  challenge), `nohost` (no matching zone, or no permission on it), `notfqdn` (missing or
+  single-label hostname), `numhost` (comma-separated hostname lists are not supported),
+  `dnserr` (PowerDNS refused the write, or no usable IP). `myip` may be an explicit IPv4/IPv6
+  address, omitted, or `auto` - the last two use the client's source address as seen through
+  the fronting proxy's `X-Forwarded-For` (`lib/client-ip.ts`), so run the usual trusted
+  proxy in front.
+- **Where.** `app/nic/update/route.ts` (the orchestrator), `lib/dyndns/parse.ts` (pure
+  request parsing, response formatting and zone matching; fuzz-tested).
+- **How.** Create a token on `/profile#api-tokens` scoped to `record.update` for a user who
+  holds that permission on the zone, then point the client at `/nic/update`. A working
+  `ddclient.conf`:
+
+  ```ini
+  daemon=300
+  protocol=dyndns2
+  use=web, web=https://api.ipify.org/      # or: use=if, if=eth0 - sent as ?myip=
+  ssl=yes
+  server=dns.example.com                    # your APP_URL host; the path /nic/update is implied
+  login=ops@example.com                     # the account's email
+  password='pda_pat_xxxxxxxxxxxxxxxxxxxxxxxx'
+  home.example.com                          # one hostname per line - no comma lists
+  ```
+
+  `ddclient` then issues
+  `GET https://dns.example.com/nic/update?system=dyndns&hostname=home.example.com&myip=203.0.113.7`
+  and expects `good 203.0.113.7` back. Extra query parameters such as `system` are ignored.
 
 ---
 
@@ -730,7 +1117,7 @@ this baseline.
 
 ### 19.2 One DataTable, every list
 
-- **What.** Every list view (zones, users, roles, teams, OIDC providers, TSIG keys,
+- **What.** Every list view (zones, users, roles, teams, authentication providers, TSIG keys,
   autoprimaries, zone templates, audit log, PDNS request log, sessions, profile sessions,
   servers, dashboard sub-tables, role assignments, team members, zone change history) uses
   the same `<DataTable>` recipe. Desktop: `bg-bg-muted` thead, `even:bg-bg-subtle` striping,
@@ -820,4 +1207,4 @@ errors are gated behind an explicit "Save anyway" checkbox so an override is nev
   the SSE endpoint would 403 the request, which would otherwise leave the chip stuck on
   `CONNECTING`.
 - **Where.** `lib/auth/require-user.ts` (page gate), `app/(app)/layout.tsx` (compliance
-  redirect), `components/auth/must-change-password-guard.tsx` (client-side intercept).
+  redirect), `components/auth/compliance-guard.tsx` (client-side intercept).
