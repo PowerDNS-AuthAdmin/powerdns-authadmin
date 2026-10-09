@@ -272,7 +272,7 @@ export function LoginForm({
               />
             </div>
             {error ? (
-              <p className="text-sm text-[color:var(--color-error)]" role="alert">
+              <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
                 {error}
               </p>
             ) : null}
@@ -290,7 +290,7 @@ export function LoginForm({
               Use your passkey or security key to complete sign-in.
             </p>
             {error ? (
-              <p className="text-sm text-[color:var(--color-error)]" role="alert">
+              <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
                 {error}
               </p>
             ) : null}
@@ -349,7 +349,7 @@ export function LoginForm({
       />
 
       {error ? (
-        <p className="text-sm text-[color:var(--color-error)]" role="alert">
+        <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
           {error}
         </p>
       ) : null}

@@ -339,7 +339,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                   type="button"
                   onClick={() => handleDeleteRow(row)}
                   title="Delete this value (Delete)"
-                  className="rounded px-1.5 py-0.5 text-[color:var(--color-error)] hover:bg-[color:var(--color-bg-subtle)] hover:underline"
+                  className="rounded px-1.5 py-0.5 text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-bg-subtle)] hover:underline"
                 >
                   Delete
                 </button>
@@ -959,7 +959,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
             ) : null}
 
             {editorError ? (
-              <p className="text-sm text-[color:var(--color-error)]" role="alert">
+              <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
                 {editorError}
               </p>
             ) : null}
@@ -1213,7 +1213,7 @@ function InlineRecordEditor({
 
       {draft.value.trim() !== "" ? <ValidationIssues result={validation} /> : null}
       {error ? (
-        <p className="text-sm text-[color:var(--color-error)]" role="alert">
+        <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
           {error}
         </p>
       ) : null}
@@ -1307,8 +1307,8 @@ function ValidationIssues({ result }: { result: RRValidationResult | null }) {
           key={idx}
           className={
             issue.level === "error"
-              ? "text-[color:var(--color-error)]"
-              : "text-[color:var(--color-warn)]"
+              ? "text-[color:var(--color-error-fg)]"
+              : "text-[color:var(--color-warn-fg)]"
           }
         >
           <span className="font-medium tracking-wide uppercase">{issue.level}</span> {issue.message}
@@ -1497,7 +1497,7 @@ function renderRenameHint(
   const toType = editor.type.toUpperCase();
   if (fromName === toName && fromType === toType) return null;
   return (
-    <p className="rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 px-3 py-2 text-xs text-[color:var(--color-warn)]">
+    <p className="rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 px-3 py-2 text-xs text-[color:var(--color-warn-fg)]">
       Moving record:{" "}
       <code className="font-mono">
         {fromName} {fromType}

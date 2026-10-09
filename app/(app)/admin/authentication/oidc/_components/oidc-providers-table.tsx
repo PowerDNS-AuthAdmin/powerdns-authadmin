@@ -281,7 +281,7 @@ function DiscoveryBadge({
         <span className="text-[color:var(--color-fg-muted)]">· {label}</span>
         {endSessionMissing ? (
           <span
-            className="ml-1 inline-flex items-center gap-1 rounded-full bg-[color:var(--color-warn)]/15 px-1.5 py-0.5 text-[0.625rem] font-medium text-[color:var(--color-warn)]"
+            className="ml-1 inline-flex items-center gap-1 rounded-full bg-[color:var(--color-warn)]/15 px-1.5 py-0.5 text-[0.625rem] font-medium text-[color:var(--color-warn-fg)]"
             title="IdP doesn't advertise end_session_endpoint. RP-initiated sign-out can't reach the IdP - users will see the local sign-out screen instead of the IdP's. Fix: enable Front Channel / Back Channel Logout on the IdP."
           >
             no end-session

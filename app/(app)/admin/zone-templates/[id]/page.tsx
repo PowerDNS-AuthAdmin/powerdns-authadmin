@@ -107,7 +107,7 @@ export default async function ZoneTemplateEditPage({ params, searchParams }: Pag
 
       {canManage ? (
         <section className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/5 p-4">
-          <h2 className="text-base font-medium text-[color:var(--color-error)]">Danger zone</h2>
+          <h2 className="text-base font-medium text-[color:var(--color-error-fg)]">Danger zone</h2>
           <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
             Deleting the template doesn&apos;t touch zones already created from it - those zones own
             their records independently after creation.

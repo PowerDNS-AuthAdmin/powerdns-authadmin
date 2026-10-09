@@ -148,7 +148,7 @@ export function TemplateMetadataForm({ templateId, initial, canEdit }: Props) {
                     <button
                       type="button"
                       onClick={() => handleDelete(kind)}
-                      className="text-[0.6875rem] text-[color:var(--color-error)] hover:underline"
+                      className="text-[0.6875rem] text-[color:var(--color-error-fg)] hover:underline"
                     >
                       Remove
                     </button>

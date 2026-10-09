@@ -232,7 +232,7 @@ export function SoaPanel(props: SoaPanelProps) {
         </div>
 
         {warnings.length > 0 ? (
-          <ul className="space-y-1 rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 p-3 text-xs text-[color:var(--color-warn)]">
+          <ul className="space-y-1 rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 p-3 text-xs text-[color:var(--color-warn-fg)]">
             {warnings.map((w, idx) => (
               <li key={idx}>{w}</li>
             ))}
@@ -240,7 +240,7 @@ export function SoaPanel(props: SoaPanelProps) {
         ) : null}
 
         {error ? (
-          <p className="text-sm text-[color:var(--color-error)]" role="alert">
+          <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
             {error}
           </p>
         ) : null}

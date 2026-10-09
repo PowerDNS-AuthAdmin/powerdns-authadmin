@@ -819,11 +819,11 @@ function ZoneEventLine({ entry }: { entry: ZoneAuditEntryClient }) {
     return (
       <p className="text-xs">
         {a.success ? (
-          <span className="text-[color:var(--color-success)]">
+          <span className="text-[color:var(--color-success-fg)]">
             NOTIFY sent ({a.kind ?? "zone"}).
           </span>
         ) : (
-          <span className="text-[color:var(--color-error)]">
+          <span className="text-[color:var(--color-error-fg)]">
             NOTIFY failed{a.error ? `: ${a.error}` : ""}.
           </span>
         )}

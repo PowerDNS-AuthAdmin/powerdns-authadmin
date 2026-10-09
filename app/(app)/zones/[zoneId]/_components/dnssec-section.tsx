@@ -97,7 +97,7 @@ export async function DnssecSection({
               <span
                 className={
                   signed
-                    ? "text-[color:var(--color-success)]"
+                    ? "text-[color:var(--color-success-fg)]"
                     : "text-[color:var(--color-fg-muted)]"
                 }
               >
@@ -129,7 +129,7 @@ export async function DnssecSection({
           ) : null}
         </header>
         {warnings.length > 0 ? (
-          <ul className="mt-3 space-y-1 text-xs text-[color:var(--color-warn)]">
+          <ul className="mt-3 space-y-1 text-xs text-[color:var(--color-warn-fg)]">
             {warnings.map((w) => (
               <li key={w}>{w}</li>
             ))}
@@ -198,7 +198,7 @@ export async function DnssecSection({
                 <span
                   className={
                     k.active
-                      ? "text-xs text-[color:var(--color-success)]"
+                      ? "text-xs text-[color:var(--color-success-fg)]"
                       : "text-xs text-[color:var(--color-fg-muted)]"
                   }
                 >
@@ -340,7 +340,7 @@ function SummaryStat({ label, value, tone }: { label: string; value: string; ton
       <dd
         className={
           tone === "warn"
-            ? "font-mono font-medium text-[color:var(--color-warn)]"
+            ? "font-mono font-medium text-[color:var(--color-warn-fg)]"
             : "font-mono font-medium"
         }
       >

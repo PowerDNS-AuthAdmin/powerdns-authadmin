@@ -437,7 +437,7 @@ function ConfirmModal({
                 {!checked && state.checkbox.warningWhenUnchecked ? (
                   <div
                     role="alert"
-                    className="mt-3 rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 px-3 py-2 text-sm text-[color:var(--color-error)]"
+                    className="mt-3 rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 px-3 py-2 text-sm text-[color:var(--color-error-fg)]"
                   >
                     {state.checkbox.warningWhenUnchecked}
                   </div>
@@ -602,7 +602,7 @@ function PromptModal({
               {error ? (
                 <p
                   id={errorId}
-                  className="mt-1 text-xs text-[color:var(--color-error)]"
+                  className="mt-1 text-xs text-[color:var(--color-error-fg)]"
                   role="alert"
                 >
                   {error}

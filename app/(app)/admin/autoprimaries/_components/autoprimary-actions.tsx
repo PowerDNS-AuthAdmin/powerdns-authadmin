@@ -223,7 +223,7 @@ function AutoprimariesTable({
               type="button"
               onClick={() => onDelete(row)}
               disabled={busy}
-              className="rounded border border-[color:var(--color-error)] px-2 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+              className="rounded border border-[color:var(--color-error)] px-2 py-1 text-xs text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
             >
               {busy ? "Removing…" : "Remove"}
             </button>

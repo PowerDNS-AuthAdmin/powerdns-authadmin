@@ -44,7 +44,7 @@ export function TeamDangerZone({ teamId, teamName }: { teamId: string; teamName:
 
   return (
     <section className="rounded-md border border-[color:var(--color-error)] p-5">
-      <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-error)] uppercase">
+      <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-error-fg)] uppercase">
         Danger zone
       </h2>
       <p className="mt-2 text-sm text-[color:var(--color-fg-muted)]">
@@ -54,12 +54,12 @@ export function TeamDangerZone({ teamId, teamName }: { teamId: string; teamName:
         type="button"
         onClick={handleDelete}
         disabled={deleting}
-        className="mt-3 rounded-md border border-[color:var(--color-error)] px-3 py-2 text-sm text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+        className="mt-3 rounded-md border border-[color:var(--color-error)] px-3 py-2 text-sm text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
       >
         {deleting ? "Deleting…" : "Delete team"}
       </button>
       {error ? (
-        <p className="mt-2 text-sm text-[color:var(--color-error)]" role="alert">
+        <p className="mt-2 text-sm text-[color:var(--color-error-fg)]" role="alert">
           {error}
         </p>
       ) : null}

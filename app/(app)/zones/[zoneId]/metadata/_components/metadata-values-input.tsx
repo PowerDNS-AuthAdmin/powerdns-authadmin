@@ -105,7 +105,7 @@ function ListTextarea({ kind, values, onChange }: Props) {
         className="block w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-2 font-mono text-xs"
       />
       {lineErrors.length > 0 ? (
-        <ul className="mt-1 space-y-0.5 text-[0.6875rem] text-[color:var(--color-error)]">
+        <ul className="mt-1 space-y-0.5 text-[0.6875rem] text-[color:var(--color-error-fg)]">
           {lineErrors.map((e) => (
             <li key={e.line}>
               Line {e.line} (<code className="font-mono">{e.value}</code>): {e.error}

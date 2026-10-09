@@ -84,7 +84,7 @@ export function TsigActions({
           <svg
             viewBox="0 0 24 24"
             aria-hidden
-            className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--color-warn)]"
+            className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--color-warn-fg)]"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
@@ -329,7 +329,7 @@ function TsigKeysTable({
                 type="button"
                 onClick={() => onDelete(row)}
                 disabled={busyDeleteId === row.id}
-                className="inline-flex items-center gap-1 rounded border border-[color:var(--color-error)] px-2 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded border border-[color:var(--color-error)] px-2 py-1 text-xs text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
               >
                 <Trash2 className="h-3.5 w-3.5" aria-hidden />
                 {busyDeleteId === row.id ? "Deleting…" : "Delete"}

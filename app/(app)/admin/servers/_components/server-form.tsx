@@ -351,7 +351,7 @@ export function ServerForm(props: ServerFormProps) {
           the group instead.
         </p>
         {fieldErrors["writeMode"]?.map((msg) => (
-          <p key={msg} className="pl-6 text-xs text-[color:var(--color-error)]" role="alert">
+          <p key={msg} className="pl-6 text-xs text-[color:var(--color-error-fg)]" role="alert">
             {msg}
           </p>
         ))}
@@ -369,7 +369,7 @@ export function ServerForm(props: ServerFormProps) {
       ) : null}
 
       {error ? (
-        <p className="text-sm text-[color:var(--color-error)]" role="alert">
+        <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
           {error}
         </p>
       ) : null}
@@ -445,7 +445,7 @@ function AddressList({
               </button>
             </div>
             {invalid ? (
-              <p className="mt-1 text-xs text-[color:var(--color-error)]">
+              <p className="mt-1 text-xs text-[color:var(--color-error-fg)]">
                 Not a valid host or IP.
               </p>
             ) : null}

@@ -406,7 +406,7 @@ function RestoreUploadStep({
             <button
               type="button"
               onClick={onClear}
-              className="text-[color:var(--color-error)] hover:underline"
+              className="text-[color:var(--color-error-fg)] hover:underline"
             >
               Remove
             </button>
@@ -584,7 +584,7 @@ function RestoreResultStep({
                     <code className="font-mono text-xs">{name}</code>
                   </td>
                   <td className="py-1.5 text-right tabular-nums">{c.attempted}</td>
-                  <td className="py-1.5 text-right text-[color:var(--color-success)] tabular-nums">
+                  <td className="py-1.5 text-right text-[color:var(--color-success-fg)] tabular-nums">
                     {c.inserted}
                   </td>
                   <td className="py-1.5 text-right text-[color:var(--color-fg-muted)] tabular-nums">
@@ -626,7 +626,7 @@ function Hero({
       ? "bg-[color:var(--color-accent)]/10 text-[color:var(--color-accent)]"
       : tone === "warn"
         ? "bg-[color:var(--color-warn)]/10 text-[color:var(--color-warn-fg)]"
-        : "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]";
+        : "bg-[color:var(--color-success)]/10 text-[color:var(--color-success-fg)]";
   const borderTone =
     tone === "accent"
       ? "border-[color:var(--color-accent)]/30"
@@ -700,7 +700,7 @@ function ErrorBanner({ children }: { children: React.ReactNode }) {
   return (
     <div
       role="alert"
-      className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-3 text-sm text-[color:var(--color-error)]"
+      className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-3 text-sm text-[color:var(--color-error-fg)]"
     >
       <strong className="mr-2">Error</strong>
       {children}

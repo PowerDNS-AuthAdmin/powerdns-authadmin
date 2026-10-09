@@ -169,7 +169,7 @@ export function ClusterForm({
             : "Lowercase letters, digits, and hyphens. Starts with a letter."}
         </p>
         {fieldErrors["slug"] ? (
-          <p className="text-xs text-[color:var(--color-error)]">
+          <p className="text-xs text-[color:var(--color-error-fg)]">
             {fieldErrors["slug"].join("; ")}
           </p>
         ) : null}
@@ -189,7 +189,7 @@ export function ClusterForm({
           className="w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5 text-sm"
         />
         {fieldErrors["name"] ? (
-          <p className="text-xs text-[color:var(--color-error)]">
+          <p className="text-xs text-[color:var(--color-error-fg)]">
             {fieldErrors["name"].join("; ")}
           </p>
         ) : null}
@@ -264,7 +264,7 @@ export function ClusterForm({
             disabled={busy}
           />
           {fieldErrors["memberServerIds"] ? (
-            <p className="text-xs text-[color:var(--color-error)]">
+            <p className="text-xs text-[color:var(--color-error-fg)]">
               {fieldErrors["memberServerIds"].join("; ")}
             </p>
           ) : null}

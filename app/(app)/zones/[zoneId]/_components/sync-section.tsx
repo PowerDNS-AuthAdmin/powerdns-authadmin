@@ -215,7 +215,7 @@ function DiffList({
                 </div>
               </header>
               {d.error ? (
-                <p className="px-4 py-3 text-xs text-[color:var(--color-error)]">{d.error}</p>
+                <p className="px-4 py-3 text-xs text-[color:var(--color-error-fg)]">{d.error}</p>
               ) : settled ? (
                 <p className="px-4 py-3 text-xs text-[color:var(--color-fg-muted)]">
                   {refreshDue
@@ -252,10 +252,10 @@ function PresignedNote({ count }: { count: number }) {
 function Badge({ text, tone }: { text: string; tone: "success" | "warn" | "error" }) {
   const tint =
     tone === "success"
-      ? "bg-[color-mix(in_oklch,var(--color-success)_20%,transparent)] text-[color:var(--color-success)]"
+      ? "bg-[color-mix(in_oklch,var(--color-success)_20%,transparent)] text-[color:var(--color-success-fg)]"
       : tone === "warn"
-        ? "bg-[color-mix(in_oklch,var(--color-warn)_20%,transparent)] text-[color:var(--color-warn)]"
-        : "bg-[color-mix(in_oklch,var(--color-error)_20%,transparent)] text-[color:var(--color-error)]";
+        ? "bg-[color-mix(in_oklch,var(--color-warn)_20%,transparent)] text-[color:var(--color-warn-fg)]"
+        : "bg-[color-mix(in_oklch,var(--color-error)_20%,transparent)] text-[color:var(--color-error-fg)]";
   return (
     <span className={`rounded px-1.5 py-0.5 font-mono text-[0.625rem] uppercase ${tint}`}>
       {text}

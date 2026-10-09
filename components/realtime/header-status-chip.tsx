@@ -122,7 +122,7 @@ export function HeaderStatusChip() {
         ? "bg-[color:var(--color-error)]"
         : status === "connecting"
           ? "bg-[color:var(--color-warn)]"
-          : "animate-pulse bg-[color:var(--color-success)]";
+          : "motion-safe:animate-pulse bg-[color:var(--color-success)]";
 
   const title =
     status === "paused"

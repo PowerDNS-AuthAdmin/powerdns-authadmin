@@ -74,9 +74,9 @@ const OUTCOME_LABEL: Record<InstallResult["outcome"], string> = {
 };
 
 function outcomeClass(o: InstallResult["outcome"]): string {
-  if (o === "created" || o === "unchanged") return "text-[color:var(--color-success)]";
+  if (o === "created" || o === "unchanged") return "text-[color:var(--color-success-fg)]";
   if (o === "unsupported") return "text-[color:var(--color-fg-muted)]";
-  return "text-[color:var(--color-error)]";
+  return "text-[color:var(--color-error-fg)]";
 }
 
 type Step = "generate" | "install" | "zones";

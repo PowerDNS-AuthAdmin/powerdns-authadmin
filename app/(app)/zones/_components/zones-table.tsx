@@ -45,7 +45,7 @@ function isValidHorizonFilter(s: unknown): s is HorizonFilter {
 function DnssecCell({ on }: { on: boolean }) {
   return on ? (
     <span
-      className="inline-flex items-center gap-1 text-xs text-[color:var(--color-success)]"
+      className="inline-flex items-center gap-1 text-xs text-[color:var(--color-success-fg)]"
       title="DNSSEC signed"
     >
       <Lock aria-hidden className="h-3.5 w-3.5" />
@@ -508,10 +508,10 @@ function SyncCell({ row }: { row: ZoneRow }) {
       : "error";
   const textClass =
     tone === "success"
-      ? "text-[color:var(--color-success)]"
+      ? "text-[color:var(--color-success-fg)]"
       : tone === "warn"
-        ? "text-[color:var(--color-warn)]"
-        : "text-[color:var(--color-error)]";
+        ? "text-[color:var(--color-warn-fg)]"
+        : "text-[color:var(--color-error-fg)]";
   const label = isSynced ? "synced" : "desynced";
   // Include the row's own backend in the count - `syncStates` enumerates the
   // OTHER peers (secondaries, or non-anchor cluster peers), so +1 surfaces

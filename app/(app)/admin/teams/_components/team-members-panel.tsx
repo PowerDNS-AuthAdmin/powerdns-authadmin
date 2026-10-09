@@ -157,7 +157,7 @@ export function TeamMembersPanel(props: PanelProps) {
                         type="button"
                         onClick={() => handleRemove(m.userId)}
                         disabled={removing === m.userId}
-                        className="text-xs text-[color:var(--color-error)] hover:underline disabled:opacity-50"
+                        className="text-xs text-[color:var(--color-error-fg)] hover:underline disabled:opacity-50"
                       >
                         {removing === m.userId ? "Removing…" : "Remove"}
                       </button>
@@ -207,7 +207,7 @@ export function TeamMembersPanel(props: PanelProps) {
             </button>
           </div>
           {error ? (
-            <p className="text-xs text-[color:var(--color-error)]" role="alert">
+            <p className="text-xs text-[color:var(--color-error-fg)]" role="alert">
               {error}
             </p>
           ) : null}

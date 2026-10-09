@@ -117,17 +117,19 @@ export function ChangePasswordForm({ turnstileSiteKey }: { turnstileSiteKey?: st
         resetKey={captchaResetKey}
       />
       {fieldErrors["captchaToken"]?.length ? (
-        <p className="text-xs text-[color:var(--color-error)]" role="alert">
+        <p className="text-xs text-[color:var(--color-error-fg)]" role="alert">
           {fieldErrors["captchaToken"].join(" ")}
         </p>
       ) : null}
 
       {error ? (
-        <p className="text-sm text-[color:var(--color-error)]" role="alert">
+        <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
           {error}
         </p>
       ) : null}
-      {ok ? <p className="text-sm text-[color:var(--color-success)]">Password updated.</p> : null}
+      {ok ? (
+        <p className="text-sm text-[color:var(--color-success-fg)]">Password updated.</p>
+      ) : null}
 
       <button
         type="submit"

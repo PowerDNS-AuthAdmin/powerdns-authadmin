@@ -533,7 +533,7 @@ export function CreateZoneForm(props: Props) {
             }}
           />
           {fieldErrors["tsigKeyName"] ? (
-            <p className="text-xs text-[color:var(--color-error)]" role="alert">
+            <p className="text-xs text-[color:var(--color-error-fg)]" role="alert">
               {fieldErrors["tsigKeyName"].join(" ")}
             </p>
           ) : null}
@@ -561,7 +561,7 @@ export function CreateZoneForm(props: Props) {
                 <button
                   type="button"
                   onClick={() => removeMaster(i)}
-                  className="text-xs text-[color:var(--color-error)] hover:underline"
+                  className="text-xs text-[color:var(--color-error-fg)] hover:underline"
                 >
                   Remove
                 </button>
@@ -599,7 +599,7 @@ export function CreateZoneForm(props: Props) {
                   <button
                     type="button"
                     onClick={() => removeNs(i)}
-                    className="text-xs text-[color:var(--color-error)] hover:underline"
+                    className="text-xs text-[color:var(--color-error-fg)] hover:underline"
                   >
                     Remove
                   </button>
@@ -613,7 +613,7 @@ export function CreateZoneForm(props: Props) {
                 Add name server
               </button>
               {nsWarning ? (
-                <p className="text-xs text-[color:var(--color-warn)]">{nsWarning}</p>
+                <p className="text-xs text-[color:var(--color-warn-fg)]">{nsWarning}</p>
               ) : null}
             </div>
           </Section>
@@ -644,7 +644,7 @@ export function CreateZoneForm(props: Props) {
       )}
 
       {error ? (
-        <p className="text-sm text-[color:var(--color-error)]" role="alert">
+        <p className="text-sm text-[color:var(--color-error-fg)]" role="alert">
           {error}
         </p>
       ) : null}

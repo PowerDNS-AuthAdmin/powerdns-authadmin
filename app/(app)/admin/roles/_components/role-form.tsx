@@ -156,7 +156,7 @@ export function RoleForm({
             : "Lowercase letters, digits, and hyphens. Starts with a letter. Cannot be changed after creation."}
         </p>
         {fieldErrors["slug"] ? (
-          <p className="text-xs text-[color:var(--color-error)]">
+          <p className="text-xs text-[color:var(--color-error-fg)]">
             {fieldErrors["slug"].join("; ")}
           </p>
         ) : null}
@@ -176,7 +176,7 @@ export function RoleForm({
           className="w-full rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5 text-sm"
         />
         {fieldErrors["name"] ? (
-          <p className="text-xs text-[color:var(--color-error)]">
+          <p className="text-xs text-[color:var(--color-error-fg)]">
             {fieldErrors["name"].join("; ")}
           </p>
         ) : null}
@@ -222,7 +222,7 @@ export function RoleForm({
             Permissions ({selected.size})
           </h2>
           {fieldErrors["permissions"] ? (
-            <span className="text-xs text-[color:var(--color-error)]">
+            <span className="text-xs text-[color:var(--color-error-fg)]">
               {fieldErrors["permissions"].join("; ")}
             </span>
           ) : null}

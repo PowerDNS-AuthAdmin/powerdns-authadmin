@@ -104,7 +104,7 @@ export default async function ClusterDetailPage({ params }: PageProps) {
 
       {canDelete ? (
         <section className="border-t border-[color:var(--color-border)] pt-6">
-          <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-error)] uppercase">
+          <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-error-fg)] uppercase">
             Danger zone
           </h2>
           <div className="mt-3 flex items-start justify-between gap-4 rounded-md border border-[color:var(--color-error)]/40 bg-[color:var(--color-error)]/5 p-4">

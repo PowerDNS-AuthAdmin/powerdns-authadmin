@@ -243,7 +243,7 @@ export default async function LoginPage({
           role="alert"
           className="mb-4 rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-3 text-sm"
         >
-          <strong className="text-[color:var(--color-error)]">
+          <strong className="text-[color:var(--color-error-fg)]">
             APP_URL mismatch - sign-in will fail.
           </strong>
           <p className="mt-1 text-[color:var(--color-fg)]">
@@ -285,7 +285,7 @@ export default async function LoginPage({
       {flash ? <FlashBanner kind={flash} /> : null}
 
       {error ? (
-        <div className="mb-4 rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-3 text-sm text-[color:var(--color-error)]">
+        <div className="mb-4 rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-3 text-sm text-[color:var(--color-error-fg)]">
           {humanizeError(error)}
         </div>
       ) : null}

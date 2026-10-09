@@ -845,7 +845,7 @@ async function PdnsStatsSection() {
 
 function PdnsStatsSectionFallback() {
   return (
-    <section className="animate-pulse space-y-3">
+    <section className="space-y-3 motion-safe:animate-pulse">
       <header>
         <div className="h-6 w-56 rounded bg-[color:var(--color-bg-subtle)]" />
         <div className="mt-2 h-4 w-96 rounded bg-[color:var(--color-bg-subtle)]" />
@@ -1029,7 +1029,7 @@ function StatEmpty({ label }: { label: string }) {
 function DashboardTabStrip({ active }: { active: "admin" | "pdns" }) {
   return (
     <div className="border-b border-[color:var(--color-border)]">
-      <nav className="-mb-px flex gap-6 text-sm">
+      <nav aria-label="Dashboard views" className="-mb-px flex gap-6 text-sm">
         <DashboardTab href="/dashboard" active={active === "pdns"}>
           PowerDNS stats
         </DashboardTab>

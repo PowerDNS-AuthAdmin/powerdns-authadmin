@@ -176,7 +176,7 @@ export function RoleAssignmentsPanel(props: PanelProps) {
                         type="button"
                         onClick={() => handleRemove(a.assignmentId)}
                         disabled={removing === a.assignmentId}
-                        className="text-xs text-[color:var(--color-error)] hover:underline disabled:opacity-50"
+                        className="text-xs text-[color:var(--color-error-fg)] hover:underline disabled:opacity-50"
                       >
                         {removing === a.assignmentId ? "Removing…" : "Remove"}
                       </button>
@@ -247,7 +247,7 @@ export function RoleAssignmentsPanel(props: PanelProps) {
               {busy ? "Assigning…" : "Assign"}
             </button>
             {error ? (
-              <p className="text-xs text-[color:var(--color-error)]" role="alert">
+              <p className="text-xs text-[color:var(--color-error-fg)]" role="alert">
                 {error}
               </p>
             ) : null}

@@ -145,7 +145,7 @@ export function TokensPanel({ userId, canManage, isSelf, tokens }: Props) {
                     type="button"
                     onClick={() => handleRevoke(t.id, t.name)}
                     disabled={busyId !== null}
-                    className="shrink-0 rounded border border-[color:var(--color-error)] px-2 py-1 text-[0.6875rem] text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+                    className="shrink-0 rounded border border-[color:var(--color-error)] px-2 py-1 text-[0.6875rem] text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
                   >
                     {busyId === t.id ? "Revoking…" : "Revoke"}
                   </button>

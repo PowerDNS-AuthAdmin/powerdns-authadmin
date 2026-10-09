@@ -31,7 +31,7 @@ interface ConfirmDeleteButtonProps {
 }
 
 const DEFAULT_CLASS =
-  "rounded border border-[color:var(--color-error)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50";
+  "rounded border border-[color:var(--color-error)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50";
 
 export function ConfirmDeleteButton({
   endpoint,

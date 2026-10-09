@@ -99,12 +99,13 @@ export function ZoneDangerZone({ zoneIdEncoded, serverSlug, zoneName, canDelete 
   return (
     <section className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/5 p-5">
       <header>
-        <h2 className="text-base font-semibold text-[color:var(--color-error)]">Danger zone</h2>
+        <h2 className="text-base font-semibold text-[color:var(--color-error-fg)]">Danger zone</h2>
         <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
           Permanently delete this zone from the PowerDNS backend.{" "}
-          <strong className="text-[color:var(--color-error)]">This cannot be undone.</strong> Every
-          record, every comment, every metadata kind is wiped server-side. Existing DNS resolvers
-          will keep serving cached answers until their TTLs expire - but new queries will fail.
+          <strong className="text-[color:var(--color-error-fg)]">This cannot be undone.</strong>{" "}
+          Every record, every comment, every metadata kind is wiped server-side. Existing DNS
+          resolvers will keep serving cached answers until their TTLs expire - but new queries will
+          fail.
         </p>
       </header>
 
@@ -128,7 +129,7 @@ export function ZoneDangerZone({ zoneIdEncoded, serverSlug, zoneName, canDelete 
                   : `Download ${cleanName}.zone`}
             </button>
             {downloaded ? (
-              <span className="text-[0.6875rem] text-[color:var(--color-success)]">
+              <span className="text-[0.6875rem] text-[color:var(--color-success-fg)]">
                 ✓ Backup saved to your downloads
               </span>
             ) : (

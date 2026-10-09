@@ -266,7 +266,7 @@ function SecurityChips({
       {failedLoginCount > 0 ? (
         <span
           title={`${failedLoginCount} consecutive failed login attempt${failedLoginCount === 1 ? "" : "s"} since the last success.`}
-          className="rounded bg-[color:var(--color-error)]/15 px-1.5 py-0.5 font-mono text-[0.625rem] text-[color:var(--color-error)]"
+          className="rounded bg-[color:var(--color-error)]/15 px-1.5 py-0.5 font-mono text-[0.625rem] text-[color:var(--color-error-fg)]"
         >
           {failedLoginCount} fail
         </span>
@@ -284,9 +284,9 @@ function SecurityFlag({ label, ok, title }: { label: string; ok: boolean; title:
     >
       {label}
       {ok ? (
-        <Check aria-hidden size={13} className="text-[color:var(--color-success)]" />
+        <Check aria-hidden size={13} className="text-[color:var(--color-success-fg)]" />
       ) : (
-        <X aria-hidden size={13} className="text-[color:var(--color-error)]" />
+        <X aria-hidden size={13} className="text-[color:var(--color-error-fg)]" />
       )}
     </span>
   );

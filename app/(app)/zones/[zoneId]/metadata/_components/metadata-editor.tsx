@@ -129,7 +129,7 @@ export function MetadataEditor({ zoneIdEncoded, serverSlug, kind, initialValues 
           type="button"
           onClick={handleDelete}
           disabled={deleting}
-          className="rounded border border-[color:var(--color-error)] px-3 py-1 text-xs text-[color:var(--color-error)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+          className="rounded border border-[color:var(--color-error)] px-3 py-1 text-xs text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
         >
           {deleting ? "Deleting…" : "Delete kind"}
         </button>

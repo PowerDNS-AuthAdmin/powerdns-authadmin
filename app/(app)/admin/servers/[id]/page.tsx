@@ -80,11 +80,11 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
           {row.disabledAt ? (
             <>Disabled.</>
           ) : reachability === "auth" ? (
-            <span className="text-[color:var(--color-error)]">
+            <span className="text-[color:var(--color-error-fg)]">
               API rejected the key - check the X-API-Key and the webserver/api ACL.
             </span>
           ) : reachability === "down" ? (
-            <span className="text-[color:var(--color-error)]">
+            <span className="text-[color:var(--color-error-fg)]">
               Unreachable - the app hasn&apos;t reached this backend&apos;s API recently.
             </span>
           ) : reachFresh ? (
