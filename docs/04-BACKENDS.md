@@ -72,9 +72,10 @@ are permissive in dev and strict in production - see [Configuration](./03-CONFIG
 ## Reachability and status
 
 With `PDNS_BACKGROUND_POLLING=true` (see below) a background poller refreshes
-zone state every ~30 s, daemon capabilities every ~60 s and statistics every
-~5 min against every active backend; otherwise `last_seen_at` only moves on page
-loads, **Test** and **Refresh all**. The **Status** column on the servers page
+zone state every ~30 s and daemon capabilities + statistics every ~60 s (plus a
+5-minute metric snapshot for the dashboard charts) against every active backend;
+otherwise `last_seen_at` only moves on page loads, **Test** and **Refresh all**.
+The **Status** column on the servers page
 shows **Reachable · \<when\>** based on the last _successful_ contact
 (`last_seen_at`), so a healthy, actively-polled backend reads "Reachable · just
 now". A backend with no successful contact ever shows "Not yet reached"; one not
