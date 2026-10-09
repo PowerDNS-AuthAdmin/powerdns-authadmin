@@ -78,6 +78,16 @@ describe("backup export + restore", () => {
 
     // --- restore ---
     const admin2 = await loginAsBootstrap();
+    // Logging in wrote an audit row (id 1 after RESTART IDENTITY) that the
+    // export also carries. Restore is merge-mode (`ON CONFLICT DO NOTHING`),
+    // so an exported row whose id already exists is skipped, not inserted.
+    const preexisting = new Set(
+      (await dbQuery<{ id: string }>("SELECT id::text AS id FROM audit_log")).map((r) => r.id),
+    );
+    const auditRowsColliding = bundle.tables["audit_log"]!.filter((r) =>
+      preexisting.has(String(r["id"])),
+    ).length;
+    expect(auditRowsColliding).toBeGreaterThan(0);
     const restoreRes = await admin2.call("/api/admin/backup/restore", {
       method: "POST",
       json: bundle,
@@ -94,8 +104,10 @@ describe("backup export + restore", () => {
     expect(restored.counts["teams"]!.inserted).toBe(1);
     expect(restored.counts["zone_grants"]!.inserted).toBeGreaterThanOrEqual(1);
     expect(restored.counts["zone_grants"]!.failed).toBe(0);
-    // The audit table was truncated, so every exported row is a real insert.
-    expect(restored.counts["audit_log"]!.inserted).toBe(auditRowsExported);
+    // Every exported row whose id is free is a real insert; the colliding
+    // ones are reported as skipped, never as failed or as inserted.
+    expect(restored.counts["audit_log"]!.inserted).toBe(auditRowsExported - auditRowsColliding);
+    expect(restored.counts["audit_log"]!.skipped).toBe(auditRowsColliding);
     expect(restored.counts["audit_log"]!.failed).toBe(0);
 
     const rows = await dbQuery<{ created_at: Date; email: string }>(
@@ -114,7 +126,8 @@ describe("backup export + restore", () => {
     const audit = await dbQuery<{ n: string; latest: Date }>(
       "SELECT COUNT(*)::text AS n, MAX(ts) AS latest FROM audit_log",
     );
-    // Restored rows plus the login and the `system.backup.restored` row itself.
+    // Restored rows plus the login row(s) and the `system.backup.restored`
+    // row itself.
     expect(Number(audit[0]!.n)).toBeGreaterThan(auditRowsExported);
     expect(audit[0]!.latest).toBeInstanceOf(Date);
 
