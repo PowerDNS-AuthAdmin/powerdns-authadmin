@@ -99,13 +99,21 @@ export function subscribeAll(listener: Listener): () => void {
   };
 }
 
-/** Local fan-out. Listener exceptions never break the publisher. */
+/**
+ * Local fan-out. A listener fault must never break the publisher (or starve
+ * the other listeners), but it must not vanish either - an SSE writer that
+ * throws on every event is a stuck stream an operator will otherwise only
+ * see as "the badge never updates".
+ */
 function deliver(event: RealtimeEvent): void {
   for (const fn of bus.listeners) {
     try {
       fn(event);
-    } catch {
-      // Listener faults must never break the publisher.
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err.message : "unknown", eventType: event.type },
+        "realtime.listener.failed",
+      );
     }
   }
 }
