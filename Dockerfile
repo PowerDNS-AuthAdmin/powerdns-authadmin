@@ -134,6 +134,16 @@ USER nonroot
 
 EXPOSE 3000
 
+# Image-level liveness probe, same shape as the compose services' healthcheck
+# (distroless has no curl/wget; `node` is on PATH per the ENV above). Compose
+# `healthcheck:` blocks and Kubernetes liveness/readiness probes override or
+# ignore this respectively, so it only governs plain `docker run` deployments,
+# where it is the only thing that lets `docker ps` show the app as unhealthy.
+# `/healthz` is the liveness endpoint; `/readyz` (DB + migrations) is left to
+# orchestrators that can act on readiness separately.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+
 # Distroless/nodejs ships with `node` as the entrypoint; the CMD is the
 # script path. Same effect as `node entrypoint.mjs` on bookworm-slim.
 CMD ["entrypoint.mjs"]

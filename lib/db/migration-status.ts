@@ -2,17 +2,17 @@
  * lib/db/migration-status.ts
  *
  * Compare what's on disk (`meta/_journal.json`) against what the database
- * believes is applied (`__drizzle_migrations`). Used in two places:
+ * believes is applied (`__drizzle_migrations`). Used by the migration
+ * runner - `scripts/migrate.ts` (Postgres) and `lib/db/migrate-sqlite.ts`
+ * (SQLite) - to log the pending list before running and the applied list
+ * after, so an operator tailing `docker compose logs app | grep migrate` can
+ * see whether a migration actually ran, and to fail loudly when drizzle
+ * returns with migrations still pending.
  *
- *   - `scripts/migrate.ts` - log pending list before running, applied list
- *     after, so an operator tailing `docker compose logs app | grep migrate`
- *     can see whether a migration actually ran.
- *   - `instrumentation.ts` - Next.js startup hook. If the journal lists
- *     migrations the DB doesn't have applied, emit a loud warning (and
- *     refuse to boot when MIGRATION_CHECK_STRICT=true). Protects against
- *     the entrypoint silently skipping migrate.
+ * (`instrumentation.ts` deliberately does NOT import this module: it must
+ * stay free of the DB import graph and only pings `/healthz`.)
  *
- * The two callers want slightly different views, so this module exports
+ * The callers want slightly different views, so this module exports
  * primitives + a high-level summary.
  */
 

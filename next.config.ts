@@ -2,13 +2,14 @@
  * next.config.ts
  *
  * Next.js framework configuration. Kept minimal on purpose - security headers live in
- * `middleware.ts` so they apply per-request with a per-request CSP nonce, not as
- * statically-baked `headers()` entries.
+ * `proxy.ts` (Next 16's per-request hook, formerly `middleware.ts`) so they apply
+ * per-request with a per-request CSP nonce, not as statically-baked `headers()`
+ * entries.
  *
  * Reasoning: a static CSP would force `'unsafe-inline'` for scripts (because Next's
- * hydration data is inline), which defeats most of the value of CSP. The middleware
+ * hydration data is inline), which defeats most of the value of CSP. The proxy
  * approach issues a fresh nonce on every request and threads it through to Next's
- * inline scripts via the `nonce` mechanism Next 15 supports natively.
+ * inline scripts via the `nonce` mechanism Next supports natively.
  */
 
 import type { NextConfig } from "next";

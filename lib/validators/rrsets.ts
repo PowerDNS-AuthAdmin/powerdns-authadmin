@@ -56,17 +56,24 @@ const expectedHashSchema = z.object({
   hash: z.string().regex(/^[0-9a-f]{16}$/, "Expected hash must be 16 lowercase hex characters."),
 });
 
+/**
+ * Shared by upsert and delete: the type reaches the PDNS PATCH body and the
+ * protected-RRset permission check verbatim, so both paths constrain it the
+ * same way - a delete with an arbitrary string is as hostile as an upsert.
+ */
+const typeSchema = z
+  .string()
+  .min(1, "Type is required.")
+  .transform((value) => value.toUpperCase())
+  .refine(
+    (value) => RR_TYPE_PATTERN.test(value),
+    "Type must be 1–12 uppercase alphanumerics (e.g. A, AAAA, MX).",
+  );
+
 const upsertChangeSchema = z.object({
   kind: z.literal("upsert"),
   name: nameSchema,
-  type: z
-    .string()
-    .min(1, "Type is required.")
-    .transform((value) => value.toUpperCase())
-    .refine(
-      (value) => RR_TYPE_PATTERN.test(value),
-      "Type must be 1–12 uppercase alphanumerics (e.g. A, AAAA, MX).",
-    ),
+  type: typeSchema,
   ttl: ttlSchema,
   records: z
     .array(recordSchema)
@@ -85,10 +92,7 @@ const upsertChangeSchema = z.object({
 const deleteChangeSchema = z.object({
   kind: z.literal("delete"),
   name: nameSchema,
-  type: z
-    .string()
-    .min(1)
-    .transform((value) => value.toUpperCase()),
+  type: typeSchema,
   expected: expectedHashSchema.optional(),
 });
 

@@ -19,7 +19,7 @@
    decision lives in ./cluster-picker-pure; this file only loads its inputs.
    See ADR-0013. Future work: pass samples in and relocate above lib/pdns. */
 import "server-only";
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { metricSamples, type PdnsCluster, type PdnsServer } from "@/lib/db/schema";
 import { pickPeer, type PeerSamples } from "./cluster-picker-pure";
@@ -75,6 +75,5 @@ async function loadSamples(peerIds: string[]): Promise<PeerSamples> {
     if (row.latencyP50Ms !== null) samples.latencyP50Ms.set(id, row.latencyP50Ms);
     if (row.zoneCount !== null) samples.zoneCounts.set(id, row.zoneCount);
   }
-  void inArray; // silence unused warning if drizzle re-exports change
   return samples;
 }
