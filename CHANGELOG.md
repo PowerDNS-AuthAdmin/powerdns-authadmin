@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-09
+
+Feature release. The headline is an **MCP server** (`POST /api/mcp`) so Claude Code,
+Codex and other MCP clients can manage records in natural language through the same
+RBAC, validation and audit path as the UI. Alongside it: a security hardening pass
+(read-only backends now refuse writes, privilege ceilings applied consistently,
+login CSRF closed, the password-reset link kept out of the audit log), an
+accessibility pass (keyboard operability, labelled forms, WCAG AA contrast), the
+OIDC/SAML session-expiry bounce fix, and a correctness pass over migrations,
+backup/restore, the PowerDNS client and zonefile import. **No schema change, no
+migration.** SQLite installs that upgraded through 1.1.0 should read the
+[upgrade notes](./docs/09-UPGRADING.md#upgrading-to-190-from-184) - a migration
+bug at that version may have deleted per-zone grants.
+
 ### Added
 
 - **MCP server: manage DNS from Claude Code, Codex and other AI clients.** `POST /api/mcp`
@@ -88,18 +102,6 @@ All notable changes to this project are documented here. The format is based on
   tooltips are repeated as screen-reader text; "PowerDNS" replaces "PDNS" in
   operator-facing copy; list tables name the next action when empty; the admin list
   pages show loading skeletons.
-
-- **SAML sign-in was rejected with "InResponseTo is not valid".** The
-  AuthnRequest id was recorded in a throwaway node-saml instance while the
-  Response was validated by another, so `validateInResponseTo: always`
-  never found it. The expected id (from the signed cookie) is now seeded
-  into the validating instance, and a Response with no `InResponseTo` is
-  refused as unsolicited.
-- Query-string validation failures on TSIG delete, cryptokey delete and
-  metadata delete returned 500 instead of 400; malformed bodies on
-  forgot-password, reset-password and email-verify did the same.
-- Bulk zone export/import no longer echo raw upstream error strings;
-  they're redacted like every other PowerDNS error.
 - Backup export awaits its audit row; backup restore caps the body at 64 MiB;
   RRset PATCH bodies are bounded (500 changes, 1000 records per RRset).
 - Team member role changes are audited as `team.member.role_changed`,
@@ -115,6 +117,17 @@ All notable changes to this project are documented here. The format is based on
   the IdP like a plain visit (carrying `next`); explicit sign-out,
   `?force-local=1` and real error codes still keep the form.
   ([#153](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/153))
+- **SAML sign-in was rejected with "InResponseTo is not valid".** The
+  AuthnRequest id was recorded in a throwaway node-saml instance while the
+  Response was validated by another, so `validateInResponseTo: always`
+  never found it. The expected id (from the signed cookie) is now seeded
+  into the validating instance, and a Response with no `InResponseTo` is
+  refused as unsolicited.
+- Query-string validation failures on TSIG delete, cryptokey delete and
+  metadata delete returned 500 instead of 400; malformed bodies on
+  forgot-password, reset-password and email-verify did the same.
+- Bulk zone export/import no longer echo raw upstream error strings;
+  they're redacted like every other PowerDNS error.
 - **Keyboard operability.** Table column sorting is a real button (it was a click-only
   header that advertised `aria-sort`), the zone-kind / SOA-EDIT / metadata pickers are
   the shared select menu instead of mouse-only lists, the user menu follows the menu-button
@@ -137,7 +150,6 @@ All notable changes to this project are documented here. The format is based on
 - **Small screens.** Provider group-mapping rows, the Before/After diff and the SRV /
   NAPTR / CAA / URI editors reflow below `sm`; team members and role assignments use the
   shared data table with its card layout.
-
 - **SQLite upgrades lost zone grants and metrics.** Release 1.1.0's migration
   rebuilt the `pdns_servers` table while SQLite foreign-key enforcement was still
   on (drizzle-kit's `PRAGMA foreign_keys=OFF` is a no-op inside the migrator's

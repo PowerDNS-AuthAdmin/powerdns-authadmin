@@ -39,10 +39,14 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
-### Unreleased
+### Upgrading to 1.9.0 (from 1.8.4)
 
-No schema change, no migration. Two things to know:
+No schema change, no migration. Pull the new tag and recreate the container.
+Three things to know:
 
+- **New: MCP server.** `POST /api/mcp` is live for any user with a personal
+  access token; it exposes only what the token's owner may already do. Nothing to
+  configure - see [Natural-language DNS with MCP](./14-MCP.md) for client setup.
 - **SQLite installs that upgraded through 1.1.0** may have lost data at that
   upgrade: the `pdns_servers` table rebuild in migration 0003 cascaded into
   `zone_grants` (per-zone permissions for users and teams), `metric_samples` and
@@ -56,6 +60,14 @@ No schema change, no migration. Two things to know:
   Postgres whenever the audit log had rows, and `POST /api/admin/backup/restore`
   inserted nothing while reporting success. Backups taken with earlier versions
   are empty or incomplete - take a fresh export after upgrading.
+
+Behaviour changes worth knowing: backends with `write_mode = read_only` now
+reject every write (previously only the pickers steered away from them);
+passwordless passkey sign-in requires user verification; a lost session bounces
+straight to the default OIDC/SAML provider instead of showing the local form
+(`/login?force-local=1` still does). New optional setting
+`PDNS_REQUEST_LOG_RETENTION_DAYS` (default 7). See the
+[CHANGELOG](../CHANGELOG.md#190---2026-10-09).
 
 ### Upgrading to 1.8.4 (from 1.8.3)
 
