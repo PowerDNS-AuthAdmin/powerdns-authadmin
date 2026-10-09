@@ -708,11 +708,11 @@ function PdnsAttentionWidget({ counts }: { counts: { neverProbed: number; unreac
   return (
     <section
       className="rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/5 p-4"
-      aria-label="PDNS backends needing attention"
+      aria-label="PowerDNS backends needing attention"
     >
       <header className="mb-2 flex items-center gap-2">
         <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-          PDNS backends needing attention
+          PowerDNS backends needing attention
         </h2>
         <span className="text-xs text-[color:var(--color-fg-muted)]">
           Live reachability across configured backends. Click a tile to jump to the list and Test.
@@ -1050,7 +1050,7 @@ function DashboardTabStrip({ active }: { active: "admin" | "pdns" }) {
           PowerDNS stats
         </DashboardTab>
         <DashboardTab href="/dashboard?tab=admin" active={active === "admin"}>
-          PDNS Auth Admin
+          PowerDNS-AuthAdmin
         </DashboardTab>
       </nav>
     </div>

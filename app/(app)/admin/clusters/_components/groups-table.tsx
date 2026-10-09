@@ -83,6 +83,7 @@ export function GroupsTable({ rows }: { rows: GroupRow[] }) {
       columns={columns}
       data={rows}
       searchPlaceholder="Search groups by name or slug…"
+      noDataMessage="No clusters yet - use Add cluster to group backends."
       initialSort={[{ id: "name", desc: false }]}
       sortParam="sort"
       pageSizeParam="pageSize"

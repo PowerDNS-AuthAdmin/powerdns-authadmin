@@ -358,8 +358,8 @@ export function TsigKeyWizard({
                   </div>
                 </div>
                 <p className="text-xs text-[color:var(--color-fg-muted)]">
-                  PDNS generates the HMAC secret server-side. With the automatic install you never
-                  see it; choose manual to get a copy-paste script that includes it.
+                  PowerDNS generates the HMAC secret server-side. With the automatic install you
+                  never see it; choose manual to get a copy-paste script that includes it.
                 </p>
               </div>
             ) : null}

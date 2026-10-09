@@ -6,9 +6,10 @@
  * sometimes more when the backend is behind a reverse proxy. The shimmer
  * mirrors the page layout (header + table) so the swap is silent.
  *
- * Not added for DB-only pages (admin/users, admin/teams, profile, etc.)
- * because their queries run in <50ms - a flash of skeleton on every
- * navigation is worse UX than nothing.
+ * The admin list pages carry the same shape of skeleton (see
+ * app/(app)/admin/*\/loading.tsx): several of them probe PowerDNS as part
+ * of the render, and even the DB-only ones can stall behind a slow
+ * connection, during which the previous page froze with no feedback.
  */
 
 import { Skeleton, SkeletonTable } from "@/components/ui/skeleton";

@@ -43,7 +43,7 @@ export function MetadataEditor({ zoneIdEncoded, serverSlug, kind, initialValues 
           <code className="font-mono">
             pdnsutil set-meta {`<zone>`} {kind} {`<value>`}
           </code>{" "}
-          on the PDNS host to change it.
+          on the PowerDNS host to change it.
         </p>
       </div>
     );
@@ -80,7 +80,7 @@ export function MetadataEditor({ zoneIdEncoded, serverSlug, kind, initialValues 
   async function handleDelete() {
     const ok = await confirm({
       title: `Delete ${kind}?`,
-      description: `The kind will be removed entirely from this zone. PDNS reverts to its default behavior for this setting.`,
+      description: `The kind will be removed entirely from this zone. PowerDNS reverts to its default behavior for this setting.`,
       confirmLabel: "Delete kind",
       variant: "danger",
     });

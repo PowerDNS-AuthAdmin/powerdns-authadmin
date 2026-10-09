@@ -254,7 +254,7 @@ export function TemplateSettingsForm({ initial, canEdit, primaries }: Props) {
             className="mt-0.5"
           />
           <span>
-            Use this template by default for these PDNS servers
+            Use this template by default for these PowerDNS servers
             <span className="ml-2 block text-[0.6875rem] text-[color:var(--color-fg-muted)]">
               When ticked, the create-zone form auto-selects this template the moment the operator
               picks one of the chosen primaries.
@@ -265,7 +265,7 @@ export function TemplateSettingsForm({ initial, canEdit, primaries }: Props) {
         {defaultForOn ? (
           primaries.length === 0 ? (
             <p className="rounded border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-2 text-[0.6875rem] text-[color:var(--color-fg-muted)]">
-              No active PDNS primaries configured.
+              No active PowerDNS primaries configured.
             </p>
           ) : (
             <div className="flex flex-wrap gap-2 pt-1">

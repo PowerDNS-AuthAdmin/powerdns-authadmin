@@ -229,6 +229,7 @@ export function LoginForm({
             <button
               type="button"
               onClick={() => setMfaMode("totp")}
+              aria-pressed={mfaMode === "totp"}
               className={`flex-1 rounded px-3 py-1.5 ${
                 mfaMode === "totp"
                   ? "bg-[color:var(--color-bg)] font-medium"
@@ -240,6 +241,7 @@ export function LoginForm({
             <button
               type="button"
               onClick={() => setMfaMode("webauthn")}
+              aria-pressed={mfaMode === "webauthn"}
               className={`flex-1 rounded px-3 py-1.5 ${
                 mfaMode === "webauthn"
                   ? "bg-[color:var(--color-bg)] font-medium"

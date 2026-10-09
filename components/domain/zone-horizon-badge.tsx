@@ -39,6 +39,8 @@ export function ZoneHorizonBadge({
   return (
     <span className={className ? `${BADGE} ${className}` : BADGE} title={TITLE}>
       internal
+      {/* The tooltip text, for keyboard and touch users who can't hover. */}
+      <span className="sr-only"> ({TITLE})</span>
     </span>
   );
 }

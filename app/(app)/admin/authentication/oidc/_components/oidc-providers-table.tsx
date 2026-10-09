@@ -285,6 +285,10 @@ function DiscoveryBadge({
             title="IdP doesn't advertise end_session_endpoint. RP-initiated sign-out can't reach the IdP - users will see the local sign-out screen instead of the IdP's. Fix: enable Front Channel / Back Channel Logout on the IdP."
           >
             no end-session
+            <span className="sr-only">
+              {" "}
+              (the IdP advertises no end_session_endpoint, so sign-out ends at the local screen)
+            </span>
           </span>
         ) : null}
       </span>

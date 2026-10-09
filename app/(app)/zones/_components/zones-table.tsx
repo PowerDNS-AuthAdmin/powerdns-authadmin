@@ -11,7 +11,7 @@
  */
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Lock, Unlock } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
@@ -288,6 +288,7 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
   // control only appears once the fleet actually has an internal zone -
   // otherwise it's a filter with nothing to filter.
   const [horizon, setHorizon] = useState<HorizonFilter>("all");
+  const tableId = useId();
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -334,36 +335,40 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
 
   return (
     <div className="space-y-3">
+      {/* The tabs filter the table below; `tableId` ties them together for
+          assistive technology via aria-controls. */}
       <div className="flex flex-wrap items-center gap-2">
-        <ScopeTabs scope={scope} counts={counts} onChange={setScope} />
+        <ScopeTabs scope={scope} counts={counts} onChange={setScope} controls={tableId} />
         {counts.internal > 0 ? (
-          <HorizonTabs horizon={horizon} counts={counts} onChange={setHorizon} />
+          <HorizonTabs horizon={horizon} counts={counts} onChange={setHorizon} controls={tableId} />
         ) : null}
       </div>
-      <DataTable
-        columns={columns}
-        data={filtered}
-        searchPlaceholder="Search zones by name or backend…"
-        // Default order: desynced first (Sync desc), then name asc.
-        // When every row is in-sync the Sync rank ties and Name asc
-        // becomes the visible order - i.e. "show me anything that
-        // needs attention first; otherwise alphabetical." With the Sync
-        // column hidden (`PDNS_BACKGROUND_POLLING=false`), the initial
-        // sort collapses to Name asc.
-        initialSort={
-          showSync
-            ? [
-                { id: "sync", desc: true },
-                { id: "name", desc: false },
-              ]
-            : [{ id: "name", desc: false }]
-        }
-        sortParam="sort"
-        pageSizeParam="pageSize"
-        stateKey="zones"
-        rowHref={zoneHref}
-        noDataMessage={emptyMessage(scope, horizon)}
-      />
+      <div id={tableId}>
+        <DataTable
+          columns={columns}
+          data={filtered}
+          searchPlaceholder="Search zones by name or backend…"
+          // Default order: desynced first (Sync desc), then name asc.
+          // When every row is in-sync the Sync rank ties and Name asc
+          // becomes the visible order - i.e. "show me anything that
+          // needs attention first; otherwise alphabetical." With the Sync
+          // column hidden (`PDNS_BACKGROUND_POLLING=false`), the initial
+          // sort collapses to Name asc.
+          initialSort={
+            showSync
+              ? [
+                  { id: "sync", desc: true },
+                  { id: "name", desc: false },
+                ]
+              : [{ id: "name", desc: false }]
+          }
+          sortParam="sort"
+          pageSizeParam="pageSize"
+          stateKey="zones"
+          rowHref={zoneHref}
+          noDataMessage={emptyMessage(scope, horizon)}
+        />
+      </div>
     </div>
   );
 }
@@ -379,16 +384,19 @@ function ScopeTabs({
   scope,
   counts,
   onChange,
+  controls,
 }: {
   scope: ScopeFilter;
   counts: { all: number; forward: number; reverse: number };
   onChange: (next: ScopeFilter) => void;
+  controls: string;
 }) {
   return (
     <SegmentedTabs
       ariaLabel="Zone scope filter"
       active={scope}
       onChange={onChange}
+      controls={controls}
       tabs={[
         { id: "all", label: "All", count: counts.all },
         { id: "forward", label: "Forward", count: counts.forward },
@@ -404,16 +412,19 @@ function HorizonTabs({
   horizon,
   counts,
   onChange,
+  controls,
 }: {
   horizon: HorizonFilter;
   counts: { all: number; public: number; internal: number };
   onChange: (next: HorizonFilter) => void;
+  controls: string;
 }) {
   return (
     <SegmentedTabs
       ariaLabel="Zone horizon filter"
       active={horizon}
       onChange={onChange}
+      controls={controls}
       tabs={[
         { id: "all", label: "Any horizon", count: counts.all },
         { id: "public", label: "Public", count: counts.public },
@@ -423,24 +434,48 @@ function HorizonTabs({
   );
 }
 
+/**
+ * Filter tabs over the table below. WAI-ARIA tabs keyboard model: the active
+ * tab is the single Tab stop, ←/→ (wrapping) and Home/End move the selection
+ * and apply it straight away, and every tab points at the table it filters via
+ * `aria-controls`.
+ */
 function SegmentedTabs<T extends string>({
   ariaLabel,
   active,
   tabs,
   onChange,
+  controls,
 }: {
   ariaLabel: string;
   active: T;
   tabs: Array<{ id: T; label: string; count: number }>;
   onChange: (next: T) => void;
+  /** Id of the element the tabs filter. */
+  controls: string;
 }) {
+  function onKeyDown(e: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    let next: number | null = null;
+    if (e.key === "ArrowRight") next = (index + 1) % tabs.length;
+    else if (e.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = tabs.length - 1;
+    if (next === null) return;
+    e.preventDefault();
+    const target = tabs[next];
+    if (!target) return;
+    onChange(target.id);
+    // Focus follows the selection so the next arrow press continues from it.
+    (e.currentTarget.parentElement?.children[next] as HTMLElement | undefined)?.focus();
+  }
+
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
       className="inline-flex rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-0.5 text-sm"
     >
-      {tabs.map((t) => {
+      {tabs.map((t, index) => {
         const isActive = t.id === active;
         return (
           <button
@@ -448,7 +483,10 @@ function SegmentedTabs<T extends string>({
             role="tab"
             type="button"
             aria-selected={isActive}
+            aria-controls={controls}
+            tabIndex={isActive ? 0 : -1}
             onClick={() => onChange(t.id)}
+            onKeyDown={(e) => onKeyDown(e, index)}
             className={
               isActive
                 ? "rounded bg-[color:var(--color-accent)] px-3 py-1 font-medium text-[color:var(--color-accent-fg)]"
@@ -512,7 +550,10 @@ function SyncCell({ row }: { row: ZoneRow }) {
       : tone === "warn"
         ? "text-[color:var(--color-warn-fg)]"
         : "text-[color:var(--color-error-fg)]";
-  const label = isSynced ? "synced" : "desynced";
+  // The chip names the worst state rather than a blanket "desynced", so the
+  // warn/error distinction the colour makes is also in the words: "lagging"
+  // is a catch-up in flight, "missing" / "error" need an operator.
+  const label = isSynced ? "synced" : (worst ?? "desynced");
   // Include the row's own backend in the count - `syncStates` enumerates the
   // OTHER peers (secondaries, or non-anchor cluster peers), so +1 surfaces
   // the total fleet size the operator is looking at.
@@ -528,6 +569,11 @@ function SyncCell({ row }: { row: ZoneRow }) {
         <SyncIndicator state={isSynced ? "synced" : "desynced"} size={14} tone={tone} />
         {label}
         <span className="text-[color:var(--color-fg-muted)] tabular-nums">{total}</span>
+        {/* The tooltip's per-peer breakdown, for readers who can't hover. */}
+        <span className="sr-only">
+          {" "}
+          of {total} backends. {detail.replace(/\n/g, "; ")}
+        </span>
       </span>
     </span>
   );

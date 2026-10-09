@@ -160,7 +160,7 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
       <header className="mb-4">
         <h2 className="text-base font-semibold">Zone settings</h2>
         <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
-          Zone-object fields PDNS exposes outside the metadata-API allowlist. Routed through{" "}
+          Zone-object fields PowerDNS exposes outside the metadata-API allowlist. Routed through{" "}
           <code className="font-mono">PUT /zones/{`{id}`}</code>.
         </p>
       </header>
@@ -186,7 +186,10 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
           </Field>
         ) : null}
 
-        <Field label="SOA-EDIT" help="Algorithm PDNS uses for the SOA serial sent to secondaries.">
+        <Field
+          label="SOA-EDIT"
+          help="Algorithm PowerDNS uses for the SOA serial sent to secondaries."
+        >
           <SelectMenu
             value={soaEdit}
             options={SOA_EDIT_OPTIONS}
@@ -197,7 +200,7 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
 
         <Field
           label="SOA-EDIT-API"
-          help="Algorithm PDNS uses to bump the SOA serial after API edits."
+          help="Algorithm PowerDNS uses to bump the SOA serial after API edits."
         >
           <SelectMenu
             value={soaEditApi}

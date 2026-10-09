@@ -235,7 +235,7 @@ export function ServerForm(props: ServerFormProps) {
         label="Base URL"
         id="baseUrl"
         errors={fieldErrors["baseUrl"]}
-        hint="Just the host + port - '/api/v1' is appended automatically. Provide a custom path only if your reverse proxy mounts PDNS under a prefix."
+        hint="Just the host + port - '/api/v1' is appended automatically. Provide a custom path only if your reverse proxy mounts PowerDNS under a prefix."
       >
         <input
           id="baseUrl"
@@ -251,7 +251,7 @@ export function ServerForm(props: ServerFormProps) {
         label="Server id"
         id="serverId"
         errors={fieldErrors["serverId"]}
-        hint='PDNS server-id (the path after /servers/). Usually "localhost".'
+        hint='PowerDNS server-id (the path after /servers/). Usually "localhost".'
       >
         <input
           id="serverId"
