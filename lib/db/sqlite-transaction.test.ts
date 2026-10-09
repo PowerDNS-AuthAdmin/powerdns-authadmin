@@ -104,6 +104,42 @@ describe("createSqliteTransactionRunner (fake handle)", () => {
     expect(h.calls).toEqual(["BEGIN", "COMMIT", "BEGIN", "COMMIT"]);
   });
 
+  it("does not mistake a concurrent request for a nested transaction while the callback awaits non-DB work", async () => {
+    const h = fakeHandle();
+    const run = createSqliteTransactionRunner(h, DB);
+
+    let release1!: () => void;
+    const gate1 = new Promise<void>((resolve) => {
+      release1 = resolve;
+    });
+    const order: string[] = [];
+
+    // t1 suspends on something that is NOT a DB query (an outbound call, a
+    // timer). While it is suspended, an unrelated request starts its own
+    // transaction. A depth counter would see "a transaction is open" and run
+    // t2 as a SAVEPOINT inside t1 - merging an unrelated request's writes into
+    // t1's transaction (and rolling them back with it).
+    const t1 = run(async () => {
+      order.push("t1-start");
+      await gate1;
+      order.push("t1-end");
+    });
+    await Promise.resolve();
+    const t2 = run(() => {
+      order.push("t2");
+    });
+
+    await Promise.resolve();
+    expect(order).toEqual(["t1-start"]);
+    expect(h.calls).toEqual(["BEGIN"]); // no SAVEPOINT issued for t2
+
+    release1();
+    await Promise.all([t1, t2]);
+
+    expect(order).toEqual(["t1-start", "t1-end", "t2"]);
+    expect(h.calls).toEqual(["BEGIN", "COMMIT", "BEGIN", "COMMIT"]);
+  });
+
   it("uses a SAVEPOINT for a nested transaction and commits both", async () => {
     const h = fakeHandle();
     const run = createSqliteTransactionRunner(h, DB);

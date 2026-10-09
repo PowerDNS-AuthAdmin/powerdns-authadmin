@@ -18,22 +18,30 @@
  * transactions, and the callbacks are async, so two requests could otherwise
  * interleave their BEGIN/COMMIT across `await` points. Top-level transactions
  * are therefore queued through a promise chain and run strictly one at a time -
- * which is also SQLite's real concurrency model (a single writer). In practice
- * the callbacks only `await` better-sqlite3 queries, which resolve
- * synchronously, so nothing interleaves mid-transaction anyway; the chain is
- * belt-and-suspenders that also keeps a genuinely-async callback safe.
+ * which is also SQLite's real concurrency model (a single writer).
  *
  * Nesting: a callback that itself calls `db.transaction` would deadlock on the
  * chain (it would await a promise that can't settle until the callback
- * returns), so a nested call takes a SAVEPOINT and skips the chain. No call
- * site nests today; this keeps a future one correct. Detection assumes a
- * transaction callback never `await`s non-DB async work (true for this
- * codebase), so a concurrent top-level call is never mistaken for a nested one.
+ * returns), so a nested call takes a SAVEPOINT and skips the chain. "Nested"
+ * is decided with an AsyncLocalStorage frame opened for the outer callback,
+ * not with a shared counter: a counter can't tell a nested call apart from an
+ * unrelated request that starts a transaction while the outer callback is
+ * suspended on some non-DB `await` (an outbound HTTP call, a timer), and
+ * would have merged that request's writes into the open transaction as a
+ * SAVEPOINT. The async context follows the call chain, so only a call made
+ * from inside the callback sees the frame.
  */
+
+import { AsyncLocalStorage } from "node:async_hooks";
 
 /** The slice of the better-sqlite3 connection this needs. */
 export interface SqliteExecHandle {
   exec(sql: string): unknown;
+}
+
+/** Per-top-level-transaction frame; `depth` names nested SAVEPOINTs uniquely. */
+interface TransactionFrame {
+  depth: number;
 }
 
 /**
@@ -48,17 +56,17 @@ export function createSqliteTransactionRunner<TDb>(
   // The tail of the serialized transaction chain. Each new top-level
   // transaction chains onto it so they never overlap on the single connection.
   let tail: Promise<unknown> = Promise.resolve();
-  // 0 = no transaction in flight; >0 = inside a transaction callback (the value
-  // is the current nesting level, used to name SAVEPOINTs uniquely).
-  let depth = 0;
+  // Set only for code running inside an open transaction's callback.
+  const frames = new AsyncLocalStorage<TransactionFrame>();
 
   return (callback) => {
-    // Nested: we're already inside a transaction callback on this connection
-    // (the BEGIN is open). Use a SAVEPOINT for partial-rollback semantics and
-    // skip the chain - re-entering it would deadlock.
-    if (depth > 0) {
-      const savepoint = `app_sp_${depth}`;
-      depth += 1;
+    // Nested: we're inside a transaction callback on this connection (the
+    // BEGIN is open). Use a SAVEPOINT for partial-rollback semantics and skip
+    // the chain - re-entering it would deadlock.
+    const frame = frames.getStore();
+    if (frame) {
+      const savepoint = `app_sp_${frame.depth}`;
+      frame.depth += 1;
       const runNested = async () => {
         handle.exec(`SAVEPOINT ${savepoint}`);
         try {
@@ -70,33 +78,31 @@ export function createSqliteTransactionRunner<TDb>(
           handle.exec(`RELEASE SAVEPOINT ${savepoint}`);
           throw err;
         } finally {
-          depth -= 1;
+          frame.depth -= 1;
         }
       };
       return runNested();
     }
 
-    const runTop = async () => {
-      depth = 1;
-      handle.exec("BEGIN");
-      try {
-        const result = await callback(db);
-        handle.exec("COMMIT");
-        return result;
-      } catch (err) {
-        // A constraint violation can make SQLite auto-rollback the transaction;
-        // a follow-up ROLLBACK then throws "cannot rollback - no transaction is
-        // active". Swallow that so the original error is what propagates.
+    const runTop = () =>
+      frames.run({ depth: 1 }, async () => {
+        handle.exec("BEGIN");
         try {
-          handle.exec("ROLLBACK");
-        } catch {
-          /* transaction already rolled back by SQLite */
+          const result = await callback(db);
+          handle.exec("COMMIT");
+          return result;
+        } catch (err) {
+          // A constraint violation can make SQLite auto-rollback the transaction;
+          // a follow-up ROLLBACK then throws "cannot rollback - no transaction is
+          // active". Swallow that so the original error is what propagates.
+          try {
+            handle.exec("ROLLBACK");
+          } catch {
+            /* transaction already rolled back by SQLite */
+          }
+          throw err;
         }
-        throw err;
-      } finally {
-        depth = 0;
-      }
-    };
+      });
 
     // Run after any in-flight transaction settles, success or failure.
     const result = tail.then(runTop, runTop);
