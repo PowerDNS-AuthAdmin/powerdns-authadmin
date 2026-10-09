@@ -26,24 +26,15 @@ All notable changes to this project are documented here. The format is based on
   ([GHSA-cjq9-62q9-8jv4](https://github.com/advisories/GHSA-cjq9-62q9-8jv4)).
   `npm audit --omit=dev` is back to 0 vulnerabilities.
 
-### Fixed
-
-- **Session expiry showed the local login form even when the default sign-in
-  method is OIDC or SAML.** An expired or revoked session lands on
-  `/login?flash=session-required`, and the page treated any flash as a reason
-  not to auto-bounce to the default provider. A lost session now bounces to
-  the IdP like a plain visit (carrying `next`); explicit sign-out,
-  `?force-local=1` and real error codes still keep the form.
-  ([#153](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/153))
-
 ### Security
 
-- **Password-reset, signup-verification and email-change links are no longer
-  written to the audit log when SMTP is off.** Any `audit.read` holder could
-  request a reset for another local account, read the link from the audit
-  panel and take the account over. The link now goes to the server log only
-  (warn level); the admin "Reset password" flow is the supported out-of-band
-  path.
+- **The password-reset link is no longer written to the audit log when SMTP
+  is off.** Any `audit.read` holder could request a reset for another local
+  account, read the link from the audit panel and take the account over. The
+  link now goes to the server log only (warn level); the admin "Reset
+  password" flow is the supported out-of-band path. Signup-verification,
+  re-verification and email-change links stay in the audit row: they only
+  complete an action the account holder initiated and are not a credential.
 - **Read-only backends now refuse writes.** `write_mode = read_only` only
   steered the backend pickers; any write route accepted the backend by slug.
   The gateway now rejects zone, record, metadata, DNSSEC key, TSIG and
@@ -81,6 +72,14 @@ All notable changes to this project are documented here. The format is based on
   (`auth.token.revealed`).
 
 ### Fixed
+
+- **Session expiry showed the local login form even when the default sign-in
+  method is OIDC or SAML.** An expired or revoked session lands on
+  `/login?flash=session-required`, and the page treated any flash as a reason
+  not to auto-bounce to the default provider. A lost session now bounces to
+  the IdP like a plain visit (carrying `next`); explicit sign-out,
+  `?force-local=1` and real error codes still keep the form.
+  ([#153](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/153))
 
 - **SAML sign-in was rejected with "InResponseTo is not valid".** The
   AuthnRequest id was recorded in a throwaway node-saml instance while the

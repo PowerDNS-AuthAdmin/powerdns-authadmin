@@ -290,14 +290,6 @@ async function issueVerification(
     ...verifyEmailMessage(verifyUrl),
   });
 
-  if (mail.skipped) {
-    // SMTP is off: the link is printed once here for the operator to hand
-    // over out-of-band. Never put it in the audit row (bearer credential).
-    logger.warn(
-      { url: verifyUrl },
-      "email delivery skipped - SMTP not configured; share this link out-of-band",
-    );
-  }
   await appendAudit({
     actor: { type: "system", id: null },
     action: "auth.email.verify.sent",
@@ -307,7 +299,7 @@ async function issueVerification(
       origin,
       // Keep the tokenised link in the audit ONLY when SMTP is off, so an
       // operator can still share it. When emailed, the token stays out of audit.
-      smtpConfigured: !mail.skipped,
+      ...(mail.skipped ? { url: verifyUrl } : {}),
       delivered: mail.ok && !mail.skipped,
     },
     request: reqContext,
