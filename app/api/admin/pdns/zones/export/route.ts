@@ -71,7 +71,7 @@ export async function POST(request: Request): Promise<Response> {
         await appendAudit({
           actor: { type: "user", id: user.id },
           action: "zone.export",
-          resource: { type: "zone", id: detail.id },
+          resource: { type: "zone", id: `${server.slug}:${detail.name}` },
           after: { name: detail.name },
           request: reqCtx,
         });
