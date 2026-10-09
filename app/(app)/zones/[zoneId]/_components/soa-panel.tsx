@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { mutate } from "@/lib/client/api-fetch";
 import { useDialog } from "@/components/ui/dialog";
 import { NumberInput } from "@/components/ui/number-input";
+import { Field, inputClass } from "@/components/ui/form";
 import {
   SOA_DEFAULTS,
   serializeSoaContent,
@@ -269,27 +270,6 @@ export function SoaPanel(props: SoaPanelProps) {
         )}
       </form>
     </section>
-  );
-}
-
-const inputClass =
-  "mt-1 block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)] disabled:opacity-60";
-
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className="block text-sm font-medium">{label}</label>
-      {children}
-      {hint ? <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">{hint}</p> : null}
-    </div>
   );
 }
 

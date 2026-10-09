@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { SelectMenu } from "@/components/ui/select-menu";
+import { Field as SharedField } from "@/components/ui/form";
 
 interface ActionGroup {
   ns: string;
@@ -216,13 +217,10 @@ function Field({
   colSpan?: 2 | 3;
   children: React.ReactNode;
 }) {
-  const col = colSpan === 3 ? "sm:col-span-3" : colSpan === 2 ? "sm:col-span-2" : "";
+  const col = colSpan === 3 ? "sm:col-span-3" : colSpan === 2 ? "sm:col-span-2" : undefined;
   return (
-    <label className={`space-y-1 ${col}`}>
-      <span className="block text-[0.625rem] tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-        {label}
-      </span>
+    <SharedField label={label} size="caps-xs" className={col}>
       {children}
-    </label>
+    </SharedField>
   );
 }

@@ -21,6 +21,8 @@ import { Upload, Download, ArrowDownToLine, ArrowUpFromLine } from "lucide-react
 import { apiFetch, mutate } from "@/lib/client/api-fetch";
 import { TsigKeySelector } from "@/components/domain/tsig-key-selector";
 import { SelectMenu } from "@/components/ui/select-menu";
+import { Field as SharedField } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useDialog } from "@/components/ui/dialog";
 
 interface Backend {
@@ -552,11 +554,19 @@ function ExportPanel({ backends }: { backends: Backend[] }) {
                 const checked = selected.has(z.name);
                 return (
                   <li key={z.id}>
-                    <label className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)]">
-                      <Checkbox checked={checked} onChange={() => toggle(z.name)} />
-                      <span className="flex-1 font-mono">{z.name}</span>
-                      <span className="text-xs text-[color:var(--color-fg-muted)]">{z.kind}</span>
-                    </label>
+                    <Checkbox
+                      checked={checked}
+                      onChange={() => toggle(z.name)}
+                      className="flex w-full gap-3 px-3 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)]"
+                      label={
+                        <span className="flex flex-1 items-center gap-3">
+                          <span className="flex-1 font-mono">{z.name}</span>
+                          <span className="text-xs text-[color:var(--color-fg-muted)]">
+                            {z.kind}
+                          </span>
+                        </span>
+                      }
+                    />
                   </li>
                 );
               })}
@@ -596,12 +606,9 @@ function Panel({ children }: { children: React.ReactNode }) {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
-      <span className="block text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-        {label}
-      </span>
-      <div className="mt-1.5">{children}</div>
-    </label>
+    <SharedField label={label} size="caps">
+      {children}
+    </SharedField>
   );
 }
 
@@ -610,48 +617,5 @@ function ErrorBanner({ children }: { children: React.ReactNode }) {
     <div className="mt-4 rounded-md border border-[color:var(--color-danger-border)] bg-[color:var(--color-danger-bg)] p-3 text-sm text-[color:var(--color-danger-fg)]">
       {children}
     </div>
-  );
-}
-
-/**
- * Themed checkbox - the user has banned default <input type="checkbox">
- * (feedback-themed-form-controls). This is a styled box that mirrors
- * the rest of the app.
- */
-function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
-  return (
-    <span
-      role="checkbox"
-      aria-checked={checked}
-      tabIndex={0}
-      onClick={(e) => {
-        e.preventDefault();
-        onChange();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === " " || e.key === "Enter") {
-          e.preventDefault();
-          onChange();
-        }
-      }}
-      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
-        checked
-          ? "border-[color:var(--color-accent)] bg-[color:var(--color-accent)] text-[color:var(--color-accent-on)]"
-          : "border-[color:var(--color-border)] bg-[color:var(--color-bg)]"
-      }`}
-    >
-      {checked ? (
-        <svg viewBox="0 0 16 16" className="h-3 w-3" aria-hidden>
-          <path
-            d="M3 8.5l3 3 7-7"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      ) : null}
-    </span>
   );
 }

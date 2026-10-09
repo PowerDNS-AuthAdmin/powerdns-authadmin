@@ -528,32 +528,32 @@ function ServerCard({ row, canReadAudit, lastEdits, syncChip, reachability }: Se
       ) : null}
 
       <dl className="mt-3 text-sm">
-        <Field label="Base URL">
+        <DetailRow label="Base URL">
           <span className="font-mono text-xs break-all">{row.baseUrl}</span>
-        </Field>
-        <Field label="Status">
+        </DetailRow>
+        <DetailRow label="Status">
           <HealthBadge
             disabledAt={row.disabledAt}
             lastSeenAt={row.lastSeenAt}
             reachability={reachability}
           />
-        </Field>
-        <Field label="Version">
+        </DetailRow>
+        <DetailRow label="Version">
           <span className="text-xs">{row.versionCache?.version ?? "-"}</span>
-        </Field>
+        </DetailRow>
         {pdnsBackgroundPollingEnabled ? (
-          <Field label="Sync">
+          <DetailRow label="Sync">
             <SyncChip verdict={syncChip} isMirror={isMirror} />
-          </Field>
+          </DetailRow>
         ) : null}
         {canReadAudit ? (
-          <Field label="Last admin edit">
+          <DetailRow label="Last admin edit">
             <span className="text-xs text-[color:var(--color-fg-muted)]">
               {lastEdits.has(row.id)
                 ? freshnessOf(lastEdits.get(row.id)!.toISOString()).label
                 : "-"}
             </span>
-          </Field>
+          </DetailRow>
         ) : null}
       </dl>
 
@@ -570,7 +570,8 @@ function ServerCard({ row, canReadAudit, lastEdits, syncChip, reachability }: Se
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** One label/value row of a server's mobile card - a description-list entry, not a form field. */
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex justify-between gap-3 border-t border-[color:var(--color-border)] py-1.5 first:border-t-0">
       <dt className="shrink-0 text-[color:var(--color-fg-muted)]">{label}</dt>

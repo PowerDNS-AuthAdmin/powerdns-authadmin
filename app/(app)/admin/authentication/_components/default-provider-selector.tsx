@@ -16,7 +16,7 @@
  */
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useDialog } from "@/components/ui/dialog";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { mutate } from "@/lib/client/api-fetch";
@@ -43,6 +43,7 @@ export function DefaultProviderSelector({ initial, options, canEdit }: Props) {
   const { toast } = useDialog();
   const [value, setValue] = useState(initial);
   const [busy, setBusy] = useState(false);
+  const selectId = useId();
 
   const dirty = value !== initial;
 
@@ -85,14 +86,26 @@ export function DefaultProviderSelector({ initial, options, canEdit }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <label className="flex-1">
-        <span className="block text-sm font-medium">Default sign-in method</span>
-        <span className="mt-0.5 mb-2 block text-xs text-[color:var(--color-fg-muted)]">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (dirty && !busy) void handleSave();
+      }}
+      className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
+    >
+      <div className="flex-1">
+        <label htmlFor={selectId} className="block text-sm font-medium">
+          Default sign-in method
+        </label>
+        <span
+          id={`${selectId}-hint`}
+          className="mt-0.5 mb-2 block text-xs text-[color:var(--color-fg-muted)]"
+        >
           When set to anything other than Local Auth, <code>/login</code> auto-redirects to that
           provider's initiate URL. Escape hatch: <code>/login?force-local=1</code>.
         </span>
         <SelectMenu
+          id={selectId}
           value={value}
           onChange={(v) => setValue(v)}
           options={allOptions.map((o) => ({
@@ -101,20 +114,18 @@ export function DefaultProviderSelector({ initial, options, canEdit }: Props) {
             description: o.description,
           }))}
           disabled={!canEdit || busy}
-          ariaLabel="Default sign-in method"
           className="text-sm"
         />
-      </label>
+      </div>
       {canEdit ? (
         <button
-          type="button"
-          onClick={handleSave}
+          type="submit"
           disabled={!dirty || busy}
           className="shrink-0 rounded bg-[color:var(--color-accent)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
         >
           {busy ? "Saving…" : "Save"}
         </button>
       ) : null}
-    </div>
+    </form>
   );
 }

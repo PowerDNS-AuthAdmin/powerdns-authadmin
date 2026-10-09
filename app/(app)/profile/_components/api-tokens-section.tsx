@@ -203,7 +203,13 @@ export function ApiTokensSection({ initialTokens, availablePermissions }: Props)
       ) : null}
 
       {open ? (
-        <div className="mb-4 space-y-3 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleCreate();
+          }}
+          className="mb-4 space-y-3 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3"
+        >
           <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
             <div>
               <label htmlFor="tk-name" className="block text-xs font-medium">
@@ -267,15 +273,14 @@ export function ApiTokensSection({ initialTokens, availablePermissions }: Props)
               Cancel
             </button>
             <button
-              type="button"
-              onClick={handleCreate}
+              type="submit"
               disabled={issuing}
               className="rounded bg-[color:var(--color-accent)] px-3 py-1 text-xs font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
             >
               {issuing ? "Issuing…" : "Issue"}
             </button>
           </div>
-        </div>
+        </form>
       ) : null}
 
       {active.length === 0 && revoked.length === 0 ? (

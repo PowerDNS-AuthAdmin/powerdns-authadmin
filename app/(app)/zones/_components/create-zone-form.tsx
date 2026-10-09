@@ -29,6 +29,7 @@ import { apiFetch } from "@/lib/client/api-fetch";
 import { TsigKeySelector } from "@/components/domain/tsig-key-selector";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { Switch } from "@/components/ui/switch";
+import { Field, Section, inputClass } from "@/components/ui/form";
 
 /**
  * Operator-facing backend option. A logical backend is either a
@@ -554,6 +555,7 @@ export function CreateZoneForm(props: Props) {
                   value={m}
                   onChange={(e) => setMaster(i, e.target.value)}
                   placeholder="192.0.2.53"
+                  aria-label={`Primary master ${i + 1}`}
                   className={`${inputClass} font-mono`}
                 />
                 <button
@@ -591,6 +593,7 @@ export function CreateZoneForm(props: Props) {
                     value={ns}
                     onChange={(e) => setNs(i, e.target.value)}
                     placeholder="ns1.example.com."
+                    aria-label={`Name server ${i + 1}`}
                     className={`${inputClass} font-mono`}
                   />
                   <button
@@ -666,33 +669,6 @@ export function CreateZoneForm(props: Props) {
   );
 }
 
-const inputClass =
-  "mt-1 block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)]";
-
-function Section({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-5">
-      <header>
-        <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-          {title}
-        </h2>
-        {subtitle ? (
-          <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">{subtitle}</p>
-        ) : null}
-      </header>
-      {children}
-    </section>
-  );
-}
-
 /**
  * Render the selected primary's secondaries as a small indented tree
  * under the primary in the BACKEND section. Cosmetic only - secondaries
@@ -719,31 +695,6 @@ function SecondariesList({ secondaries }: { secondaries: Array<{ slug: string; n
         </li>
       ))}
     </ul>
-  );
-}
-
-function Field({
-  label,
-  hint,
-  errors,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  errors?: string[];
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className="block text-sm font-medium">{label}</label>
-      {children}
-      {hint ? <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">{hint}</p> : null}
-      {errors && errors.length > 0 ? (
-        <p className="mt-1 text-xs text-[color:var(--color-error)]" role="alert">
-          {errors.join(" ")}
-        </p>
-      ) : null}
-    </div>
   );
 }
 
