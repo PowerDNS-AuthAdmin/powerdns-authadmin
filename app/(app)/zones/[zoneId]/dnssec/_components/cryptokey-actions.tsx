@@ -41,7 +41,7 @@ export function CryptokeyActions({ zoneIdEncoded, serverSlug, rows }: Props) {
     const keytype = await prompt({
       title: "Generate a new DNSSEC key",
       description:
-        "PDNS will generate the key material with its default algorithm (typically ECDSAP256SHA256). KSKs sign the DNSKEY rrset; ZSKs sign other records; CSKs do both.",
+        "PowerDNS will generate the key material with its default algorithm (typically ECDSAP256SHA256). KSKs sign the DNSKEY rrset; ZSKs sign other records; CSKs do both.",
       label: "Key type (ksk / zsk / csk)",
       defaultValue: "ksk",
       validate: (v) => {

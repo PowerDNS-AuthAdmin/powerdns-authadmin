@@ -148,7 +148,7 @@ export function ServerActions({ id }: ServerActionsProps) {
               <div className="font-medium">Connection OK</div>
               {result.cache ? (
                 <ul className="mt-2 list-disc pl-5 text-xs">
-                  <li>PDNS version: {result.cache.version}</li>
+                  <li>PowerDNS version: {result.cache.version}</li>
                   {result.cache.serverId ? <li>Server id: {result.cache.serverId}</li> : null}
                   {result.cache.capabilities ? (
                     <>

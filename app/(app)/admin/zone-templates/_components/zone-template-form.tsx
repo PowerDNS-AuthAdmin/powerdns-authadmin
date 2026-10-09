@@ -406,7 +406,7 @@ export function ZoneTemplateForm(props: Props) {
 
       <Section
         title="Auto-select for backends"
-        subtitle="When ticked, this template becomes the create-zone default the moment the operator selects one of the chosen PDNS primaries."
+        subtitle="When ticked, this template becomes the create-zone default the moment the operator selects one of the chosen PowerDNS primaries."
       >
         <label className="flex items-start gap-2 text-sm">
           <input
@@ -415,12 +415,12 @@ export function ZoneTemplateForm(props: Props) {
             onChange={(e) => setDefaultForOn(e.target.checked)}
             className="mt-0.5"
           />
-          <span>Use this template by default for these PDNS servers</span>
+          <span>Use this template by default for these PowerDNS servers</span>
         </label>
         {defaultForOn ? (
           primaries.length === 0 ? (
             <p className="mt-2 rounded border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-2 text-[0.6875rem] text-[color:var(--color-fg-muted)]">
-              No active PDNS primaries configured.
+              No active PowerDNS primaries configured.
             </p>
           ) : (
             <div className="mt-2 flex flex-wrap gap-2">

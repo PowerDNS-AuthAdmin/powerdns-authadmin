@@ -16,6 +16,9 @@
  * desynced → `var(--color-error)`. Stroke widths are tuned for the small inline
  * sizes (12–18 px) the chips render at - thicker than typical SVG defaults so
  * the rings stay legible without zooming.
+ *
+ * Decorative: the glyph is `aria-hidden` and every consumer pairs it with the
+ * state word ("synced" / "desynced"), so the text carries the meaning.
  */
 
 interface Props {
@@ -38,7 +41,7 @@ export function SyncIndicator({ state, size = 18, tone, className }: Props) {
   return (
     <span aria-hidden style={{ color: colorToken, display: "inline-flex" }} className={className}>
       {state === "synced" ? (
-        <svg width={size} height={size} viewBox="0 0 64 64" aria-label="In sync">
+        <svg width={size} height={size} viewBox="0 0 64 64">
           <circle
             cx="32"
             cy="32"
@@ -58,14 +61,7 @@ export function SyncIndicator({ state, size = 18, tone, className }: Props) {
           <circle cx="32" cy="32" r="10" fill="currentColor" />
         </svg>
       ) : (
-        <svg
-          width={size}
-          height={size}
-          viewBox="0 0 64 64"
-          fill="none"
-          stroke="currentColor"
-          aria-label="Out of sync"
-        >
+        <svg width={size} height={size} viewBox="0 0 64 64" fill="none" stroke="currentColor">
           <circle
             cx="32"
             cy="32"

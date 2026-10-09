@@ -130,6 +130,11 @@ export function ZoneTemplatesTable({
       columns={columns}
       data={rows}
       searchPlaceholder="Search templates by name or slug…"
+      noDataMessage={
+        canManage
+          ? "No zone templates yet - use Add template to create the first one."
+          : "No zone templates yet."
+      }
       initialSort={[{ id: "name", desc: false }]}
       sortParam="sort"
       pageSizeParam="pageSize"
