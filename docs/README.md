@@ -9,21 +9,22 @@ demo zones in about two minutes - then come back for the production guides.
 
 ## Guides
 
-| Guide                                            | Read it when you want to…                                     |
-| ------------------------------------------------ | ------------------------------------------------------------- |
-| [Quickstart](./01-QUICKSTART.md)                 | Try the app end-to-end on a throwaway stack.                  |
-| [Installation](./02-INSTALLATION.md)             | Run it for real - SQLite or Postgres, TLS, backups, upgrades. |
-| [Configuration](./03-CONFIGURATION.md)           | Look up an environment variable and what it does.             |
-| [Connecting PowerDNS backends](./04-BACKENDS.md) | Wire up primaries, secondaries, and clusters.                 |
-| [OIDC single sign-on](./05-OIDC.md)              | Set up SSO with group → role mapping.                         |
-| [First-boot provisioning](./06-PROVISIONING.md)  | Bring up a fully-configured install from one YAML file.       |
-| [SAML 2.0 single sign-on](./13-SAML.md)          | Set up SAML SSO (AD FS, Authentik, Keycloak).                 |
-| [Roles & permissions (RBAC)](./07-RBAC.md)       | Understand who can do what, and scope it.                     |
-| [Hardening & best practices](./08-HARDENING.md)  | Lock down a production deployment.                            |
-| [Upgrading](./09-UPGRADING.md)                   | Move to a new version safely.                                 |
-| [Troubleshooting](./10-TROUBLESHOOTING.md)       | Fix a startup error or a backend that won't connect.          |
-| [Passkeys & security keys](./11-PASSKEYS.md)     | Use WebAuthn as passwordless sign-in or as a second factor.   |
-| [LDAP sign-in (AD / OpenLDAP)](./12-LDAP.md)     | Authenticate directly against an existing directory.          |
+| Guide                                            | Read it when you want to…                                                      |
+| ------------------------------------------------ | ------------------------------------------------------------------------------ |
+| [Quickstart](./01-QUICKSTART.md)                 | Try the app end-to-end on a throwaway stack.                                   |
+| [Installation](./02-INSTALLATION.md)             | Run it for real - SQLite or Postgres, TLS, backups, upgrades.                  |
+| [Configuration](./03-CONFIGURATION.md)           | Look up an environment variable and what it does.                              |
+| [Connecting PowerDNS backends](./04-BACKENDS.md) | Wire up primaries, secondaries, and clusters.                                  |
+| [OIDC single sign-on](./05-OIDC.md)              | Set up SSO with group → role mapping.                                          |
+| [First-boot provisioning](./06-PROVISIONING.md)  | Bring up a fully-configured install from one YAML file.                        |
+| [SAML 2.0 single sign-on](./13-SAML.md)          | Set up SAML SSO (AD FS, Authentik, Keycloak).                                  |
+| [Natural-language DNS with MCP](./14-MCP.md)     | Connect Claude Code, Codex or any MCP client and manage records from a prompt. |
+| [Roles & permissions (RBAC)](./07-RBAC.md)       | Understand who can do what, and scope it.                                      |
+| [Hardening & best practices](./08-HARDENING.md)  | Lock down a production deployment.                                             |
+| [Upgrading](./09-UPGRADING.md)                   | Move to a new version safely.                                                  |
+| [Troubleshooting](./10-TROUBLESHOOTING.md)       | Fix a startup error or a backend that won't connect.                           |
+| [Passkeys & security keys](./11-PASSKEYS.md)     | Use WebAuthn as passwordless sign-in or as a second factor.                    |
+| [LDAP sign-in (AD / OpenLDAP)](./12-LDAP.md)     | Authenticate directly against an existing directory.                           |
 
 ## Reference
 

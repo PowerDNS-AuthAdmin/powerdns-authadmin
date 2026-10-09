@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **MCP server: manage DNS from Claude Code, Codex and other AI clients.** `POST /api/mcp`
+  speaks the Model Context Protocol (Streamable HTTP, stateless) and authenticates with a
+  personal access token. Nine tools cover listing backends and zones, reading records, and
+  replacing / appending / deleting records, plus creating and deleting zones. Every call runs
+  as the token's owner through the existing RBAC, validation, concurrency and audit path;
+  write tools are only shown to tokens that can write. Setup for each client in
+  [`docs/14-MCP.md`](docs/14-MCP.md).
+
 ### Security - dependency advisories
 
 - `next` 16.3.6 → 16.4.0 (and `eslint-config-next` 16.2.6 → 16.4.0) - six
