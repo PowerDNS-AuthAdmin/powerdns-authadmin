@@ -30,7 +30,6 @@ import { findUserByEmail } from "@/lib/db/repositories/users";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { ValidationError } from "@/lib/errors";
 
 const bodySchema = z.object({
   email: z.string().email().max(320),
@@ -74,10 +73,11 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = bodySchema.parse(await request.json());
   } catch (err) {
+    // Malformed input gets the same opaque answer as everything else here -
+    // this endpoint must not become an oracle, and nothing outside catches a
+    // thrown ValidationError on this route (it would surface as a 500).
     if (err instanceof ZodError) {
-      throw new ValidationError("Invalid input.", {
-        fieldErrors: err.flatten().fieldErrors,
-      });
+      return Response.json(GENERIC_OK, { headers: { "Cache-Control": "no-store" } });
     }
     return Response.json(GENERIC_OK, { headers: { "Cache-Control": "no-store" } });
   }
@@ -142,10 +142,11 @@ export async function POST(request: Request): Promise<Response> {
     resource: { type: "user", id: user.id },
     after: {
       email: user.email,
-      // Only record the tokenised link when SMTP is off (out-of-band
-      // fallback). When emailed, the token stays out of the audit log.
-      ...(mail.skipped ? { url: resetUrl } : {}),
+      // The tokenised link is NEVER stored here: the audit log is readable
+      // by every `audit.read` holder, and a reset link is a bearer credential
+      // for the account. With SMTP off it goes to the server log only (below).
       delivered: mail.ok && !mail.skipped,
+      smtpConfigured: !mail.skipped,
     },
     request: getRequestContext(hdrs),
   });

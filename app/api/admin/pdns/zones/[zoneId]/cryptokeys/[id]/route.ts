@@ -25,6 +25,7 @@ import { PdnsNotFoundError } from "@/lib/pdns/errors";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
+import { parseSearchParams } from "@/lib/http/parse-query";
 
 const putBodySchema = z.object({
   serverSlug: z.string().optional(),
@@ -149,7 +150,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     }
 
     const url = new URL(request.url);
-    const { serverSlug } = deleteQuerySchema.parse(Object.fromEntries(url.searchParams));
+    const { serverSlug } = parseSearchParams(deleteQuerySchema, url);
     const selected = await resolveServer(serverSlug);
     if (
       !canActOnZone({

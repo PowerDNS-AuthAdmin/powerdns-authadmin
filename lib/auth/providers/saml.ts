@@ -213,6 +213,21 @@ export async function buildAuthnRequest(
  * Verify an inbound SAMLResponse. Throws on signature failure, missing
  * required attributes, or `InResponseTo` mismatch.
  */
+/**
+ * Cheap structural check on the base64 SAMLResponse: an encrypted assertion
+ * arrives as `<saml:EncryptedAssertion>` (any prefix). Decoding failures
+ * fall through to node-saml, which reports them properly.
+ */
+export function responseCarriesEncryptedAssertion(samlResponseB64: string): boolean {
+  let xml: string;
+  try {
+    xml = Buffer.from(samlResponseB64, "base64").toString("utf8");
+  } catch {
+    return false;
+  }
+  return /<(?:[\w.-]+:)?EncryptedAssertion[\s>]/.test(xml);
+}
+
 export async function verifyResponse(
   provider: ResolvedSamlProvider,
   samlResponse: string,
@@ -220,6 +235,19 @@ export async function verifyResponse(
   callbackUrl: string,
 ): Promise<VerifiedIdentity> {
   const saml = getOrBuildSaml(provider, callbackUrl);
+  // node-saml checks `InResponseTo` against ITS OWN cache provider, and the
+  // one-shot instance that built the AuthnRequest (see buildAuthnRequest) is
+  // not this instance. Seed the expected request id from our signed cookie
+  // so `validateInResponseTo: always` validates (and burns) it here; without
+  // this every genuine Response was rejected as "InResponseTo is not valid".
+  await saml.cacheProvider.saveAsync(expectedRequestId, new Date().toISOString());
+  if (provider.requireEncryptedAssertion && !responseCarriesEncryptedAssertion(samlResponse)) {
+    // The flag is stored per provider but node-saml accepts a plaintext
+    // assertion whenever it validates; enforce the operator's choice here.
+    throw new Error(
+      "SAML: provider requires an encrypted assertion but the Response carries a plaintext one.",
+    );
+  }
   const { profile } = await saml.validatePostResponseAsync({ SAMLResponse: samlResponse });
   if (!profile) {
     throw new Error("SAML: response did not include a profile.");
@@ -229,7 +257,9 @@ export async function verifyResponse(
   // not tied to our initiated login. node-saml validates the assertion
   // internally; here we cross-check what came back against our cookie value.
   const inResponseTo = typeof profile["inResponseTo"] === "string" ? profile["inResponseTo"] : null;
-  if (inResponseTo && inResponseTo !== expectedRequestId) {
+  // Strict: a Response with no InResponseTo at all is unsolicited and must
+  // not log anyone in, even if the IdP's signature is valid.
+  if (inResponseTo !== expectedRequestId) {
     throw new Error(
       `SAML: InResponseTo mismatch (expected ${expectedRequestId}, got ${inResponseTo}).`,
     );

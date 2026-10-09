@@ -68,7 +68,10 @@ const upsertChangeSchema = z.object({
       "Type must be 1–12 uppercase alphanumerics (e.g. A, AAAA, MX).",
     ),
   ttl: ttlSchema,
-  records: z.array(recordSchema).min(1, "Provide at least one record."),
+  records: z
+    .array(recordSchema)
+    .min(1, "Provide at least one record.")
+    .max(1000, "At most 1000 records per RRset."),
   /**
    * Rrset-level comment. PDNS stores comments as a bag on the rrset
    * (not per-record). Send an empty string to clear; omit to leave
@@ -98,7 +101,10 @@ export type RRsetChange = z.infer<typeof rrsetChangeSchema>;
 
 export const patchRRsetsSchema = z.object({
   serverSlug: z.string().min(1),
-  changes: z.array(rrsetChangeSchema).min(1, "At least one change is required."),
+  changes: z
+    .array(rrsetChangeSchema)
+    .min(1, "At least one change is required.")
+    .max(500, "At most 500 changes per request."),
 });
 
 export type PatchRRsetsInput = z.infer<typeof patchRRsetsSchema>;

@@ -33,6 +33,7 @@ import { loadUserAssignmentsForAbility } from "@/lib/db/repositories/roles";
 import { listGrantsForUser, mapServersToClusterPeers } from "@/lib/db/repositories/zone-grants";
 import { listActivePdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { appendAudit } from "@/lib/audit/log";
+import { loginLimiter } from "@/lib/auth/rate-limit";
 import { getClientIp, getRequestContext } from "@/lib/client-ip";
 import {
   findLongestZoneMatch,
@@ -88,24 +89,43 @@ export async function GET(request: Request): Promise<Response> {
   const basic = parseBasicAuth(request.headers.get("authorization"));
   if (!basic) return plainWithChallenge("badauth");
 
+  // Unauthenticated and Argon2-backed: without a limiter a known token
+  // prefix (they're shown in the UI) is an unbounded online guess at the
+  // token body and a cheap CPU burn. Shares the login bucket per IP; the
+  // dyndns2 vocabulary has no 429, "abuse" is its "client blocked" code.
+  const ip = getClientIp(hdrs);
+  const limit = await loginLimiter.takeShared(`dyndns:${ip ?? "unknown"}`);
+  if (!limit.allowed) return plain("abuse");
+
+  const denyAuth = async (reason: string): Promise<Response> => {
+    await appendAudit({
+      actor: { type: "user", id: null },
+      action: "auth.login.failure",
+      resource: { type: "auth", id: basic.user.toLowerCase() },
+      after: { method: "dyndns", reason },
+      request: getRequestContext(hdrs),
+    });
+    return plainWithChallenge("badauth");
+  };
+
   const user = await findUserByEmail(basic.user);
   if (!user || user.disabledAt) {
     // Don't distinguish missing-user from disabled - both map to badauth.
-    return plainWithChallenge("badauth");
+    return denyAuth("unknown-or-disabled-user");
   }
 
   const parsedTok = parsePresentedToken(basic.pass);
-  if (!parsedTok) return plainWithChallenge("badauth");
+  if (!parsedTok) return denyAuth("malformed-token");
 
   const tokenRow = await findApiTokenByPublicPrefix(parsedTok.prefix);
-  if (!tokenRow) return plainWithChallenge("badauth");
-  if (tokenRow.userId !== user.id) return plainWithChallenge("badauth");
-  if (tokenRow.revokedAt) return plainWithChallenge("badauth");
+  if (!tokenRow) return denyAuth("unknown-token");
+  if (tokenRow.userId !== user.id) return denyAuth("token-user-mismatch");
+  if (tokenRow.revokedAt) return denyAuth("token-revoked");
   if (tokenRow.expiresAt && tokenRow.expiresAt.getTime() <= Date.now()) {
-    return plainWithChallenge("badauth");
+    return denyAuth("token-expired");
   }
   const matched = await verifyTokenAgainstHash(basic.pass, tokenRow.tokenHash);
-  if (!matched) return plainWithChallenge("badauth");
+  if (!matched) return denyAuth("bad-token");
 
   // Narrow assignments + zone grants to the token's stored scopes, then
   // derive the user's global permissions. The DynDNS update needs

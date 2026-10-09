@@ -35,6 +35,14 @@ interface Entry {
 
 const DEFAULT_TTL_SEC = 300;
 const MAX_ENTRIES = 1024;
+/**
+ * Entries minted for a not-yet-authenticated caller (actor ids that start
+ * with "_", e.g. the WebAuthn login challenge) share one small quota and
+ * only ever evict each other. Without this, ~1k anonymous requests to a
+ * public endpoint could flush every operator's pending MFA challenge, PAT
+ * reveal or temporary password out of the map.
+ */
+const MAX_ANONYMOUS_ENTRIES = 256;
 const REDIS_PREFIX = "reveal:";
 
 const store = new Map<string, Entry>();
@@ -116,7 +124,7 @@ export function _resetForTests(): void {
 
 function mintLocal(token: string, plaintext: string, allowedActorId: string, ttlSec: number): void {
   pruneExpired();
-  enforceCap();
+  enforceCap(allowedActorId);
   store.set(token, { plaintext, allowedActorId, expiresAtMs: Date.now() + ttlSec * 1000 });
 }
 
@@ -137,11 +145,36 @@ function pruneExpired(): void {
   }
 }
 
-function enforceCap(): void {
+function isAnonymousActor(actorId: string): boolean {
+  return actorId.startsWith("_");
+}
+
+function evictOldestWhere(pred: (entry: Entry) => boolean): boolean {
+  // Map iteration order is insertion order - the first match is the oldest.
+  for (const [key, entry] of store) {
+    if (pred(entry)) {
+      store.delete(key);
+      return true;
+    }
+  }
+  return false;
+}
+
+function enforceCap(allowedActorId: string): void {
+  if (isAnonymousActor(allowedActorId)) {
+    let sameClass = 0;
+    for (const entry of store.values()) {
+      if (entry.allowedActorId === allowedActorId) sameClass++;
+    }
+    while (sameClass >= MAX_ANONYMOUS_ENTRIES) {
+      if (!evictOldestWhere((e) => e.allowedActorId === allowedActorId)) break;
+      sameClass--;
+    }
+  }
   while (store.size >= MAX_ENTRIES) {
-    // Map iteration order is insertion order - the first key is the oldest.
-    const oldest = store.keys().next().value;
-    if (oldest === undefined) break;
-    store.delete(oldest);
+    // Anonymous entries go first; a user-bound secret is only ever evicted
+    // by other user-bound secrets.
+    if (evictOldestWhere((e) => isAnonymousActor(e.allowedActorId))) continue;
+    if (!evictOldestWhere(() => true)) break;
   }
 }

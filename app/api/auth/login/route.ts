@@ -17,6 +17,7 @@
  */
 
 import { headers } from "next/headers";
+import { rejectCrossSiteJson } from "@/lib/auth/pre-auth-guard";
 import { z } from "zod";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -46,6 +47,10 @@ function jsonError(status: number, message: string, extra: Record<string, unknow
 }
 
 export async function POST(request: Request): Promise<Response> {
+  // Login CSRF guard: pre-session, so requireCsrf can't help here.
+  const crossSite = rejectCrossSiteJson(request);
+  if (crossSite) return crossSite;
+
   if (!env.LOCAL_AUTH_ENABLED) {
     return jsonError(404, "Local authentication is disabled.");
   }

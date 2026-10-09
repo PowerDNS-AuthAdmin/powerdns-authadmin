@@ -20,9 +20,10 @@
  */
 
 import { headers } from "next/headers";
+import { rejectCrossSiteJson } from "@/lib/auth/pre-auth-guard";
 import { ZodError, type infer as ZodInfer } from "zod";
 import { appendAudit } from "@/lib/audit/log";
-import { getClientIp, getRequestId } from "@/lib/client-ip";
+import { getClientIp, getRequestId, getRequestContext } from "@/lib/client-ip";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { authenticateLdap, resolveLdapProvider } from "@/lib/auth/providers/ldap";
@@ -45,6 +46,10 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ slug: string }> },
 ): Promise<Response> {
+  // Login CSRF guard: pre-session, so requireCsrf can't help here.
+  const crossSite = rejectCrossSiteJson(request);
+  if (crossSite) return crossSite;
+
   try {
     return await handleLdapLogin(request, context);
   } catch (err) {
@@ -167,6 +172,17 @@ async function handleLdapLogin(
   // (sAMAccountName, uid, mail) but we always resolve to a verified email
   // before issuing a session.
   let user = await findUserByEmail(identity.email);
+  if (user?.disabledAt) {
+    await appendAudit({
+      actor: { type: "system", id: null },
+      action: "auth.login.failure",
+      resource: { type: "user", id: user.id },
+      after: { source: "ldap", provider: provider.slug, reason: "account-disabled" },
+      request: getRequestContext(await headers()),
+    });
+    // Same wording as a bad password - don't reveal that the account exists.
+    return jsonError(401, "Invalid username or password.");
+  }
   if (!user) {
     // Provisioning gate. LDAP providers carry their own allow-list with
     // no env-level fallback (the OIDC env list doesn't apply here). Null /

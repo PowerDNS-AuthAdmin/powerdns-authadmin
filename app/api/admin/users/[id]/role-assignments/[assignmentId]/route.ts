@@ -15,10 +15,18 @@ import {
   countGlobalAssignmentsOfRoleSlug,
   deleteRoleAssignment,
   findAssignmentWithRole,
+  findRoleBySlug,
+  loadUserAssignmentsForAbility,
 } from "@/lib/db/repositories/roles";
 import { findUserById } from "@/lib/db/repositories/users";
 import { SUPER_ADMIN_SLUG } from "@/lib/rbac/default-roles";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "@/lib/errors";
+import {
+  globalPermissionsOf,
+  permissionsExceedingGrant,
+  type AbilitySource,
+} from "@/lib/rbac/ability";
+import type { Permission } from "@/lib/rbac/permissions";
 
 interface RouteContext {
   params: Promise<{ id: string; assignmentId: string }>;
@@ -41,6 +49,25 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
       // tx so a concurrent delete can't race past it.
       const assignment = await findAssignmentWithRole(assignmentId, userId, tx);
       if (!assignment) throw new NotFoundError("Role assignment not found.");
+
+      // Privilege ceiling, symmetric with creation: stripping a role that
+      // grants permissions the actor doesn't hold globally would let a
+      // `role.assign` holder demote the admins above them.
+      const role = await findRoleBySlug(assignment.roleSlug);
+      if (role) {
+        const actorGlobal = globalPermissionsOf(
+          (await loadUserAssignmentsForAbility(actor.id)) as readonly AbilitySource[],
+        );
+        const exceeding = permissionsExceedingGrant(
+          actorGlobal,
+          role.permissions as readonly Permission[],
+        );
+        if (exceeding.length > 0) {
+          throw new ForbiddenError(
+            `You can't remove a role that grants permissions you don't hold globally: ${exceeding.join(", ")}.`,
+          );
+        }
+      }
       if (assignment.roleSlug === SUPER_ADMIN_SLUG && assignment.scopeType === "global") {
         const remaining = await countGlobalAssignmentsOfRoleSlug(SUPER_ADMIN_SLUG, tx);
         if (remaining <= 1) {

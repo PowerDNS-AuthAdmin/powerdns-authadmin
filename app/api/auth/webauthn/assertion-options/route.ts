@@ -24,6 +24,10 @@ import { startAssertion } from "@/lib/auth/webauthn/assertion";
 import { findUserByEmail } from "@/lib/db/repositories/users";
 import { listCredentials } from "@/lib/db/repositories/webauthn";
 import { env } from "@/lib/env";
+import { headers } from "next/headers";
+import { getClientIp } from "@/lib/client-ip";
+import { loginLimiter } from "@/lib/auth/rate-limit";
+import { rejectCrossSiteJson } from "@/lib/auth/pre-auth-guard";
 import { ForbiddenError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 import { assertionOptionsSchema } from "@/lib/validators/webauthn";
@@ -35,6 +39,21 @@ export async function POST(request: Request): Promise<Response> {
   try {
     if (!env.WEBAUTHN_ENABLED) {
       throw new ForbiddenError("WebAuthn is disabled by configuration.");
+    }
+    const crossSite = rejectCrossSiteJson(request);
+    if (crossSite) return crossSite;
+
+    // Unauthenticated and it mints a server-side challenge per call, so it
+    // shares the login bucket - otherwise it's a free DoS on the reveal store.
+    {
+      const ip = getClientIp(await headers());
+      const limit = await loginLimiter.takeShared(`webauthn-options:${ip ?? "unknown"}`);
+      if (!limit.allowed) {
+        return Response.json(
+          { error: "Too many sign-in attempts.", retryAfterSeconds: limit.retryAfterSeconds },
+          { status: 429, headers: { "Cache-Control": "no-store" } },
+        );
+      }
     }
 
     let input: { email?: string } = {};

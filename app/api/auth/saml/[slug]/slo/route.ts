@@ -13,10 +13,12 @@
  * logout link on the user menu.
  */
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { env, isProduction } from "@/lib/env";
 import { resolveSamlProvider } from "@/lib/auth/providers/saml";
-import { endSession } from "@/lib/auth/session";
+import { endSession, readSession } from "@/lib/auth/session";
+import { appendAudit } from "@/lib/audit/log";
+import { getRequestContext } from "@/lib/client-ip";
 
 export async function GET(
   _request: Request,
@@ -28,6 +30,16 @@ export async function GET(
     return Response.redirect(`${env.APP_URL}/login`, 302);
   }
 
+  // Audit before the session row disappears (mirrors /api/auth/logout).
+  const session = await readSession();
+  const hdrs = await headers();
+  await appendAudit({
+    actor: { type: "user", id: session?.userId ?? null },
+    action: "auth.logout",
+    resource: { type: "session", id: session?.id ?? null },
+    after: { rpInitiated: true, provider: slug, binding: "saml-slo" },
+    request: getRequestContext(hdrs),
+  });
   await endSession();
 
   // Mirror the OIDC SLO behavior: signal to /login that this visit is the
@@ -35,7 +47,7 @@ export async function GET(
   // doesn't loop the user back into the IdP.
   const cookieStore = await cookies();
   cookieStore.set("pda_just_logged_out", "1", {
-    httpOnly: false,
+    httpOnly: true,
     secure: isProduction,
     sameSite: "lax",
     path: "/",

@@ -73,7 +73,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     // audit row has the historic decision trail.
     await appendAudit({
       actor: { type: "user", id: user.id },
-      action: "oidc.provider.updated",
+      action: "oidc.provider.tested",
       resource: { type: "oidc_provider", id },
       after: { discoveryProbe: { ok: result.ok, ...(result.ok ? {} : { reason: result.reason }) } },
       request: getRequestContext(hdrs),

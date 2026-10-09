@@ -34,6 +34,19 @@ const bodySchema = z.object({
   token: z.string().min(20).max(200),
 });
 
+/** The reset route mints `{ userId, password }`; anything else is not ours. */
+function parseRevealPayload(plaintext: string): { userId: string; password: string } | null {
+  try {
+    const parsed = JSON.parse(plaintext) as { userId?: unknown; password?: unknown };
+    if (typeof parsed.userId === "string" && typeof parsed.password === "string") {
+      return { userId: parsed.userId, password: parsed.password };
+    }
+  } catch {
+    // fall through - not a payload this route minted
+  }
+  return null;
+}
+
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   try {
     const { user: actor } = await requireUser({ can: "user.reset-password" });
@@ -66,14 +79,25 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       throw new NotFoundError("Token unknown, already used, or expired.");
     }
 
+    const revealed = parseRevealPayload(result.plaintext);
+    if (revealed?.userId !== id) {
+      await appendAudit({
+        actor: { type: "user", id: actor.id },
+        action: "user.password.reset",
+        resource: { type: "user", id: revealed?.userId ?? id },
+        after: { revealAttempted: true, revealOutcome: "denied-user-mismatch" },
+      });
+      throw new NotFoundError("Token unknown, already used, or expired.");
+    }
+
     await appendAudit({
       actor: { type: "user", id: actor.id },
       action: "user.password.reset",
-      resource: { type: "user", id },
+      resource: { type: "user", id: revealed.userId },
       after: { revealAttempted: true, revealOutcome: "delivered" },
     });
 
-    return new Response(result.plaintext, {
+    return new Response(revealed.password, {
       status: 200,
       headers: {
         "Content-Type": "text/plain; charset=utf-8",

@@ -32,6 +32,7 @@ import type { PdnsClient } from "@/lib/pdns/client";
 import { getPdnsClientForRow } from "@/lib/pdns/registry";
 import { PdnsAuthError, PdnsError, PdnsUpstreamError } from "@/lib/pdns/errors";
 import { recordBackendStatus } from "./backend-status";
+import { ForbiddenError } from "@/lib/errors";
 
 function recordFailure(backendId: string, err: unknown): void {
   if (err instanceof PdnsAuthError) recordBackendStatus(backendId, false, true);
@@ -40,12 +41,44 @@ function recordFailure(backendId: string, err: unknown): void {
   // non-PDNS error → unknown cause, leave status untouched
 }
 
+/**
+ * PdnsClient methods that change zone data, keys or server configuration.
+ * `write_mode = read_only` is an operator decision ("this backend is a
+ * mirror / frozen for an incident"); before this guard it only steered the
+ * backend pickers, and any caller passing the slug explicitly could still
+ * write. NOTIFY and cache flushes are not data writes and stay allowed.
+ */
+const WRITE_METHODS: ReadonlySet<string> = new Set([
+  "createZone",
+  "patchZone",
+  "updateZoneSettings",
+  "deleteZone",
+  "rectifyZone",
+  "createCryptokey",
+  "updateCryptokey",
+  "deleteCryptokey",
+  "setZoneMetadata",
+  "deleteZoneMetadata",
+  "createTsigKey",
+  "deleteTsigKey",
+  "createAutoprimary",
+  "deleteAutoprimary",
+]);
+
 export function getBackendGateway(backend: PdnsServer): PdnsClient {
   const client = getPdnsClientForRow(backend);
+  const readOnly = backend.writeMode === "read_only";
   return new Proxy(client, {
     get(target, prop) {
       const value = Reflect.get(target, prop) as unknown;
       if (typeof value !== "function") return value;
+      if (readOnly && typeof prop === "string" && WRITE_METHODS.has(prop)) {
+        return (): never => {
+          throw new ForbiddenError(
+            `Backend "${backend.slug}" is marked read-only; writes are refused.`,
+          );
+        };
+      }
       return (...args: unknown[]): unknown => {
         const out = (value as (...a: unknown[]) => unknown).apply(target, args);
         if (out instanceof Promise) {
