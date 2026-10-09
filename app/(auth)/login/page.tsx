@@ -30,6 +30,7 @@ import { listEnabledLdapProviders } from "@/lib/db/repositories/ldap-providers";
 import { envOidcProviderSummary } from "@/lib/auth/providers/oidc";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { safeNextPath } from "@/lib/auth/safe-redirect";
+import { shouldAutoBounceToDefault } from "@/lib/auth/login-auto-bounce";
 import { detectAppUrlMismatch } from "@/lib/auth/app-url-check";
 import { safeIconUrl } from "@/lib/security/icon-url";
 import { LoginForm } from "./login-form";
@@ -120,11 +121,19 @@ export default async function LoginPage({
   // so its "default" effect is just to swap the inline form - no redirect.
   // Local default = local form inline.
   //
-  // Skips: post-signout, post-error, flash, `?force-local=1` (manual
-  // bypass), and within 60s of an explicit logout (`pda_just_logged_out`).
+  // Skips: post-signout, post-error, informational flashes, `?force-local=1`
+  // (manual bypass), and within 60s of an explicit logout
+  // (`pda_just_logged_out`). A lost session (`?flash=session-required`,
+  // `?error=session-expired`) does NOT skip - see lib/auth/login-auto-bounce.
   const forceLocalRequested = forceLocal !== undefined;
   const justLoggedOut = (await cookies()).get("pda_just_logged_out")?.value === "1";
-  const isFreshArrival = !error && !signedOut && !flash && !forceLocalRequested && !justLoggedOut;
+  const isFreshArrival = shouldAutoBounceToDefault({
+    error,
+    flash,
+    signedOut: signedOut !== undefined,
+    forceLocal: forceLocalRequested,
+    justLoggedOut,
+  });
   const { authDefaultProvider } = await getAppSettings();
   const defaultSep = authDefaultProvider.indexOf(":");
   const defaultType = defaultSep > 0 ? authDefaultProvider.slice(0, defaultSep) : "";
