@@ -69,7 +69,10 @@ export function validateHostname(raw: string, opts: HostnameOptions = {}): RRVal
 
   if (!hadTrailingDot) {
     issues.push({
-      level: opts.requireTrailingDot ? "warning" : "warning",
+      // Always a warning: the dot is added at save time, so the operator can
+      // still save. (`requireTrailingDot` is accepted for API symmetry but no
+      // validator escalates this to an error.)
+      level: "warning",
       message:
         "Missing trailing dot - added at save time. Hostnames in zone content should be fully qualified (RFC 1035 § 5.1).",
     });

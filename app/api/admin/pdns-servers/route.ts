@@ -36,8 +36,7 @@ import { invalidateBackendObservation, scheduleImmediatePoll } from "@/lib/realt
 
 export async function GET(): Promise<Response> {
   try {
-    const { ability } = await requireUser({ can: "server.read" });
-    void ability;
+    await requireUser({ can: "server.read" });
     const rows = await listAllPdnsServers();
     // Strip the encrypted key - never returned over the wire.
     const safe = rows.map(({ apiKeyEncrypted: _unused, ...rest }) => rest);
