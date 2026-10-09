@@ -100,11 +100,13 @@ sign-in page.
 ## Email isn't being sent
 
 With `SMTP_HOST` unset, mail is **skipped by design** - verify-email, reset and
-email-change links won't go out. Each flow instead prints its link once in the
-server log at warn level (never in the audit log), so `docker compose logs app`
-is where to find it to hand over out-of-band; for a forgotten password the admin
-**Reset password** action on `/admin/users/<id>` is the supported alternative.
-Set the `SMTP_*` vars to enable delivery. If set but failing, check the logs for
+email-change links won't go out. Verification and email-change links are
+recorded on their audit row (`after.url`, actions `auth.email.verify.sent` /
+`auth.email.change.requested`) for an operator to hand over out-of-band. The
+password-reset link is only printed once in the server log at warn level (never
+in the audit log), so `docker compose logs app` is where to find it; for a
+forgotten password the admin **Reset password** action on `/admin/users/<id>` is
+the supported alternative. Set the `SMTP_*` vars to enable delivery. If set but failing, check the logs for
 the SMTP error and confirm the encryption mode matches the port (465 implicit
 TLS vs 587 STARTTLS). See [Configuration](./03-CONFIGURATION.md#email--smtp-optional).
 
