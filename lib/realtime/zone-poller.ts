@@ -121,6 +121,12 @@ declare global {
         // `lastCycleAt`) so a recent stats-only cycle never lets a page read
         // stale zones without a full refresh.
         lastFullCycleAt: number;
+        // Debounce flags for the two out-of-band cycles (`scheduleImmediatePoll`,
+        // `scheduleFollowupPoll`). On `state` for the same reason as everything
+        // else here: a module-level `let` is duplicated per route bundle, so two
+        // bundles could each schedule their own extra cycle.
+        immediatePollPending: boolean;
+        followupPollPending: boolean;
       }
     | undefined;
 }
@@ -137,6 +143,8 @@ const state = (globalThis.__pdnsZonePoller ??= {
   pendingFull: false,
   lastCycleAt: 0,
   lastFullCycleAt: 0,
+  immediatePollPending: false,
+  followupPollPending: false,
 });
 
 /** Register a subscriber. Starts the poller if it isn't already running. */
@@ -189,7 +197,6 @@ export function ensurePollerRunning(): void {
  * untouched. Resets the follow-up cap so a fresh operator change is
  * fast-tracked even after a previous sustained mismatch capped it.
  */
-let immediatePollPending = false;
 export function scheduleImmediatePoll(): void {
   // PDNS_BACKGROUND_POLLING=false → no eager background refresh after a
   // mutation. The mutation route still calls `invalidateBackendObservation`
@@ -198,10 +205,10 @@ export function scheduleImmediatePoll(): void {
   // navigation. No background cycle is the point of the flag.
   if (!pdnsBackgroundPollingEnabled) return;
   state.consecutiveFollowups = 0;
-  if (immediatePollPending) return;
-  immediatePollPending = true;
+  if (state.immediatePollPending) return;
+  state.immediatePollPending = true;
   setTimeout(() => {
-    immediatePollPending = false;
+    state.immediatePollPending = false;
     // A mutation just happened - always a FULL cycle so the operator sees the
     // zone/topology/advisory effects, even if no SSE subscriber is attached yet.
     // Fresh request id: this poll was *triggered by* the mutation but is its
@@ -412,11 +419,19 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
         const previous = readCachedZones(b.id);
         const pendingEvents: BackendPollResult["pendingEvents"] = [];
         if (previous) {
+          const currentNames = new Set<string>();
           for (const cur of snapshots) {
+            currentNames.add(cur.name);
             const prev = previous.zones.get(cur.name);
             if (prev?.serial !== cur.serial || prev.editedSerial !== cur.editedSerial) {
               pendingEvents.push({ zoneName: cur.name, channelSlug });
             }
+          }
+          // A zone removed outside the app (pdnsutil, another client) has no
+          // current snapshot to diff, so it needs its own pass - otherwise the
+          // zones list keeps showing it until the next navigation.
+          for (const name of previous.zones.keys()) {
+            if (!currentNames.has(name)) pendingEvents.push({ zoneName: name, channelSlug });
           }
         }
         const result: BackendPollResult = {
@@ -967,17 +982,16 @@ function computeNotSynced(
   return out;
 }
 
-let followupPollPending = false;
 function scheduleFollowupPoll(): void {
   // PDNS_BACKGROUND_POLLING=false → no follow-up cycle to observe AXFR catch-up.
   // There is no replication topology we surface in this mode, so the in-flight
   // tracking is moot. The next operator-initiated page render warms what it
   // needs via `ensureBackendsObserved`.
   if (!pdnsBackgroundPollingEnabled) return;
-  if (followupPollPending) return;
-  followupPollPending = true;
+  if (state.followupPollPending) return;
+  state.followupPollPending = true;
   setTimeout(() => {
-    followupPollPending = false;
+    state.followupPollPending = false;
     // A follow-up exists to observe an in-flight AXFR catching up - inherently a
     // full-cycle concern (zone serials + drift), so never stats-only.
     void withRequestId(newSystemRequestId(), () => pollOnce({ full: true })).catch((err) => {
