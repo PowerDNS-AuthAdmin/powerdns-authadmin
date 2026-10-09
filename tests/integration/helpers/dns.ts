@@ -50,6 +50,10 @@ const sleep = (ms: number): Promise<void> => new Promise((res) => setTimeout(res
  * thrown by `fn` (e.g. ENOTFOUND while a zone is still propagating to a
  * secondary, or a brief SERVFAIL right after securing) are swallowed and
  * retried. Throws the last error/`Error("poll timed out")` on timeout.
+ *
+ * The interval is jittered (±30 %) so several tests polling several
+ * backends on a loaded runner don't fire their probes in lockstep against
+ * the daemons' refresh/notify cycles.
  */
 export async function pollDns<T>(
   fn: () => Promise<T>,
@@ -72,8 +76,14 @@ export async function pollDns<T>(
         ? lastErr
         : new Error(`pollDns timed out${opts.label ? ` (${opts.label})` : ""}`);
     }
-    await sleep(intervalMs);
+    await sleep(Math.round(intervalMs * (0.7 + Math.random() * 0.6)));
   }
+}
+
+/** The SOA serial a backend currently serves for `zone` (node:dns parses SOA). */
+export async function dnsSoaSerial(zone: string, port: number): Promise<number> {
+  const soa = await resolverFor(port).resolveSoa(zone.replace(/\.$/, ""));
+  return soa.serial;
 }
 
 // ---------------------------------------------------------------------------
@@ -254,7 +264,16 @@ export async function rawQuery(
 ): Promise<RawAnswer> {
   const timeoutMs = opts.timeoutMs ?? 2500;
   const { buf } = encodeQuery(name, type, opts.dnssec ?? false);
-  const udp = await queryUdp(buf, opts.port, timeoutMs);
+  // UDP is lossy and the daemons on a loaded runner drop the odd datagram;
+  // one retry on timeout turns "the probe window had ~8 effective tries" into
+  // a real second attempt rather than a wasted poll iteration.
+  let udp: Buffer;
+  try {
+    udp = await queryUdp(buf, opts.port, timeoutMs);
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes("timed out")) throw err;
+    udp = await queryUdp(buf, opts.port, timeoutMs);
+  }
   const first = decode(udp);
   if (!first.truncated) return first;
   const tcp = await queryTcp(buf, opts.port, timeoutMs);
@@ -271,4 +290,28 @@ export async function hasRrsig(name: string, type: string, port: number): Promis
 export async function hasDnskey(zone: string, port: number): Promise<boolean> {
   const res = await rawQuery(zone, "DNSKEY", { port, dnssec: true });
   return res.answers.some((r) => r.type === "DNSKEY");
+}
+
+/** NXDOMAIN for a name that doesn't exist, with the NSEC denial a rectified zone serves. */
+export async function hasNsecDenial(zone: string, port: number): Promise<boolean> {
+  const res = await rawQuery(`does-not-exist.${zone}`, "A", { port, dnssec: true });
+  return (
+    res.rcode === 3 &&
+    res.authorities.some((r) => r.type === "NSEC") &&
+    res.authorities.some((r) => r.type === "RRSIG" && r.rrsigCovers === "NSEC")
+  );
+}
+
+/**
+ * Everything "the backend serves this zone signed" means, in one predicate:
+ * a DNSKEY at the apex, an RRSIG over `name`'s A answer, and an NSEC-proved
+ * denial. Polled as a unit so a slow-but-correct transfer isn't failed by
+ * whichever of three separate budgets happens to run out first.
+ */
+export async function servesSigned(zone: string, name: string, port: number): Promise<boolean> {
+  return (
+    (await hasDnskey(zone, port)) &&
+    (await hasRrsig(name, "A", port)) &&
+    (await hasNsecDenial(zone, port))
+  );
 }

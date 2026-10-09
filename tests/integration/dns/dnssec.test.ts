@@ -28,7 +28,16 @@ import { loginAsBootstrap } from "../helpers/auth";
 import { resetState } from "../helpers/reset";
 import { type TestHttp } from "../helpers/http";
 import { createAndLogin, SYSTEM_ROLES, uniqueEmail } from "../helpers/auth";
-import { DNS_PORTS, hasDnskey, hasRrsig, pollDns, rawQuery, resolverFor } from "../helpers/dns";
+import {
+  DNS_PORTS,
+  dnsSoaSerial,
+  hasDnskey,
+  hasNsecDenial,
+  hasRrsig,
+  pollDns,
+  resolverFor,
+  servesSigned,
+} from "../helpers/dns";
 import { getZone, PDNS_BY_TOPOLOGY } from "../helpers/pdns";
 
 function randomZone(prefix: string): string {
@@ -188,16 +197,6 @@ const SECONDARY_NS = ["pdns-ps-secondary-1.", "pdns-ps-secondary-2.", "pdns-ps-s
 const dnssecPath = (zone: string, query = ""): string =>
   `/api/admin/pdns/zones/${encodeURIComponent(zone)}/dnssec${query}`;
 
-/** NXDOMAIN for a name that doesn't exist, with the NSEC denial a rectified zone serves. */
-async function hasNsecDenial(zone: string, port: number): Promise<boolean> {
-  const res = await rawQuery(`does-not-exist.${zone}`, "A", { port, dnssec: true });
-  return (
-    res.rcode === 3 &&
-    res.authorities.some((r) => r.type === "NSEC") &&
-    res.authorities.some((r) => r.type === "RRSIG" && r.rrsigCovers === "NSEC")
-  );
-}
-
 describe("zone-level DNSSEC routes", () => {
   beforeEach(async () => {
     await resetState();
@@ -256,25 +255,28 @@ describe("zone-level DNSSEC routes", () => {
     expect(keys.cryptokeys[0]?.dnskey).toMatch(/^257 3 /);
     expect(JSON.stringify(keys)).not.toMatch(/privatekey/i);
 
-    // The secondary re-transfers the signed zone (serial bump + NOTIFY) and
-    // stores the SERVED serial…
+    // The secondary re-transfers the signed zone (serial bump + NOTIFY),
+    // stores the SERVED serial, and serves it signed. One predicate under one
+    // budget, gated on what DNS actually answers: the API reports the new
+    // serial the moment the AXFR transaction commits, before the daemon has
+    // purged its packet cache and finished the ordername fix-up on the
+    // presigned copy, so gating on the API and then giving each DNS check its
+    // own short window failed slow-but-correct runs on whichever phase drew
+    // the short straw. On versions that kept the stale SOA-EDIT, the first
+    // NOTIFY carried the old serial; the route's follow-up NOTIFY (after the
+    // metadata cache TTL) brings the secondary to the served one.
     const secondary = PDNS_BY_TOPOLOGY.psSecondaries[0]!;
-    // On versions that kept the stale SOA-EDIT, the first NOTIFY carried the
-    // old serial; the route's follow-up NOTIFY (after the metadata cache TTL)
-    // brings the secondary to the served one.
-    await pollDns(async () => (await getZone(secondary, zone)).serial === served, {
-      label: "secondary holds the served serial",
-      timeoutMs: 150_000,
-      intervalMs: 3000,
-    });
-    await pollDns(() => hasRrsig(name, "A", DNS_PORTS.psSecondary1), {
-      label: "secondary RRSIG/A",
-      timeoutMs: 30_000,
-    });
-    await pollDns(() => hasNsecDenial(zone, DNS_PORTS.psSecondary1), {
-      label: "secondary NSEC denial",
-      timeoutMs: 30_000,
-    });
+    await pollDns(
+      async () =>
+        (await getZone(secondary, zone)).serial === served &&
+        (await dnsSoaSerial(zone, DNS_PORTS.psSecondary1)) === served &&
+        (await servesSigned(zone, name, DNS_PORTS.psSecondary1)),
+      {
+        label: "secondary serves the signed zone at the served serial",
+        timeoutMs: 180_000,
+        intervalMs: 2000,
+      },
+    );
 
     // …and the app compares served vs. stored: in-sync, not "ahead".
     const status = await pollDns(
