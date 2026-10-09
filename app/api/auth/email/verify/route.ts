@@ -78,10 +78,13 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = bodySchema.parse(await request.json());
   } catch (err) {
+    // A thrown ValidationError has no catch on this route (it would be a
+    // 500); malformed input is a plain 400 with field errors.
     if (err instanceof ZodError) {
-      throw new ValidationError("Invalid input.", {
-        fieldErrors: err.flatten().fieldErrors,
-      });
+      return Response.json(
+        { error: "Invalid input.", fieldErrors: err.flatten().fieldErrors },
+        { status: 400 },
+      );
     }
     return Response.json({ error: GENERIC_REJECT }, { status: 400 });
   }

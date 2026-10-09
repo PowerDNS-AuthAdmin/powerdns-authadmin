@@ -36,6 +36,69 @@ All notable changes to this project are documented here. The format is based on
   `?force-local=1` and real error codes still keep the form.
   ([#153](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/153))
 
+### Security
+
+- **Password-reset, signup-verification and email-change links are no longer
+  written to the audit log when SMTP is off.** Any `audit.read` holder could
+  request a reset for another local account, read the link from the audit
+  panel and take the account over. The link now goes to the server log only
+  (warn level); the admin "Reset password" flow is the supported out-of-band
+  path.
+- **Read-only backends now refuse writes.** `write_mode = read_only` only
+  steered the backend pickers; any write route accepted the backend by slug.
+  The gateway now rejects zone, record, metadata, DNSSEC key, TSIG and
+  autoprimary writes to a read-only backend. NOTIFY and cache flush stay
+  allowed.
+- **Privilege ceilings applied consistently.** `user.update` can no longer
+  disable, force a password change on, or relax MFA for a user who holds
+  global permissions the actor lacks; `role.assign` can no longer remove a
+  role that grants permissions the actor lacks; adding a team member now
+  checks the actor against every zone grant the team holds; cloning a zone
+  requires `zone.read` on the source; a team-scoped `role.assign` no longer
+  assigns global roles at user creation.
+- **Unauthenticated endpoints rate-limited and cross-site hardened.** The
+  passkey challenge/verify endpoints and the DynDNS endpoint share the login
+  rate limit (the challenge endpoint could evict every pending MFA challenge
+  and reveal token from the server-side store). Pre-session JSON endpoints
+  (login, LDAP login, MFA, passkeys) now require `application/json` and a
+  same-origin `Origin` / `Sec-Fetch-Site`, closing login CSRF. Anonymous
+  reveal-store entries have their own quota and can never evict a user's.
+- **Passwordless passkey sign-in requires user verification** (PIN or
+  biometric) regardless of the global `WEBAUTHN_USER_VERIFICATION` default;
+  as a second factor, `preferred` still applies.
+- **Disabled accounts can't sign in through OIDC, SAML or LDAP.** The
+  callbacks created a session row and a "login success" audit line before
+  the per-request check refused them; they now fail with
+  `account-disabled` and an `auth.login.failure` audit entry.
+- **SAML: `require_encrypted_assertion` is now enforced** (it was stored but
+  never checked), and SP-initiated single logout is audited as
+  `auth.logout` with an HttpOnly flag cookie.
+- Provisioning refuses a `roles[]` entry whose slug is a system role instead
+  of silently rewriting the seeded role's permissions on every boot.
+- The admin password-reset reveal token is bound to the target user, so the
+  audit row names the account whose password was revealed rather than the
+  `[id]` the caller typed; PAT plaintext reveals are now audited
+  (`auth.token.revealed`).
+
+### Fixed
+
+- **SAML sign-in was rejected with "InResponseTo is not valid".** The
+  AuthnRequest id was recorded in a throwaway node-saml instance while the
+  Response was validated by another, so `validateInResponseTo: always`
+  never found it. The expected id (from the signed cookie) is now seeded
+  into the validating instance, and a Response with no `InResponseTo` is
+  refused as unsolicited.
+- Query-string validation failures on TSIG delete, cryptokey delete and
+  metadata delete returned 500 instead of 400; malformed bodies on
+  forgot-password, reset-password and email-verify did the same.
+- Bulk zone export/import no longer echo raw upstream error strings;
+  they're redacted like every other PowerDNS error.
+- Backup export awaits its audit row; backup restore caps the body at 64 MiB;
+  RRset PATCH bodies are bounded (500 changes, 1000 records per RRset).
+- Team member role changes are audited as `team.member.role_changed`,
+  OIDC discovery probes as `oidc.provider.tested`, instead of borrowing
+  unrelated actions.
+
 ## [1.8.4] - 2026-10-07
 
 Layout fix for the inline record editor introduced in 1.8.3. **No schema

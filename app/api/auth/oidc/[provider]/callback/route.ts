@@ -146,6 +146,23 @@ export async function GET(
   // Upsert the user by email.strategy: auto-provision on first
   // login. future work will add an "allowed domains" setting that gates this.
   let user = await findUserByEmail(identity.email);
+  if (user?.disabledAt) {
+    // A disabled account must not get a session row, a lockout reset or a
+    // "login success" audit line just because the IdP vouched for it.
+    const hdrsForAudit = await headers();
+    await appendAudit({
+      actor: { type: "system", id: null },
+      action: "auth.login.failure",
+      resource: { type: "user", id: user.id },
+      after: { source: identity.source, reason: "account-disabled" },
+      request: {
+        ip: getClientIp(hdrsForAudit),
+        userAgent: hdrsForAudit.get("user-agent"),
+        requestId: getRequestId(hdrsForAudit),
+      },
+    });
+    return failRedirect("account-disabled");
+  }
   if (user) {
     // Account-takeover guard: if a local row with this email already exists,
     // refuse to sign the OIDC actor into it unless the IdP attests the email

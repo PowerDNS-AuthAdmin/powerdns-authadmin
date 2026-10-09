@@ -28,6 +28,7 @@ import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { assertApiWritableMetadataKind, normalizeMetadataValues } from "@/lib/pdns/metadata-policy";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
+import { parseSearchParams } from "@/lib/http/parse-query";
 
 // PDNS metadata kinds are uppercase ASCII letters / digits / hyphens,
 // e.g. `ALSO-NOTIFY`. The regex below accepts that shape and rejects
@@ -139,7 +140,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     const kind = parseKind(rawKind);
     assertApiWritableMetadataKind(kind);
     const url = new URL(request.url);
-    const { serverSlug } = deleteQuerySchema.parse(Object.fromEntries(url.searchParams));
+    const { serverSlug } = parseSearchParams(deleteQuerySchema, url);
 
     const selected = await resolveServer(serverSlug);
     const client = getBackendGateway(selected);

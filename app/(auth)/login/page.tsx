@@ -430,6 +430,8 @@ function humanizeError(code: string): string {
       return "Captcha verification failed. Please try again.";
     case "session-expired":
       return "Your session expired. Sign in again to continue.";
+    case "account-disabled":
+      return "Sign-in refused: this account is disabled. Contact your administrator.";
     default:
       return "Sign-in failed. Please try again.";
   }

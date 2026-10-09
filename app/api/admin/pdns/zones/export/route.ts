@@ -19,6 +19,7 @@ import { requireCsrf } from "@/lib/auth/csrf";
 import { findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { appendAudit } from "@/lib/audit/log";
+import { redact } from "@/lib/errors/redact";
 import { getRequestContext } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 import { ValidationError } from "@/lib/errors";
@@ -75,7 +76,7 @@ export async function POST(request: Request): Promise<Response> {
           request: reqCtx,
         });
       } catch (err) {
-        const message = err instanceof Error ? err.message : "unknown";
+        const message = err instanceof Error ? redact(err.message) : "unknown";
         logger.warn(
           { zone: zoneName, server: server.slug, err: message },
           "pdns.zone.export.failed",

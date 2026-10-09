@@ -20,12 +20,15 @@ import { deleteUserById, findUserById, updateUser } from "@/lib/db/repositories/
 import {
   countGlobalAssignmentsOfRoleSlug,
   userHoldsGlobalRoleSlug,
+  loadUserAssignmentsForAbility,
 } from "@/lib/db/repositories/roles";
 import { revokeSessionsForUser } from "@/lib/db/repositories/sessions";
 import { SUPER_ADMIN_SLUG } from "@/lib/rbac/default-roles";
 import { updateUserSchema } from "@/lib/validators/users";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
+import { globalPermissionsOf, type AbilitySource } from "@/lib/rbac/ability";
+import { permissionsTargetHoldsBeyondActor } from "@/lib/rbac/target-ceiling";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -57,6 +60,28 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
 
     if (input.disabled === true && id === actor.id) {
       throw new ValidationError("You cannot disable your own account.");
+    }
+
+    // TARGET-privilege ceiling (same rule as the MFA-removal and password-
+    // reset routes): disabling, forcing a password change or relaxing the
+    // MFA policy of an account that holds global permissions the actor
+    // lacks is an escalation path. Self-target passes (identical sets).
+    const touchesSecurityPosture =
+      input.disabled !== undefined ||
+      input.mfaRequired !== undefined ||
+      input.mustChangePassword !== undefined;
+    if (touchesSecurityPosture && id !== actor.id) {
+      const actorGlobal = globalPermissionsOf(
+        (await loadUserAssignmentsForAbility(actor.id)) as readonly AbilitySource[],
+      );
+      const targetGlobal = globalPermissionsOf(
+        (await loadUserAssignmentsForAbility(existing.id)) as readonly AbilitySource[],
+      );
+      if (permissionsTargetHoldsBeyondActor(actorGlobal, targetGlobal).length > 0) {
+        throw new ForbiddenError(
+          "You can't change the account status or security policy of a user who holds permissions you don't hold globally.",
+        );
+      }
     }
 
     // SSO-only users have no way to enroll TOTP from the app - the IdP is the

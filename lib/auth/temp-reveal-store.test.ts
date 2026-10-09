@@ -75,3 +75,34 @@ describe("temp-reveal-store", () => {
     expect(expiresInSec).toBe(42);
   });
 });
+
+describe("temp-reveal-store anonymous quota", () => {
+  afterEach(() => {
+    _resetForTests();
+  });
+
+  it("anonymous mints never evict a user-bound secret", async () => {
+    const userToken = (await mint({ plaintext: "pw", allowedActorId: "user-1" })).token;
+    // Far more anonymous challenges than the whole store would hold.
+    for (let i = 0; i < 1500; i++) {
+      await mint({ plaintext: `c${i}`, allowedActorId: "_webauthn-login-pending" });
+    }
+    expect(await redeem({ token: userToken, actorId: "user-1" })).toEqual({ plaintext: "pw" });
+  });
+
+  it("anonymous classes are capped and recycle their own oldest entries", async () => {
+    const first = (await mint({ plaintext: "c0", allowedActorId: "_webauthn-login-pending" }))
+      .token;
+    for (let i = 1; i < 400; i++) {
+      await mint({ plaintext: `c${i}`, allowedActorId: "_webauthn-login-pending" });
+    }
+    // The oldest anonymous challenge was recycled to make room.
+    expect(await redeem({ token: first, actorId: "_webauthn-login-pending" })).toBeNull();
+    // A different anonymous class is untouched by that churn.
+    const other = (await mint({ plaintext: "m", allowedActorId: "_mfa-pending" })).token;
+    for (let i = 0; i < 300; i++) {
+      await mint({ plaintext: `d${i}`, allowedActorId: "_webauthn-login-pending" });
+    }
+    expect(await redeem({ token: other, actorId: "_mfa-pending" })).toEqual({ plaintext: "m" });
+  });
+});

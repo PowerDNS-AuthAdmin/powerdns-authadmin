@@ -14,8 +14,17 @@ import { db } from "@/lib/db";
 import { addTeamMember, findTeamById } from "@/lib/db/repositories/teams";
 import { findUserByEmail } from "@/lib/db/repositories/users";
 import { addTeamMemberSchema } from "@/lib/validators/teams";
-import { NotFoundError, ValidationError } from "@/lib/errors";
+import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
+import {
+  listGrantsForTeam,
+  listGrantsForUser,
+  mapServersToClusterPeers,
+} from "@/lib/db/repositories/zone-grants";
+import { loadUserAssignmentsForAbility } from "@/lib/db/repositories/roles";
+import type { PERMISSIONS } from "@/lib/rbac/permissions";
+import { globalPermissionsOf, type AbilitySource } from "@/lib/rbac/ability";
+import { effectiveZonePermissions, expandGrantsAcrossClusters } from "@/lib/rbac/zone-permissions";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -48,6 +57,46 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
 
     const user = await findUserByEmail(input.email);
     if (!user) throw new ValidationError("No user with that email.");
+
+    // Membership inherits every zone grant the team holds, so adding a member
+    // is a grant by another name. Apply the same ceiling the grant routes
+    // use (GHSA-gjg4-58c5-2qg3): the actor must hold each inherited
+    // permission globally or via a grant of their own on that zone. Team-
+    // inherited grants count, so an existing member who owns the team passes.
+    const teamGrants = await listGrantsForTeam(teamId);
+    if (teamGrants.length > 0) {
+      const actorSources = (await loadUserAssignmentsForAbility(
+        actor.id,
+      )) as readonly AbilitySource[];
+      const actorGlobal = globalPermissionsOf(actorSources);
+      const actorGrants = await listGrantsForUser(actor.id);
+      const actorPeers = actorGrants.length
+        ? await mapServersToClusterPeers(actorGrants.map((g) => g.serverId))
+        : new Map<string, string[]>();
+      const actorEffectiveGrants =
+        actorPeers.size === 0 ? actorGrants : expandGrantsAcrossClusters(actorGrants, actorPeers);
+      const exceeding = new Set<string>();
+      for (const grant of teamGrants) {
+        const actorZonePerms = effectiveZonePermissions(
+          actorEffectiveGrants,
+          grant.serverId,
+          grant.zoneName,
+        );
+        for (const permission of grant.permissions) {
+          if (
+            !actorGlobal.has(permission as (typeof PERMISSIONS)[number]) &&
+            !actorZonePerms.has(permission)
+          ) {
+            exceeding.add(`${permission} on ${grant.zoneName}`);
+          }
+        }
+      }
+      if (exceeding.size > 0) {
+        throw new ForbiddenError(
+          `You can't add a member to a team whose zone grants exceed your own: ${[...exceeding].join(", ")}.`,
+        );
+      }
+    }
 
     const hdrs = await headers();
     await db.transaction(async (tx) => {

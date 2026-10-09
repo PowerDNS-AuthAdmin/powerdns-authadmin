@@ -19,6 +19,7 @@
  */
 
 import { headers } from "next/headers";
+import { rejectCrossSiteJson } from "@/lib/auth/pre-auth-guard";
 import { z, ZodError } from "zod";
 import { appendAudit } from "@/lib/audit/log";
 import { getClientIp, getRequestId } from "@/lib/client-ip";
@@ -43,6 +44,10 @@ function jsonError(status: number, message: string, extra: Record<string, unknow
 }
 
 export async function POST(request: Request): Promise<Response> {
+  // Login CSRF guard: pre-session, so requireCsrf can't help here.
+  const crossSite = rejectCrossSiteJson(request);
+  if (crossSite) return crossSite;
+
   const hdrs = await headers();
   const ip = getClientIp(hdrs);
   const userAgent = hdrs.get("user-agent");

@@ -73,7 +73,9 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     // if the tx rolls back the operator gets a 500 and the unused token simply
     // expires - it reveals a password that was never persisted.
     const { token: revealToken, expiresInSec } = await mint({
-      plaintext: temporary,
+      // Carry the target id so the reveal route can refuse a token redeemed
+      // against a different `[id]` and audit the user it actually belongs to.
+      plaintext: JSON.stringify({ userId: target.id, password: temporary }),
       allowedActorId: actor.id,
     });
 

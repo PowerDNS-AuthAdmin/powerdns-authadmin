@@ -51,7 +51,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       await appendAudit(
         {
           actor: { type: "user", id: actor.id },
-          action: "team.member.added", // role change is logged as a re-add for now
+          action: "team.member.role_changed",
           resource: { type: "team", id: teamId },
           after: { userId, teamRole: input.teamRole },
           request: getRequestContext(hdrs),

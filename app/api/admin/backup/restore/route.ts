@@ -90,9 +90,17 @@ export async function POST(request: Request): Promise<Response> {
     await requireCsrf(request);
     assertSettingsBackupAllowed();
 
+    // Bound the body before parsing: a restore is a whole-database write and
+    // JSON.parse on an unbounded payload is a trivial memory DoS for anyone
+    // holding `system.backup`.
+    const MAX_RESTORE_BYTES = 64 * 1024 * 1024;
+    const raw = await request.text();
+    if (raw.length > MAX_RESTORE_BYTES) {
+      throw new ValidationError("Backup bundle exceeds the 64 MiB restore limit.");
+    }
     let bundle: BackupBundle;
     try {
-      bundle = (await request.json()) as BackupBundle;
+      bundle = JSON.parse(raw) as BackupBundle;
     } catch {
       throw new ValidationError("Body is not valid JSON.");
     }

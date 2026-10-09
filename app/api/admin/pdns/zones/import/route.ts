@@ -208,7 +208,7 @@ export async function POST(request: Request): Promise<Response> {
           err instanceof PdnsError
             ? redact(err.message)
             : err instanceof Error
-              ? err.message
+              ? redact(err.message)
               : "unknown";
         logger.warn(
           { zone: zone.name, server: server.slug, err: message },

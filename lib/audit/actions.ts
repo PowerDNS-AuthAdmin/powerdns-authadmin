@@ -26,6 +26,7 @@ export const AUDIT_ACTIONS = [
   "auth.session.revoked",
   "auth.token.issued",
   "auth.token.revoked",
+  "auth.token.revealed",
   // External IdP events - emitted by OIDC, SAML, and LDAP sign-in paths.
   // The `after` snapshot carries `method: "oidc" | "saml" | "ldap"` and
   // `provider: "<slug>"` so audit search can filter by protocol or by
@@ -63,6 +64,7 @@ export const AUDIT_ACTIONS = [
   "team.delete",
   "team.member.added",
   "team.member.removed",
+  "team.member.role_changed",
 
   // Roles + assignments
   "role.create",
@@ -81,6 +83,7 @@ export const AUDIT_ACTIONS = [
   "oidc.provider.created",
   "oidc.provider.updated",
   "oidc.provider.deleted",
+  "oidc.provider.tested",
   // SAML providers (ADR-0021)
   "saml.provider.created",
   "saml.provider.updated",

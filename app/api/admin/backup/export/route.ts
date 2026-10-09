@@ -139,7 +139,7 @@ export async function GET(): Promise<Response> {
     };
 
     const hdrs = await headers();
-    void appendAudit({
+    await appendAudit({
       actor: { type: "user", id: user.id },
       action: "system.backup.exported",
       resource: { type: "system", id: null },

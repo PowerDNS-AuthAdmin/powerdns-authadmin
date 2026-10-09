@@ -64,7 +64,9 @@ export interface VerifyAssertionInput {
 
 export async function verifyAssertion(
   input: VerifyAssertionInput,
-): Promise<{ ok: true; newCounter: number } | { ok: false; reason: string }> {
+): Promise<
+  { ok: true; newCounter: number; userVerified: boolean } | { ok: false; reason: string }
+> {
   let result: VerifiedAuthenticationResponse;
   try {
     result = await verifyAuthenticationResponse({
@@ -88,5 +90,9 @@ export async function verifyAssertion(
     return { ok: false, reason: "not-verified" };
   }
 
-  return { ok: true, newCounter: result.authenticationInfo.newCounter };
+  return {
+    ok: true,
+    newCounter: result.authenticationInfo.newCounter,
+    userVerified: result.authenticationInfo.userVerified,
+  };
 }

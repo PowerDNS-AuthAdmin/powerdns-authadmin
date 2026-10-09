@@ -26,6 +26,7 @@
 import "server-only";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { DEFAULT_ROLES } from "@/lib/rbac/default-roles";
 import {
   authProviderSlugs,
   ldapProviders,
@@ -125,7 +126,16 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
 
   // 2. roles
   if (config.roles) {
+    // The seeded system roles (super-admin, team-owner, …) are the RBAC
+    // floor every install relies on; a YAML entry reusing one of their slugs
+    // would silently rewrite their permission sets at every boot.
+    const systemSlugs = new Set(DEFAULT_ROLES.map((role) => role.slug));
     for (const r of config.roles) {
+      if (systemSlugs.has(r.slug)) {
+        throw new Error(
+          `provisioning: roles[].slug "${r.slug}" is a system role and cannot be redefined; pick another slug.`,
+        );
+      }
       await db
         .insert(roles)
         .values({

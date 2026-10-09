@@ -31,6 +31,8 @@ import { verifyAssertion } from "@/lib/auth/webauthn/assertion";
 import { findUserById } from "@/lib/db/repositories/users";
 import { findUserByCredentialId, touchCredential } from "@/lib/db/repositories/webauthn";
 import { env } from "@/lib/env";
+import { loginLimiter } from "@/lib/auth/rate-limit";
+import { rejectCrossSiteJson } from "@/lib/auth/pre-auth-guard";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 import { logger } from "@/lib/logger";
@@ -66,6 +68,17 @@ export async function POST(request: Request): Promise<Response> {
 
     const hdrs = await headers();
     const ip = getClientIp(hdrs);
+    const crossSite = rejectCrossSiteJson(request);
+    if (crossSite) return crossSite;
+    {
+      const limit = await loginLimiter.takeShared(`webauthn-verify:${ip ?? "unknown"}`);
+      if (!limit.allowed) {
+        return Response.json(
+          { error: "Too many sign-in attempts.", retryAfterSeconds: limit.retryAfterSeconds },
+          { status: 429, headers: { "Cache-Control": "no-store" } },
+        );
+      }
+    }
     const userAgent = hdrs.get("user-agent");
 
     // Both modes consume a WebAuthn challenge token minted by
@@ -143,6 +156,24 @@ export async function POST(request: Request): Promise<Response> {
         request: { ip, userAgent, requestId: getRequestId(hdrs) },
       });
       throw new ValidationError("Sign-in failed.");
+    }
+
+    // Passwordless sign-in rests on this one assertion, so the authenticator
+    // must have verified the user (PIN / biometric) whatever the global
+    // `preferred` default says - a possession-only roaming key must not
+    // bypass password + TOTP policy. As a second factor, possession is the
+    // point and `preferred` stays in force.
+    if (input.mode === "primary" && !result.userVerified) {
+      await appendAudit({
+        actor: { type: "user", id: user.id },
+        action: "auth.login.failure",
+        resource: { type: "user", id: user.id },
+        after: { reason: "webauthn-user-verification-required", mode: input.mode },
+        request: { ip, userAgent, requestId: getRequestId(hdrs) },
+      });
+      throw new ForbiddenError(
+        "Passkey sign-in requires user verification (PIN or biometric) on the authenticator.",
+      );
     }
 
     await touchCredential(user.id, credential.id, result.newCounter);

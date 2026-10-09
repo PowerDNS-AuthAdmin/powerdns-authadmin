@@ -44,7 +44,7 @@ export async function GET(): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const { user: actor, ability } = await requireUser({ can: "user.create" });
+    const { user: actor, globalPermissions } = await requireUser({ can: "user.create" });
     await requireCsrf(request);
 
     let input;
@@ -65,7 +65,10 @@ export async function POST(request: Request): Promise<Response> {
     // is verified to exist too; bad UUID → 400 before insert.
     let initialRole = null;
     if (input.roleId) {
-      if (!ability.can("assign", "Role")) {
+      // Global, not type-level: a team-scoped `role.assign` holder must not be
+      // able to hand out a GLOBAL role at user-creation time. Mirrors the
+      // role-assignments route, which requires the global permission.
+      if (!globalPermissions.has("role.assign")) {
         throw new ForbiddenError("Missing permission: role.assign");
       }
       initialRole = await findRoleById(input.roleId);

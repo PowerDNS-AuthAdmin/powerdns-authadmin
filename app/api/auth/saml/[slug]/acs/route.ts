@@ -20,7 +20,7 @@ import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { safeErrorMessage } from "@/lib/errors/redact";
 import { appendAudit } from "@/lib/audit/log";
-import { getClientIp, getRequestId } from "@/lib/client-ip";
+import { getClientIp, getRequestId, getRequestContext } from "@/lib/client-ip";
 import {
   describeSamlError,
   emailDomainAllowed,
@@ -110,6 +110,17 @@ export async function POST(
   // Domain gate + auto-provision. Mirrors the OIDC callback shape so the
   // operator experience is identical.
   let user = await findUserByEmail(identity.email);
+  if (user?.disabledAt) {
+    const hdrsForAudit = await headers();
+    await appendAudit({
+      actor: { type: "system", id: null },
+      action: "auth.login.failure",
+      resource: { type: "user", id: user.id },
+      after: { source: "saml", provider: provider.slug, reason: "account-disabled" },
+      request: getRequestContext(hdrsForAudit),
+    });
+    return failRedirect("account-disabled");
+  }
   if (!user) {
     const effectiveDomains = resolveAllowedDomains(
       provider.allowedEmailDomains,

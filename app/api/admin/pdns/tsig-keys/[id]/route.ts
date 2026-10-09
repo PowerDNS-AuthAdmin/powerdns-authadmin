@@ -25,6 +25,7 @@ import { cascadeDeleteTsigKey } from "@/lib/realtime/tsig-replication";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { PdnsNotFoundError } from "@/lib/pdns/errors";
 import { errorResponse } from "@/lib/http/error-response";
+import { parseSearchParams } from "@/lib/http/parse-query";
 import { NotFoundError } from "@/lib/errors";
 
 const querySchema = z.object({
@@ -47,7 +48,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     const keyId = decodeURIComponent(rawId);
 
     const url = new URL(request.url);
-    const { serverSlug, cascade } = querySchema.parse(Object.fromEntries(url.searchParams));
+    const { serverSlug, cascade } = parseSearchParams(querySchema, url);
     const doCascade = cascade === "true";
 
     const selected = serverSlug

@@ -15,6 +15,9 @@
 import { ZodError, z } from "zod";
 import { requireUser } from "@/lib/auth/require-user";
 import { requireCsrf } from "@/lib/auth/csrf";
+import { appendAudit } from "@/lib/audit/log";
+import { getRequestContext } from "@/lib/client-ip";
+import { headers } from "next/headers";
 import { redeem } from "@/lib/auth/temp-reveal-store";
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from "@/lib/errors";
 
@@ -22,10 +25,14 @@ const bodySchema = z.object({
   token: z.string().min(20).max(200),
 });
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+): Promise<Response> {
   try {
     const { user } = await requireUser();
     await requireCsrf(request);
+    const { id } = await context.params;
 
     let input;
     try {
@@ -43,6 +50,15 @@ export async function POST(request: Request): Promise<Response> {
     if (!result) {
       throw new NotFoundError("Token unknown, already used, or expired.");
     }
+
+    // The admin-side reveals (temporary password, TSIG secret) are audited;
+    // a PAT plaintext leaving the server is the same class of event.
+    await appendAudit({
+      actor: { type: "user", id: user.id },
+      action: "auth.token.revealed",
+      resource: { type: "api_token", id },
+      request: getRequestContext(await headers()),
+    });
 
     return new Response(result.plaintext, {
       status: 200,

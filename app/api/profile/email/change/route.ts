@@ -119,7 +119,7 @@ export async function POST(request: Request): Promise<Response> {
         newEmail,
         // Out-of-band fallback only when SMTP is off; otherwise the token
         // stays out of the audit log.
-        ...(mail.skipped ? { url: confirmUrl } : {}),
+        smtpConfigured: !mail.skipped,
         delivered: mail.ok && !mail.skipped,
       },
       request: getRequestContext(hdrs),
