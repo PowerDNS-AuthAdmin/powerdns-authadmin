@@ -256,6 +256,10 @@ export class PdnsClient {
       path: `/servers/${encodeURIComponent(this.serverId)}/zones/${encodeURIComponent(id)}`,
       op: "zones.patch",
       body,
+      // REPLACE/DELETE set the RRset to a given state, so repeating a patch
+      // that may already have landed is harmless; EXTEND/PRUNE are relative
+      // and would double-apply.
+      idempotent: body.rrsets.every((p) => p.changetype === "REPLACE" || p.changetype === "DELETE"),
     });
   }
 
