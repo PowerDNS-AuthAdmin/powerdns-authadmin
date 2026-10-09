@@ -402,6 +402,7 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
           serial: z.serial ?? null,
           editedSerial: z.edited_serial ?? null,
           notifiedSerial: z.notified_serial ?? null,
+          soaEdit: z.soa_edit ?? null,
           kind: z.kind,
           dnssec: z.dnssec ?? false,
           masters: z.masters ?? [],
