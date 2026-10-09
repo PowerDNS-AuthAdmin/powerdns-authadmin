@@ -447,6 +447,14 @@ export const envSchema = z.object({
    * /metrics entirely, set METRICS_ENABLED=false.
    */
   METRICS_TOKEN: z.string().min(16).optional(),
+  /**
+   * How many days of `pdns_requests` (the per-call PowerDNS HTTP log behind
+   * the change-history feed) to keep. The poller alone writes several rows
+   * per backend per minute, so without a window the table grows without
+   * bound; 7 days covers "what did the app send PDNS last week?" forensics
+   * while keeping the three indexes small. 1–3650.
+   */
+  PDNS_REQUEST_LOG_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(7),
 
   // --- WebAuthn / passkeys ---
   /** Master kill-switch for the WebAuthn surface (login + profile enrolment). */
@@ -588,6 +596,7 @@ export const ENV_KEYS = [
   "OTEL_EXPORTER_OTLP_ENDPOINT",
   "METRICS_ENABLED",
   "METRICS_TOKEN",
+  "PDNS_REQUEST_LOG_RETENTION_DAYS",
   "WEBAUTHN_ENABLED",
   "WEBAUTHN_RP_ID",
   "WEBAUTHN_RP_NAME",
