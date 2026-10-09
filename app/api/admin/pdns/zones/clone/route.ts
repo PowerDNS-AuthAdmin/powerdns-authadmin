@@ -131,7 +131,7 @@ export async function POST(request: Request): Promise<Response> {
     await appendAudit({
       actor: { type: "user", id: actor.id },
       action: "zone.create",
-      resource: { type: "zone", id: target },
+      resource: { type: "zone", id: `${selected.slug}:${target}` },
       after: {
         name: target,
         kind: created.kind,

@@ -21,7 +21,7 @@ import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
 import { deleteZoneHorizon, horizonScopeFor } from "@/lib/db/repositories/zone-horizons";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
-import { normalizeZoneId } from "@/lib/pdns/client";
+import { canonicalZoneName } from "@/lib/dns/zone-name";
 import { PdnsError, PdnsNotFoundError } from "@/lib/pdns/errors";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { redact } from "@/lib/errors/redact";
@@ -63,7 +63,9 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     }
 
     const client = getBackendGateway(selected);
-    const zoneName = decodeURIComponent(zoneId);
+    // Canonical form: grants are stored lowercase with the trailing dot, and
+    // the audit resource id must not vary with the casing the URL carried.
+    const zoneName = canonicalZoneName(decodeURIComponent(zoneId));
 
     if (
       !canActOnZone({
@@ -101,7 +103,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     // backend. Best-effort: the zone is already gone on PDNS, and a stale row
     // classifies nothing until such a recreate.
     try {
-      await deleteZoneHorizon(horizonScopeFor(selected), normalizeZoneId(zoneName));
+      await deleteZoneHorizon(horizonScopeFor(selected), zoneName);
     } catch (err) {
       logger.warn(
         {

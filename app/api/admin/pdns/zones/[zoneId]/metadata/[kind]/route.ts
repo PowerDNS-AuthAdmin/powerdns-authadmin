@@ -25,6 +25,7 @@ import { requireCsrf } from "@/lib/auth/csrf";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
+import { canonicalZoneName } from "@/lib/dns/zone-name";
 import { assertApiWritableMetadataKind, normalizeMetadataValues } from "@/lib/pdns/metadata-policy";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
@@ -84,7 +85,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
 
     const selected = await resolveServer(body.serverSlug);
     const client = getBackendGateway(selected);
-    const zoneName = decodeURIComponent(zoneId);
+    const zoneName = canonicalZoneName(decodeURIComponent(zoneId));
 
     if (
       !canActOnZone({
@@ -144,7 +145,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
 
     const selected = await resolveServer(serverSlug);
     const client = getBackendGateway(selected);
-    const zoneName = decodeURIComponent(zoneId);
+    const zoneName = canonicalZoneName(decodeURIComponent(zoneId));
 
     if (
       !canActOnZone({

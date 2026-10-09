@@ -28,7 +28,7 @@ import {
 } from "@/lib/db/repositories/zone-horizons";
 import { ZONE_HORIZONS } from "@/lib/dns/zone-horizon";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
-import { normalizeZoneId } from "@/lib/pdns/client";
+import { canonicalZoneName } from "@/lib/dns/zone-name";
 import { PdnsError } from "@/lib/pdns/errors";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { redact } from "@/lib/errors/redact";
@@ -92,7 +92,9 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
     }
 
     const client = getBackendGateway(selected);
-    const zoneName = decodeURIComponent(zoneId);
+    // Canonical form: grants are stored lowercase with the trailing dot, and
+    // the audit resource id must not vary with the casing the URL carried.
+    const zoneName = canonicalZoneName(decodeURIComponent(zoneId));
 
     if (
       !canActOnZone({
@@ -107,11 +109,9 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
     }
 
     // Horizon lives in our DB, keyed on the canonical zone name (the same form
-    // the zones list and the create path store), so normalize rather than trust
-    // whatever casing the URL carried.
+    // the zones list and the create path store).
     const horizonScope = horizonScopeFor(selected);
-    const canonicalZoneName = normalizeZoneId(zoneName);
-    const horizonBefore = await getZoneHorizon(horizonScope, canonicalZoneName);
+    const horizonBefore = await getZoneHorizon(horizonScope, zoneName);
 
     // Read current state for the audit `before` snapshot.
     const before = await client.getZone(zoneName).catch(() => null);
@@ -169,7 +169,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
     if (body.horizon !== undefined && body.horizon !== horizonBefore) {
       await setZoneHorizon({
         scope: horizonScope,
-        zoneName: canonicalZoneName,
+        zoneName,
         horizon: body.horizon,
         actorId: actor.id,
       });
