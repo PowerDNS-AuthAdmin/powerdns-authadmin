@@ -70,7 +70,7 @@ export async function POST(request: Request): Promise<Response> {
         // Keep the tokenised link in the audit ONLY when SMTP is off, so an
         // operator can still share it out-of-band. When we emailed it, the
         // token stays out of the audit log.
-        smtpConfigured: !mail.skipped,
+        ...(mail.skipped ? { url: verifyUrl } : {}),
         delivered: mail.ok && !mail.skipped,
       },
       request: getRequestContext(hdrs),
