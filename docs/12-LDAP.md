@@ -32,7 +32,7 @@ than the user.
 
 ## Configuration
 
-Configure LDAP under **Admin → Authentication** ([screenshot](../screenshots/light/authentication.png)).
+Configure LDAP under **Admin → Authentication** ([screenshot](../screenshots/light/oidc-providers.png)).
 The form has these sections.
 
 ### Connection

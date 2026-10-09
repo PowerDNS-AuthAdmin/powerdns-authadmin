@@ -22,7 +22,7 @@ _storage_ mechanisms - a **database table** and the **environment** - and they
    (editable)          │  oidc_providers table - the full-featured    │
                        │  path: many providers, group→role mapping,   │
                        │  icons, per-provider options                 │
-   written by  ───────►│   • Admin UI:  /admin/oidc-providers         │
+   written by  ───────►│   • Admin UI:  /admin/authentication         │
                        │   • Provisioning:  the `oidc:` YAML block     │
                        └─────────────────────────────────────────────┘
                               +   (both are shown together)
@@ -34,7 +34,7 @@ _storage_ mechanisms - a **database table** and the **environment** - and they
 ```
 
 **How they coexist:** the env-configured provider is **always offered** - on the
-login page _and_ listed (read-only) in **Admin → OIDC providers** with a
+login page _and_ listed (read-only) in **Admin → Authentication** with a
 **"Configured by ENV"** badge. It is **not** a hidden fallback; it appears
 alongside any DB providers. The only interaction is **slug collision**: if a DB
 provider has the **same slug** as the env provider, the DB provider **shadows** it
@@ -94,7 +94,7 @@ to it automatically.
    - Grant type: Authorization Code (PKCE; the app sends `S256`)
    - Scopes: `openid profile email` (add `groups` if you want group mapping)
    - Note the **issuer URL**, **client ID**, and **client secret**.
-2. **In PowerDNS-AuthAdmin**, go to **Admin → OIDC providers → Add provider** and
+2. **In PowerDNS-AuthAdmin**, go to **Admin → Authentication → Add provider → OIDC** and
    fill in slug, name, issuer, client ID/secret, scopes. (Or define the same
    thing in the `oidc:` provisioning block - see [Provisioning](./06-PROVISIONING.md).)
 3. **Sign out and sign in** with the new provider button. A brand-new email is
@@ -141,8 +141,9 @@ group_mappings:
 
 Custom roles work here too - reference them by slug. Mappings whose role/team/
 server can't be resolved at sign-in are logged + audited
-(`auth.oidc.group_sync.mapping_unresolved`) and skipped; the rest of the sign-in
-proceeds. See [Roles & permissions](./07-RBAC.md) for the role catalog.
+(`auth.group_sync.mapping_unresolved`, with the provider slug in `after.provider`)
+and skipped; the rest of the sign-in proceeds. See
+[Roles & permissions](./07-RBAC.md) for the role catalog.
 
 ## Restricting who can sign in
 
@@ -176,19 +177,19 @@ endpoint.
 ### When the IdP doesn't advertise `end_session_endpoint`
 
 Without it, the logout route falls back to the local `/login?signed-out=1`
-redirect. On its own that's fine - but if you've set `force_default: true` on
-the same (or any) OIDC provider, the next `/login` render would normally
-auto-redirect to the IdP. With the IdP's session cookie still valid, the user
-gets silently re-auth'd and never sees a logout confirmation.
+redirect. On its own that's fine - but if the **Default sign-in method** is an
+IdP, the next `/login` render would normally auto-redirect to it. With the
+IdP's session cookie still valid, the user gets silently re-auth'd and never
+sees a logout confirmation.
 
-Two defences are now in place:
+Two defences are in place:
 
 1. **A 60-second `pda_just_logged_out` cookie** is set on every logout. The
-   `/login` server component skips the `force_default` auto-redirect while
+   `/login` server component skips the default-provider auto-redirect while
    that cookie is present, so the operator always lands on the local form
    first.
-2. **The admin OIDC providers list shows a "no end-session" warning chip**
-   on any provider whose last discovery probe didn't return
+2. **The Authentication page shows a "no end-session" warning chip** on any
+   OIDC provider whose last discovery probe didn't return
    `end_session_endpoint`. Hit **Test** on a provider to refresh the probe.
 
 ### Enabling `end_session_endpoint` on common IdPs

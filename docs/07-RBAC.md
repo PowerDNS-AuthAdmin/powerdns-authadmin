@@ -122,11 +122,13 @@ scope to match yet.
 
 - **Admin UI** - assign roles to a user (with a scope) under **Admin → Users**;
   manage role definitions under **Admin → Roles**.
-- **OIDC group mapping** - map an IdP group to a role + scope so membership is
-  driven by your directory. These assignments are reconciled on every sign-in
-  (granted when in the group, revoked when not). See [OIDC](./05-OIDC.md#group--role-mapping).
+- **OIDC / SAML / LDAP group mapping** - map an IdP group to a role + scope so
+  membership is driven by your directory. All three provider types run the same
+  group sync, and the result is recomputed on every sign-in (granted when in the
+  group, gone when not). See [OIDC](./05-OIDC.md#group--role-mapping),
+  [SAML](./13-SAML.md#group--role-mapping), [LDAP](./12-LDAP.md#group--role-mappings).
 
-Admin-issued assignments and OIDC-managed assignments are tracked separately - the
+Admin-issued assignments and IdP-derived permissions are tracked separately - the
 group sync never touches an assignment an admin made by hand.
 
 ## Custom roles
@@ -134,7 +136,7 @@ group sync never touches an assignment an admin made by hand.
 Add org-specific roles in the UI (**Admin → Roles**) or in the `roles:`
 [provisioning](./06-PROVISIONING.md) block. A custom role is just a slug, a name, and
 a list of permissions from the vocabulary above. They can be used anywhere a
-system role can, including OIDC group mappings.
+system role can, including IdP group mappings.
 
 ```yaml
 roles:
@@ -146,10 +148,12 @@ roles:
 
 ## MFA-required roles
 
-A role can be marked **`requires_mfa`**. A user holding such a role must enrol TOTP
-before they can act - they're redirected to enrol until they do. SSO-only users
-(no local password) are exempt: their IdP is the second-factor authority, so
-enforce MFA there. See [OIDC → MFA and SSO users](./05-OIDC.md#mfa-and-sso-users).
+A role can be marked **`requires_mfa`**. A user holding such a role must enrol a
+second factor - TOTP **or** a passkey / security key
+([WebAuthn](./11-PASSKEYS.md)) - before they can act; they're redirected to enrol
+until they do. SSO-only users (no local password) are exempt: their IdP is the
+second-factor authority, so enforce MFA there. See
+[OIDC → MFA and SSO users](./05-OIDC.md#mfa-and-sso-users).
 
 ---
 

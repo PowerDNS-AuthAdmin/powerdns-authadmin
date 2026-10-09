@@ -27,7 +27,7 @@ When the containers report healthy:
 
 - **App** → http://localhost:3000
 - **PowerDNS API** → http://localhost:8081/api/v1 (header `X-API-Key: demo-pdns-api-key`)
-- **Demo DNS** → `dig @127.0.0.1 -p 5300 demo-1.demo SOA`
+- **Demo DNS** → `dig @127.0.0.1 -p 5300 example-1.demo SOA`
 
 ### Log in
 

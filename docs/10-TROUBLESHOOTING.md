@@ -92,24 +92,28 @@ sign-in page.
   `requireEmailVerified`.
 - **Groups don't map to roles** - the env provider can't map groups; use a DB
   provider. Confirm the IdP emits the groups claim and `claim_groups` matches; the
-  audit log records `auth.oidc.group_sync.mapping_unresolved` for mappings whose
-  role/team/server can't be resolved.
+  audit log records `auth.group_sync.mapping_unresolved` (provider slug in
+  `after.provider`) for mappings whose role/team/server can't be resolved.
 - **My env provider isn't on the login page** - it only hides when a DB provider
-  shares its slug (shadowing). See [OIDC](./05-OIDC.md#the-three-ways-to-configure-oidc--and-how-they-relate).
+  shares its slug (shadowing). See [OIDC](./05-OIDC.md#the-three-ways-to-configure-oidc---and-how-they-relate).
 
 ## Email isn't being sent
 
-With `SMTP_HOST` unset, mail is **skipped by design** (logged, not sent) -
-verify-email and reset links won't go out. Set the `SMTP_*` vars to enable it. If
-set but failing, check the logs for the SMTP error and confirm the encryption mode
-matches the port (465 implicit TLS vs 587 STARTTLS). See [Configuration](./03-CONFIGURATION.md#email--smtp-optional).
+With `SMTP_HOST` unset, mail is **skipped by design** - verify-email, reset and
+email-change links won't go out. Each flow instead prints its link once in the
+server log at warn level (never in the audit log), so `docker compose logs app`
+is where to find it to hand over out-of-band; for a forgotten password the admin
+**Reset password** action on `/admin/users/<id>` is the supported alternative.
+Set the `SMTP_*` vars to enable delivery. If set but failing, check the logs for
+the SMTP error and confirm the encryption mode matches the port (465 implicit
+TLS vs 587 STARTTLS). See [Configuration](./03-CONFIGURATION.md#email--smtp-optional).
 
 ## I'm locked out / lost the admin
 
 - A **failed-login lockout** auto-clears after `login_lockout_seconds` (default
   15 min).
-- If a **force-default OIDC** provider is sending you straight to a broken IdP,
-  append `?force-local=1` to `/login` to get the local form back.
+- If the **Default sign-in method** is an IdP that is sending you straight to a
+  broken login, append `?force-local=1` to `/login` to get the local form back.
 - To re-bootstrap an admin, set `BOOTSTRAP_ADMIN_EMAIL` + `BOOTSTRAP_ADMIN_PASSWORD`
   and restart - the seed ensures that account exists (and won't clobber others).
 
@@ -117,7 +121,7 @@ matches the port (465 implicit TLS vs 587 STARTTLS). See [Configuration](./03-CO
 
 Provisioning runs once (guarded by a `provisioned_at` settings row). To re-apply,
 delete that row and restart - see
-[Provisioning → re-apply](./06-PROVISIONING.md#it-runs-once--how-to-re-apply).
+[Provisioning → re-apply](./06-PROVISIONING.md#it-runs-once---how-to-re-apply).
 
 ## Still stuck?
 

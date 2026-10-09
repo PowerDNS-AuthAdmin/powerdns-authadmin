@@ -2,10 +2,10 @@
 
 Two supported install paths:
 
-| Path                                       | Use when                                                                                | Skip to                                          |
-| ------------------------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| **A - Docker** (recommended for prod)      | You want a single image, scheduler-friendly health checks, auto-migrate on boot.        | [§ Docker install](#a--docker-install)           |
-| **B - From source** (build & run natively) | You can't (or won't) run Docker, you're packaging for systemd/PM2, or doing first dive. | [§ From-source install](#b--from-source-install) |
+| Path                                       | Use when                                                                                | Skip to                                           |
+| ------------------------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| **A - Docker** (recommended for prod)      | You want a single image, scheduler-friendly health checks, auto-migrate on boot.        | [§ Docker install](#a---docker-install)           |
+| **B - From source** (build & run natively) | You can't (or won't) run Docker, you're packaging for systemd/PM2, or doing first dive. | [§ From-source install](#b---from-source-install) |
 
 Either path runs on **SQLite** (one file, single instance) or **Postgres**
 (any number of replicas + Redis). Database migrations + the first-run admin
@@ -178,7 +178,7 @@ volumes:
 | Tag            | Points to                                                                     |
 | -------------- | ----------------------------------------------------------------------------- |
 | `:latest`      | The most recent stable release. Updated only on `vX.Y.Z` tag pushes.          |
-| `:X.Y`         | The latest patch in a minor channel - e.g. `:1.2` follows `1.2.0` → `1.2.1`.  |
+| `:X.Y`         | The latest patch in a minor channel - e.g. `:1.8` follows `1.8.3` → `1.8.4`.  |
 | `:X.Y.Z`       | A single immutable release. Use this in production for deterministic deploys. |
 | `:edge`        | The tip of `main`. Updates on every push; not for production.                 |
 | `:sha-xxxxxxx` | An exact commit, kept forever.                                                |
@@ -186,7 +186,7 @@ volumes:
 Pin a version in production:
 
 ```yaml
-image: ghcr.io/powerdns-authadmin/powerdns-authadmin:1.2
+image: ghcr.io/powerdns-authadmin/powerdns-authadmin:1.8
 ```
 
 ---
@@ -503,13 +503,14 @@ To run migrations as a separate CI/CD step, set `MIGRATE_ON_BOOT=false` and run
 
 ### Health checks
 
-| Endpoint       | Meaning                                                 | Use for                     |
-| -------------- | ------------------------------------------------------- | --------------------------- |
-| `GET /healthz` | Process is alive                                        | Liveness probe              |
-| `GET /readyz`  | DB reachable **and** migrations at the expected version | Readiness probe / LB gating |
+| Endpoint       | Meaning                                           | Use for                     |
+| -------------- | ------------------------------------------------- | --------------------------- |
+| `GET /healthz` | Process is alive                                  | Liveness probe              |
+| `GET /readyz`  | 200 when the database is reachable, 503 otherwise | Readiness probe / LB gating |
 
-`/readyz` fails while migrations are mid-flight, so a rolling deploy won't send
-traffic to a replica that isn't ready.
+`/readyz` does not yet check migration state. It doesn't need to for rolling
+deploys: migrations run in the entrypoint before the server starts listening, so
+a replica that answers `/readyz` at all has already applied them.
 
 ### Backups
 

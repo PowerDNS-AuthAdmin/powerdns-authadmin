@@ -49,15 +49,16 @@ ready-to-use install without a single click.
   route reads and writes to a member of the cluster. Any backend can be marked **read-only** so
   writes skip it - the escape hatch for public nameservers fed by database replication, which
   PowerDNS itself reports as ordinary writable primaries.
-- **Real RBAC.** Five system roles plus org-defined custom roles. Permissions span ~60 actions
+- **Real RBAC.** Five system roles plus org-defined custom roles. Permissions span 54 actions
   across zones, records, DNSSEC, TSIG, metadata, autoprimaries, templates, users, teams, servers,
   API tokens, audit, and auth providers. Assignments scope to global / team / zone / server.
   A zone's authority is held apart from its records - the SOA, the apex NS and the Zone
   settings tab each answer to their own permission, so a hosting customer can manage their
   records without ever being shown the knobs that break the zone.
-- **Auth.** Local accounts (Argon2id), generic OIDC with PKCE + per-provider group→role mapping,
-  TOTP MFA (greyed out for SSO-only users - the IdP is the trust root), `pda_pat_` API tokens
-  with per-token permission scopes.
+- **Auth.** Local accounts (Argon2id), generic OIDC with PKCE, SAML 2.0 and LDAP direct-bind
+  providers - each with per-provider group→role mapping - TOTP or passkey / security-key MFA
+  (WebAuthn, also usable as passwordless sign-in; greyed out for SSO-only users - the IdP is
+  the trust root), `pda_pat_` API tokens with per-token permission scopes.
 - **RP-initiated logout.** OIDC sessions sign you out at the IdP, not just locally; the
   `end_session_endpoint` + `id_token_hint` flow lands you on the IdP's signed-out screen.
 - **Zones + records.** Per-RRset editor with diff-before-apply, zone cloning, zone templates
@@ -74,10 +75,11 @@ ready-to-use install without a single click.
 - **Audit.** Append-only log of every write. Before/after JSONB snapshots redacted for known
   secret fields. Per-zone history feed with chip-coloured action types. Operator-driven export.
 - **Provisioning.** `provisioning.yaml` applied on first boot: settings, custom roles, teams,
-  zone templates, PDNS clusters + servers, demo zones, OIDC providers (with group mappings).
-  See [`provisioning.example.yaml`](./provisioning.example.yaml) for an exhaustive reference.
-- **Observability.** Pino structured logs (secret-redacted), Prometheus `/metrics`, `/healthz`
-  liveness, `/readyz` readiness (gated on DB + migration version).
+  zone templates, PDNS clusters + servers, OIDC / SAML / LDAP providers (with group mappings),
+  demo zones. See [`provisioning.example.yaml`](./provisioning.example.yaml) for an exhaustive
+  reference.
+- **Observability.** Pino structured logs (secret-redacted), bearer-gated Prometheus `/metrics`,
+  `/healthz` liveness, `/readyz` readiness (200 when the database is reachable, 503 otherwise).
 - **Self-contained.** One Docker image, no CDN, no telemetry phone-home. Migrations run inside
   the app entrypoint; on Postgres they're serialized by an advisory lock so multi-replica boots
   are safe.
@@ -331,6 +333,9 @@ Full guides live in **[`docs/`](./docs/)** - start at the
 | [Hardening & best practices](./docs/08-HARDENING.md)  | Lock down a production deployment.                               |
 | [Upgrading](./docs/09-UPGRADING.md)                   | Move to a new version safely.                                    |
 | [Troubleshooting](./docs/10-TROUBLESHOOTING.md)       | Fix startup errors and backend connectivity.                     |
+| [Passkeys & security keys](./docs/11-PASSKEYS.md)     | WebAuthn as passwordless sign-in or second factor.               |
+| [LDAP sign-in](./docs/12-LDAP.md)                     | Authenticate against Active Directory / OpenLDAP.                |
+| [SAML 2.0 single sign-on](./docs/13-SAML.md)          | SAML SSO with AD FS, Authentik, Keycloak.                        |
 
 ### Reference
 

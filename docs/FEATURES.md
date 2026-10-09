@@ -41,12 +41,12 @@ can jump straight into the code that owns each feature.
   per-client config still works.
 - **Where.** `lib/auth/providers/oidc.ts`, `lib/auth/providers/oidc-probe.ts`,
   `app/api/auth/oidc/[provider]/{initiate,callback}/route.ts`,
-  `app/(app)/admin/oidc-providers/`.
+  `app/(app)/admin/authentication/` (+ `oidc/[id]/page.tsx`).
 - **How.**
-  - Add a provider from `/admin/authentication` (gated on `oidc.manage`). The
-    unified Authentication page lists Local Auth + every configured OIDC
-    provider in one table; per-provider edit pages live under
-    `/admin/oidc-providers/<id>`.
+  - Add a provider from `/admin/authentication` (gated on `auth.manage`). The
+    unified Authentication page lists Local Auth + every configured OIDC, SAML
+    and LDAP provider in one table; per-provider edit pages live under
+    `/admin/authentication/oidc/<id>` (and `/saml/<id>`, `/ldap/<id>`).
   - The redirect URI to register with the IdP is `${APP_URL}/api/auth/oidc/<slug>/callback`.
   - Slugs are **globally unique across every authentication provider** (OIDC,
     SAML, LDAP) - the `auth_provider_slugs` table enforces this at the DB
@@ -75,18 +75,21 @@ can jump straight into the code that owns each feature.
   <img src="../screenshots/light/oidc-providers.png" alt="OIDC providers" width="720" />
 </picture>
 
-### 1.3 Group → role mapping (OIDC)
+### 1.3 Group → role mapping (OIDC / SAML / LDAP)
 
-- **What.** Materialise role assignments from a user's IdP group claim on every sign-in.
-  Assignments tagged with `provider_id` get reconciled on the next sign-in: groups the user
-  no longer holds revoke the assignment, admin-issued assignments are never touched.
-- **Where.** `lib/auth/providers/oidc-group-sync.ts`,
-  `app/(app)/admin/oidc-providers/_components/oidc-provider-form.tsx` (the editor).
+- **What.** Derive permissions from a user's IdP group claim on every sign-in. The same
+  `applyGroupSync` runs for OIDC, SAML and LDAP providers. Since 1.4.0 the result is a
+  session-scoped snapshot (`sessions.derived_permissions`) rather than persistent
+  `role_assignments` rows, so a user who leaves a group loses the permissions with their
+  next sign-in and admin-issued assignments are never touched.
+- **Where.** `lib/auth/providers/group-sync.ts` (+ `group-sync-pure.ts`),
+  `app/(app)/admin/authentication/oidc/_components/oidc-provider-form.tsx` (the editor; the
+  SAML and LDAP forms share the same mapping rows).
 - **How.** From a provider's edit page, add rows under **Group → role mappings**: each row pairs
   an IdP group name with a role + scope. Scope syntax is `global`, `team:<slug>`,
   `zone:<fqdn>`, or `server:<slug>`. Mappings whose role/team/server can't be resolved at
-  sign-in are logged + audited (`auth.oidc.group_sync.mapping_unresolved`) and skipped - the
-  sign-in still succeeds.
+  sign-in are logged + audited (`auth.group_sync.mapping_unresolved`, with the provider slug
+  in `after.provider`) and skipped - the sign-in still succeeds.
 
 ### 1.4 TOTP (multi-factor)
 
@@ -99,7 +102,8 @@ can jump straight into the code that owns each feature.
   `app/api/auth/login/route.ts` (challenge step).
 - **How.** From `/profile#mfa`, click **Enable TOTP**, scan the QR with any authenticator app,
   confirm the 6-digit code. Per-role `requires_mfa` enforcement (set on the role edit page)
-  redirects non-enrolled users to `/profile?mfa-required=1` until they finish enrolment.
+  redirects non-enrolled users to `/profile?mfa-required=1` until they finish enrolment; either
+  TOTP or a passkey / security key (§ 1.8) satisfies it (`lib/auth/mfa-compliance.ts`).
   **SSO-only users** (no local password) see a read-only "Managed by your identity provider"
   panel and are exempt from the `requires_mfa` gate - the IdP is their second-factor authority.
 
@@ -131,7 +135,10 @@ can jump straight into the code that owns each feature.
 - **What.** Token-bucket per IP for the login + sensitive endpoints. Bounded map size so a
   malicious peer can't OOM the rate-limiter map.
 - **Where.** `lib/auth/rate-limit.ts`.
-- **How.** Operator-tuneable thresholds live in the same module. Client IP for keys comes
+- **How.** Thresholds are compile-time constants in `lib/auth/rate-limit.ts` (`loginLimiter`:
+  5 attempts, refill 1/min; `sensitiveLimiter`: 3 attempts, refill 1 per 5 min) - there is no
+  env or setting for them. The operator-tunable layer is the per-account lockout
+  (`login_lockout_threshold` / `login_lockout_seconds`, § 1.1). Client IP for keys comes
   from the fronting proxy's `X-Forwarded-For`/`X-Real-IP` (`lib/client-ip.ts`); deploy behind a
   proxy that overwrites client-supplied XFF.
 
@@ -141,9 +148,9 @@ can jump straight into the code that owns each feature.
 
 ### 2.1 Permissions vocabulary
 
-- **What.** A typed list of ~60 permission strings spanning every action surface: zones,
+- **What.** A typed list of 54 permission strings spanning every action surface: zones,
   records, SOA, DNSSEC, metadata, TSIG, autoprimaries, templates, users, teams, roles, PDNS
-  servers, API tokens, audit, settings, auth providers.
+  servers, API tokens, audit, settings, auth providers, system backup.
 - **Where.** `lib/rbac/permissions.ts`.
 - **How.** Use a permission in a route via `requireUser({ can: "zone.create" })` or in a page
   component via `requireUserForPage({ can: "zone.create" })`. The CASL ability builder
@@ -157,7 +164,8 @@ can jump straight into the code that owns each feature.
 - **Where.** `lib/rbac/default-roles.ts`, `lib/db/schema/roles.ts`,
   `app/(app)/admin/roles/`.
 - **How.** Each role carries `permissions` (array of strings from the vocab) + `requires_mfa`
-  (forces TOTP enrolment for any user assigned to this role).
+  (any user assigned to this role must enrol a second factor - TOTP or a passkey / security
+  key - before they can act).
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/roles.png" />
@@ -544,8 +552,11 @@ can jump straight into the code that owns each feature.
 ## 10. Settings
 
 - **What.** Operator-tunable runtime values: site name, support contact, login intro text,
-  brand logo (https:// URL or inline data: URI), failed-login lockout policy, default TTL for
-  new records (`default_record_ttl`, overridable per zone - see § 4.2).
+  brand logo (https:// URL or inline data: URI), failed-login lockout policy, the
+  self-service password-reset toggle (`allow_password_reset`), the default sign-in method
+  (`auth_default_provider`, edited from `/admin/authentication`), and the default TTL for
+  new records (`default_record_ttl`, overridable per zone - see § 4.2). `SETTINGS_RO=true`
+  freezes the whole page (§ 17.1).
 - **Where.** `lib/validators/settings.ts`, `app/(app)/admin/settings/`,
   `lib/settings/app-settings.ts`.
 
@@ -578,9 +589,11 @@ can jump straight into the code that owns each feature.
 ## 12. Provisioning (first-boot YAML)
 
 - **What.** A YAML file applied on first boot writes the operator's declarative state into the
-  database: settings, custom roles, teams, zone templates, PDNS clusters, PDNS servers, demo
-  zones, OIDC providers (with group mappings). The applier writes a `settings.provisioned_at`
-  sentinel on success; subsequent restarts skip the file.
+  database: settings, custom roles, teams, zone templates, PDNS clusters, PDNS servers, OIDC /
+  SAML / LDAP providers (each with group mappings), and demo zones - applied in that order.
+  Role entries whose slug is a seeded system role are refused rather than overwritten. The
+  applier writes a `settings.provisioned_at` sentinel on success; subsequent restarts skip
+  the file.
 - **Where.** `lib/provisioning/schema.ts` (Zod schema), `lib/provisioning/apply.ts`,
   `provisioning.example.yaml` (exhaustive reference).
 - **How.** Set `PROVISIONING_FILE=/etc/.../provisioning.yaml` in the env, drop the file at
@@ -592,7 +605,11 @@ can jump straight into the code that owns each feature.
 ## 13. Email / SMTP
 
 - **What.** Optional transactional mail. With `SMTP_HOST` unset, `sendEmail()` no-ops with
-  `{ ok: true, skipped: true }`. With it set, three encryption shapes are supported:
+  `{ ok: true, skipped: true }`; the password-reset, email-verification and email-change
+  flows then print their link once in the server log (warn level) and never store it in the
+  audit log - an operator reads it from the container logs and hands it over out-of-band,
+  or uses the admin **Reset password** action on `/admin/users/<id>` instead. With it set,
+  three encryption shapes are supported:
   implicit TLS (`SMTP_SECURE=true`), STARTTLS required, STARTTLS opportunistic (default), or
   plaintext-only for local fakemail. AUTH is optional - omit `SMTP_USERNAME` + `SMTP_PASSWORD`
   for a relay that allow-lists this app's source IP.
@@ -614,10 +631,14 @@ can jump straight into the code that owns each feature.
 
 - **What.**
   - **Logs.** Pino structured JSON; secret-field redaction via `lib/errors/redact.ts`.
-  - **Metrics.** Prometheus `/metrics` (optional bearer-token gate via `METRICS_TOKEN`).
-  - **Health.** `/healthz` (liveness) + `/readyz` (readiness - fails on DB unreachable or
-    pending migrations).
-- **Where.** `lib/logger.ts`, `app/metrics/`, `app/healthz/`, `app/readyz/`.
+  - **Metrics.** Prometheus `/metrics`, always bearer-gated: `METRICS_TOKEN` (≥ 16 chars) is
+    auto-generated and printed once in the boot log if unset. `METRICS_ENABLED=false`
+    removes the endpoint. Exposition is hand-built (`lib/metrics/exposition.ts`, metric
+    names prefixed `pdnsauthadmin_`).
+  - **Health.** `/healthz` (liveness) + `/readyz` (readiness - 200 when the database is
+    reachable, 503 otherwise; it does not yet check migration state. Migrations run before
+    the server starts listening, so a booted replica has already applied them).
+- **Where.** `lib/logger.ts`, `app/metrics/`, `lib/metrics/`, `app/healthz/`, `app/readyz/`.
 
 ---
 

@@ -8,14 +8,16 @@ exotic - it's the handful of things worth getting right before you expose the ap
 - **Generate unique `APP_SECRET_KEY` and `APP_ENCRYPTION_KEY`** per deployment
   (`openssl rand -base64 32`). Never reuse the demo values from `.env.example`.
 - **Treat `APP_ENCRYPTION_KEY` as un-rotatable.** It decrypts every stored
-  PowerDNS API key and OIDC client secret. Rotating it strands those secrets -
+  PowerDNS API key, OIDC/SAML/LDAP provider secret (client secrets, SP private
+  keys, bind passwords) and MFA secret. Rotating it strands those secrets -
   you'd have to re-enter them all. Back it up with (but stored separately from)
   your database backups.
 - **Inject secrets from a secret store**, not inline env, using the `_FILE`
   suffix (`APP_SECRET_KEY_FILE=/run/secrets/...`). Works with Docker secrets and
   Kubernetes `Secret` volumes.
 - **Mount provisioning files read-only, `chmod 600`.** They contain plaintext
-  PowerDNS API keys and OIDC client secrets until first boot encrypts them in.
+  PowerDNS API keys and OIDC/SAML/LDAP provider secrets until first boot
+  encrypts them in.
 
 ## Network exposure
 
@@ -29,13 +31,17 @@ exotic - it's the handful of things worth getting right before you expose the ap
   PDNS webserver to a private interface and restrict `webserver-allow-from`. Leave
   the SSRF guard at its strict production defaults unless you specifically need
   private-network/`http://` backends (see [Backends](./04-BACKENDS.md#the-ssrf-guard)).
-- **Protect `/metrics`.** It's enabled by default - set `METRICS_TOKEN` (≥16 chars)
-  to require a bearer token, or firewall the endpoint to your Prometheus host.
+- **Pin `METRICS_TOKEN`.** `/metrics` is enabled by default and always
+  bearer-gated: if you don't set `METRICS_TOKEN` (≥16 chars) the app generates a
+  random one on every boot and prints it once in the boot log, which makes your
+  scrape config break on each restart. Pin a token, or set
+  `METRICS_ENABLED=false` if you don't scrape at all.
 
 ## Authentication
 
 - **Require MFA where it matters.** Mark sensitive roles `requires_mfa` so holders
-  must enrol TOTP. For SSO users, enforce MFA at the IdP. See [RBAC](./07-RBAC.md#mfa-required-roles).
+  must enrol a second factor (TOTP or a passkey / security key). For SSO users,
+  enforce MFA at the IdP. See [RBAC](./07-RBAC.md#mfa-required-roles).
 - **Keep `SIGNUP_ENABLED=false`** (the default) unless you intend public
   self-service signup; create users via the admin UI or OIDC instead. When you do
   turn it on: keep `SIGNUP_DEFAULT_ROLE` low-privilege (the boot guard enforces
@@ -77,8 +83,11 @@ exotic - it's the handful of things worth getting right before you expose the ap
   [Configuration → `PDNS_BACKGROUND_POLLING`](./03-CONFIGURATION.md#pdns_background_polling).
 - **Run on Postgres for anything multi-instance.** Boots are serialised by an
   advisory lock so rolling deploys are safe; SQLite is single-writer.
-- **Gate traffic on `/readyz`**, not just `/healthz` - it fails until migrations
-  are applied, so a rolling deploy won't route to a not-ready replica.
+- **Gate traffic on `/readyz`**, not just `/healthz` - it returns 503 while the
+  database is unreachable, so a rolling deploy won't route to a replica that
+  can't serve. (It does not yet check migration state; migrations run in the
+  entrypoint before the server listens, so a replica that answers at all has
+  already applied them.)
 - **Back up before upgrades** and review the [Upgrading guide](./09-UPGRADING.md).
 - **Watch the audit log.** Every write is recorded with redacted before/after
   snapshots - it's your forensic trail.
@@ -89,7 +98,7 @@ Each published release is cosign-signed (keyless / Sigstore) by the release
 workflow. Verify before deploying:
 
 ```sh
-cosign verify ghcr.io/powerdns-authadmin/powerdns-authadmin:1.4.0 \
+cosign verify ghcr.io/powerdns-authadmin/powerdns-authadmin:1.8.4 \
   --certificate-identity-regexp '^https://github.com/PowerDNS-AuthAdmin/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
