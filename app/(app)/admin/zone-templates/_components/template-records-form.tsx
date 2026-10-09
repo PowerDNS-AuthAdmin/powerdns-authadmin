@@ -102,7 +102,8 @@ export function TemplateRecordsForm({ templateId, initial, canEdit, defaultRecor
                 onChange={(e) => setNs(i, e.target.value)}
                 disabled={!canEdit}
                 placeholder="ns1.example.net."
-                className={inputClass + " flex-1 font-mono"}
+                aria-label={`Name server ${i + 1}`}
+                className={compactInputClass + " flex-1 font-mono"}
               />
               {canEdit ? (
                 <button
@@ -155,7 +156,8 @@ export function TemplateRecordsForm({ templateId, initial, canEdit, defaultRecor
                     onChange={(e) => setRecord(i, { name: e.target.value })}
                     disabled={!canEdit}
                     placeholder="@"
-                    className={inputClass + " font-mono"}
+                    aria-label="Record name"
+                    className={compactInputClass + " font-mono"}
                   />
                   <SelectMenu
                     value={r.type}
@@ -170,7 +172,8 @@ export function TemplateRecordsForm({ templateId, initial, canEdit, defaultRecor
                     onChange={(n) => setRecord(i, { ttl: n })}
                     min={0}
                     disabled={!canEdit}
-                    className={inputClass + " font-mono"}
+                    ariaLabel="TTL (seconds)"
+                    className={compactInputClass + " font-mono"}
                   />
                   {canEdit ? (
                     <button
@@ -187,7 +190,8 @@ export function TemplateRecordsForm({ templateId, initial, canEdit, defaultRecor
                   onChange={(e) => setRecord(i, { content: e.target.value })}
                   disabled={!canEdit}
                   placeholder={validator.placeholder}
-                  className={inputClass + " font-mono"}
+                  aria-label="Record content"
+                  className={compactInputClass + " font-mono"}
                 />
                 {issues.length > 0 ? (
                   <ul className="space-y-0.5 text-xs">
@@ -246,5 +250,7 @@ export function TemplateRecordsForm({ templateId, initial, canEdit, defaultRecor
   );
 }
 
-const inputClass =
+// Deliberately smaller than the shared `inputClass`: these rows are dense
+// per-record editors, not a settings form.
+const compactInputClass =
   "block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)] disabled:opacity-60";

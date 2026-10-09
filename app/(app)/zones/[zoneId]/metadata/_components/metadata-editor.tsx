@@ -107,12 +107,17 @@ export function MetadataEditor({ zoneIdEncoded, serverSlug, kind, initialValues 
   }
 
   return (
-    <div className="mt-3 space-y-2">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (dirty && !saving) void handleSave();
+      }}
+      className="mt-3 space-y-2"
+    >
       <MetadataValuesInput kind={kind} values={values} onChange={setValues} />
       <div className="flex items-center gap-3">
         <button
-          type="button"
-          onClick={handleSave}
+          type="submit"
           disabled={saving || !dirty}
           className="rounded bg-[color:var(--color-accent)] px-3 py-1 text-xs font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
         >
@@ -132,7 +137,7 @@ export function MetadataEditor({ zoneIdEncoded, serverSlug, kind, initialValues 
           </span>
         ) : null}
       </div>
-    </div>
+    </form>
   );
 }
 

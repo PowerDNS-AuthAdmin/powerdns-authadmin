@@ -26,6 +26,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { SelectMenu } from "@/components/ui/select-menu";
+import { Field as SharedField } from "@/components/ui/form";
 import { LocalTime } from "@/components/ui/local-time";
 import { Disclosure } from "@/components/ui/disclosure";
 import { useRealtimeEvent } from "@/components/realtime/realtime-provider";
@@ -363,12 +364,9 @@ export function PdnsRequestsTable(props: Props) {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="space-y-1">
-      <span className="block text-[0.625rem] tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-        {label}
-      </span>
+    <SharedField label={label} size="caps-xs">
       {children}
-    </label>
+    </SharedField>
   );
 }
 

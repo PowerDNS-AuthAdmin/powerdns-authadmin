@@ -208,7 +208,13 @@ export function ZoneGrantsPanel({
       )}
 
       {open && canManage ? (
-        <div className="mt-4 space-y-3 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleAdd();
+          }}
+          className="mt-4 space-y-3 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3"
+        >
           <div className="grid gap-2 sm:grid-cols-[1fr_2fr] sm:items-end">
             <div>
               <label htmlFor="zg-server" className="block text-xs font-medium">
@@ -259,15 +265,14 @@ export function ZoneGrantsPanel({
               Cancel
             </button>
             <button
-              type="button"
-              onClick={handleAdd}
+              type="submit"
               disabled={adding}
               className="rounded bg-[color:var(--color-accent)] px-3 py-1 text-xs font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
             >
               {adding ? "Granting…" : "Grant"}
             </button>
           </div>
-        </div>
+        </form>
       ) : null}
     </section>
   );

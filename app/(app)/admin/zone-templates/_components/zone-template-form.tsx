@@ -22,6 +22,13 @@ import { useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/client/api-fetch";
 import { SUPPORTED_TYPES, getRRTypeValidator } from "@/lib/validators/rr-types";
 import { SelectMenu } from "@/components/ui/select-menu";
+import {
+  Field as SharedField,
+  Section,
+  inputBaseClass,
+  inputClass,
+  type FieldProps,
+} from "@/components/ui/form";
 
 interface TemplateRecord {
   name: string;
@@ -316,7 +323,8 @@ export function ZoneTemplateForm(props: Props) {
                 onChange={(e) => setNs(i, e.target.value)}
                 disabled={!canEdit}
                 placeholder="ns1.example.com."
-                className={`${inputClass} font-mono`}
+                aria-label={`Name server ${i + 1}`}
+                className={`${inputBaseClass} font-mono`}
               />
               {canEdit ? (
                 <button
@@ -478,7 +486,8 @@ export function ZoneTemplateForm(props: Props) {
                     onChange={(e) => setRecord(i, { name: e.target.value })}
                     disabled={!canEdit}
                     placeholder="@"
-                    className={`${inputClass} font-mono`}
+                    aria-label="Record name"
+                    className={`${inputBaseClass} font-mono`}
                   />
                   <SelectMenu
                     value={r.type}
@@ -494,7 +503,8 @@ export function ZoneTemplateForm(props: Props) {
                     value={r.ttl}
                     onChange={(e) => setRecord(i, { ttl: Number(e.target.value) || 0 })}
                     disabled={!canEdit}
-                    className={`${inputClass} font-mono`}
+                    aria-label="TTL (seconds)"
+                    className={`${inputBaseClass} font-mono`}
                   />
                   {canEdit ? (
                     <button
@@ -511,7 +521,8 @@ export function ZoneTemplateForm(props: Props) {
                   onChange={(e) => setRecord(i, { content: e.target.value })}
                   disabled={!canEdit}
                   placeholder={validator.placeholder}
-                  className={`${inputClass} font-mono`}
+                  aria-label="Record content"
+                  className={`${inputBaseClass} font-mono`}
                 />
                 {issues.length > 0 ? (
                   <ul className="space-y-0.5 text-xs">
@@ -576,56 +587,9 @@ export function ZoneTemplateForm(props: Props) {
   );
 }
 
-const inputClass =
-  "block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)] disabled:opacity-60";
-
-function Section({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-5">
-      <header>
-        <h2 className="text-sm font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-          {title}
-        </h2>
-        {subtitle ? (
-          <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">{subtitle}</p>
-        ) : null}
-      </header>
-      {children}
-    </section>
-  );
-}
-
-function Field({
-  label,
-  hint,
-  errors,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  errors?: string[];
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mt-3 first:mt-0">
-      <label className="block text-sm font-medium">{label}</label>
-      {children}
-      {hint ? <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">{hint}</p> : null}
-      {errors && errors.length > 0 ? (
-        <p className="mt-1 text-xs text-[color:var(--color-error)]" role="alert">
-          {errors.join(" ")}
-        </p>
-      ) : null}
-    </div>
-  );
+/** Field with the extra vertical gap this form's sections stack their fields at. */
+function Field(props: FieldProps) {
+  return <SharedField {...props} className="mt-3 first:mt-0" />;
 }
 
 function TimerField({
@@ -640,8 +604,7 @@ function TimerField({
   disabled: boolean;
 }) {
   return (
-    <div>
-      <label className="block text-sm font-medium">{label}</label>
+    <SharedField label={label}>
       <input
         type="number"
         min={0}
@@ -651,9 +614,9 @@ function TimerField({
           if (Number.isInteger(n) && n >= 0) set(n);
         }}
         disabled={disabled}
-        className={`${inputClass} mt-1 font-mono`}
+        className={`${inputClass} font-mono`}
       />
-    </div>
+    </SharedField>
   );
 }
 

@@ -190,7 +190,13 @@ export function RoleAssignmentsPanel(props: PanelProps) {
       )}
 
       {props.canManage ? (
-        <div className="space-y-3 rounded-md border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleAssign();
+          }}
+          className="space-y-3 rounded-md border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-4"
+        >
           <p className="text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
             Add assignment
           </p>
@@ -234,8 +240,7 @@ export function RoleAssignmentsPanel(props: PanelProps) {
 
           <div className="flex items-center gap-3">
             <button
-              type="button"
-              onClick={handleAssign}
+              type="submit"
               disabled={busy}
               className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
             >
@@ -247,7 +252,7 @@ export function RoleAssignmentsPanel(props: PanelProps) {
               </p>
             ) : null}
           </div>
-        </div>
+        </form>
       ) : null}
     </section>
   );

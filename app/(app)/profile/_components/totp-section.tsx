@@ -203,7 +203,13 @@ export function TotpSection({
           </button>
         </div>
       ) : enrolling ? (
-        <div className="space-y-3">
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleConfirm();
+          }}
+        >
           <div className="space-y-3 rounded bg-[color:var(--color-bg-subtle)] p-3">
             <p className="text-xs font-medium">Scan with your authenticator app</p>
             <div className="flex flex-col items-start gap-4 sm:flex-row">
@@ -262,15 +268,14 @@ export function TotpSection({
               Cancel
             </button>
             <button
-              type="button"
-              onClick={handleConfirm}
+              type="submit"
               disabled={busy || code.length !== 6}
               className="rounded bg-[color:var(--color-accent)] px-3 py-1 text-xs font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
             >
               {busy ? "Verifying…" : "Enable"}
             </button>
           </div>
-        </div>
+        </form>
       ) : (
         <button
           type="button"

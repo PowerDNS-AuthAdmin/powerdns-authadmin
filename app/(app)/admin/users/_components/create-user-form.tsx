@@ -7,6 +7,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { SelectMenu } from "@/components/ui/select-menu";
+import { Field, inputClass } from "@/components/ui/form";
 import { apiFetch } from "@/lib/client/api-fetch";
 
 interface RoleOption {
@@ -143,40 +144,5 @@ export function CreateUserForm({ roles = [] }: { roles?: RoleOption[] }) {
         </button>
       </div>
     </form>
-  );
-}
-
-const inputClass =
-  "mt-1 block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)]";
-
-function Field({
-  id,
-  label,
-  required,
-  hint,
-  errors,
-  children,
-}: {
-  id: string;
-  label: string;
-  required?: boolean;
-  hint?: string;
-  errors?: string[];
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium">
-        {label}
-        {required ? <span className="text-[color:var(--color-error)]"> *</span> : null}
-      </label>
-      {children}
-      {hint ? <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">{hint}</p> : null}
-      {errors && errors.length > 0 ? (
-        <p className="mt-1 text-xs text-[color:var(--color-error)]" role="alert">
-          {errors.join(" ")}
-        </p>
-      ) : null}
-    </div>
   );
 }

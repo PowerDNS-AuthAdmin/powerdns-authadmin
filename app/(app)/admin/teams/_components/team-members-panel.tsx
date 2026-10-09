@@ -185,6 +185,7 @@ export function TeamMembersPanel(props: PanelProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="user@example.com"
+              aria-label="Email of the user to add"
               className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm"
             />
             <SelectMenu

@@ -34,7 +34,7 @@
  */
 
 import { useRouter } from "next/navigation";
-import { cloneElement, isValidElement, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Pencil, Plus } from "lucide-react";
 import { Dialog, useDialog } from "@/components/ui/dialog";
@@ -55,6 +55,7 @@ import { BareDiff, computeBindDiff } from "./bare-diff";
 import { NumberInput } from "@/components/ui/number-input";
 import { getRREditor, RRContentField } from "@/components/domain/rr-editors";
 import { Field as EditorField } from "@/components/domain/rr-editors/_form";
+import { Field, inputClass } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 
 interface RecordValue {
@@ -1313,49 +1314,6 @@ function ValidationIssues({ result }: { result: RRValidationResult | null }) {
     </ul>
   );
 }
-
-/**
- * Label + control + hint. A single element child without an `id` gets one
- * so the label's `htmlFor` reaches it - clicking "TTL" focuses the TTL box
- * and screen readers announce the field by name.
- */
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  const autoId = useId();
-  const hintId = `${autoId}-hint`;
-  let control = children;
-  let controlId: string | undefined;
-  if (isValidElement<{ id?: string; "aria-describedby"?: string }>(children)) {
-    controlId = children.props.id ?? autoId;
-    control = cloneElement(children, {
-      id: controlId,
-      ...(hint && !children.props["aria-describedby"] ? { "aria-describedby": hintId } : {}),
-    });
-  }
-  return (
-    <div>
-      <label htmlFor={controlId} className="block text-sm font-medium">
-        {label}
-      </label>
-      {control}
-      {hint ? (
-        <p id={hintId} className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
-          {hint}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-const inputClass =
-  "mt-1 block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)]";
 
 // =============================================================================
 // RRset ↔ row conversion

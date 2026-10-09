@@ -22,6 +22,7 @@ import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
 import { Switch } from "@/components/ui/switch";
 import { SelectMenu, type SelectOption } from "@/components/ui/select-menu";
+import { Field as SharedField } from "@/components/ui/form";
 import { type ZoneHorizon } from "@/lib/dns/zone-horizon";
 
 interface Props {
@@ -261,6 +262,7 @@ function normalizeKind(raw: string): string {
   return raw;
 }
 
+/** The panel's compact field: `help` is the hint line under the control. */
 function Field({
   label,
   help,
@@ -271,12 +273,8 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <label className="mb-1 block text-xs font-medium">{label}</label>
+    <SharedField label={label} hint={help} size="compact">
       {children}
-      {help ? (
-        <p className="mt-1 text-[0.6875rem] text-[color:var(--color-fg-muted)]">{help}</p>
-      ) : null}
-    </div>
+    </SharedField>
   );
 }

@@ -68,19 +68,31 @@ export function NameEdit({ initialName }: { initialName: string | null }) {
   }
 
   return (
-    <span className="flex items-center gap-2">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void handleSave();
+      }}
+      className="flex items-center gap-2"
+    >
       <input
         type="text"
         value={draft}
         onChange={(e) => setDraft(e.target.value.slice(0, 120))}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            handleCancel();
+          }
+        }}
         autoFocus
         disabled={busy}
+        aria-label="Display name"
         placeholder="Display name (leave empty to clear)"
         className="min-w-0 flex-1 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1 text-sm focus:ring-2 focus:ring-[color:var(--color-accent)] focus:outline-none"
       />
       <button
-        type="button"
-        onClick={handleSave}
+        type="submit"
         disabled={busy}
         className="shrink-0 rounded bg-[color:var(--color-accent)] px-2 py-1 text-xs font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
       >
@@ -94,6 +106,6 @@ export function NameEdit({ initialName }: { initialName: string | null }) {
       >
         Cancel
       </button>
-    </span>
+    </form>
   );
 }

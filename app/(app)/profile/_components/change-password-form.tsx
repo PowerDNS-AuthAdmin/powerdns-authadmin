@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/client/api-fetch";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
+import { Field, inputClass } from "@/components/ui/form";
 
 interface ErrorBody {
   error?: string;
@@ -82,7 +83,7 @@ export function ChangePasswordForm({ turnstileSiteKey }: { turnstileSiteKey?: st
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Field
+      <PasswordField
         label="Current password"
         id="currentPassword"
         type="password"
@@ -91,7 +92,7 @@ export function ChangePasswordForm({ turnstileSiteKey }: { turnstileSiteKey?: st
         onChange={setCurrent}
         errors={fieldErrors["currentPassword"]}
       />
-      <Field
+      <PasswordField
         label="New password"
         id="newPassword"
         type="password"
@@ -100,7 +101,7 @@ export function ChangePasswordForm({ turnstileSiteKey }: { turnstileSiteKey?: st
         onChange={setNew}
         errors={fieldErrors["newPassword"]}
       />
-      <Field
+      <PasswordField
         label="Confirm new password"
         id="confirmPassword"
         type="password"
@@ -139,7 +140,7 @@ export function ChangePasswordForm({ turnstileSiteKey }: { turnstileSiteKey?: st
   );
 }
 
-function Field({
+function PasswordField({
   id,
   label,
   type,
@@ -157,10 +158,7 @@ function Field({
   errors?: string[];
 }) {
   return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium">
-        {label}
-      </label>
+    <Field label={label} id={id} errors={errors}>
       <input
         id={id}
         type={type}
@@ -168,13 +166,8 @@ function Field({
         required
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 block w-full rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 text-sm focus:ring-2 focus:ring-[color:var(--color-accent)] focus:outline-none"
+        className={inputClass}
       />
-      {errors && errors.length > 0 ? (
-        <p className="mt-1 text-xs text-[color:var(--color-error)]" role="alert">
-          {errors.join(" ")}
-        </p>
-      ) : null}
-    </div>
+    </Field>
   );
 }

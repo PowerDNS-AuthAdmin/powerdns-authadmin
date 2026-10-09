@@ -522,6 +522,7 @@ function RestoreConfirmStep({
           value={confirmPhrase}
           onChange={(e) => onConfirmPhraseChange(e.target.value)}
           placeholder={CONFIRM_PHRASE}
+          aria-label={`Type ${CONFIRM_PHRASE} to confirm`}
           disabled={readOnly}
           className="block w-full max-w-xs rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-[color:var(--color-warn)] focus:outline-none"
           autoComplete="off"

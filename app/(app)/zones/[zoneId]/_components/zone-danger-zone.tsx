@@ -158,6 +158,7 @@ export function ZoneDangerZone({ zoneIdEncoded, serverSlug, zoneName, canDelete 
             onChange={(e) => setConfirmText(e.target.value)}
             disabled={!downloaded}
             placeholder={requiredPhrase}
+            aria-label={`Type ${requiredPhrase} to confirm`}
             className="mt-2 block w-full max-w-md rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-2 font-mono text-sm focus:border-[color:var(--color-error)] focus:outline-none disabled:opacity-60"
             spellCheck={false}
             autoComplete="off"
