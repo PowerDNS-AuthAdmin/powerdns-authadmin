@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Security - dependency advisories
+
+- `next` 16.3.6 → 16.4.0 (and `eslint-config-next` 16.2.6 → 16.4.0) - six
+  high-severity advisories published after 1.8.4: pending `use cache` fill
+  leaking Draft Mode content
+  ([GHSA-3w37-wq28-93x7](https://github.com/advisories/GHSA-3w37-wq28-93x7)),
+  cache poisoning of SSG/ISR pages on self-hosted apps
+  ([GHSA-4jqv-mc3x-m676](https://github.com/advisories/GHSA-4jqv-mc3x-m676)),
+  information disclosure in the dev server's MCP endpoint
+  ([GHSA-39w2-rjm5-chcv](https://github.com/advisories/GHSA-39w2-rjm5-chcv)),
+  information disclosure in App Router metadata image routes via a
+  `dynamicParams` bypass
+  ([GHSA-f87g-xv8r-7p7x](https://github.com/advisories/GHSA-f87g-xv8r-7p7x)),
+  SSG/ISR cache poisoning leading to cross-user content substitution and
+  persistent denial of service
+  ([GHSA-mcj8-r9mp-w47p](https://github.com/advisories/GHSA-mcj8-r9mp-w47p)),
+  and SSRF in Image Optimization
+  ([GHSA-cjq9-62q9-8jv4](https://github.com/advisories/GHSA-cjq9-62q9-8jv4)).
+  `npm audit --omit=dev` is back to 0 vulnerabilities.
+
 ## [1.8.4] - 2026-10-07
 
 Layout fix for the inline record editor introduced in 1.8.3. **No schema
