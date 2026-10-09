@@ -19,6 +19,7 @@ import { z, ZodError } from "zod";
 import { appendAudit } from "@/lib/audit/log";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
+import { canonicalZoneName } from "@/lib/dns/zone-name";
 import { requireCsrf } from "@/lib/auth/csrf";
 import { db } from "@/lib/db";
 import { zoneGrants } from "@/lib/db/schema";
@@ -94,7 +95,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       throw err;
     }
 
-    const zoneName = canonicalizeZoneName(input.zoneName);
+    const zoneName = canonicalZoneName(input.zoneName);
 
     const server = await findPdnsServerById(input.serverId);
     if (!server || server.disabledAt) {
@@ -174,9 +175,4 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   } catch (err) {
     return errorResponse(err, "admin.team-zone-grants.route.error");
   }
-}
-
-function canonicalizeZoneName(name: string): string {
-  const lower = name.trim().toLowerCase();
-  return lower.endsWith(".") ? lower : `${lower}.`;
 }

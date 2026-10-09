@@ -24,12 +24,12 @@
  */
 export const DEFAULT_SIGNED_SOA_EDIT = "INCREMENT-WEEKS";
 
-const TRANSFERRED_KINDS = new Set(["master", "primary", "producer"]);
+import { isTransferredKind } from "./zone-kinds";
+import { sameZoneName } from "@/lib/dns/zone-name";
 
-/** Zone kinds PowerDNS sends out over AXFR and NOTIFY. */
-export function isTransferredKind(kind: string): boolean {
-  return TRANSFERRED_KINDS.has(kind.toLowerCase());
-}
+// Re-exported under their historical names for the DNSSEC routes; the
+// definitions live in the shared classification modules.
+export { isTransferredKind, sameZoneName };
 
 export interface DnssecZoneFacts {
   kind: string;
@@ -175,10 +175,4 @@ export function dsRecordsToPublish(keys: readonly CryptokeyLike[]): string[] {
     }
   }
   return out;
-}
-
-/** Zone names compared without case or trailing dot - for the disable confirmation. */
-export function sameZoneName(a: string, b: string): boolean {
-  const norm = (s: string): string => s.trim().replace(/\.$/, "").toLowerCase();
-  return norm(a) === norm(b);
 }

@@ -20,6 +20,7 @@ import { latestAdminEditTimestampsForServers } from "@/lib/db/repositories/audit
 import { freshnessOf } from "@/lib/freshness";
 import { rawCache } from "@/lib/pdns/zone-state-cache";
 import { classifyMirrorSerial, isSettledSyncState } from "@/lib/pdns/serial-sync";
+import { isTransferredKind } from "@/lib/pdns/zone-kinds";
 import { derivedParentOf } from "@/lib/pdns/topology-cache";
 import { isReadOnlyBackend } from "@/lib/pdns/capabilities";
 import { CapabilityBadges } from "@/components/domain/capability-badges";
@@ -672,11 +673,12 @@ function computeSecondarySync(
 }
 
 /**
- * Zones that PDNS replicates via AXFR. Everything else (Native,
- * Producer/Consumer catalogs, anything mistakenly tagged Slave on a
- * primary) is skipped by the sync check - those legitimately don't
- * mirror onto the secondary.
+ * Zones that PDNS replicates via AXFR (Master/Primary and the catalog
+ * Producer, whose Consumers are ordinary secondaries of it). Everything else
+ * (Native, Consumer copies, anything mistakenly tagged Slave on a primary) is
+ * skipped by the sync check - those legitimately don't mirror onto the
+ * secondary.
  */
 function isReplicatedKind(kind: string): boolean {
-  return kind === "Master" || kind === "Primary";
+  return isTransferredKind(kind);
 }

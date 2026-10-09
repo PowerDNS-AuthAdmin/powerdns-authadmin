@@ -29,7 +29,7 @@ import { logger } from "@/lib/logger";
 import { redact } from "@/lib/errors/redact";
 import { getBackendGateway } from "./backend-gateway";
 
-const AUTHORITATIVE_KINDS = new Set(["master", "primary"]);
+import { isTransferredKind } from "@/lib/pdns/zone-kinds";
 
 /** A primary's secondaries: explicit group members ∪ masters[]-derived mirrors. */
 export async function listPrimarySecondaries(primary: PdnsServer): Promise<PdnsServer[]> {
@@ -231,7 +231,7 @@ export async function cascadeDeleteTsigKey(
 
   // 1. Strip the key from authoritative zones that reference it.
   const zoneNames = [...(readCachedZones(primary.id)?.zones.values() ?? [])]
-    .filter((z) => AUTHORITATIVE_KINDS.has(z.kind.toLowerCase()))
+    .filter((z) => isTransferredKind(z.kind))
     .map((z) => z.name);
   const updated = await mapLimit(zoneNames, 8, async (zone) => {
     try {

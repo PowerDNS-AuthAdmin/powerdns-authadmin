@@ -37,6 +37,7 @@ import { publishZoneEvent } from "@/lib/realtime/event-bus";
 import { scheduleImmediatePoll } from "@/lib/realtime/zone-poller";
 import { horizonScopeFor, setZoneHorizon } from "@/lib/db/repositories/zone-horizons";
 import { DEFAULT_ZONE_HORIZON, ZONE_HORIZONS } from "@/lib/dns/zone-horizon";
+import { canonicalZoneName } from "@/lib/dns/zone-name";
 import { ConflictError, ForbiddenError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 
@@ -151,8 +152,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     // ── Canonical zone name (trailing dot, lowercase) ──────────────────────
-    const lower = input.name.toLowerCase();
-    const zoneName = lower.endsWith(".") ? lower : `${lower}.`;
+    const zoneName = canonicalZoneName(input.name);
 
     // ── Slave / Secondary requires master IPs ──────────────────────────────
     const isSecondary = input.kind === "Slave" || input.kind === "Secondary";
@@ -238,7 +238,8 @@ export async function POST(request: Request): Promise<Response> {
     // Master/Native, but pre-seeding lets us honor the template's timers.
     if (!isSecondary && normalizedNs.length > 0) {
       const primaryNs = normalizedNs[0]!;
-      const responsibleEmail = input.responsibleEmail ?? `hostmaster@${lower.replace(/\.$/, "")}`;
+      const responsibleEmail =
+        input.responsibleEmail ?? `hostmaster@${zoneName.replace(/\.$/, "")}`;
       // DNS master-file escaping for the SOA rname local-part: a literal `\`
       // must be doubled before `.` is escaped to `\.`, else an unescaped
       // backslash corrupts the encoding.

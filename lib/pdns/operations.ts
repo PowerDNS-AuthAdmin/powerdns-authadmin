@@ -30,18 +30,20 @@ import { logger } from "@/lib/logger";
 import { redact } from "@/lib/errors/redact";
 import type { PdnsClient } from "./client";
 import type { PdnsZoneDetail, PdnsZoneSummary } from "./types";
+import { isTransferredKind } from "./zone-kinds";
 
 /** Mirror of `PdnsClient.createZone`'s parameter shape. Kept local so
  *  callers don't have to reach into the protocol module. */
 type CreateZoneParams = Parameters<PdnsClient["createZone"]>[0];
 
 /**
- * Kinds that benefit from an outbound NOTIFY. Native zones aren't
- * replicated, so PDNS rejects NOTIFY on them; sending one would just
- * generate a misleading log line.
+ * Kinds that benefit from an outbound NOTIFY: the ones PowerDNS transfers
+ * out (Master/Primary and the catalog Producer, whose Consumers are ordinary
+ * secondaries of it). Native zones aren't replicated, so PDNS rejects NOTIFY
+ * on them; sending one would just generate a misleading log line.
  */
 function isPrimaryKind(kind: string): boolean {
-  return kind === "Master" || kind === "Primary";
+  return isTransferredKind(kind);
 }
 
 /**

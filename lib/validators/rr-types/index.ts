@@ -12,6 +12,7 @@
  * type-aware checking.
  */
 
+import { isReverseZone } from "@/lib/dns/zone-kind";
 import { aValidator } from "./a";
 import { aaaaValidator } from "./aaaa";
 import { caaValidator } from "./caa";
@@ -116,12 +117,7 @@ export const FORWARD_ZONE_TYPES: readonly string[] = SUPPORTED_TYPES.filter((t) 
  * existing type so the dropdown doesn't lose it.
  */
 export function typesForZone(zoneName: string): readonly string[] {
-  // Local copy of zone-kind detection to keep this module free of
-  // cross-package imports; mirrored from lib/dns/zone-kind.ts.
-  const n = zoneName.toLowerCase().replace(/\.$/, "");
-  if (n === "in-addr.arpa" || n.endsWith(".in-addr.arpa")) return REVERSE_ZONE_TYPES;
-  if (n === "ip6.arpa" || n.endsWith(".ip6.arpa")) return REVERSE_ZONE_TYPES;
-  return FORWARD_ZONE_TYPES;
+  return isReverseZone(zoneName) ? REVERSE_ZONE_TYPES : FORWARD_ZONE_TYPES;
 }
 
 /** Sensible default record type for a fresh record in `zoneName`. */
