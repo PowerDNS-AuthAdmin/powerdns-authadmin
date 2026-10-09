@@ -8,11 +8,12 @@
  * created zone via the same `updateZoneSettings` client call.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
 import { Switch } from "@/components/ui/switch";
+import { SelectMenu, type SelectOption } from "@/components/ui/select-menu";
 import { NumberInput } from "@/components/ui/number-input";
 
 interface InitialState {
@@ -58,23 +59,24 @@ const ZONE_KINDS = [
   },
 ] as const;
 
-const SOA_EDIT_OPTIONS = [
-  "DEFAULT",
-  "INCREASE",
-  "EPOCH",
-  "INCEPTION-INCREMENT",
-  "INCEPTION-EPOCH",
-  "NONE",
-] as const;
+// The empty value means "unset" - zones created from the template then follow
+// the server-wide default - so it is offered as a pickable option.
+const UNSET_OPTION: SelectOption<string> = { value: "", label: "(server default)" };
 
-const SOA_EDIT_API_OPTIONS = [
-  "DEFAULT",
-  "INCREASE",
-  "SOA-EDIT",
-  "SOA-EDIT-INCREASE",
-  "EPOCH",
-  "NONE",
-] as const;
+const SOA_EDIT_OPTIONS: ReadonlyArray<SelectOption<string>> = [
+  UNSET_OPTION,
+  ...["DEFAULT", "INCREASE", "EPOCH", "INCEPTION-INCREMENT", "INCEPTION-EPOCH", "NONE"].map(
+    (value) => ({ value, label: value }),
+  ),
+];
+
+const SOA_EDIT_API_OPTIONS: ReadonlyArray<SelectOption<string>> = [
+  UNSET_OPTION,
+  ...["DEFAULT", "INCREASE", "SOA-EDIT", "SOA-EDIT-INCREASE", "EPOCH", "NONE"].map((value) => ({
+    value,
+    label: value,
+  })),
+];
 
 export function TemplateSettingsForm({ initial, canEdit, primaries }: Props) {
   const router = useRouter();
@@ -157,7 +159,7 @@ export function TemplateSettingsForm({ initial, canEdit, primaries }: Props) {
     <section className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Zone Type" help="Default kind applied at zone create.">
-          <KindSelect value={kind} onChange={setKind} disabled={!canEdit} />
+          <SelectMenu value={kind} options={ZONE_KINDS} onChange={setKind} disabled={!canEdit} />
         </Field>
         <Field label="API-RECTIFY" help="Auto-rectify zone after every API change.">
           <div className="flex items-center gap-2">
@@ -171,21 +173,19 @@ export function TemplateSettingsForm({ initial, canEdit, primaries }: Props) {
           </div>
         </Field>
         <Field label="SOA-EDIT" help="Algorithm for the serial sent to secondaries.">
-          <EnumSelect
+          <SelectMenu
             value={soaEdit}
             options={SOA_EDIT_OPTIONS}
             onChange={setSoaEdit}
             disabled={!canEdit}
-            placeholder="(server default)"
           />
         </Field>
         <Field label="SOA-EDIT-API" help="Algorithm for serial bumps after API edits.">
-          <EnumSelect
+          <SelectMenu
             value={soaEditApi}
             options={SOA_EDIT_API_OPTIONS}
             onChange={setSoaEditApi}
             disabled={!canEdit}
-            placeholder="(server default)"
           />
         </Field>
       </div>
@@ -336,134 +336,6 @@ function Field({
       {children}
       {help ? (
         <p className="mt-1 text-[0.6875rem] text-[color:var(--color-fg-muted)]">{help}</p>
-      ) : null}
-    </div>
-  );
-}
-
-interface KindSelectProps {
-  value: string;
-  onChange: (next: string) => void;
-  disabled?: boolean;
-}
-
-function KindSelect({ value, onChange, disabled }: KindSelectProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-  const current = ZONE_KINDS.find((k) => k.value === value) ?? ZONE_KINDS[0];
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        disabled={disabled}
-        className="flex w-full items-center justify-between rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5 text-left text-xs hover:border-[color:var(--color-fg-muted)] disabled:opacity-60"
-      >
-        <span>{current.label}</span>
-        <span className="ml-2 opacity-60">▾</span>
-      </button>
-      {open ? (
-        <ul className="absolute right-0 left-0 z-10 mt-1 overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] py-1 text-xs shadow-lg">
-          {ZONE_KINDS.map((k) => (
-            <li
-              key={k.value}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                onChange(k.value);
-                setOpen(false);
-              }}
-              className={`cursor-pointer px-2 py-1.5 ${
-                k.value === value
-                  ? "bg-[color:var(--color-bg-subtle)] font-medium"
-                  : "hover:bg-[color:var(--color-bg-subtle)]"
-              }`}
-            >
-              <div>{k.label}</div>
-              <div className="text-[0.625rem] text-[color:var(--color-fg-muted)]">
-                {k.description}
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
-
-interface EnumSelectProps {
-  value: string;
-  options: readonly string[];
-  onChange: (next: string) => void;
-  disabled?: boolean;
-  placeholder?: string;
-}
-
-function EnumSelect({ value, options, onChange, disabled, placeholder }: EnumSelectProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        disabled={disabled}
-        className="flex w-full items-center justify-between rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5 text-left font-mono text-xs hover:border-[color:var(--color-fg-muted)] disabled:opacity-60"
-      >
-        <span className={value ? "" : "text-[color:var(--color-fg-muted)]"}>
-          {value !== "" ? value : (placeholder ?? "Select…")}
-        </span>
-        <span className="ml-2 opacity-60">▾</span>
-      </button>
-      {open ? (
-        <ul className="absolute right-0 left-0 z-10 mt-1 max-h-60 overflow-auto rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] py-1 text-xs shadow-lg">
-          <li
-            onMouseDown={(e) => {
-              e.preventDefault();
-              onChange("");
-              setOpen(false);
-            }}
-            className={`cursor-pointer px-2 py-1.5 text-[color:var(--color-fg-muted)] italic ${
-              value === ""
-                ? "bg-[color:var(--color-bg-subtle)]"
-                : "hover:bg-[color:var(--color-bg-subtle)]"
-            }`}
-          >
-            (unset - server default)
-          </li>
-          {options.map((o) => (
-            <li
-              key={o}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                onChange(o);
-                setOpen(false);
-              }}
-              className={`cursor-pointer px-2 py-1.5 font-mono ${
-                o === value
-                  ? "bg-[color:var(--color-bg-subtle)] font-medium"
-                  : "hover:bg-[color:var(--color-bg-subtle)]"
-              }`}
-            >
-              {o}
-            </li>
-          ))}
-        </ul>
       ) : null}
     </div>
   );

@@ -16,11 +16,12 @@
  * the two halves out.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDialog } from "@/components/ui/dialog";
 import { mutate } from "@/lib/client/api-fetch";
 import { Switch } from "@/components/ui/switch";
+import { SelectMenu, type SelectOption } from "@/components/ui/select-menu";
 import { type ZoneHorizon } from "@/lib/dns/zone-horizon";
 
 interface Props {
@@ -60,23 +61,25 @@ const ZONE_KINDS = [
   },
 ] as const;
 
-const SOA_EDIT_OPTIONS = [
-  "DEFAULT",
-  "INCREASE",
-  "EPOCH",
-  "INCEPTION-INCREMENT",
-  "INCEPTION-EPOCH",
-  "NONE",
-] as const;
+// The empty value means "unset" - PDNS then falls back to the server-wide
+// default, which is why it is offered as a pickable option rather than only
+// as a placeholder.
+const UNSET_OPTION: SelectOption<string> = { value: "", label: "(server default)" };
 
-const SOA_EDIT_API_OPTIONS = [
-  "DEFAULT",
-  "INCREASE",
-  "SOA-EDIT",
-  "SOA-EDIT-INCREASE",
-  "EPOCH",
-  "NONE",
-] as const;
+const SOA_EDIT_OPTIONS: ReadonlyArray<SelectOption<string>> = [
+  UNSET_OPTION,
+  ...["DEFAULT", "INCREASE", "EPOCH", "INCEPTION-INCREMENT", "INCEPTION-EPOCH", "NONE"].map(
+    (value) => ({ value, label: value }),
+  ),
+];
+
+const SOA_EDIT_API_OPTIONS: ReadonlyArray<SelectOption<string>> = [
+  UNSET_OPTION,
+  ...["DEFAULT", "INCREASE", "SOA-EDIT", "SOA-EDIT-INCREASE", "EPOCH", "NONE"].map((value) => ({
+    value,
+    label: value,
+  })),
+];
 
 export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit }: Props) {
   const router = useRouter();
@@ -164,7 +167,7 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
           label="Zone Type"
           help="Native: no replication. Primary: sends AXFR. Secondary: pulls AXFR."
         >
-          <KindSelect value={kind} onChange={setKind} disabled={!canEdit} />
+          <SelectMenu value={kind} options={ZONE_KINDS} onChange={setKind} disabled={!canEdit} />
         </Field>
 
         {kind === "Slave" ? (
@@ -181,12 +184,11 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
         ) : null}
 
         <Field label="SOA-EDIT" help="Algorithm PDNS uses for the SOA serial sent to secondaries.">
-          <EnumSelect
+          <SelectMenu
             value={soaEdit}
             options={SOA_EDIT_OPTIONS}
             onChange={setSoaEdit}
             disabled={!canEdit}
-            placeholder="(server default)"
           />
         </Field>
 
@@ -194,12 +196,11 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
           label="SOA-EDIT-API"
           help="Algorithm PDNS uses to bump the SOA serial after API edits."
         >
-          <EnumSelect
+          <SelectMenu
             value={soaEditApi}
             options={SOA_EDIT_API_OPTIONS}
             onChange={setSoaEditApi}
             disabled={!canEdit}
-            placeholder="(server default)"
           />
         </Field>
 
@@ -275,173 +276,6 @@ function Field({
       {children}
       {help ? (
         <p className="mt-1 text-[0.6875rem] text-[color:var(--color-fg-muted)]">{help}</p>
-      ) : null}
-    </div>
-  );
-}
-
-interface KindSelectProps {
-  value: string;
-  onChange: (next: string) => void;
-  disabled?: boolean;
-}
-
-function KindSelect({ value, onChange, disabled }: KindSelectProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-
-  const current = ZONE_KINDS.find((k) => k.value === value) ?? ZONE_KINDS[0];
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className="flex w-full items-center justify-between rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5 text-left text-xs hover:border-[color:var(--color-fg-muted)] disabled:opacity-60"
-      >
-        <span>{current.label}</span>
-        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden className="ml-2 opacity-60">
-          <path
-            d="M2 4l3 3 3-3"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-      {open ? (
-        <ul
-          role="listbox"
-          className="absolute right-0 left-0 z-10 mt-1 overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] py-1 text-xs shadow-lg"
-        >
-          {ZONE_KINDS.map((k) => (
-            <li
-              key={k.value}
-              role="option"
-              aria-selected={k.value === value}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                onChange(k.value);
-                setOpen(false);
-              }}
-              className={`cursor-pointer px-2 py-1.5 ${
-                k.value === value
-                  ? "bg-[color:var(--color-bg-subtle)] font-medium"
-                  : "hover:bg-[color:var(--color-bg-subtle)]"
-              }`}
-            >
-              <div>{k.label}</div>
-              <div className="text-[0.625rem] text-[color:var(--color-fg-muted)]">
-                {k.description}
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
-
-interface EnumSelectProps {
-  value: string;
-  options: readonly string[];
-  onChange: (next: string) => void;
-  disabled?: boolean;
-  placeholder?: string;
-}
-
-function EnumSelect({ value, options, onChange, disabled, placeholder }: EnumSelectProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className="flex w-full items-center justify-between rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-2 py-1.5 text-left font-mono text-xs hover:border-[color:var(--color-fg-muted)] disabled:opacity-60"
-      >
-        <span className={value ? "" : "text-[color:var(--color-fg-muted)]"}>
-          {value !== "" ? value : (placeholder ?? "Select…")}
-        </span>
-        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden className="ml-2 opacity-60">
-          <path
-            d="M2 4l3 3 3-3"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-      {open ? (
-        <ul
-          role="listbox"
-          className="absolute right-0 left-0 z-10 mt-1 max-h-60 overflow-auto rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] py-1 text-xs shadow-lg"
-        >
-          <li
-            role="option"
-            aria-selected={value === ""}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              onChange("");
-              setOpen(false);
-            }}
-            className={`cursor-pointer px-2 py-1.5 text-[color:var(--color-fg-muted)] italic ${
-              value === ""
-                ? "bg-[color:var(--color-bg-subtle)]"
-                : "hover:bg-[color:var(--color-bg-subtle)]"
-            }`}
-          >
-            (unset - server default)
-          </li>
-          {options.map((o) => (
-            <li
-              key={o}
-              role="option"
-              aria-selected={o === value}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                onChange(o);
-                setOpen(false);
-              }}
-              className={`cursor-pointer px-2 py-1.5 font-mono ${
-                o === value
-                  ? "bg-[color:var(--color-bg-subtle)] font-medium"
-                  : "hover:bg-[color:var(--color-bg-subtle)]"
-              }`}
-            >
-              {o}
-            </li>
-          ))}
-        </ul>
       ) : null}
     </div>
   );
