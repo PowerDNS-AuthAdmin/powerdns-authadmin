@@ -12,49 +12,82 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
+const root = new URL("./", import.meta.url).pathname;
+
+const alias = {
+  "@/": root,
+  // `server-only` / `client-only` only exist to throw when imported from
+  // the wrong React environment. Tests have no RSC/client split, so stub
+  // them out. (An alias is robust even though @vitejs/plugin-react flips
+  // Vite to client-resolution, which defeats the react-server condition.)
+  "server-only": `${root}tests/noop-module.ts`,
+  "client-only": `${root}tests/noop-module.ts`,
+};
+
+const EXCLUDE = [
+  "node_modules",
+  ".next",
+  "dist",
+  "build",
+  "coverage",
+  // Agent worktrees live here (git worktree under .claude/worktrees); their
+  // copies of the test files must not be collected into the main run.
+  ".claude/**",
+  "tests/integration/**",
+  "tests/e2e/**",
+];
+
+/** Tests that render React into a document: `foo.dom.test.tsx`. */
+const DOM_TESTS = "**/*.dom.test.tsx";
+
 export default defineConfig({
   // tsconfig sets `jsx: "preserve"` (Next.js transforms JSX itself), which
   // Vite's esbuild can't parse. The React plugin transforms `.tsx` ahead of
   // Vite's import analysis so component imports work in tests.
   plugins: [react()],
-  // `react-server` condition makes the `server-only` package resolve to its
-  // no-op server build instead of the throwing client guard. Mirrors what the
-  // `db:seed` npm script does at the process level - keeps `npm test` green
-  // without operators having to remember the NODE_OPTIONS dance.
-  resolve: {
-    alias: {
-      "@/": new URL("./", import.meta.url).pathname,
-      // `server-only` / `client-only` only exist to throw when imported from
-      // the wrong React environment. Tests have no RSC/client split, so stub
-      // them out. (An alias is robust even though @vitejs/plugin-react flips
-      // Vite to client-resolution, which defeats the react-server condition.)
-      "server-only": new URL("./tests/noop-module.ts", import.meta.url).pathname,
-      "client-only": new URL("./tests/noop-module.ts", import.meta.url).pathname,
-    },
-    conditions: ["react-server", "node", "import", "default"],
-  },
   test: {
-    environment: "node",
-    setupFiles: ["./tests/setup.ts"],
-    include: ["**/*.test.ts", "**/*.test.tsx"],
-    exclude: [
-      "node_modules",
-      ".next",
-      "dist",
-      "build",
-      "coverage",
-      // Agent worktrees live here (git worktree under .claude/worktrees); their
-      // copies of the test files must not be collected into the main run.
-      ".claude/**",
-      "tests/integration/**",
-      "tests/e2e/**",
+    // Two projects because the two kinds of unit test need opposite React
+    // builds. Plain tests resolve with the `react-server` condition so
+    // `server-only` modules load; DOM tests render through `react-dom/client`,
+    // which that condition replaces with a stub that throws, so they resolve
+    // as a browser bundle would and run in jsdom.
+    projects: [
+      {
+        plugins: [react()],
+        // `react-server` condition makes the `server-only` package resolve to
+        // its no-op server build instead of the throwing client guard. Mirrors
+        // what the `db:seed` npm script does at the process level - keeps
+        // `npm test` green without operators having to remember the
+        // NODE_OPTIONS dance.
+        resolve: { alias, conditions: ["react-server", "node", "import", "default"] },
+        test: {
+          name: "node",
+          environment: "node",
+          setupFiles: ["./tests/setup.ts"],
+          include: ["**/*.test.ts", "**/*.test.tsx"],
+          exclude: [...EXCLUDE, DOM_TESTS],
+          // Test files run in worker threads in parallel. Set to `false` if a
+          // test suite needs a serial DB connection.
+          pool: "threads",
+          testTimeout: 10_000,
+          hookTimeout: 10_000,
+        },
+      },
+      {
+        plugins: [react()],
+        resolve: { alias, conditions: ["browser", "import", "default"] },
+        test: {
+          name: "dom",
+          environment: "jsdom",
+          setupFiles: ["./tests/setup.ts"],
+          include: [DOM_TESTS],
+          exclude: EXCLUDE,
+          pool: "threads",
+          testTimeout: 10_000,
+          hookTimeout: 10_000,
+        },
+      },
     ],
-    // Test files run in worker threads in parallel. Set to `false` if a test suite needs
-    // a serial DB connection.
-    pool: "threads",
-    // Reasonable defaults; tune per CI behavior later.
-    testTimeout: 10_000,
-    hookTimeout: 10_000,
     // We don't gate global coverage - it's dominated by UI + repository code
     // that's exercised by the Postgres integration suite, not the unit suite.
     // Instead we floor the security-critical, DB-free modules that MUST stay

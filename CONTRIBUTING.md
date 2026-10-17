@@ -170,6 +170,10 @@ Two layers, run independently:
 - **Unit tests** - live next to the source (`foo.ts` + `foo.test.ts`). Pure functions, mock-free
   where reasonable, no external dependencies. Run with `npm run test`. Fast, hermetic, no
   Docker required.
+- **DOM tests** - React components that must be rendered to be tested (focus, remounts,
+  label wiring) go in `foo.dom.test.tsx` next to the source. They run in jsdom through
+  `react-dom/client`, inside the unit suite (`npm run test`), as the `dom` project of
+  `vitest.config.ts`. Plain `.test.tsx` files run in Node with the server React build.
 - **Fuzz tests** - property-based tests using [`fast-check`](https://fast-check.dev), in
   `*.fuzz.test.ts` next to the source. Use them for parsers / anything that takes untrusted
   string input: assert invariants (never throws, round-trips, idempotent) over thousands of

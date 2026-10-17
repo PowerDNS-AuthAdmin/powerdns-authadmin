@@ -123,12 +123,20 @@ export function Field({
   // The control is the first labelable element among the children - a field
   // may also carry a preview line or a secondary note after its input, and
   // those must not swallow the label wiring.
+  //
+  // The children are always rendered as this array, never as the lone
+  // element when there happens to be one. A control followed by a sibling
+  // that appears on the first keystroke (the zone-name "Stored as" preview)
+  // would otherwise switch its slot from one element to an array, and React
+  // remounts the control on that switch - dropping focus mid-word (#161).
+  // `Children.toArray` keys by original position, so the control keeps its
+  // key when a sibling shows up or goes away.
   const parts = Children.toArray(children);
   const controlIndex = parts.findIndex(
     (part) => isValidElement<WireableProps>(part) && isLabelable(part.type),
   );
   let controlId: string | undefined;
-  let control: ReactNode = children;
+  let control: ReactNode[] = parts;
   if (controlIndex !== -1) {
     const target = parts[controlIndex] as ReactElement<WireableProps>;
     controlId = target.props.id ?? id ?? autoId;
@@ -144,7 +152,7 @@ export function Field({
       ...(describedBy ? { "aria-describedby": describedBy } : {}),
       ...(hasErrors && target.props["aria-invalid"] === undefined ? { "aria-invalid": true } : {}),
     });
-    control = parts.length === 1 ? wired : parts.map((p, i) => (i === controlIndex ? wired : p));
+    control = parts.map((p, i) => (i === controlIndex ? wired : p));
   }
 
   const caption = (

@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **Zone name input lost focus after the first character on Create zone.** The shared
+  form field rendered its control as a lone element until a sibling appeared next to it
+  (the "Stored as" preview that shows on the first keystroke), and React remounted the
+  input on that change of shape. The field now renders its children in one stable shape,
+  so every field whose control is followed by a conditional note keeps focus.
+  ([#161](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/161))
+
 ## [1.9.0] - 2026-10-09
 
 Feature release. The headline is an **MCP server** (`POST /api/mcp`) so Claude Code,
