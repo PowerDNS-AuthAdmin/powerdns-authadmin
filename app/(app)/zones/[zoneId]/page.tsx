@@ -45,7 +45,7 @@ import { derivedUpstreamFor } from "@/lib/pdns/topology-cache";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { PdnsNotFoundError } from "@/lib/pdns/errors";
 import { logger } from "@/lib/logger";
-import { pdnsBackgroundPollingEnabled } from "@/lib/env";
+import { optionalFeatures, pdnsBackgroundPollingEnabled } from "@/lib/env";
 import { redact } from "@/lib/errors/redact";
 import { parseSoaContent, type SoaFields } from "@/lib/validators/soa";
 import { Lock } from "lucide-react";
@@ -545,9 +545,11 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
               luaRecordsEnabled={luaRecordsEnabled}
               defaultTtl={defaultTtl}
               autoPtr={autoPtr}
+              reverseDnsLinks={optionalFeatures.reverseDns}
             />
           ) : (
             <RecordTable
+              reverseDnsLinks={optionalFeatures.reverseDns}
               zoneName={zone.name}
               rrsets={nonSoaRrsets.map((rr) => ({
                 name: rr.name,

@@ -25,6 +25,7 @@ import { ttlSchema } from "@/lib/validators/common";
 import { validateHostname } from "@/lib/validators/rr-types/hostname";
 import { runAutoPtr, type AutoPtrChange } from "../../zones/[zoneId]/rrsets/_auto-ptr";
 import { invalidateFleetScan } from "../_scan";
+import { requireFeature } from "@/lib/http/require-feature";
 
 const itemSchema = z.object({
   ip: z
@@ -52,6 +53,7 @@ const canonicalName = (name: string): string => {
 
 export async function POST(request: Request): Promise<Response> {
   try {
+    requireFeature("reverseDns");
     const { user, globalPermissions, zoneGrants } = await requireUser();
     await requireCsrf(request);
     let input;

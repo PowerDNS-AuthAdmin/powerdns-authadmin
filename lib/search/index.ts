@@ -103,6 +103,14 @@ export interface SearchAuth {
   zoneGrants: readonly ZoneGrantInput[];
   /** Per-team read check (the Teams page lets a team-scoped owner see their own teams). */
   canReadTeam: (teamId: string) => boolean;
+  /** The opt-in pages that exist on this install; absent means none. */
+  features?: SearchFeatures;
+}
+
+/** Which opt-in pages exist (REVERSE_DNS_ENABLED / ZONE_MONITOR_ENABLED). */
+export interface SearchFeatures {
+  reverseDns: boolean;
+  zoneMonitoring: boolean;
 }
 
 /* ------------------------------------------------------------ constants */
@@ -149,6 +157,8 @@ interface ConfigPage {
   permission: string | null;
   keywords?: string;
   anyTeam?: boolean;
+  /** Only listed when this opt-in feature is enabled. */
+  feature?: keyof SearchFeatures;
 }
 const CONFIG_PAGES: readonly ConfigPage[] = [
   {
@@ -208,12 +218,19 @@ const CONFIG_PAGES: readonly ConfigPage[] = [
     permission: "audit.read",
     keywords: "powerdns http",
   },
-  { title: "Reverse DNS", href: "/zones/auto-ptr", permission: "record.read", keywords: "ptr" },
+  {
+    title: "Reverse DNS",
+    href: "/zones/auto-ptr",
+    permission: "record.read",
+    keywords: "ptr",
+    feature: "reverseDns",
+  },
   {
     title: "Zone Monitoring",
     href: "/zones/monitoring",
     permission: "zone.read",
     keywords: "delegation",
+    feature: "zoneMonitoring",
   },
   {
     title: "Profile",
@@ -421,6 +438,7 @@ async function searchConfig(
   const teams = g.has("team.read") ? null : await sources.teams();
   const anyTeamVisible = g.has("team.read") || (teams ?? []).some((t) => auth.canReadTeam(t.id));
   for (const page of CONFIG_PAGES) {
+    if (page.feature && auth.features?.[page.feature] !== true) continue;
     const visible =
       page.permission === null ||
       g.has(page.permission) ||

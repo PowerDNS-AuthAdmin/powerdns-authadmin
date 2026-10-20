@@ -15,10 +15,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { PtrReconciler } from "./_components/ptr-reconciler";
+import { notFound } from "next/navigation";
+import { optionalFeatures } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Reverse DNS" };
 
 export default async function AutoPtrPage() {
+  if (!optionalFeatures.reverseDns) notFound();
   await requireUserForPage({ can: "record.read" });
 
   return (

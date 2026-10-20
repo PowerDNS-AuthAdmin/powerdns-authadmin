@@ -15,6 +15,7 @@ import { RateLimitedError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 import { parseSearchParams } from "@/lib/http/parse-query";
 import { SEARCH_SCOPES, searchEverything } from "@/lib/search";
+import { optionalFeatures } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,7 @@ export async function GET(request: Request): Promise<Response> {
         globalPermissions: auth.globalPermissions,
         zoneGrants: auth.zoneGrants,
         canReadTeam: (id) => auth.ability.can("read", { __type: "Team", id }),
+        features: optionalFeatures,
       },
     });
     return Response.json(result, { headers: NO_STORE });

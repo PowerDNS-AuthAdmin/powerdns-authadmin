@@ -171,6 +171,22 @@ describe("searchEverything", () => {
     expect(zone.ranges.length).toBeGreaterThan(0);
   });
 
+  it("lists the opt-in pages only when their feature is enabled", async () => {
+    const titles = async (a: SearchAuth) =>
+      (await run("reverse", a, "config")).groups.flatMap((g) => g.items.map((i) => i.title));
+    expect(await titles(auth(ALL_PERMISSIONS))).not.toContain("Reverse DNS");
+    expect(
+      await titles(
+        auth(ALL_PERMISSIONS, { features: { reverseDns: false, zoneMonitoring: true } }),
+      ),
+    ).not.toContain("Reverse DNS");
+    expect(
+      await titles(
+        auth(ALL_PERMISSIONS, { features: { reverseDns: true, zoneMonitoring: false } }),
+      ),
+    ).toContain("Reverse DNS");
+  });
+
   it("returns empty groups and zero counts for a user without permissions", async () => {
     const res = await run("example", auth([]));
     expect(res.counts).toEqual({ zones: 0, records: 0, config: 0, requests: 0, audit: 0 });

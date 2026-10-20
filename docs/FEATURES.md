@@ -682,7 +682,12 @@ the audit trail behave identically whichever door the user came through.
   writable copy; read-only backends and secondary copies are never written.
 - **Preview.** The review dialog calls a dry run (`POST …/rrsets/ptr-plan`, same body and
   permissions as the PATCH) and lists what the save will do to reverse DNS before Save.
-- **Reverse DNS page.** `/zones/auto-ptr` (button on the zones list; global `record.read`)
+- **Reverse DNS page (opt-in).** Off by default: set `REVERSE_DNS_ENABLED=true` to turn it
+  on. While it is off, the page, its sidebar entry and zones-list button, the PTR chips on
+  record tables, the `auto-ptr/report|rectify|links|external-refresh` routes and the
+  `reverse_dns_*` MCP tools do not exist (the routes answer 404), so nothing reads the whole
+  fleet on its behalf. Auto-PTR on save (above) does not depend on it.
+  `/zones/auto-ptr` (button on the zones list; global `record.read`)
   reads every zone once, cached for a minute and shared across users, and lists one row per
   address: **ok**, **missing** (no PTR), **mismatch** (PTR points elsewhere), **ambiguous**
   (several names share the address; pick one), **orphan** (PTR with no forward record) and
@@ -722,8 +727,7 @@ the audit trail behave identically whichever door the user came through.
   re-done once the cached answer is older than the interval. The page's **Refresh external
   lookups** button looks every unhosted address up now, once per 60 seconds
   (`POST /api/admin/pdns/auto-ptr/external-refresh`; global `record.read`, CSRF). The lookups
-  are part of zone monitoring: with `ZONE_MONITOR_ENABLED=false` nothing is asked and the rows
-  stay **pending**.
+  are part of the Reverse DNS checks and run only with `REVERSE_DNS_ENABLED=true`.
 - **Not covered.** The DynDNS endpoint and zonefile import write records directly and do not
   touch PTRs; use the Reverse DNS page afterwards.
 - **Where.** `lib/dns/reverse-name.ts` (address ↔ owner name, classless zones),
@@ -1138,8 +1142,9 @@ folder (`drizzle/`, `drizzle-sqlite/`); the boot entrypoint picks one based on
 - **Secret-field redaction** in audit `before`/`after` snapshots and free-form log strings.
 - **Argon2id** with OWASP 2024 parameters for passwords and API tokens.
 - **No telemetry phone-home.** Air-gapped enterprises are first-class. The only background
-  traffic that leaves the network is zone monitoring's outbound DNS (§ 20.8), on by default and
-  switched off with `ZONE_MONITOR_ENABLED=false`.
+  traffic that can leave the network is zone monitoring's outbound DNS (§ 20.8) and the
+  Reverse DNS checks' upstream PTR lookups (§ 4.8), both off by default and switched on with
+  `ZONE_MONITOR_ENABLED=true` / `REVERSE_DNS_ENABLED=true`.
 - **`SECURITY.md`** for the vulnerability disclosure policy.
 
 ### 17.1 Public-demo locks (`BOOTSTRAP_ADMIN_RO`, `SETTINGS_RO`)
@@ -1418,6 +1423,13 @@ asks for it. None of that is visible from inside PowerDNS, so AuthAdmin checks e
 from the outside on a schedule and reports what it finds on **Zones → Zone Monitoring**
 (`/zones/monitoring`), in the notification bell and as a count on the sidebar entry.
 
+**Opt-in.** Zone monitoring is off by default because it adds background load and sends DNS
+queries outside your network. Set `ZONE_MONITOR_ENABLED=true` to turn it on. While it is off,
+the page, its sidebar entry, `GET /api/admin/monitoring/zones`, the refresh route and the
+`zone_monitoring*` MCP tools do not exist (404), and findings left from an earlier run are
+removed from the bell once at start-up. The reverse-DNS drift finding below also needs
+`REVERSE_DNS_ENABLED=true`.
+
 ### 20.1 What is checked, and why from the outside
 
 - **Delegation at the parent.** The parent's NS set, its glue and its DS records are read by
@@ -1581,9 +1593,8 @@ When no root server answers, delegation walks are skipped and public zones carry
 `delegation.unverified` info finding; the page shows the offline state. Nameserver and resolver
 probes still run and report what they see, so a host with no outbound DNS at all will also
 show `nameserver.unreachable` and `resolution.*` findings for every zone. The debounce keeps a
-transient outage out of the bell, but on an air-gapped install the right setting is
-`ZONE_MONITOR_ENABLED=false`, which stops the scheduler, the manual refresh routes and the
-external PTR lookups of § 4.8. The monitoring API then reports `enabled: false` and no results.
+transient outage out of the bell, but on an air-gapped install the right setting is to leave
+`ZONE_MONITOR_ENABLED` unset (off), which is the default.
 
 ### 20.7 Permissions
 
@@ -1611,7 +1622,7 @@ empty body (whole fleet) or `{ zone, serverSlug }` (one zone). Nothing here writ
   probe, manual runs rate-limited (60 s fleet, 20 s per zone).
 - **Read-only.** The monitor reads PowerDNS through the shared fleet scan and never writes to a
   zone; its only persistent output is the advisories table.
-- **Off switch.** `ZONE_MONITOR_ENABLED=false` for air-gapped installs; see
+- **Opt-in.** Off unless `ZONE_MONITOR_ENABLED=true`; see
   [Configuration](./03-CONFIGURATION.md#zone-monitoring) and [Hardening](./08-HARDENING.md).
 
 ### 20.9 Where

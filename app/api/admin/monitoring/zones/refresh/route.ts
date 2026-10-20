@@ -20,6 +20,7 @@ import {
   refreshAllZones,
   refreshZone,
 } from "@/lib/monitoring/zone-monitor";
+import { requireFeature } from "@/lib/http/require-feature";
 
 const bodySchema = z
   .object({
@@ -33,6 +34,7 @@ const bodySchema = z
 
 export async function POST(request: Request): Promise<Response> {
   try {
+    requireFeature("zoneMonitoring");
     await requireUser({ can: "zone.read" });
     await requireCsrf(request);
     let body: z.infer<typeof bodySchema>;

@@ -38,7 +38,7 @@ import { getAppSettings } from "@/lib/settings/app-settings";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { globalAnyLagging, hasReplicationTopology } from "@/lib/pdns/sync";
 import { decideHeaderChipMode } from "@/lib/realtime/header-chip-mode";
-import { pdnsBackgroundPollingEnabled } from "@/lib/env";
+import { optionalFeatures, pdnsBackgroundPollingEnabled } from "@/lib/env";
 import {
   ensureZoneMonitorRunning,
   reverseDnsBadge,
@@ -153,8 +153,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // the links only show to users who could open them.
   const globalRecordRead = current.globalPermissions.has("record.read");
   const globalZoneRead = current.globalPermissions.has("zone.read");
-  const reverseBadge = globalRecordRead ? reverseDnsBadge() : 0;
-  const monitorBadge = globalZoneRead ? zoneMonitorBadge() : { problems: 0, tone: "warn" as const };
+  // Both pages are opt-in (REVERSE_DNS_ENABLED / ZONE_MONITOR_ENABLED): when a
+  // feature is off its sidebar entry does not exist.
+  const showReverseDns = optionalFeatures.reverseDns && globalRecordRead;
+  const showMonitoring = optionalFeatures.zoneMonitoring && globalZoneRead;
+  const reverseBadge = showReverseDns ? reverseDnsBadge() : 0;
+  const monitorBadge = showMonitoring ? zoneMonitorBadge() : { problems: 0, tone: "warn" as const };
 
   const sidebar = (
     <>
@@ -175,9 +179,9 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       <nav aria-label="Main" className="flex-1 space-y-1 overflow-y-auto p-3 text-base">
         <NavLink href="/dashboard" label="Dashboard" />
         {canReadZones ? <NavLink href="/zones" label="Zones" /> : null}
-        {canReadZones && (globalRecordRead || globalZoneRead) ? (
+        {canReadZones && (showReverseDns || showMonitoring) ? (
           <NavChildren parent="Zones">
-            {globalRecordRead ? (
+            {showReverseDns ? (
               <NavLink
                 nested
                 href="/zones/auto-ptr"
@@ -187,7 +191,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
                 badgeLabel={`${reverseBadge} address${reverseBadge === 1 ? "" : "es"} with reverse DNS problems`}
               />
             ) : null}
-            {globalZoneRead ? (
+            {showMonitoring ? (
               <NavLink
                 nested
                 href="/zones/monitoring"
@@ -264,7 +268,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     <>
       <GlobalSearch
         visibility={searchTabsFor(current)}
-        quickLinks={buildSearchQuickLinks(current)}
+        quickLinks={buildSearchQuickLinks(current, optionalFeatures)}
       />
       {showBell ? <HealthBell preview={bellItems} summary={bellSummary} /> : null}
       <ThemeToggle />

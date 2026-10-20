@@ -46,3 +46,7 @@ services:
       # state, mirror discovery, advisory eval). Default in production is
       # `false`; the test stack pins it `true` so those paths are covered.
       PDNS_BACKGROUND_POLLING: "true"
+      # The opt-in fleet checks (off by default) are switched on here so the
+      # integration suite covers their routes.
+      ZONE_MONITOR_ENABLED: "true"
+      REVERSE_DNS_ENABLED: "true"

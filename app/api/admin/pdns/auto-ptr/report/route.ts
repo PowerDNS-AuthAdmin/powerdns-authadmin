@@ -14,11 +14,13 @@ import { errorResponse } from "@/lib/http/error-response";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { getExternalPtr, scheduleExternalLookups } from "@/lib/monitoring/external-ptr";
 import { getFleetScan } from "../_scan";
+import { requireFeature } from "@/lib/http/require-feature";
 
 const scanAt = (scan: { at?: number }): number => scan.at ?? Date.now();
 
 export async function GET(request: Request): Promise<Response> {
   try {
+    requireFeature("reverseDns");
     const { globalPermissions, zoneGrants } = await requireUser({ can: "record.read" });
     const refresh = new URL(request.url).searchParams.get("refresh") === "1";
     const scan = await getFleetScan({ refresh });

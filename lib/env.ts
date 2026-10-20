@@ -341,15 +341,27 @@ export const envSchema = z.object({
     .pipe(z.boolean())
     .optional(),
 
-  // --- Zone monitoring (delegation, nameserver, DNSSEC chain, resolver view,
-  // open-AXFR and reverse-DNS checks; the Zones → Zone Monitoring page). On by
-  // default: it only reads, every check degrades to an "unverified" note when
-  // the host has no outbound DNS, and nothing rings the bell on a single
-  // failed cycle. Set ZONE_MONITOR_ENABLED=false on an air-gapped install.
+  // --- Optional fleet checks. Both are OFF unless set to "true": they add
+  // background load (a periodic read of every zone on every backend) and, for
+  // zone monitoring, outbound DNS (root servers, public resolvers, an unsigned
+  // AXFR probe to each zone's own nameservers). When off, their pages, sidebar
+  // entries, buttons, API routes and MCP tools do not exist.
+  //
+  // Zone monitoring: delegation, nameserver, DNSSEC chain, resolver view,
+  // open-AXFR and SOA checks (Zones → Zone Monitoring, bell notifications).
   ZONE_MONITOR_ENABLED: z
     .string()
     .optional()
-    .transform((s) => s?.toLowerCase() !== "false")
+    .transform((s) => s?.toLowerCase() === "true")
+    .pipe(z.boolean()),
+  // Reverse DNS checks: the fleet-wide A/AAAA vs PTR report (Zones → Reverse
+  // DNS), the PTR chips on record tables, and upstream PTR lookups for
+  // addresses no hosted reverse zone covers. Automatic PTR maintenance on save
+  // is separate and controlled by the `auto_ptr` setting.
+  REVERSE_DNS_ENABLED: z
+    .string()
+    .optional()
+    .transform((s) => s?.toLowerCase() === "true")
     .pipe(z.boolean()),
   // Seconds between full monitoring cycles; each zone is checked once per cycle,
   // spread across the window so the fleet is never probed in one burst.
@@ -603,6 +615,7 @@ export const ENV_KEYS = [
   "APP_PDNS_ALLOW_INSECURE_HTTP",
   "PDNS_BACKGROUND_POLLING",
   "ZONE_MONITOR_ENABLED",
+  "REVERSE_DNS_ENABLED",
   "ZONE_MONITOR_INTERVAL_SECONDS",
   "ZONE_MONITOR_PUBLIC_RESOLVERS",
   "ZONE_MONITOR_INTERNAL_RESOLVERS",
@@ -871,6 +884,15 @@ function resolverList(raw: string): string[] {
     .map((v) => v.trim())
     .filter((v) => v !== "" && /^[0-9a-fA-F.:]+$/.test(v));
 }
+
+/**
+ * The opt-in fleet checks (both off by default). Pages, routes, nav entries
+ * and MCP tools consult this so a disabled feature leaves no trace in the UI.
+ */
+export const optionalFeatures = {
+  zoneMonitoring: env.ZONE_MONITOR_ENABLED,
+  reverseDns: env.REVERSE_DNS_ENABLED,
+} as const;
 
 /** Zone monitoring knobs - see `ZONE_MONITOR_*` above. */
 export const zoneMonitorConfig = {

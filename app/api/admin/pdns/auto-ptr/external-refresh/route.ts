@@ -12,9 +12,11 @@ import { reconcilePtrs } from "@/lib/dns/ptr-reconcile";
 import { errorResponse } from "@/lib/http/error-response";
 import { MANUAL_REFRESH_INTERVAL_MS, refreshExternalNow } from "@/lib/monitoring/external-ptr";
 import { getFleetScan } from "../_scan";
+import { requireFeature } from "@/lib/http/require-feature";
 
 export async function POST(request: Request): Promise<Response> {
   try {
+    requireFeature("reverseDns");
     await requireUser({ can: "record.read" });
     await requireCsrf(request);
     const scan = await getFleetScan();

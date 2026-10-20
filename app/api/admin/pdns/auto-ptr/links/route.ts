@@ -27,6 +27,7 @@ import { ForbiddenError, ValidationError } from "@/lib/errors";
 import { errorResponse } from "@/lib/http/error-response";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { getFleetScan } from "../_scan";
+import { requireFeature } from "@/lib/http/require-feature";
 
 export interface ForwardLink {
   zone: string;
@@ -58,6 +59,7 @@ const zoneHref = (zone: string, server: string): string =>
 
 export async function GET(request: Request): Promise<Response> {
   try {
+    requireFeature("reverseDns");
     const { globalPermissions, zoneGrants } = await requireUser();
     const url = new URL(request.url);
     const zoneParam = url.searchParams.get("zone") ?? "";

@@ -15,6 +15,9 @@
  *   - The combined demo stack is up:
  *       docker compose -f docker-compose-combined.yml up -d --build
  *     (needs APP_SECRET_KEY + APP_ENCRYPTION_KEY env)
+ *   - For the reverse-dns and zone-monitoring shots, start the app with
+ *     REVERSE_DNS_ENABLED=true and ZONE_MONITOR_ENABLED=true (both are opt-in
+ *     and their pages answer 404 otherwise).
  *   - The bootstrap admin can log in straight away. The combined stack sets
  *     BOOTSTRAP_ADMIN_RO=true, so the seed already creates the admin with
  *     must_change_password=false - no manual SQL needed. If you run with

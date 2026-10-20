@@ -18,7 +18,7 @@ import { promises as dns } from "node:dns";
 import { reverseOwnerName } from "@/lib/dns/reverse-name";
 import { query } from "@/lib/dns/wire";
 import type { ZoneHorizon } from "@/lib/dns/zone-horizon";
-import { zoneMonitorConfig } from "@/lib/env";
+import { optionalFeatures, zoneMonitorConfig } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { publishMonitorEvent } from "@/lib/realtime/event-bus";
 
@@ -167,7 +167,7 @@ function run(): Promise<void> {
 export function scheduleExternalLookups(
   addresses: ReadonlyArray<{ ip: string; horizon: ZoneHorizon }>,
 ): void {
-  if (!zoneMonitorConfig.enabled) return;
+  if (!optionalFeatures.reverseDns) return;
   let queued = 0;
   for (const a of addresses) {
     const prev = state.results.get(a.ip);
@@ -197,7 +197,7 @@ export function getExternalPtr(ip: string): ExternalPtr | null {
 export async function refreshExternalNow(
   addresses: ReadonlyArray<{ ip: string; horizon: ZoneHorizon }>,
 ): Promise<boolean> {
-  if (!zoneMonitorConfig.enabled) return false;
+  if (!optionalFeatures.reverseDns) return false;
   if (Date.now() - state.lastManualAt < MANUAL_REFRESH_INTERVAL_MS) return false;
   state.lastManualAt = Date.now();
   for (const a of addresses) state.queue.set(a.ip, a.horizon);

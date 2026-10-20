@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+**Opt-in features.** Zone monitoring and the Reverse DNS checks are **off by default** because
+they add background load (a periodic read of every zone on every backend) and send DNS queries
+outside your network. Turn them on with `ZONE_MONITOR_ENABLED=true` and
+`REVERSE_DNS_ENABLED=true`. While a feature is off, its page, sidebar entry, buttons, API routes
+and MCP tools do not exist. Automatic PTR maintenance on save is opt-in through the `auto_ptr`
+setting and does not need either variable.
+
 ### Added
 
 - **Global search answers from a prebuilt index.** The index is rebuilt in the background after
@@ -29,7 +36,7 @@ All notable changes to this project are documented here. The format is based on
   reverse zone, and every outcome is reported per address and audited (`record.ptr-sync`).
   The review dialog previews the reverse changes before Save.
   ([#164](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/164))
-- **Reverse DNS page** (`/zones/auto-ptr`): every A/AAAA record across the fleet diffed
+- **Reverse DNS page** (`/zones/auto-ptr`, **opt-in: `REVERSE_DNS_ENABLED=true`**): every A/AAAA record across the fleet diffed
   against its PTR - ok, missing, mismatch, ambiguous, orphan, unhosted - with per-row,
   selected or all-fixable rectification through the same audited path. Record tables link
   each A/AAAA row to its PTR and each PTR row to every forward record pointing at the address.
@@ -68,9 +75,9 @@ All notable changes to this project are documented here. The format is based on
   the interval, 3 s timeouts, no retry loops) and rate-limited manual re-checks. Error and warn
   findings reach the notification bell as `monitor.<zone>.<code>` advisories after two
   sightings (at once after a manual re-check), visible to users who can read zones, and the
-  sidebar shows a per-page count. Own wire-format DNS client (`lib/dns/wire.ts`), on by
-  default, `ZONE_MONITOR_ENABLED=false` for air-gapped installs; `ZONE_MONITOR_*` variables in
-  the configuration guide.
+  sidebar shows a per-page count. Own wire-format DNS client (`lib/dns/wire.ts`). **Opt-in:
+  off unless `ZONE_MONITOR_ENABLED=true`**; `ZONE_MONITOR_*` variables in the configuration
+  guide.
 
 ### Fixed
 

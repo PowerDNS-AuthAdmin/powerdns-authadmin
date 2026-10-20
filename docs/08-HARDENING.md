@@ -88,13 +88,15 @@ exotic - it's the handful of things worth getting right before you expose the ap
   it deliberately when you need the sync chip, drift advisories, or the
   dashboard PDNS metrics - see
   [Configuration → `PDNS_BACKGROUND_POLLING`](./03-CONFIGURATION.md#pdns_background_polling).
-- **Know that zone monitoring talks to the internet.** It is the one feature that
-  sends packets on its own: DNS on 53/udp and 53/tcp from the AuthAdmin host to the
-  root, TLD and parent servers, to every hosted zone's nameservers (including an
-  unsigned AXFR probe against those nameservers only) and to the resolvers in
-  `ZONE_MONITOR_PUBLIC_RESOLVERS` / `ZONE_MONITOR_INTERNAL_RESOLVERS`. Allow that in
-  the egress policy, or set `ZONE_MONITOR_ENABLED=false` on an air-gapped install so
-  the scheduler, the manual re-check routes and the external PTR lookups never start.
+- **Know that zone monitoring talks to the internet when you turn it on.** It is off
+  by default. With `ZONE_MONITOR_ENABLED=true` it is the one feature that sends packets
+  on its own: DNS on 53/udp and 53/tcp from the AuthAdmin host to the root, TLD and
+  parent servers, to every hosted zone's nameservers (including an unsigned AXFR probe
+  against those nameservers only) and to the resolvers in
+  `ZONE_MONITOR_PUBLIC_RESOLVERS` / `ZONE_MONITOR_INTERNAL_RESOLVERS`. The Reverse DNS
+  checks (`REVERSE_DNS_ENABLED=true`, also off by default) query those resolvers for
+  addresses no hosted reverse zone covers. Allow that in the egress policy before
+  enabling either; leave both off on an air-gapped install.
   Nothing else in the app initiates outbound traffic without an operator action. See
   [Configuration → Zone monitoring](./03-CONFIGURATION.md#zone-monitoring).
 - **Run on Postgres for anything multi-instance.** Boots are serialised by an

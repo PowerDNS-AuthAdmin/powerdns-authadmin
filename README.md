@@ -65,13 +65,15 @@ ready-to-use install without a single click.
 - **Reverse DNS.** Optional auto-PTR: saving an A/AAAA record keeps its PTR in a hosted
   reverse zone in sync (global, per-zone or per-save; never creates zones, never clobbers a
   PTR that points elsewhere), plus a fleet-wide Reverse DNS page that diffs every address
-  against its PTR and rectifies the rows you pick.
+  against its PTR and rectifies the rows you pick. **Opt-in:** auto-PTR is the `auto_ptr`
+  setting; the Reverse DNS page and PTR chips need `REVERSE_DNS_ENABLED=true`.
 - **Zone monitoring.** Every hosted zone checked from the outside on a schedule: delegation
   at the parent (walked from the root servers, not through a resolver), nameserver
   reachability, authority, serials and NS sets, open AXFR, DS versus DNSKEY, what public or
   internal resolvers answer, SOA sanity and reverse-DNS drift. Stable finding codes with a
-  what-to-do, horizon-aware, bounded load, findings in the bell and a count in the sidebar;
-  `ZONE_MONITOR_ENABLED=false` for air-gapped installs.
+  what-to-do, horizon-aware, bounded load, findings in the bell and a count in the sidebar.
+  **Opt-in:** set `ZONE_MONITOR_ENABLED=true` to turn it on (it sends DNS queries outside
+  your network).
 - **Zones + records.** Per-RRset editor with diff-before-apply, zone cloning, zone templates
   (NS + SOA timers + prelude records + zone-object settings + per-kind metadata), per-type
   record validators, optimistic concurrency at the RRset level.

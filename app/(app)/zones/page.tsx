@@ -54,9 +54,9 @@ import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { backendUnreachability } from "@/lib/realtime/backend-status";
 import type { PdnsServer } from "@/lib/db/schema";
 import { ZonesTable, type ZoneRow } from "./_components/zones-table";
-import { pdnsBackgroundPollingEnabled } from "@/lib/env";
 import { PollingDisabledHint } from "@/components/domain/polling-disabled-hint";
 import { ServerRealtimeSubscriber } from "./_components/server-realtime-subscriber";
+import { optionalFeatures, pdnsBackgroundPollingEnabled } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Zones" };
 
@@ -83,7 +83,8 @@ export default async function ZonesPage() {
   const canReadAudit = globalPermissions.has("audit.read");
   // The reverse DNS reconciler reads every zone's records, so it is gated on
   // the global permission rather than on any single zone grant.
-  const canReconcilePtr = globalPermissions.has("record.read");
+  // The Reverse DNS checks are opt-in (REVERSE_DNS_ENABLED); no button when off.
+  const canReconcilePtr = optionalFeatures.reverseDns && globalPermissions.has("record.read");
 
   // Ask the broker to ensure a recent observation, then read its store. Serves
   // from the warm store on a hot path; runs/joins one poll when cold or stale.

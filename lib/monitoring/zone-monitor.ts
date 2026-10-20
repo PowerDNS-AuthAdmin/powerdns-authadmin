@@ -27,7 +27,10 @@ import "server-only";
 import { promises as dns } from "node:dns";
 import type { PdnsServer } from "@/lib/db/schema";
 import { listAllActiveBackends } from "@/lib/db/repositories/pdns-servers";
-import { syncBackendAdvisories } from "@/lib/db/repositories/backend-advisories";
+import {
+  deleteAdvisoriesWithPrefix,
+  syncBackendAdvisories,
+} from "@/lib/db/repositories/backend-advisories";
 import { findDelegation, type DelegationResult } from "@/lib/dns/delegation";
 import { reconcilePtrs } from "@/lib/dns/ptr-reconcile";
 import { rootAddresses } from "@/lib/dns/root-hints";
@@ -43,7 +46,7 @@ import {
   type ZoneProbeData,
 } from "@/lib/dns/zone-checks";
 import type { ZoneHorizon } from "@/lib/dns/zone-horizon";
-import { zoneMonitorConfig } from "@/lib/env";
+import { optionalFeatures, zoneMonitorConfig } from "@/lib/env";
 import type { EvaluatedAdvisory } from "@/lib/health/evaluator";
 import { logger } from "@/lib/logger";
 import { classifyAddress } from "@/lib/net/url-safety";
@@ -344,6 +347,12 @@ async function rootsReachable(roots: string[]): Promise<boolean> {
 }
 
 function reverseTallies(scan: Awaited<ReturnType<typeof getFleetScan>>): ProbeContext["reverse"] {
+  // The reverse-DNS drift finding and the Reverse DNS sidebar count belong to
+  // the Reverse DNS checks, which are opt-in on their own.
+  if (!optionalFeatures.reverseDns) {
+    state.reverseNotOk = 0;
+    return new Map();
+  }
   const { rows } = reconcilePtrs({
     forward: scan.forward,
     reverse: scan.reverse,
@@ -495,9 +504,41 @@ function cycle(opts: {
   return state.inFlight;
 }
 
+declare global {
+  var __zoneMonitorPurged: boolean | undefined;
+}
+
+/**
+ * With monitoring switched off, findings from when it was on would otherwise
+ * stay in the bell forever (nothing runs to clear them). Remove them once per
+ * process.
+ */
+function purgeStaleAdvisoriesOnce(): void {
+  if (globalThis.__zoneMonitorPurged) return;
+  globalThis.__zoneMonitorPurged = true;
+  deleteAdvisoriesWithPrefix(MONITOR_ADVISORY_PREFIX)
+    .then((removed) => {
+      if (removed > 0) {
+        logger.info({ removed }, "zone-monitor.disabled.advisories-cleared");
+        publishHealthEvent();
+      }
+    })
+    .catch((err: unknown) => {
+      globalThis.__zoneMonitorPurged = false;
+      logger.warn(
+        { error: err instanceof Error ? err.message : "unknown" },
+        "zone-monitor.disabled.purge-failed",
+      );
+    });
+}
+
 /** Start the periodic monitor (idempotent). Called from the app shell. */
 export function ensureZoneMonitorRunning(): void {
-  if (!zoneMonitorConfig.enabled || state.timer) return;
+  if (!zoneMonitorConfig.enabled) {
+    purgeStaleAdvisoriesOnce();
+    return;
+  }
+  if (state.timer) return;
   state.timer = setInterval(() => void cycle({ immediate: false }), zoneMonitorConfig.intervalMs);
   state.nextCycleAt = Date.now() + FIRST_CYCLE_DELAY_MS;
   setTimeout(() => void cycle({ immediate: false }), FIRST_CYCLE_DELAY_MS);

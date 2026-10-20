@@ -9,13 +9,14 @@
 
 import "server-only";
 import type { AuthenticatedRequest } from "@/lib/auth/get-current-user";
+import type { SearchFeatures } from "./index";
 import type { SearchQuickLink, SearchTabVisibility } from "./types";
 import { searchTabVisibility } from "./index";
 
 type Actor = Pick<AuthenticatedRequest, "ability" | "globalPermissions" | "zoneGrants">;
 
 /** Empty-state shortcuts for this user, zone pages first. */
-export function buildSearchQuickLinks(actor: Actor): SearchQuickLink[] {
+export function buildSearchQuickLinks(actor: Actor, features: SearchFeatures): SearchQuickLink[] {
   const { ability, globalPermissions: g } = actor;
   const candidates: Array<SearchQuickLink & { allowed: boolean }> = [
     {
@@ -34,13 +35,13 @@ export function buildSearchQuickLinks(actor: Actor): SearchQuickLink[] {
       label: "Reverse DNS",
       href: "/zones/auto-ptr",
       hint: "Addresses against their PTRs",
-      allowed: g.has("record.read"),
+      allowed: features.reverseDns && g.has("record.read"),
     },
     {
       label: "Zone Monitoring",
       href: "/zones/monitoring",
       hint: "Delegation and DNSSEC findings",
-      allowed: g.has("zone.read"),
+      allowed: features.zoneMonitoring && g.has("zone.read"),
     },
     { label: "Servers", href: "/admin/servers", allowed: g.has("server.read") },
     { label: "Users", href: "/admin/users", allowed: g.has("user.read") },

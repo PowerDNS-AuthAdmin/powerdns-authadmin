@@ -14,10 +14,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import { ZoneMonitorPanel } from "./_components/zone-monitor-panel";
+import { notFound } from "next/navigation";
+import { optionalFeatures } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Zone Monitoring" };
 
 export default async function ZoneMonitoringPage() {
+  if (!optionalFeatures.zoneMonitoring) notFound();
   await requireUserForPage({ can: "zone.read" });
 
   return (

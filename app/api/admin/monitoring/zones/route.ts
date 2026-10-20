@@ -15,9 +15,11 @@ import {
   getZoneMonitorState,
 } from "@/lib/monitoring/zone-monitor";
 import { peekFleetScan } from "../../pdns/auto-ptr/_scan";
+import { requireFeature } from "@/lib/http/require-feature";
 
 export async function GET(): Promise<Response> {
   try {
+    requireFeature("zoneMonitoring");
     await requireUser({ can: "zone.read" });
     ensureZoneMonitorRunning();
     const cached = peekFleetScan();

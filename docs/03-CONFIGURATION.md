@@ -231,20 +231,35 @@ Every hosted zone is checked from the outside on a schedule (delegation at the p
 walked from the root servers, nameserver reachability and authority, serials, open
 AXFR, DS versus DNSKEY, what recursive resolvers answer, SOA timers, reverse-DNS
 drift) and the findings feed the **Zones → Zone Monitoring** page, the bell and the
-sidebar counts. **On by default**: it only reads, nothing it does touches PowerDNS
-beyond the shared zone inventory, and a single failed cycle never rings the bell. It
-is the one feature that sends packets outside your network on its own: DNS on
-53/udp and 53/tcp to the root, TLD and parent servers, to the zones' own
-nameservers and to the resolvers below. Full description in
+sidebar counts. **Off by default; set `ZONE_MONITOR_ENABLED=true` to turn it on.**
+It only reads, nothing it does touches PowerDNS beyond the shared zone inventory, and
+a single failed cycle never rings the bell, but it adds load (a periodic read of every
+zone on every backend) and it is the one feature that sends packets outside your
+network on its own: DNS on 53/udp and 53/tcp to the root, TLD and parent servers, to
+the zones' own nameservers and to the resolvers below. While it is off, the Zone
+Monitoring page, its sidebar entry, its API routes and its MCP tools do not exist, and
+findings left from an earlier run are cleared from the bell. Full description in
 [Features § 20](./FEATURES.md#20-zone-monitoring).
 
-| Variable                          | Default                                                                          | Notes                                                                                                                                                                                                                    |
-| --------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ZONE_MONITOR_ENABLED`            | `true`                                                                           | Only the literal `false` turns it off. Set it on an air-gapped install; this also stops the manual re-check routes and the external PTR lookups of the Reverse DNS page.                                                 |
-| `ZONE_MONITOR_INTERVAL_SECONDS`   | `900`                                                                            | 60 to 86400. One full pass per interval, each zone once, three zones at a time, spaced across the first 60 % of the window (at most 10 s apart). The first pass starts 15 s after the first authenticated page render.   |
-| `ZONE_MONITOR_PUBLIC_RESOLVERS`   | three widely used public anycast resolvers (the literal list is in `lib/env.ts`) | Comma-separated IP literals that stand for "the internet's view" of a public zone. Anything that is not an IP literal is dropped. Also used for the external PTR lookups of public addresses.                            |
-| `ZONE_MONITOR_INTERNAL_RESOLVERS` | unset (none)                                                                     | Comma-separated IP literals of the resolvers that serve your internal zones. Unset, internal zones are checked against their own nameservers only and external PTR lookups of private addresses use the host's resolver. |
-| `EXTERNAL_PTR_INTERVAL_SECONDS`   | `300`                                                                            | 60 to 86400. How often the Reverse DNS page re-asks the resolvers what the world answers for addresses no hosted reverse zone covers. Lookups are spread across the interval, two at a time.                             |
+### Reverse DNS checks
+
+The fleet-wide comparison of every A/AAAA record with its PTR (**Zones → Reverse DNS**),
+the PTR chips on record tables, and upstream PTR lookups for addresses no hosted reverse
+zone covers. **Off by default; set `REVERSE_DNS_ENABLED=true` to turn it on.** It reads
+every zone on every backend (cached briefly and reused between changes) and, for the
+upstream lookups, queries the resolvers below. While it is off, the page, its sidebar
+entry and Zones button, the chips, its API routes and its MCP tools do not exist.
+Automatic PTR maintenance when records are saved is separate: it is controlled by the
+`auto_ptr` setting (§ 4.8 of the feature reference) and works either way.
+
+| Variable                          | Default                                                                          | Notes                                                                                                                                                                                                                                   |
+| --------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ZONE_MONITOR_ENABLED`            | unset (off)                                                                      | Only the literal `true` turns it on. Leave it off on an air-gapped install.                                                                                                                                                             |
+| `REVERSE_DNS_ENABLED`             | unset (off)                                                                      | Only the literal `true` turns on the Reverse DNS checks (page, chips, upstream PTR lookups). Independent of zone monitoring.                                                                                                            |
+| `ZONE_MONITOR_INTERVAL_SECONDS`   | `900`                                                                            | 60 to 86400. One full pass per interval, each zone once, three zones at a time, spaced across the first 60 % of the window (at most 10 s apart). The first pass starts 15 s after the first authenticated page render.                  |
+| `ZONE_MONITOR_PUBLIC_RESOLVERS`   | three widely used public anycast resolvers (the literal list is in `lib/env.ts`) | Comma-separated IP literals that stand for "the internet's view" of a public zone. Anything that is not an IP literal is dropped. Also used for the external PTR lookups of public addresses.                                           |
+| `ZONE_MONITOR_INTERNAL_RESOLVERS` | unset (none)                                                                     | Comma-separated IP literals of the resolvers that serve your internal zones. Unset, internal zones are checked against their own nameservers only and external PTR lookups of private addresses use the host's resolver.                |
+| `EXTERNAL_PTR_INTERVAL_SECONDS`   | `300`                                                                            | Used only with `REVERSE_DNS_ENABLED=true`. 60 to 86400. How often the Reverse DNS page re-asks the resolvers what the world answers for addresses no hosted reverse zone covers. Lookups are spread across the interval, two at a time. |
 
 The manual re-check limits are fixed: one fleet-wide run per 60 s, one run per zone per
 20 s, one external PTR refresh per 60 s; a refused request answers `429`. Results live in

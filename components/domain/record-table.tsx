@@ -43,11 +43,13 @@ interface RecordTableProps {
   rrsets: RRset[];
   /** Backend the zone is shown from; scopes the reverse-DNS cross-link lookup. */
   serverSlug: string;
+  /** Show PTR / forward cross-link chips (the opt-in Reverse DNS checks). */
+  reverseDnsLinks: boolean;
 }
 
 const ADDRESS_TYPES = new Set(["A", "AAAA"]);
 
-export function RecordTable({ zoneName, rrsets, serverSlug }: RecordTableProps) {
+export function RecordTable({ zoneName, rrsets, serverSlug, reverseDnsLinks }: RecordTableProps) {
   // SOA is intentionally hidden from the records table - operators see and
   // edit it through the SOA panel above instead.
   const nonSoa = useMemo(() => rrsets.filter((rr) => rr.type !== "SOA"), [rrsets]);
@@ -60,7 +62,11 @@ export function RecordTable({ zoneName, rrsets, serverSlug }: RecordTableProps) 
   const hasLinkableRows = nonSoa.some((rr) =>
     reverse ? rr.type === "PTR" : ADDRESS_TYPES.has(rr.type),
   );
-  const { data: ptrLinks } = usePtrLinks({ zone: zoneName, serverSlug, enabled: hasLinkableRows });
+  const { data: ptrLinks } = usePtrLinks({
+    zone: zoneName,
+    serverSlug,
+    enabled: reverseDnsLinks && hasLinkableRows,
+  });
 
   const columns = useMemo<Array<ColumnDef<RRset, unknown>>>(
     () => [

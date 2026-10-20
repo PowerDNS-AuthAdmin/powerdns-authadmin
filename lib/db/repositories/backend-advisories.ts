@@ -14,7 +14,7 @@
  */
 
 import "server-only";
-import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, like, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { backendAdvisories, pdnsServers } from "@/lib/db/schema";
 import { MONITOR_CODE_PREFIXES, type EvaluatedAdvisory } from "@/lib/health/evaluator";
@@ -206,6 +206,19 @@ export async function listActiveAdvisories(): Promise<ActiveAdvisory[]> {
       pdnsServers.name,
     );
   return rows.map((r) => ({ ...r, acknowledgedAt: r.acknowledgedAt ?? null }));
+}
+
+/**
+ * Remove every advisory in one producer's namespace (e.g. `monitor.`). Used
+ * when that producer is switched off, so its last findings do not linger in
+ * the bell. Returns how many rows were removed.
+ */
+export async function deleteAdvisoriesWithPrefix(prefix: string): Promise<number> {
+  const removed = await db
+    .delete(backendAdvisories)
+    .where(like(backendAdvisories.code, `${prefix}%`))
+    .returning({ id: backendAdvisories.id });
+  return removed.length;
 }
 
 /**

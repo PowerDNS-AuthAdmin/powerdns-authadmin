@@ -126,6 +126,8 @@ interface EditableRecordTableProps {
    * shows a per-save checkbox pre-set from it; the route re-resolves the same
    * default for API callers that leave the flag out.
    */
+  /** Show PTR / forward cross-link chips (the opt-in Reverse DNS checks). */
+  reverseDnsLinks: boolean;
   autoPtr: ResolvedAutoPtr;
 }
 
@@ -233,7 +235,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
   const { data: ptrLinks } = usePtrLinks({
     zone: props.zoneName,
     serverSlug: props.serverSlug,
-    enabled: hasLinkableRows,
+    enabled: props.reverseDnsLinks && hasLinkableRows,
   });
   const ptrLinksRef = useRef(ptrLinks);
   const [ptrLinksVersion, setPtrLinksVersion] = useState(0);
