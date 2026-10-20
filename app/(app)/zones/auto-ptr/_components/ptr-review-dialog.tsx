@@ -64,7 +64,7 @@ export function PtrReviewDialog({
             data-dialog-focus={review?.danger ? "true" : undefined}
             onClick={onClose}
             disabled={busy}
-            className="rounded-md border border-[color:var(--color-border)] px-4 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
+            className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
           >
             Cancel
           </button>
@@ -75,8 +75,8 @@ export function PtrReviewDialog({
             disabled={busy}
             className={
               review?.danger
-                ? "rounded-md bg-[color:var(--color-error)] px-4 py-2 text-sm font-medium text-white hover:opacity-95 disabled:opacity-50"
-                : "rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+                ? "rounded-md border border-transparent bg-[color:var(--color-error)] px-3 py-1.5 text-sm font-medium text-white hover:opacity-95 disabled:opacity-50"
+                : "rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
             }
           >
             {busy ? "Applying…" : (review?.applyLabel ?? "Apply")}

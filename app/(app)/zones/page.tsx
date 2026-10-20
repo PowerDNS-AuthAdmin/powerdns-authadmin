@@ -53,6 +53,7 @@ import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { backendUnreachability } from "@/lib/realtime/backend-status";
 import type { PdnsServer } from "@/lib/db/schema";
 import { ZonesTable, type ZoneRow } from "./_components/zones-table";
+import { createCtaClass } from "@/components/ui/create-button";
 import { PollingDisabledHint } from "@/components/domain/polling-disabled-hint";
 import { ServerRealtimeSubscriber } from "./_components/server-realtime-subscriber";
 import { optionalFeatures, pdnsBackgroundPollingEnabled } from "@/lib/env";
@@ -279,13 +280,13 @@ export default async function ZonesPage() {
               </Link>
             ) : null}
             {canCreateRecord ? (
-              <Link href="/zones/new-record" className={TOOLBAR_LINK_CLASS}>
+              <Link href="/zones/new-record" className={createCtaClass}>
                 <Plus className="h-4 w-4" aria-hidden />
                 Add record
               </Link>
             ) : null}
             {canCreateZone ? (
-              <Link href="/zones/new" className={TOOLBAR_LINK_CLASS}>
+              <Link href="/zones/new" className={createCtaClass}>
                 <Plus className="h-4 w-4" aria-hidden />
                 Add zone
               </Link>
@@ -621,7 +622,7 @@ function NoServersState({ canCreateServer }: { canCreateServer: boolean }) {
       {canCreateServer ? (
         <Link
           href="/admin/servers/new"
-          className="mt-4 inline-block rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
+          className="mt-4 inline-block rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
         >
           Add a PowerDNS server
         </Link>

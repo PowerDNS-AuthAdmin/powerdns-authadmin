@@ -309,7 +309,7 @@ function ImportPanel({ backends }: { backends: Backend[] }) {
             type="button"
             onClick={() => void handleSubmit()}
             disabled={submitting || !server || !zoneText.trim()}
-            className="inline-flex items-center gap-2 rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-on)] shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-on)] shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <ArrowDownToLine className="h-4 w-4" aria-hidden />
             {submitting ? "Importing…" : "Import"}
@@ -579,7 +579,7 @@ function ExportPanel({ backends }: { backends: Backend[] }) {
             type="button"
             onClick={() => void handleDownload()}
             disabled={downloading || selected.size === 0}
-            className="inline-flex items-center gap-2 rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-on)] shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-on)] shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download className="h-4 w-4" aria-hidden />
             {downloading

@@ -393,7 +393,7 @@ export function TsigKeyWizard({
                         type="button"
                         onClick={installAuto}
                         disabled={installing}
-                        className="rounded-md bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+                        className="rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
                       >
                         {installing ? "Installing…" : `Install via API (${managed})`}
                       </button>
@@ -642,7 +642,7 @@ function ZoneMultiSelect({
               <button
                 type="button"
                 onClick={() => onChange(allSelected ? new Set() : new Set(zones))}
-                className="rounded-md border border-[color:var(--color-border)] px-3 py-2 text-xs font-medium hover:bg-[color:var(--color-bg-subtle)]"
+                className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-xs font-medium hover:bg-[color:var(--color-bg-subtle)]"
               >
                 {allSelected ? "Clear all" : `Select all (${zones.length})`}
               </button>
@@ -650,7 +650,7 @@ function ZoneMultiSelect({
                 <button
                   type="button"
                   onClick={() => onChange(new Set())}
-                  className="rounded-md border border-[color:var(--color-border)] px-3 py-2 text-xs hover:bg-[color:var(--color-bg-subtle)]"
+                  className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-xs hover:bg-[color:var(--color-bg-subtle)]"
                 >
                   Clear
                 </button>
@@ -708,7 +708,7 @@ function FooterPrimary({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+      className="rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
     >
       {children}
     </button>
@@ -720,7 +720,7 @@ function FooterGhost({ onClick, children }: { onClick: () => void; children: Rea
     <button
       type="button"
       onClick={onClick}
-      className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)]"
+      className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)]"
     >
       {children}
     </button>

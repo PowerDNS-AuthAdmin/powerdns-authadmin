@@ -120,7 +120,7 @@ export function ServerActions({ id }: ServerActionsProps) {
           type="button"
           onClick={handleTest}
           disabled={testing}
-          className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4 py-2 text-sm hover:bg-[color:var(--color-bg-muted)] disabled:opacity-50"
+          className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-muted)] disabled:opacity-50"
         >
           {testing ? "Testing…" : "Test connection"}
         </button>
@@ -128,7 +128,7 @@ export function ServerActions({ id }: ServerActionsProps) {
           type="button"
           onClick={handleDelete}
           disabled={deleting}
-          className="ml-auto rounded-md border border-[color:var(--color-error)] px-4 py-2 text-sm text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+          className="ml-auto rounded-md border border-[color:var(--color-error)] px-3 py-1.5 text-sm text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
         >
           {deleting ? "Deleting…" : "Delete"}
         </button>

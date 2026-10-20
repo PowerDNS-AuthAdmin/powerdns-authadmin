@@ -180,7 +180,7 @@ export function SoaMnameFixDialog({
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="rounded-md border border-[color:var(--color-border)] px-4 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
+            className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
           >
             Cancel
           </button>
@@ -191,7 +191,7 @@ export function SoaMnameFixDialog({
               if (loaded.state === "ready") void save(loaded.after);
             }}
             disabled={saving || loaded.state !== "ready"}
-            className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+            className="rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save"}
           </button>

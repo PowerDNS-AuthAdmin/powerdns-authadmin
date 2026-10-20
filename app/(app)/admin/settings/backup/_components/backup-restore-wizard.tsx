@@ -458,7 +458,7 @@ function RestoreUploadStep({
         type="button"
         onClick={onNext}
         disabled={readOnly || !bundlePreview}
-        className="inline-flex items-center gap-2 rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+        className="inline-flex items-center gap-2 rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
       >
         Continue →
       </button>
@@ -625,7 +625,7 @@ function RestoreResultStep({
       <button
         type="button"
         onClick={onDone}
-        className="inline-flex items-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-4 py-2 text-sm font-medium hover:bg-[color:var(--color-bg-muted)]"
+        className="inline-flex items-center gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-3 py-1.5 text-sm font-medium hover:bg-[color:var(--color-bg-muted)]"
       >
         Done
       </button>

@@ -251,14 +251,14 @@ export function SoaPanel(props: SoaPanelProps) {
               type="button"
               onClick={() => setDraft(initial)}
               disabled={!dirty || saving}
-              className="rounded-md border border-[color:var(--color-border)] px-4 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
+              className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
             >
               Revert
             </button>
             <button
               type="submit"
               disabled={!dirty || saving}
-              className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+              className="rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
             >
               {saving ? "Saving…" : "Save SOA"}
             </button>

@@ -1165,14 +1165,14 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
               <button
                 type="button"
                 onClick={() => setEditor(null)}
-                className="rounded-md border border-[color:var(--color-border)] px-4 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)]"
+                className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)]"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={hasValidationErrors && !overrideErrors}
-                className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+                className="rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
               >
                 Review changes
               </button>
@@ -1218,7 +1218,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                   setPtrPlan(null);
                 }}
                 disabled={saving}
-                className="rounded-md border border-[color:var(--color-border)] px-4 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
+                className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
               >
                 Back
               </button>
@@ -1248,7 +1248,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                   void applyPatch(pending);
                 }}
                 disabled={saving}
-                className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+                className="rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save"}
               </button>
@@ -1444,7 +1444,7 @@ function InlineRecordEditor({
         <button
           type="submit"
           disabled={!dirty}
-          className="rounded-md bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+          className="rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
         >
           Review changes
         </button>

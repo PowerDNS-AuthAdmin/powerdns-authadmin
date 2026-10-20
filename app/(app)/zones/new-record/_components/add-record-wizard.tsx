@@ -657,7 +657,7 @@ export function AddRecordWizard({ prefill }: { prefill: WizardPrefill }) {
               <button
                 type="submit"
                 disabled={!canReview}
-                className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+                className="rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
               >
                 Review changes
               </button>
@@ -692,7 +692,7 @@ export function AddRecordWizard({ prefill }: { prefill: WizardPrefill }) {
                 onClick={() => void save()}
                 disabled={saving}
                 autoFocus
-                className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+                className="rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save"}
               </button>
@@ -730,7 +730,7 @@ export function AddRecordWizard({ prefill }: { prefill: WizardPrefill }) {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 href={recordsPageHref(zone.name, saved.serverSlug)}
-                className="inline-flex items-center justify-center rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
+                className="inline-flex items-center justify-center rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
               >
                 Open {displayZoneName(zone.name)} records
               </Link>
@@ -820,7 +820,7 @@ function HorizonStep({
         <button
           type="submit"
           disabled={value === null}
-          className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
+          className="rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95 disabled:opacity-50"
         >
           Continue
         </button>
@@ -978,7 +978,7 @@ function SecondaryButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="rounded-md border border-[color:var(--color-border)] px-4 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
+      className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
     >
       {children}
     </button>

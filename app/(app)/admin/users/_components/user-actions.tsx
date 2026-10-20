@@ -213,7 +213,7 @@ export function UserActions(props: UserActionsProps) {
               type="button"
               onClick={handleSaveName}
               disabled={savingName || name === props.initialName}
-              className="rounded-md border border-[color:var(--color-border)] px-3 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
+              className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
             >
               {savingName ? "Saving…" : "Save"}
             </button>
@@ -227,7 +227,7 @@ export function UserActions(props: UserActionsProps) {
             type="button"
             onClick={handleToggleDisabled}
             disabled={togglingDisabled || props.isSelf}
-            className="rounded-md border border-[color:var(--color-border)] px-3 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
+            className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
             title={props.isSelf ? "You can't disable your own account" : undefined}
           >
             {props.disabled ? "Enable account" : "Disable account"}
@@ -239,7 +239,7 @@ export function UserActions(props: UserActionsProps) {
             type="button"
             onClick={handleReset}
             disabled={resetting}
-            className="rounded-md border border-[color:var(--color-border)] px-3 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
+            className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
           >
             {resetting ? "Resetting…" : "Reset password"}
           </button>
@@ -250,7 +250,7 @@ export function UserActions(props: UserActionsProps) {
             type="button"
             onClick={handleDelete}
             disabled={deleting}
-            className="ml-auto rounded-md border border-[color:var(--color-error)] px-3 py-2 text-sm text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
+            className="ml-auto rounded-md border border-[color:var(--color-error)] px-3 py-1.5 text-sm text-[color:var(--color-error-fg)] hover:bg-[color:var(--color-error)]/10 disabled:opacity-50"
           >
             {deleting ? "Deleting…" : "Delete user"}
           </button>

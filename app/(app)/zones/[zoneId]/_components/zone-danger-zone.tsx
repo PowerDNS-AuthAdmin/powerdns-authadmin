@@ -171,7 +171,7 @@ export function ZoneDangerZone({ zoneIdEncoded, serverSlug, zoneName, canDelete 
             type="button"
             onClick={handleDelete}
             disabled={!downloaded || !phraseMatches || deleting}
-            className="rounded bg-[color:var(--color-error)] px-4 py-2 text-sm font-medium text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded border border-transparent bg-[color:var(--color-error)] px-3 py-1.5 text-sm font-medium text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {deleting ? "Deleting…" : `Permanently delete ${cleanName}`}
           </button>

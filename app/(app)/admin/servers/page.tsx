@@ -358,7 +358,7 @@ function EmptyState({ canCreate }: { canCreate: boolean }) {
       {canCreate ? (
         <Link
           href="/admin/servers/new"
-          className="mt-4 inline-block rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
+          className="mt-4 inline-block rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
         >
           Add your first server
         </Link>

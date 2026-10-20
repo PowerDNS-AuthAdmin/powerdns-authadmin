@@ -48,7 +48,7 @@ export function ZoneTemplateActions({ id, name }: { id: string; name: string }) 
       type="button"
       onClick={handleDelete}
       disabled={deleting}
-      className="mt-4 rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)] px-4 py-2 text-sm font-medium text-white hover:opacity-95 disabled:opacity-50"
+      className="mt-4 rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)] px-3 py-1.5 text-sm font-medium text-white hover:opacity-95 disabled:opacity-50"
     >
       {deleting ? "Deleting…" : "Delete template"}
     </button>

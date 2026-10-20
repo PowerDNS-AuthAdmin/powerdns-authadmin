@@ -6,6 +6,8 @@ import { Plus } from "lucide-react";
  *
  * Primary "create / add" call-to-action. Green (deliberately distinct from the
  * indigo accent the app uses for active tabs/links) with a leading plus icon.
+ * Compact, the same size as every other button: the transparent border keeps
+ * it level with the bordered buttons it often sits beside.
  * Full-width on mobile, auto-width on `sm+` - pairs with the stacked page
  * headers so the CTA reads as a clear full-width button on a phone.
  *
@@ -13,7 +15,7 @@ import { Plus } from "lucide-react";
  * (e.g. "Add record", which opens a dialog) rather than links.
  */
 export const createCtaClass =
-  "inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-[color:var(--color-success)] px-4 py-2 text-sm font-medium whitespace-nowrap text-white hover:opacity-95 sm:w-auto";
+  "inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-[color:var(--color-success)] border border-transparent px-3 py-1.5 text-sm font-medium whitespace-nowrap text-white hover:opacity-95 sm:w-auto";
 
 export function CreateButton({
   href,

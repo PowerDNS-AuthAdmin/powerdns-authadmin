@@ -452,7 +452,7 @@ function ConfirmModal({
                 type="button"
                 data-dialog-focus={variant === "danger" ? "true" : undefined}
                 onClick={cancel}
-                className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)]"
+                className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)]"
               >
                 {state.cancelLabel ?? "Cancel"}
               </button>
@@ -616,14 +616,14 @@ function PromptModal({
               <button
                 type="button"
                 onClick={() => onResolve(null)}
-                className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)]"
+                className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-1.5 text-sm hover:bg-[color:var(--color-bg-subtle)]"
               >
                 {state.cancelLabel ?? "Cancel"}
               </button>
               <button
                 type="submit"
                 data-dialog-focus="true"
-                className="rounded-md bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
+                className="rounded-md border border-transparent bg-[color:var(--color-accent)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-accent-fg)] hover:opacity-95"
               >
                 {state.confirmLabel ?? "OK"}
               </button>
