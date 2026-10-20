@@ -709,6 +709,16 @@ the audit trail behave identically whichever door the user came through.
   checkbox and action and the group has one bulk action; **Group similar rows** turns it off.
   Long cells stop at three entries with "+ N more" opening the full list, and every forward
   record links to its zone with the table filtered to that name.
+- **Suggested fixes and Review changes.** An orphan row's (or group's) detail panel lists two
+  suggested fixes, each with one sentence of when to use it: **Add the forward record** (the
+  Add record wizard, prefilled as above) and **Remove the PTR** / **Remove N PTRs**. Every
+  removal, a group's bulk action, **Rectify selected** and **Rectify all fixable** open a
+  **Review changes** dialog first: per reverse zone, the BIND-style red/green diff of the PTR
+  RRsets that will be removed or written (the record editor's diff), with the address count;
+  the list scrolls inside the dialog for large runs. **Apply** sends the same
+  `POST /api/admin/pdns/auto-ptr/rectify` call as before; **Cancel** sends nothing. The diff is
+  built from the report rows on screen (`components/domain/ptr-review.ts`), not a dry run. A
+  single **Write PTR** on a missing or mismatch row still applies in one click.
 - **Horizons.** Matching is scoped to the horizon (§ 4.1.1): a public forward record is only
   matched against public reverse zones, an internal one only against internal reverse zones, so
   a split-horizon install keeps its two reverse trees apart and the same address can carry a
@@ -1507,6 +1517,21 @@ will be, failing to answer for the zone; **warn**: the zone works but is fragile
 inconsistent; **info**: worth knowing, nothing to fix today. A zone without findings is **OK**.
 Findings are sorted worst first, and a zone's verdict is its worst finding.
 
+A finding can carry a **suggested fix** (`fix` on the finding in
+`GET /api/admin/monitoring/zones`): pure data from `lib/dns/zone-checks.ts`, shown as one line
+under the finding with a **Fix** button. Fix opens **Review changes** with the BIND-style
+before/after, and **Save** applies it through the route a manual edit uses, so permissions,
+validation, audit and NOTIFY are the same. The first fix is `soa.mname`: the MNAME becomes the
+first apex NS in the zone's order, preferring one the parent also delegates to (the PowerDNS
+placeholders `a.misconfigured.powerdns.server.` and `a.misconfigured.dns.server.invalid.` are
+named as such in the detail). The dialog reads the live SOA
+(`GET /api/admin/pdns/zones/<zone>/records?type=SOA`, `zone.read` + `record.read`), replaces
+only the first field, keeps the serial and timers (PowerDNS raises the serial on save per
+SOA-EDIT-API) and saves with `PATCH /api/admin/pdns/zones/<zone>/rrsets`, which charges an SOA
+change to `soa.update` on the zone (global role or zone grant), exactly as the zone's SOA panel
+does. The zone is then re-checked so the finding clears; a 403 is reported as "You don't have
+permission to change this zone's SOA".
+
 | Code                                                    | Severity                                                                                                                       | Meaning                                                                                                                                                                                                                                                                                                                                            | What to do                                                                                                                              |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `delegation.missing`                                    | error                                                                                                                          | The parent answers `NXDOMAIN` or gives no referral for the zone. Resolvers on the internet cannot reach it.                                                                                                                                                                                                                                        | Create the delegation at the registrar or with the parent zone's operator.                                                              |
@@ -1630,7 +1655,9 @@ transient outage out of the bell, but on an air-gapped install the right setting
 The page, `GET /api/admin/monitoring/zones` and `POST /api/admin/monitoring/zones/refresh`
 require **global** `zone.read`: the page lists every zone on every backend, so a per-zone grant
 is not enough. The refresh route is CSRF-protected like every mutating route and accepts an
-empty body (whole fleet) or `{ zone, serverSlug }` (one zone). Nothing here writes to PowerDNS.
+empty body (whole fleet) or `{ zone, serverSlug }` (one zone). Nothing here writes to PowerDNS;
+a suggested fix (§ 20.2) writes through the zone's own record route and its permission checks,
+so the Fix button is shown to every reader and the server decides.
 
 ### 20.8 Security posture
 

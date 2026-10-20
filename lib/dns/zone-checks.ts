@@ -29,6 +29,22 @@ export interface ZoneFinding {
   severity: FindingSeverity;
   title: string;
   detail: string;
+  /** A change that would clear the finding, when one can be named exactly. */
+  fix?: ZoneFindingFix;
+}
+
+/**
+ * Machine-readable suggested fix. Pure data: the UI turns it into a review
+ * dialog and applies it through the same write route as a manual edit, so
+ * permissions, validation, audit and NOTIFY are never a separate path.
+ */
+export interface ZoneFindingFix {
+  kind: "soa.mname";
+  zone: string;
+  /** The MNAME the zone serves today. */
+  current: string;
+  /** The nameserver to name as primary instead. */
+  suggested: string;
 }
 
 export interface NameserverProbe {
@@ -98,8 +114,25 @@ export function networkKey(address: string): string {
   return `${address.split(".").slice(0, 3).join(".")}.0/24`;
 }
 
-/** What PowerDNS puts in the SOA MNAME when default-soa-content is not set. */
-const POWERDNS_PLACEHOLDER_MNAME = "a.misconfigured.powerdns.server.";
+/**
+ * What PowerDNS puts in the SOA MNAME when default-soa-content is not set:
+ * the older `a.misconfigured.powerdns.server.` and, from 4.4 on, a name under
+ * the reserved `.invalid` TLD.
+ */
+const POWERDNS_PLACEHOLDER_MNAMES: ReadonlySet<string> = new Set([
+  "a.misconfigured.powerdns.server.",
+  "a.misconfigured.dns.server.invalid.",
+]);
+
+/**
+ * The nameserver to suggest as SOA MNAME: the first apex NS in the zone's own
+ * order, preferring one the parent also delegates to, since that is the name
+ * the rest of the internet already treats as authoritative.
+ */
+function suggestMname(nsNames: readonly string[], parentNs: readonly string[]): string | null {
+  const ordered = [...new Set(nsNames.map(lower))];
+  return ordered.find((n) => parentNs.includes(n)) ?? ordered[0] ?? null;
+}
 
 export function evaluateZone(data: ZoneProbeData): ZoneFinding[] {
   const out: ZoneFinding[] = [];
@@ -351,14 +384,19 @@ export function evaluateZone(data: ZoneProbeData): ZoneFinding[] {
       });
     }
     if (apexNs.length && !apexNs.includes(lower(soa.mname))) {
+      const parentNs =
+        d?.status === "delegated" ? [...new Set(d.nameservers.map(lower))] : ([] as string[]);
+      const suggested = suggestMname(data.pdns.nsNames, parentNs);
       out.push({
         code: "soa.mname",
         severity: "warn",
         title: "SOA MNAME is not one of the nameservers",
-        detail:
-          lower(soa.mname) === POWERDNS_PLACEHOLDER_MNAME
-            ? `MNAME is ${soa.mname}, the placeholder PowerDNS writes when no primary is configured. Set the SOA's primary nameserver to one of ${list(apexNs)} on the zone, and default-soa-content in pdns.conf so new zones get it (RFC 1996: NOTIFY and dynamic updates target the MNAME).`
-            : `MNAME ${soa.mname} is not in the NS set (${list(apexNs)}); NOTIFY and dynamic updates target the primary named here (RFC 1996).`,
+        ...(suggested
+          ? { fix: { kind: "soa.mname" as const, zone: data.zone, current: soa.mname, suggested } }
+          : {}),
+        detail: POWERDNS_PLACEHOLDER_MNAMES.has(lower(soa.mname))
+          ? `MNAME is ${soa.mname}, the placeholder PowerDNS writes when no primary is configured. Set the SOA's primary nameserver to one of ${list(apexNs)} on the zone, and default-soa-content in pdns.conf so new zones get it (RFC 1996: NOTIFY and dynamic updates target the MNAME).`
+          : `MNAME ${soa.mname} is not in the NS set (${list(apexNs)}); NOTIFY and dynamic updates target the primary named here (RFC 1996).`,
       });
     }
     const rname = soa.rname.replace(/\.$/, "");

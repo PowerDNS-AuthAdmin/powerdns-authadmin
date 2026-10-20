@@ -44,6 +44,11 @@
  * Selection is keyed by the report's stable row id and cleared after every
  * run, because the rows are rebuilt from a fresh report.
  *
+ * Every rectify that sends more than one click's worth, and every removal,
+ * opens "Review changes" first (./ptr-review-dialog.tsx): the BIND-style diff
+ * of the PTR RRsets per reverse zone, built from the rows on screen. An
+ * orphan's detail panel names the two ways to resolve it as suggested fixes.
+ *
  * Rows that are the same finding (say 28 orphan PTRs naming one host) fold
  * into one table row, "+ 27 others", by the rules in
  * `components/domain/ptr-row-groups.ts`. Grouping is display only: the
@@ -87,6 +92,8 @@ import { mutate } from "@/lib/client/api-fetch";
 import { type AutoPtrOutcome, describePtrOutcome, summarizePtrOutcomes } from "@/lib/dns/auto-ptr";
 import { ZONE_HORIZONS, type ZoneHorizon } from "@/lib/dns/zone-horizon";
 import { orderStatusChips } from "@/components/domain/ptr-status-order";
+import type { PtrReviewInput } from "@/components/domain/ptr-review";
+import { PtrReviewDialog, type PtrReview } from "./ptr-review-dialog";
 
 // ---------------------------------------------------------------- contract
 
@@ -354,6 +361,8 @@ function rectifyItemFor(row: PtrReconcileRow, pick: string | undefined): Rectify
 
 interface SelectionPlan {
   items: RectifyItem[];
+  /** The same items with the row data the review diff needs, in the same order. */
+  inputs: PtrReviewInput[];
   /** Rows already correct, sent anyway so the operator gets an explicit `unchanged`. */
   alreadyCorrect: number;
   /** Rows with no hosted reverse zone: nothing to write. */
@@ -367,7 +376,13 @@ function planSelection(
   rows: readonly PtrReconcileRow[],
   picks: Readonly<Record<string, string>>,
 ): SelectionPlan {
-  const plan: SelectionPlan = { items: [], alreadyCorrect: 0, unhosted: 0, unwritable: 0 };
+  const plan: SelectionPlan = {
+    items: [],
+    inputs: [],
+    alreadyCorrect: 0,
+    unhosted: 0,
+    unwritable: 0,
+  };
   for (const row of rows) {
     if (row.status === "unhosted") {
       plan.unhosted++;
@@ -381,8 +396,28 @@ function planSelection(
     if (!item) continue;
     if (row.status === "ok") plan.alreadyCorrect++;
     plan.items.push(item);
+    plan.inputs.push(reviewInput(row, item));
   }
   return plan;
+}
+
+function reviewInput(row: PtrReconcileRow, item: RectifyItem): PtrReviewInput {
+  return {
+    owner: row.owner,
+    reverseZone: row.reverseZone,
+    currentTargets: row.currentTargets,
+    currentTtl: row.currentTtl,
+    action: item.action,
+    target: item.target,
+    ...(item.ttl !== undefined ? { ttl: item.ttl } : {}),
+  };
+}
+
+/** What "Review changes" is showing, and what Apply sends. */
+interface PendingReview {
+  review: PtrReview;
+  items: RectifyItem[];
+  note: string;
 }
 
 /** The "skipped because" sentence for a selection; empty when nothing was skipped. */
@@ -449,7 +484,7 @@ function isReportEvent(event: { type: string }): boolean {
 // ---------------------------------------------------------------- component
 
 export function PtrReconciler() {
-  const { confirm, toast } = useDialog();
+  const { toast } = useDialog();
   const [report, setReport] = useState<PtrReconcileReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -467,6 +502,7 @@ export function PtrReconciler() {
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [groupSimilar, setGroupSimilar] = useState(true);
   const [showAll, setShowAll] = useState<ShowAllTarget | null>(null);
+  const [pendingReview, setPendingReview] = useState<PendingReview | null>(null);
 
   // Read after mount, not in the initial state, so the server render and the
   // first client render agree.
@@ -710,7 +746,7 @@ export function PtrReconciler() {
     }
   }
 
-  async function rectifySelected() {
+  function rectifySelected() {
     const selectedRows: PtrReconcileRow[] = [];
     for (const id of selected) {
       const row = rowById.get(id);
@@ -730,53 +766,65 @@ export function PtrReconciler() {
     const alreadyCorrect = plan.alreadyCorrect
       ? ` ${plural(plan.alreadyCorrect, "address")} already correct: rewritten unchanged.`
       : "";
-    const ok = await confirm({
-      title: `Rectify ${plural(plan.items.length, "selected address")}?`,
-      description: [confirmDescription(plan.items) + alreadyCorrect, note]
-        .filter(Boolean)
-        .join(" "),
-      confirmLabel: "Rectify",
-      variant: countActions(plan.items).removes > 0 ? "danger" : "default",
+    setPendingReview({
+      review: {
+        inputs: plan.inputs,
+        summary: [confirmDescription(plan.items) + alreadyCorrect, note].filter(Boolean).join(" "),
+        applyLabel: "Rectify",
+        danger: countActions(plan.items).removes > 0,
+      },
+      items: plan.items,
+      note,
     });
-    if (!ok) return;
-    await rectify(plan.items, note);
   }
 
-  async function rectifyAllFixable() {
-    const items = fixableRows
-      .map((row) => rectifyItemFor(row, undefined))
-      .filter((item): item is RectifyItem => item !== null);
+  function rectifyAllFixable() {
+    const items: RectifyItem[] = [];
+    const inputs: PtrReviewInput[] = [];
+    for (const row of fixableRows) {
+      const item = rectifyItemFor(row, undefined);
+      if (!item) continue;
+      items.push(item);
+      inputs.push(reviewInput(row, item));
+    }
     if (items.length === 0) return;
-    const ok = await confirm({
-      title: `Write ${plural(items.length, "PTR record")}?`,
-      description: `${confirmDescription(items)} Ambiguous and orphan rows are left for you to decide.`,
-      confirmLabel: "Write PTRs",
+    setPendingReview({
+      review: {
+        inputs,
+        summary: `${confirmDescription(items)} Ambiguous and orphan rows are left for you to decide.`,
+        applyLabel: "Write PTRs",
+        danger: false,
+      },
+      items,
+      note: "",
     });
-    if (!ok) return;
-    await rectify(items);
   }
 
   async function rectifyRow(row: PtrReconcileRow) {
     const item = rectifyItemFor(row, picks[row.id]);
     if (!item) return;
     if (item.action === "remove") {
-      const ok = await confirm({
-        title: "Remove this PTR?",
-        description: `Removes the PTR for ${row.ip} in ${row.reverseZone ?? "its reverse zone"}, which points at ${item.target}. No scanned zone has a forward record for this address, but one may exist in a zone hosted elsewhere.`,
-        confirmLabel: "Remove PTR",
-        variant: "danger",
+      setPendingReview({
+        review: {
+          inputs: [reviewInput(row, item)],
+          summary: `Removes the PTR for ${row.ip}, which points at ${item.target}. No scanned zone has a forward record for this address, but one may exist in a zone hosted elsewhere.`,
+          applyLabel: "Remove PTR",
+          danger: true,
+        },
+        items: [item],
+        note: "",
       });
-      if (!ok) return;
+      return;
     }
     await rectify([item]);
   }
 
   /**
    * Rectify a set of addresses (a group, or the part of it ticked in the
-   * show-all dialog) behind one confirmation that names the count, through
+   * show-all dialog) behind one review that names the count, through
    * the same planner and rectify call as "Rectify selected".
    */
-  async function rectifyRows(targets: readonly PtrReconcileRow[]) {
+  function rectifyRows(targets: readonly PtrReconcileRow[]) {
     const plan = planSelection(targets, picks);
     const note = skippedNote(plan);
     if (plan.items.length === 0) {
@@ -789,16 +837,24 @@ export function PtrReconciler() {
     }
     const { removes } = countActions(plan.items);
     const label = bulkActionLabel(removes > 0 ? "Remove" : "Write", plan.items.length);
-    const ok = await confirm({
-      title: `${label}?`,
-      description: [confirmDescription(plan.items), removes > 0 ? ORPHAN_REMOVE_CAVEAT : "", note]
-        .filter(Boolean)
-        .join(" "),
-      confirmLabel: label,
-      variant: removes > 0 ? "danger" : "default",
+    setPendingReview({
+      review: {
+        inputs: plan.inputs,
+        summary: [confirmDescription(plan.items), removes > 0 ? ORPHAN_REMOVE_CAVEAT : "", note]
+          .filter(Boolean)
+          .join(" "),
+        applyLabel: label,
+        danger: removes > 0,
+      },
+      items: plan.items,
+      note,
     });
-    if (!ok) return;
-    await rectify(plan.items, note);
+  }
+
+  async function applyReview() {
+    if (!pendingReview) return;
+    await rectify(pendingReview.items, pendingReview.note);
+    setPendingReview(null);
   }
 
   const columns = useMemo<Array<ColumnDef<PtrGroup, unknown>>>(
@@ -947,7 +1003,7 @@ export function PtrReconciler() {
               <GroupActions
                 members={g.members}
                 busy={busy}
-                onRectify={() => void rectifyRows(g.members)}
+                onRectify={() => rectifyRows(g.members)}
               />
             );
           }
@@ -1120,7 +1176,7 @@ export function PtrReconciler() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <button
             type="button"
-            onClick={() => void rectifySelected()}
+            onClick={() => rectifySelected()}
             disabled={selectedCount === 0 || busy}
             title="Writes or removes the PTR of every selected address. Already-correct rows are written unchanged; rows not hosted here are skipped."
             className={TOOLBAR_BUTTON_CLASS}
@@ -1130,7 +1186,7 @@ export function PtrReconciler() {
           </button>
           <button
             type="button"
-            onClick={() => void rectifyAllFixable()}
+            onClick={() => rectifyAllFixable()}
             disabled={fixableRows.length === 0 || busy}
             title="Writes the PTR for every missing or mismatched address you may write. Ambiguous and orphan rows need a human choice and are left alone."
             className={TOOLBAR_BUTTON_CLASS}
@@ -1183,7 +1239,14 @@ export function PtrReconciler() {
                 id={rowDetailId(panelPrefix, group.id)}
                 label={`Details for ${group.lead.ip}${group.members.length > 1 ? ` and ${plural(group.members.length - 1, "other address")}` : ""}`}
               >
-                <RowDetail group={group} />
+                <RowDetail
+                  group={group}
+                  busy={busy}
+                  onRemove={() => {
+                    if (group.members.length > 1) rectifyRows(group.members);
+                    else void rectifyRow(group.lead);
+                  }}
+                />
               </RowDisclosurePanel>
             ) : null
           }
@@ -1205,9 +1268,16 @@ export function PtrReconciler() {
             onToggleMany={toggleMany}
             onPick={(id, name) => setPicks((cur) => ({ ...cur, [id]: name }))}
             onRectifyRow={(row) => void rectifyRow(row)}
-            onRectifyRows={(targets) => void rectifyRows(targets)}
+            onRectifyRows={(targets) => rectifyRows(targets)}
           />
         )}
+      />
+
+      <PtrReviewDialog
+        review={pendingReview?.review ?? null}
+        busy={busy}
+        onClose={() => setPendingReview(null)}
+        onApply={() => void applyReview()}
       />
     </div>
   );
@@ -1909,7 +1979,74 @@ function externalSummary(external: ExternalPtr | undefined): string {
 /** Detail lists scroll inside this height so an open row never outgrows the screen. */
 const DETAIL_LIST_CLASS = "max-h-48 overflow-y-auto overscroll-contain";
 
-function RowDetail({ group }: { group: PtrGroup }) {
+/**
+ * The two ways to resolve an orphan PTR, each a click away: add the forward
+ * record the PTR implies (the Add record wizard, prefilled), or remove the
+ * PTR (the review dialog, then the rectify call).
+ */
+function OrphanSuggestedFixes({
+  group,
+  busy,
+  onRemove,
+}: {
+  group: PtrGroup;
+  busy: boolean;
+  onRemove: () => void;
+}) {
+  const row = group.lead;
+  const target = row.currentTargets[0];
+  const href = addForwardHref(row);
+  const type = row.family === 4 ? "A" : "AAAA";
+  const count = group.members.length;
+  const writable = group.members.filter((m) => m.canWrite).length;
+  return (
+    <section aria-label="Suggested fixes" className="space-y-1.5">
+      <h4 className="font-semibold">Suggested fixes</h4>
+      <ul className="space-y-2">
+        {href && target ? (
+          <li className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <Link href={href} className={BUTTON_CLASS}>
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              Add the forward record
+            </Link>
+            <span className="text-[color:var(--color-fg-muted)]">
+              {count > 1
+                ? `If the hosts still exist, add an ${type} record for each address; this one starts with ${row.ip} as ${target}.`
+                : `If the host still exists, add an ${type} record for ${target} pointing at ${row.ip}, and the PTR matches again.`}
+            </span>
+          </li>
+        ) : null}
+        <li className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={busy || writable === 0}
+            title={writable === 0 ? noWriteTitle(row) : undefined}
+            className={DANGER_BUTTON_CLASS}
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+            {count > 1 ? bulkActionLabel("Remove", writable || count) : "Remove the PTR"}
+          </button>
+          <span className="text-[color:var(--color-fg-muted)]">
+            {count > 1
+              ? "If the hosts are gone, remove the PTRs; you review the diff before anything changes."
+              : "If the host is gone, remove the PTR; you review the diff before anything changes."}
+          </span>
+        </li>
+      </ul>
+    </section>
+  );
+}
+
+function RowDetail({
+  group,
+  busy,
+  onRemove,
+}: {
+  group: PtrGroup;
+  busy: boolean;
+  onRemove: () => void;
+}) {
   const row = group.lead;
   const grouped = group.members.length > 1;
   const names = forwardNames(row);
@@ -2027,6 +2164,9 @@ function RowDetail({ group }: { group: PtrGroup }) {
           )}
         </dd>
       </dl>
+      {row.status === "orphan" ? (
+        <OrphanSuggestedFixes group={group} busy={busy} onRemove={onRemove} />
+      ) : null}
     </div>
   );
 }

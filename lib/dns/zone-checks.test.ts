@@ -398,6 +398,51 @@ describe("evaluateZone", () => {
     expect(placeholder?.detail).toContain("default-soa-content");
   });
 
+  it("suggests the first apex nameserver as the SOA MNAME fix", () => {
+    const base = healthy();
+    const zone = {
+      zone: "example.org.",
+      pdns: {
+        ...base.pdns,
+        nsNames: ["ns2.example-dns.net.", "ns1.example-dns.net."],
+        soa: { ...SOA, mname: "a.misconfigured.dns.server.invalid." },
+      },
+      delegation: null,
+      nameservers: [],
+    };
+    const finding = evaluateZone(healthy(zone)).find((f) => f.code === "soa.mname");
+    expect(finding?.fix).toEqual({
+      kind: "soa.mname",
+      zone: "example.org.",
+      current: "a.misconfigured.dns.server.invalid.",
+      suggested: "ns2.example-dns.net.",
+    });
+    expect(finding?.detail).toContain("placeholder PowerDNS writes");
+  });
+
+  it("prefers a nameserver the parent delegates to for the SOA MNAME fix", () => {
+    const base = healthy();
+    const finding = evaluateZone(
+      healthy({
+        pdns: {
+          ...base.pdns,
+          nsNames: ["NS9.example.com.", "ns2.example.com."],
+          soa: { ...SOA, mname: "other.example.net." },
+        },
+        delegation: delegated({ nameservers: ["ns2.example.com.", "ns3.example.com."] }),
+      }),
+    ).find((f) => f.code === "soa.mname");
+    expect(finding?.fix?.suggested).toBe("ns2.example.com.");
+  });
+
+  it("carries no fix on findings that have none to offer", () => {
+    const findings = evaluateZone(
+      healthy({ pdns: { ...healthy().pdns, soa: { ...SOA, refresh: 60 } } }),
+    );
+    expect(findings.find((f) => f.code === "soa.timers")?.fix).toBeUndefined();
+    expect(findings.find((f) => f.code === "soa.mname")).toBeUndefined();
+  });
+
   it("reports an accepted single nameserver as information on a public zone", () => {
     const base = healthy();
     const single = {

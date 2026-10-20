@@ -7,9 +7,12 @@ import {
   countVerdicts,
   formatDuration,
   formatInterval,
+  plural,
   replaceResult,
   summarizeFindings,
   verdictOf,
+  withSoaMname,
+  describeFix,
   type ZoneMonitorResult,
   type ZoneMonitorState,
 } from "./zone-monitor-format";
@@ -166,5 +169,45 @@ describe("isNextRunDue", () => {
     expect(isNextRunDue("2026-10-21T10:05:00Z", now)).toBe(false);
     expect(isNextRunDue(null, now)).toBe(false);
     expect(isNextRunDue("not a date", now)).toBe(false);
+  });
+});
+
+describe("plural", () => {
+  it("adds s, or es after a sibilant ending", () => {
+    expect(plural(1, "address")).toBe("1 address");
+    expect(plural(3, "address")).toBe("3 addresses");
+    expect(plural(2, "zone")).toBe("2 zones");
+    expect(plural(0, "finding")).toBe("0 findings");
+    expect(plural(2, "box")).toBe("2 boxes");
+    expect(plural(2, "match")).toBe("2 matches");
+    expect(plural(2, "DS record")).toBe("2 DS records");
+  });
+});
+
+describe("withSoaMname", () => {
+  it("replaces only the MNAME field", () => {
+    expect(
+      withSoaMname(
+        "a.misconfigured.dns.server.invalid. hostmaster.example.org. 2026010101 10800 3600 604800 3600",
+        "ns1.example-dns.net.",
+      ),
+    ).toBe("ns1.example-dns.net. hostmaster.example.org. 2026010101 10800 3600 604800 3600");
+  });
+
+  it("leaves malformed content alone", () => {
+    expect(withSoaMname("", "ns1.example.com.")).toBe("");
+  });
+});
+
+describe("describeFix", () => {
+  it("names the suggested MNAME", () => {
+    expect(
+      describeFix({
+        kind: "soa.mname",
+        zone: "example.org.",
+        current: "a.misconfigured.dns.server.invalid.",
+        suggested: "ns1.example-dns.net.",
+      }),
+    ).toBe("Suggested fix: set the SOA MNAME to ns1.example-dns.net.");
   });
 });

@@ -129,6 +129,13 @@ setting and does not need either variable.
   and a Category filter. A zone's **Change history** tab is now **Change log** and links to it
   with **Show all changes**. The sidebar has a new **Logs** section: Change log, Request log,
   Audit log. Gated on global `audit.read`, like the logs beside it.
+- **Suggested fixes with a reviewed diff.** Zone Monitoring's "SOA MNAME is not one of the
+  nameservers" finding suggests the zone's first nameserver and has a **Fix** button: Review
+  changes shows the SOA before and after, and Save applies it through the zone's own SOA route
+  (needs `soa.update`), then re-checks the zone. `a.misconfigured.dns.server.invalid.` is now
+  recognised as a placeholder MNAME. On Reverse DNS, orphan rows list the fixes (add the forward
+  record, or remove the PTR), and removals and bulk rectifies open Review changes with the PTR
+  diff for each reverse zone before Apply. "3 addressss" now reads "3 addresses".
 - **The app takes the project website's look.** The colour palette (light and dark), the Inter
   and JetBrains Mono typefaces (self-hosted, no font CDN; the CSP is unchanged), softer corner
   radii, a translucent top bar and matching chart colours. The search pill sits centred in the

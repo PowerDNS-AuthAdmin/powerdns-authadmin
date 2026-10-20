@@ -12,8 +12,10 @@
  * the two levels that need action.
  */
 
+import type { ReactNode } from "react";
 import {
   compareNameserverSets,
+  describeFix,
   DELEGATION_HINT,
   DELEGATION_LABEL,
   formatDuration,
@@ -71,8 +73,19 @@ export function HorizonChip({ horizon }: { horizon: ZoneMonitorResult["horizon"]
   );
 }
 
-/** The findings of one result, worst first, each with its stable code. */
-export function FindingList({ findings }: { findings: readonly ZoneFinding[] }) {
+/**
+ * The findings of one result, worst first, each with its stable code. A
+ * finding with a suggested fix gets a one-line suggestion; `renderFixAction`
+ * lets the page add the button that applies it, since applying is a write the
+ * page owns (this component stays free of data fetching).
+ */
+export function FindingList({
+  findings,
+  renderFixAction,
+}: {
+  findings: readonly ZoneFinding[];
+  renderFixAction?: (finding: ZoneFinding) => ReactNode;
+}) {
   if (findings.length === 0) {
     return (
       <p className="flex items-center gap-2 text-xs">
@@ -97,6 +110,12 @@ export function FindingList({ findings }: { findings: readonly ZoneFinding[] }) 
               {f.code}
             </code>
             <span className="mt-0.5 block text-[color:var(--color-fg-muted)]">{f.detail}</span>
+            {f.fix ? (
+              <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>{describeFix(f.fix)}</span>
+                {renderFixAction?.(f)}
+              </span>
+            ) : null}
           </span>
         </li>
       ))}

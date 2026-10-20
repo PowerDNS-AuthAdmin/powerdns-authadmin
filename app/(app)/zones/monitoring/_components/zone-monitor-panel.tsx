@@ -19,6 +19,11 @@
  * rate-limited server-side (the monitor probes other people's nameservers,
  * so a reload-happy tab must not turn into a flood); a 429 is surfaced as a
  * warning toast with the server's wording, not as an error.
+ *
+ * A finding with a suggested fix gets a Fix button that opens a review
+ * dialog; the save goes through the zone's own write route (see
+ * ./soa-mname-fix-dialog.tsx) and the zone is re-checked afterwards so the
+ * finding clears in place.
  */
 
 import { type ColumnDef } from "@tanstack/react-table";
@@ -46,6 +51,8 @@ import {
   VERDICT_LABEL,
   VERDICT_ORDER,
   verdictOf,
+  type ZoneFinding,
+  type ZoneFindingFix,
   type ZoneMonitorResult,
   type ZoneMonitorState,
   type ZoneVerdict,
@@ -64,6 +71,7 @@ import { SelectMenu } from "@/components/ui/select-menu";
 import { Skeleton, SkeletonTable } from "@/components/ui/skeleton";
 import { ToggleChip, type ToggleChipTone } from "@/components/ui/toggle-chip";
 import { mutate } from "@/lib/client/api-fetch";
+import { SoaMnameFixDialog } from "./soa-mname-fix-dialog";
 
 // ---------------------------------------------------------------- contract
 
@@ -143,6 +151,10 @@ export function ZoneMonitorPanel() {
   const [liveMessage, setLiveMessage] = useState("");
   /** A quiet re-fetch is in flight: the rows on screen are kept until it lands. */
   const [updating, setUpdating] = useState(false);
+  const [fixTarget, setFixTarget] = useState<{
+    fix: ZoneFindingFix;
+    result: ZoneMonitorResult;
+  } | null>(null);
 
   const loadState = useCallback(async (opts: { quiet?: boolean } = {}) => {
     if (opts.quiet) setUpdating(true);
@@ -250,7 +262,10 @@ export function ZoneMonitorPanel() {
   }, [confirm, toast]);
 
   const recheck = useCallback(
-    async (row: ZoneMonitorResult) => {
+    // `afterFix`: the re-check that follows an applied fix. The fix itself
+    // succeeded, so a rate-limited re-check is not worth a warning; the next
+    // cycle clears the finding anyway.
+    async (row: ZoneMonitorResult, opts: { afterFix?: boolean } = {}) => {
       const key = resultKey(row);
       setBusy({ kind: "row", key });
       setLiveMessage(`Re-checking ${row.zone}…`);
@@ -261,12 +276,13 @@ export function ZoneMonitorPanel() {
           body: JSON.stringify({ zone: row.zone, serverSlug: row.server }),
         });
         if (!result.ok) {
+          setLiveMessage("");
+          if (opts.afterFix && result.status === HTTP_TOO_MANY_REQUESTS) return;
           toast({
             kind: result.status === HTTP_TOO_MANY_REQUESTS ? "warn" : "error",
             title: result.status === HTTP_TOO_MANY_REQUESTS ? "Not yet" : "Re-check failed",
             description: result.error,
           });
-          setLiveMessage("");
           return;
         }
         const fresh = result.data.result;
@@ -613,26 +629,57 @@ export function ZoneMonitorPanel() {
                 id={rowDetailId(panelPrefix, key)}
                 label={`Details for ${row.zone} on ${row.server}`}
               >
-                <RowDetail result={row} />
+                <RowDetail
+                  result={row}
+                  onFix={(finding) => {
+                    if (finding.fix) setFixTarget({ fix: finding.fix, result: row });
+                  }}
+                />
               </RowDisclosurePanel>
             ) : null;
           }}
         />
       )}
+      {fixTarget?.fix.kind === "soa.mname" ? (
+        <SoaMnameFixDialog
+          fix={fixTarget.fix}
+          serverSlug={fixTarget.result.server}
+          onClose={() => setFixTarget(null)}
+          onApplied={() => void recheck(fixTarget.result, { afterFix: true })}
+        />
+      ) : null}
     </div>
   );
 }
 
 // ---------------------------------------------------------------- detail
 
-function RowDetail({ result }: { result: ZoneMonitorResult }) {
+function RowDetail({
+  result,
+  onFix,
+}: {
+  result: ZoneMonitorResult;
+  onFix: (finding: ZoneFinding) => void;
+}) {
   return (
     <div className="grid gap-4 pt-3 lg:grid-cols-2">
       <section aria-label={`Findings for ${result.zone}`} className="space-y-2">
         <h3 className="text-xs font-semibold tracking-wide text-[color:var(--color-fg-muted)] uppercase">
           Findings
         </h3>
-        <FindingList findings={result.findings} />
+        <FindingList
+          findings={result.findings}
+          renderFixAction={(finding) => (
+            <button
+              type="button"
+              className={BUTTON_CLASS}
+              onClick={() => onFix(finding)}
+              aria-label={`Fix: ${finding.title} (${result.zone})`}
+            >
+              Fix
+            </button>
+          )}
+        />
       </section>
       <section aria-label={`Observations for ${result.zone}`} className="space-y-2">
         <h3 className="text-xs font-semibold tracking-wide text-[color:var(--color-fg-muted)] uppercase">
