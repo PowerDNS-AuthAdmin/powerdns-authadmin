@@ -17,12 +17,15 @@ import { PATCH as patchRrsets } from "@/app/api/admin/pdns/zones/[zoneId]/rrsets
 import { POST as createZoneRoute } from "@/app/api/admin/pdns/zones/route";
 import { DELETE as deleteZoneRoute } from "@/app/api/admin/pdns/zones/[zoneId]/route";
 import { GET as searchZonesRoute } from "@/app/api/admin/pdns/zones/search/route";
+import { GET as globalSearchRoute } from "@/app/api/search/route";
 import { GET as recordsAtRoute } from "@/app/api/admin/pdns/zones/[zoneId]/records/route";
 import { GET as zoneSyncRoute } from "@/app/api/admin/pdns/zones/[zoneId]/sync/route";
 import { GET as reverseReportRoute } from "@/app/api/admin/pdns/auto-ptr/report/route";
 import { GET as reverseLinksRoute } from "@/app/api/admin/pdns/auto-ptr/links/route";
 import { POST as reverseRectifyRoute } from "@/app/api/admin/pdns/auto-ptr/rectify/route";
 import { GET as monitoringRoute } from "@/app/api/admin/monitoring/zones/route";
+import { GET as notificationsRoute } from "@/app/api/admin/notifications/route";
+import { POST as dismissNotificationsRoute } from "@/app/api/admin/notifications/dismiss/route";
 import { POST as monitoringRefreshRoute } from "@/app/api/admin/monitoring/zones/refresh/route";
 
 export class DispatchError extends Error {
@@ -169,6 +172,17 @@ export function dispatchSearchZones(
   );
 }
 
+export function dispatchSearch(
+  incoming: Request,
+  q: { q: string; scope?: string; limit?: number },
+): Promise<unknown> {
+  return dispatchGet(
+    incoming,
+    withQuery("/api/search", { q: q.q, scope: q.scope, limit: q.limit?.toString() }),
+    globalSearchRoute,
+  );
+}
+
 export function dispatchRecordsAt(
   incoming: Request,
   input: { zone: string; serverSlug?: string; name: string; type?: string },
@@ -237,5 +251,22 @@ export function dispatchMonitoringRefresh(incoming: Request, body: unknown): Pro
     `${env.APP_URL}/api/admin/monitoring/zones/refresh`,
     body,
     monitoringRefreshRoute,
+  );
+}
+
+export function dispatchNotifications(incoming: Request, all: boolean): Promise<unknown> {
+  return dispatchGet(
+    incoming,
+    withQuery("/api/admin/notifications", { status: all ? "all" : undefined }),
+    notificationsRoute,
+  );
+}
+
+export function dispatchDismissNotifications(incoming: Request, ids: string[]): Promise<unknown> {
+  return dispatchPost(
+    incoming,
+    `${env.APP_URL}/api/admin/notifications/dismiss`,
+    { ids },
+    dismissNotificationsRoute,
   );
 }

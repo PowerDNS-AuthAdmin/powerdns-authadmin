@@ -301,6 +301,55 @@ body {
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Global search palette (components/domain/global-search.tsx). The panel drops
+ * in from slightly above on desktop and slides up as a sheet on phones; the
+ * backdrop fades. Reduced-motion users get the final state with no movement.
+ * ------------------------------------------------------------------------- */
+@keyframes pda-search-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pda-search-in-sheet {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pda-search-fade {
+  from {
+    opacity: 0;
+  }
+}
+.pda-search-panel {
+  animation: pda-search-in-sheet 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-origin: 50% 0;
+}
+@media (min-width: 768px) {
+  .pda-search-panel {
+    animation-name: pda-search-in;
+  }
+}
+.pda-search-backdrop {
+  animation: pda-search-fade 0.2s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pda-search-panel,
+  .pda-search-backdrop {
+    animation: none;
+  }
+}
+
 /* ============================================================================
  * react-datepicker theme overrides
  *

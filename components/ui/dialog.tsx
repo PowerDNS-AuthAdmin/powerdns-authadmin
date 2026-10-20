@@ -70,12 +70,15 @@ const APP_ROOT_ID = "pda-app-root";
 // close. The first lock snapshots the original value and applies `hidden` +
 // `inert`; subsequent locks just bump the counter. The last unlock restores
 // both. Order-independent.
+//
+// Exported for modal surfaces that are not a `Dialog` (the search palette), so
+// they share the same counter instead of fighting over `overflow`.
 // =============================================================================
 
 let activeDialogLocks = 0;
 let bodyOverflowBeforeLock: string | null = null;
 
-function lockPage(): void {
+export function lockPage(): void {
   if (typeof document === "undefined") return;
   if (activeDialogLocks === 0) {
     bodyOverflowBeforeLock = document.body.style.overflow;
@@ -85,7 +88,7 @@ function lockPage(): void {
   activeDialogLocks++;
 }
 
-function unlockPage(): void {
+export function unlockPage(): void {
   if (typeof document === "undefined") return;
   if (activeDialogLocks === 0) return;
   activeDialogLocks--;
@@ -103,13 +106,13 @@ function unlockPage(): void {
  * so it runs after every effect cleanup of the closing modal, including the
  * one that lifts `inert` from the app root - an inert element refuses focus.
  */
-function restoreFocus(el: HTMLElement | null): void {
+export function restoreFocus(el: HTMLElement | null): void {
   if (!el) return;
   queueMicrotask(() => el.focus?.());
 }
 
 /** Modals render into <body> so they sit outside the inert app root. */
-function ModalPortal({ children }: { children: ReactNode }) {
+export function ModalPortal({ children }: { children: ReactNode }) {
   if (typeof document === "undefined") return null;
   return createPortal(children, document.body);
 }
@@ -771,7 +774,7 @@ export function Dialog({
   );
 }
 
-function getTabbables(root: HTMLElement | null): HTMLElement[] {
+export function getTabbables(root: HTMLElement | null): HTMLElement[] {
   if (!root) return [];
   const nodes = root.querySelectorAll<HTMLElement>(
     [

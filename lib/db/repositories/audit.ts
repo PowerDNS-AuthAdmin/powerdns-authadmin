@@ -180,3 +180,41 @@ function buildWhereClause(filters: AuditQueryFilters): SQL | undefined {
   if (parts.length === 1) return parts[0];
   return and(...parts);
 }
+
+/** The audit columns that are safe to show anywhere: no snapshots, IP or user agent. */
+export interface AuditSummaryRow {
+  id: string;
+  ts: Date;
+  actorType: "user" | "token" | "system";
+  actorName: string | null;
+  actorEmail: string | null;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  requestId: string | null;
+}
+
+/**
+ * The newest `limit` audit rows as summaries, for in-memory matching by the
+ * global search. Selects only the listed columns, so `before`/`after`
+ * snapshots never leave the database on this path.
+ */
+export async function listRecentAuditSummaries(limit = 500): Promise<AuditSummaryRow[]> {
+  const rows = await db
+    .select({
+      id: auditLog.id,
+      ts: auditLog.ts,
+      actorType: auditLog.actorType,
+      actorName: users.name,
+      actorEmail: users.email,
+      action: auditLog.action,
+      resourceType: auditLog.resourceType,
+      resourceId: auditLog.resourceId,
+      requestId: auditLog.requestId,
+    })
+    .from(auditLog)
+    .leftJoin(users, eq(auditLog.actorId, users.id))
+    .orderBy(desc(auditLog.ts))
+    .limit(Math.min(Math.max(limit, 1), MAX_LIMIT));
+  return rows.map((r) => ({ ...r, id: String(r.id) }));
+}

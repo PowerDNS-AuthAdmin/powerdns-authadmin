@@ -168,3 +168,15 @@ export const sensitiveLimiter = new TokenBucketLimiter({
   capacity: 3,
   refillPerSec: 1 / 300,
 });
+
+/**
+ * Limiter for the global search palette: a 60-request burst refilled at one
+ * per second (about 60 a minute per user). Generous enough for debounced
+ * typing, tight enough that a script cannot turn search into a cheap way of
+ * walking the fleet scan or the logs. Per-process: search is not a security
+ * boundary the way sign-in is, so cross-replica coordination is not needed.
+ */
+export const searchLimiter = new TokenBucketLimiter({
+  capacity: 60,
+  refillPerSec: 1,
+});

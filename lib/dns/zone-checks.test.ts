@@ -373,4 +373,28 @@ describe("evaluateZone", () => {
       worstSeverity(evaluateZone(healthy({ reverse: { addresses: 4, missing: 1, mismatch: 0 } }))),
     ).toBe("warn");
   });
+
+  it("keeps a single internal nameserver informational and explains the PowerDNS placeholder MNAME", () => {
+    const base = healthy();
+    const single = healthy({
+      horizon: "internal",
+      pdns: { ...base.pdns, nsNames: ["ns1.example.com."] },
+      delegation: delegated({ nameservers: ["ns1.example.com."] }),
+      nameservers: [base.nameservers[0]!],
+    });
+    expect(codes(single)).toContain("info:nameserver.count");
+    expect(codes(single)).not.toContain("warn:nameserver.count");
+
+    const placeholder = evaluateZone(
+      healthy({
+        pdns: {
+          ...base.pdns,
+          soa: { ...base.pdns.soa!, mname: "a.misconfigured.powerdns.server." },
+        },
+      }),
+    ).find((f) => f.code === "soa.mname");
+    expect(placeholder?.severity).toBe("warn");
+    expect(placeholder?.detail).toContain("placeholder PowerDNS writes");
+    expect(placeholder?.detail).toContain("default-soa-content");
+  });
 });

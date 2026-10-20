@@ -19,6 +19,13 @@ exotic - it's the handful of things worth getting right before you expose the ap
   PowerDNS API keys and OIDC/SAML/LDAP provider secrets until first boot
   encrypts them in.
 
+- **Global search never returns secrets.** The header palette and the MCP `search` tool read
+  narrow projections that leave out password hashes, API tokens, session ids, TSIG key
+  material, OIDC/SAML/LDAP client secrets, signing keys and bind passwords, PowerDNS API keys,
+  encryption keys, SMTP passwords, WebAuthn credentials, backup contents, PowerDNS request
+  headers and bodies, and audit snapshots; backends show only their URL host, and providers
+  and TSIG keys only their name. Every source is filtered by the caller's own permissions.
+
 ## Network exposure
 
 - **Terminate TLS at a reverse proxy** and forward to port 3000. Set `APP_URL` to

@@ -149,6 +149,7 @@ export function RecordTable({ zoneName, rrsets, serverSlug }: RecordTableProps) 
       noDataMessage="No records on this zone."
       initialSort={[{ id: "name", desc: false }]}
       stateKey="records"
+      filterParam="q"
       layout="fixed"
     />
   );

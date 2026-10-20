@@ -126,6 +126,12 @@ export interface DataTableProps<TData> {
    */
   pageSizeParam?: string;
   /**
+   * Seed the search box from this URL search-param on mount (read once, not
+   * written back), so a link can open the table already filtered - the
+   * global search links a record hit as `?q=<name or value>`.
+   */
+  filterParam?: string;
+  /**
    * When set, the table mirrors its sort + page-size state to
    * `localStorage` under `pda.table.<stateKey>`. Hydrates on mount.
    * URL params (when present) win over localStorage; localStorage
@@ -170,6 +176,7 @@ export type RowProps = React.HTMLAttributes<HTMLElement> &
   Record<`data-${string}`, string | undefined>;
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const MAX_URL_FILTER_LENGTH = 200;
 
 /** A column with no header text is an "action" column (View, Edit, …). We size
  *  those to their content so spare table width lands on the data columns. */
@@ -191,6 +198,7 @@ export function DataTable<TData>({
   hidePagination = false,
   sortParam,
   pageSizeParam,
+  filterParam,
   stateKey,
   layout = "auto",
   renderRowDetail,
@@ -210,7 +218,9 @@ export function DataTable<TData>({
   const [sorting, setSorting] = useState<SortingState>(
     urlSort && urlSort.length > 0 ? urlSort : initialSort,
   );
-  const [globalFilter, setGlobalFilter] = useState("");
+  const [globalFilter, setGlobalFilter] = useState(() =>
+    filterParam ? (searchParams.get(filterParam) ?? "").slice(0, MAX_URL_FILTER_LENGTH) : "",
+  );
   // Same pattern as sort for page-size: URL is source of truth when
   // pageSizeParam is set, falling back to the `pageSize` prop when
   // the URL value is missing or invalid. The allowed set is the
@@ -393,6 +403,9 @@ export function DataTable<TData>({
             <input
               ref={searchRef}
               type="search"
+              // Marks the page's primary list so the global search palette
+              // leaves "/" to it (Ctrl/Cmd K still opens the palette).
+              data-search-shortcut={searchShortcut ? "" : undefined}
               value={globalFilter}
               onChange={(e) => {
                 setGlobalFilter(e.target.value);

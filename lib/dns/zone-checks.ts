@@ -96,6 +96,9 @@ export function networkKey(address: string): string {
   return `${address.split(".").slice(0, 3).join(".")}.0/24`;
 }
 
+/** What PowerDNS puts in the SOA MNAME when default-soa-content is not set. */
+const POWERDNS_PLACEHOLDER_MNAME = "a.misconfigured.powerdns.server.";
+
 export function evaluateZone(data: ZoneProbeData): ZoneFinding[] {
   const out: ZoneFinding[] = [];
   const apexNs = [...new Set(data.pdns.nsNames.map(lower))].sort();
@@ -205,7 +208,9 @@ export function evaluateZone(data: ZoneProbeData): ZoneFinding[] {
   } else if (apexNs.length < 2) {
     out.push({
       code: "nameserver.count",
-      severity: "warn",
+      // RFC 2182 is about resolvability on the internet; a single internal
+      // nameserver is a common, deliberate design, so it informs, not alerts.
+      severity: data.horizon === "internal" ? "info" : "warn",
       title: "Only one nameserver",
       detail: `Only ${apexNs[0]} serves the zone; a second, independent nameserver keeps the zone resolvable through maintenance and outages (RFC 2182).`,
     });
@@ -314,7 +319,7 @@ export function evaluateZone(data: ZoneProbeData): ZoneFinding[] {
       code: "consistency.serial",
       severity: "warn",
       title: "Nameservers disagree on the serial",
-      detail: `PowerDNS: ${data.pdns.serial ?? "?"}. ${seen.map(([k, s]) => `${k}: ${s}`).join("; ")}. A secondary may be failing to transfer, or NOTIFY is not reaching it.`,
+      detail: `PowerDNS serves ${data.pdns.serial ?? "?"}. ${seen.map(([k, s]) => `${k}: ${s}`).join("; ")}. A secondary may be failing to transfer, or NOTIFY is not reaching it.`,
     });
   }
 
@@ -343,7 +348,10 @@ export function evaluateZone(data: ZoneProbeData): ZoneFinding[] {
         code: "soa.mname",
         severity: "warn",
         title: "SOA MNAME is not one of the nameservers",
-        detail: `MNAME ${soa.mname} is not in the NS set (${list(apexNs)}); NOTIFY and dynamic updates target the primary named here (RFC 1996).`,
+        detail:
+          lower(soa.mname) === POWERDNS_PLACEHOLDER_MNAME
+            ? `MNAME is ${soa.mname}, the placeholder PowerDNS writes when no primary is configured. Set the SOA's primary nameserver to one of ${list(apexNs)} on the zone, and default-soa-content in pdns.conf so new zones get it (RFC 1996: NOTIFY and dynamic updates target the MNAME).`
+            : `MNAME ${soa.mname} is not in the NS set (${list(apexNs)}); NOTIFY and dynamic updates target the primary named here (RFC 1996).`,
       });
     }
     const rname = soa.rname.replace(/\.$/, "");

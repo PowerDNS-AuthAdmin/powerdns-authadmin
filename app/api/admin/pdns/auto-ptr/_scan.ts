@@ -43,6 +43,7 @@ export interface ScannedZone {
   horizon: ZoneHorizon;
   kind: string;
   dnssec: boolean;
+  /** The served serial (edited_serial when PowerDNS applies SOA-EDIT), else the stored one. */
   serial: number | null;
   soa: {
     mname: string;
@@ -273,6 +274,7 @@ function apexFacts(
     kind?: string;
     dnssec?: boolean;
     serial?: number | null;
+    edited_serial?: number | null;
     rrsets?: Array<{
       name: string;
       type: string;
@@ -311,7 +313,15 @@ function apexFacts(
     horizon,
     kind: detail.kind ?? "",
     dnssec: detail.dnssec === true,
-    serial: typeof detail.serial === "number" ? detail.serial : (soa?.serial ?? null),
+    // The serial the nameservers answer with. With SOA-EDIT / SOA-EDIT-API the
+    // stored serial (`serial`) never matches what is served, so comparing it
+    // with the nameservers' answers would flag every such zone as out of sync.
+    serial:
+      typeof detail.edited_serial === "number" && detail.edited_serial > 0
+        ? detail.edited_serial
+        : typeof detail.serial === "number"
+          ? detail.serial
+          : (soa?.serial ?? null),
     soa,
     nsNames,
     glue,
@@ -373,4 +383,27 @@ export function invalidateFleetScan(): void {
 /** The last scan without triggering one (null before the first). */
 export function peekFleetScan(): FleetScan | null {
   return cache.scan ?? null;
+}
+
+/** One zone's last full read, as kept by the scan's detail cache. */
+export interface CachedZoneDetailEntry {
+  serverId: string;
+  zone: string;
+  detail: ZoneDetailLike;
+}
+
+/**
+ * Every zone detail the last scans read, without triggering a read. The global
+ * search matches record names and contents against this so typing in the
+ * palette never costs a PowerDNS round trip; call `getFleetScan()` first when
+ * the cache should be warm. Entries are the cache's own objects: read only.
+ */
+export function cachedZoneDetails(): CachedZoneDetailEntry[] {
+  const out: CachedZoneDetailEntry[] = [];
+  for (const [key, entry] of detailCache) {
+    const bar = key.indexOf("|");
+    if (bar === -1) continue;
+    out.push({ serverId: key.slice(0, bar), zone: key.slice(bar + 1), detail: entry.detail });
+  }
+  return out;
 }

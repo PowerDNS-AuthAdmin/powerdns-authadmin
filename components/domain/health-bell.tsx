@@ -3,10 +3,12 @@
 /**
  * components/domain/health-bell.tsx
  *
- * Top-bar notification bell for backend health advisories (ADR-0015). The
- * server passes the confirmed advisory set (already debounced + permission-
- * scoped); this renders the count badge + a dropdown. Acknowledging POSTs to
- * the ack route then refreshes so the list reflects the new state.
+ * Top-bar notification bell (ADR-0015): backend health and zone monitoring.
+ * The server passes a short preview (the most pressing few, already filtered
+ * to what this user may see) and the counts, not the whole list, so a fleet
+ * with hundreds of findings costs every page render nothing extra. "Show all"
+ * opens the Notifications page. Dismissing POSTs to the dismiss route, which
+ * re-checks visibility, then refreshes in place.
  *
  * Presentational only - no lib/db / lib/pdns imports (three-layer boundary).
  */
@@ -14,36 +16,27 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bell } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle2 } from "lucide-react";
+import type { AppNotification, NotificationSummary } from "@/lib/health/notifications";
 import { apiFetch } from "@/lib/client/api-fetch";
 import { useDialog } from "@/components/ui/dialog";
+import { LocalTime } from "@/components/ui/local-time";
 import { useRealtimeEvent } from "@/components/realtime/realtime-provider";
+import {
+  badgeCount,
+  bellLabel,
+  severityDotClass,
+  severityWord,
+  summaryLine,
+} from "@/components/domain/notification-format";
 
-export interface BellAdvisory {
-  id: string;
-  backendId: string;
-  backendName: string;
-  /** "error" | "warn" | "info". */
-  severity: string;
-  title: string;
-  detail: string;
-  acknowledged: boolean;
-}
-
-function dotClass(severity: string): string {
-  if (severity === "error") return "bg-[color:var(--color-error)]";
-  if (severity === "warn") return "bg-[color:var(--color-warn)]";
-  return "bg-[color:var(--color-fg-muted)]";
-}
-
-/** The dot's colour, spelled out for people who can't see it. */
-function severityWord(severity: string): string {
-  if (severity === "error") return "Error";
-  if (severity === "warn") return "Warning";
-  return "Info";
-}
-
-export function HealthBell({ advisories }: { advisories: BellAdvisory[] }) {
+export function HealthBell({
+  preview,
+  summary,
+}: {
+  preview: AppNotification[];
+  summary: NotificationSummary;
+}) {
   const router = useRouter();
   const { toast } = useDialog();
   const [open, setOpen] = useState(false);
@@ -52,9 +45,8 @@ export function HealthBell({ advisories }: { advisories: BellAdvisory[] }) {
   const bellRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Live-update over the SSE bus (ADR-0015): the poller publishes `health.updated`
-  // only when the visible advisory set moves, so we refresh the server-rendered
-  // props in place rather than only on navigation. Debounced against a burst.
+  // The poller publishes `health.updated` only when the visible set moves;
+  // refresh the server-rendered props in place. Debounced against a burst.
   const lastRefreshAt = useRef<number>(0);
   useRealtimeEvent(
     (event) => event.type === "health.updated" || event.type === "realtime.reconnected",
@@ -87,19 +79,18 @@ export function HealthBell({ advisories }: { advisories: BellAdvisory[] }) {
     };
   }, [open]);
 
-  // Move focus into the panel on open so the list is the next thing read.
   useEffect(() => {
     if (open) panelRef.current?.focus();
   }, [open]);
 
-  const unacked = advisories.filter((a) => !a.acknowledged);
-  const hasError = unacked.some((a) => a.severity === "error");
-  const count = unacked.length;
+  const count = summary.active;
+  const total = summary.active + summary.dismissed;
+  const summaryText = summaryLine(summary);
 
-  async function acknowledge(id: string) {
-    setBusy(id);
+  async function dismiss(n: AppNotification) {
+    setBusy(n.id);
     try {
-      const res = await apiFetch(`/api/admin/backend-advisories/${id}/ack`, { method: "POST" });
+      const res = await apiFetch(`/api/admin/backend-advisories/${n.id}/ack`, { method: "POST" });
       if (res.ok) {
         router.refresh();
         return;
@@ -107,14 +98,14 @@ export function HealthBell({ advisories }: { advisories: BellAdvisory[] }) {
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
       toast({
         kind: "error",
-        title: "Could not dismiss advisory",
+        title: "Could not dismiss the notification",
         description: data?.error ?? `The server answered ${res.status}.`,
       });
     } catch {
       toast({
         kind: "error",
-        title: "Could not dismiss advisory",
-        description: "Network error - the advisory is still active.",
+        title: "Could not dismiss the notification",
+        description: "Network error - it is still active.",
       });
     } finally {
       setBusy(null);
@@ -127,92 +118,114 @@ export function HealthBell({ advisories }: { advisories: BellAdvisory[] }) {
         ref={bellRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label={`Backend health: ${count} active ${count === 1 ? "issue" : "issues"}`}
+        aria-label={bellLabel(summary)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="relative flex h-9 w-9 items-center justify-center rounded-md hover:bg-[color:var(--color-bg-subtle)]"
+        className="relative flex h-9 w-9 items-center justify-center rounded-md hover:bg-[color:var(--color-bg-subtle)] focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent)] focus-visible:outline-none"
       >
         <Bell aria-hidden className="h-5 w-5 text-[color:var(--color-fg-muted)]" />
         {count > 0 ? (
           <span
             aria-hidden
-            className={`absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.6rem] font-semibold text-white ${
-              hasError ? "bg-[color:var(--color-error)]" : "bg-[color:var(--color-warn)]"
+            className={`absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.6rem] font-semibold text-white tabular-nums ${
+              summary.error > 0 ? "bg-[color:var(--color-error)]" : "bg-[color:var(--color-warn)]"
             }`}
           >
-            {count}
+            {badgeCount(count)}
           </span>
         ) : null}
       </button>
 
       {open ? (
-        // Mobile: fixed to the viewport with small gutters so the dropdown
-        // can't overflow the right edge (the bell sits near it). sm+: back
-        // to absolute-anchored under the bell at a fixed 24rem width.
+        // Mobile: pinned to the viewport with small gutters (the bell sits near
+        // the right edge). sm+: anchored under the bell, wider again on lg.
         <div
           ref={panelRef}
           role="dialog"
-          aria-label="Backend health"
+          aria-label="Notifications"
           tabIndex={-1}
-          className="fixed inset-x-3 top-14 z-20 mt-2 overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] shadow-lg outline-none sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:w-96"
+          className="fixed inset-x-3 top-14 z-20 mt-2 overflow-hidden rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] shadow-lg outline-none sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:w-[26rem] lg:w-[30rem]"
         >
-          <div className="border-b border-[color:var(--color-border)] px-3 py-2 text-xs font-semibold tracking-wide text-[color:var(--color-fg-muted)] uppercase">
-            Backend health
+          <div className="flex items-center justify-between gap-3 border-b border-[color:var(--color-border)] px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">Notifications</p>
+              <p className="truncate text-xs text-[color:var(--color-fg-muted)]">
+                {summaryText || "Nothing needs attention"}
+              </p>
+            </div>
+            {total > 0 ? (
+              <Link
+                href="/notifications"
+                onClick={() => setOpen(false)}
+                className="shrink-0 text-xs font-medium text-[color:var(--color-accent)] hover:underline"
+              >
+                View all
+              </Link>
+            ) : null}
           </div>
-          {advisories.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-[color:var(--color-fg-muted)]">
-              All backends healthy.
-            </p>
+
+          {preview.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+              <CheckCircle2 aria-hidden className="h-6 w-6 text-[color:var(--color-success)]" />
+              <p className="text-sm font-medium">You&apos;re all caught up</p>
+              {summary.dismissed > 0 ? (
+                <p className="text-xs text-[color:var(--color-fg-muted)]">
+                  {summary.dismissed} dismissed
+                </p>
+              ) : null}
+            </div>
           ) : (
-            <ul className="max-h-[60vh] divide-y divide-[color:var(--color-border)] overflow-y-auto">
-              {advisories.map((a) => (
-                <li
-                  key={a.id}
-                  className={`px-3 py-2.5 text-sm ${a.acknowledged ? "opacity-50" : ""}`}
-                >
-                  <div className="flex items-start gap-2">
+            <ul className="divide-y divide-[color:var(--color-border)]">
+              {preview.map((n) => (
+                <li key={n.id} className="px-4 py-3">
+                  <div className="flex items-start gap-3">
                     <span
                       aria-hidden
-                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dotClass(a.severity)}`}
+                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${severityDotClass(n.severity)}`}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="font-medium">
-                          <span className="sr-only">{severityWord(a.severity)}: </span>
-                          {a.title}
-                        </span>
-                        <Link
-                          href={`/admin/servers/${a.backendId}`}
-                          className="shrink-0 text-xs text-[color:var(--color-accent)] hover:underline"
-                          onClick={() => setOpen(false)}
-                        >
-                          {a.backendName}
-                        </Link>
-                      </div>
-                      <p className="mt-0.5 text-xs text-[color:var(--color-fg-muted)]">
-                        {a.detail}
+                      <Link
+                        href={n.href}
+                        onClick={() => setOpen(false)}
+                        className="line-clamp-2 text-sm font-medium break-words hover:underline"
+                      >
+                        <span className="sr-only">{severityWord(n.severity)}: </span>
+                        {n.title}
+                      </Link>
+                      <p className="mt-0.5 line-clamp-2 text-xs break-words text-[color:var(--color-fg-muted)]">
+                        {n.detail}
                       </p>
-                      {!a.acknowledged ? (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--color-fg-subtle)]">
+                        <span>{n.source === "zone" ? "Zone monitoring" : "Backend health"}</span>
+                        <span className="font-mono">{n.backendName}</span>
+                        <LocalTime ts={n.lastSeenAt} style="relative" />
                         <button
                           type="button"
-                          onClick={() => acknowledge(a.id)}
-                          disabled={busy === a.id}
-                          className="mt-1 text-xs text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)] hover:underline disabled:opacity-50"
+                          onClick={() => void dismiss(n)}
+                          disabled={busy === n.id}
+                          className="ml-auto text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)] hover:underline disabled:opacity-50"
                         >
-                          {busy === a.id ? "Dismissing…" : "Dismiss"}
-                          <span className="sr-only"> {a.title}</span>
+                          {busy === n.id ? "Dismissing…" : "Dismiss"}
+                          <span className="sr-only"> {n.title}</span>
                         </button>
-                      ) : (
-                        <span className="mt-1 inline-block text-xs text-[color:var(--color-fg-subtle)]">
-                          Dismissed
-                        </span>
-                      )}
+                      </div>
                     </div>
                   </div>
                 </li>
               ))}
             </ul>
           )}
+
+          {total > 0 ? (
+            <Link
+              href="/notifications"
+              onClick={() => setOpen(false)}
+              className="flex items-center justify-center gap-1.5 border-t border-[color:var(--color-border)] px-4 py-2.5 text-sm font-medium text-[color:var(--color-accent)] hover:bg-[color:var(--color-bg-subtle)]"
+            >
+              Show all {total} notification{total === 1 ? "" : "s"}
+              <ArrowRight aria-hidden className="h-4 w-4" />
+            </Link>
+          ) : null}
         </div>
       ) : null}
     </div>

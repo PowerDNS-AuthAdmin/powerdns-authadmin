@@ -15,6 +15,7 @@
  *   list_zones        zones the caller may read, across backends
  *   get_zone          one zone's summary (kind, serial, DNSSEC, counts)
  *   list_records      records of a zone, filterable by name/type
+ *   search            fuzzy search over zones, records, config, request + audit log
  *   set_records       REPLACE every value of one name+type
  *   add_record        append one value to a name+type
  *   delete_records    remove one value, or the whole name+type
@@ -51,10 +52,13 @@ import {
 import {
   dispatchMonitoring,
   dispatchMonitoringRefresh,
+  dispatchNotifications,
+  dispatchDismissNotifications,
   dispatchRecordsAt,
   dispatchReverseLinks,
   dispatchReverseRectify,
   dispatchReverseReport,
+  dispatchSearch,
   dispatchSearchZones,
   dispatchZoneSync,
 } from "./_dispatch";
@@ -78,6 +82,7 @@ Conventions:
 - TXT values must be quoted ("v=spf1 -all"); MX values are "<preference> <host.>"; hostnames should end with a dot.
 - Installations with several backends need a backend slug: call list_backends once, then pass server_slug. The default backend is used when omitted.
 - Every write is authorised against the token's permissions and recorded in the audit log under the token owner's name. Prefer list_records before changing anything so you replace exactly what you intend.
+- search is a fuzzy lookup across zones, records, config, the PowerDNS request log and the audit log (scope narrows it); results carry an app link and never include secrets.
 - find_zones searches every zone the token may read (with backend, cluster, horizon); records_at tells whether a name already holds records before you add one; zone_sync_status says whether a change has reached every secondary or cluster peer, so poll it after a write when propagation matters.
 - reverse_dns_report lists every A/AAAA address against its PTR (ok, missing, mismatch, ambiguous, orphan, unhosted) and reverse_dns_rectify writes or removes the PTRs you choose; zone_monitoring returns the latest delegation / nameserver / DNSSEC / resolver findings per zone and zone_monitoring_refresh re-runs the checks (rate-limited).
 - Reverse DNS: when an A/AAAA record is written or deleted, the matching PTR in a reverse zone hosted here can be maintained automatically. Pass ptr=true to ask for it, ptr=false to prevent it, or omit it to follow the zone's / the deployment's auto_ptr setting. The result's "ptr" list says what happened per address; a PTR that already points at a different name is reported as a conflict and only replaced when ptr_takeover=true. Reverse zones are never created.`;
@@ -365,6 +370,27 @@ export function buildMcpServer(ctx: McpContext): McpServer {
   );
 
   server.registerTool(
+    "search",
+    {
+      title: "Search everything",
+      description:
+        "Fuzzy search across zones, records (owner names and values), config (settings, admin pages, backends, clusters, users, teams, roles, zone templates, sign-in providers), the PowerDNS request log and the audit log. Each result has a kind, title, inline meta and an app link; every source is filtered by this token's permissions and secrets are never returned. Requests and audit cover the newest 500 rows.",
+      inputSchema: {
+        query: z.string().min(1).max(100).describe("What to look for; fuzzy, case-insensitive."),
+        scope: z
+          .enum(["all", "zones", "records", "config", "requests", "audit"])
+          .optional()
+          .describe("Narrow to one kind of result. Defaults to all (6 per group)."),
+        limit: z.number().int().min(1).max(25).optional(),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    tool(async ({ query, scope, limit }) =>
+      text(await dispatchSearch(request, { q: query, scope, limit })),
+    ),
+  );
+
+  server.registerTool(
     "records_at",
     {
       title: "Records at a name",
@@ -519,6 +545,55 @@ export function buildMcpServer(ctx: McpContext): McpServer {
         ),
       ),
     ),
+  );
+
+  server.registerTool(
+    "list_notifications",
+    {
+      title: "Notifications",
+      description:
+        "The notifications this token may see: backend health and zone monitoring findings, errors first, with a count by severity. Each row is filtered by its own scope (a zone finding needs zone.read on that zone). Pass include_dismissed to list dismissed ones too.",
+      inputSchema: {
+        include_dismissed: z.boolean().optional(),
+        severity: z.enum(["error", "warn", "info"]).optional(),
+        source: z.enum(["backend", "zone"]).optional(),
+        limit: z.number().int().min(1).max(500).optional().describe("Default 100."),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    tool(async ({ include_dismissed, severity, source, limit }) => {
+      const body = (await dispatchNotifications(request, include_dismissed === true)) as {
+        summary: unknown;
+        notifications: Array<{ severity: string; source: string } & Record<string, unknown>>;
+      };
+      const rows = body.notifications.filter(
+        (n) => (!severity || n.severity === severity) && (!source || n.source === source),
+      );
+      return text({
+        summary: body.summary,
+        matched: rows.length,
+        notifications: rows.slice(0, limit ?? 100),
+      });
+    }),
+  );
+
+  // Dismissing is not a DNS change: anyone who can see a notification may
+  // dismiss it, so this sits with the read tools rather than behind the write gate.
+  server.registerTool(
+    "dismiss_notifications",
+    {
+      title: "Dismiss notifications",
+      description:
+        "Dismiss notifications by id (from list_notifications). A dismissed notification leaves the bell until its condition changes or comes back. Ids the token cannot see are skipped.",
+      inputSchema: { ids: z.array(z.string().min(1).max(64)).min(1).max(500) },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    tool(async ({ ids }) => text(await dispatchDismissNotifications(request, ids))),
   );
 
   const canWriteSomewhere =

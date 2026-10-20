@@ -8,6 +8,13 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- **Global search.** A header palette (`Ctrl K` / `⌘K`, `/`, or the **Search…** button) that
+  fuzzy-matches zones, records (names and values), config (settings, admin pages, backends,
+  clusters, users, teams, roles, zone templates, sign-in providers), the PowerDNS request log
+  and the audit log, with **All / Zones / Records / Config / Requests / Audit** tabs, match
+  counts, highlighted hits and full keyboard navigation. Every source is filtered by the
+  user's own permissions and secrets are never indexed or returned; docs searches hand off to
+  powerdns-authadmin.org. Also `GET /api/search` and the MCP `search` tool.
 - **Automatic PTR maintenance (auto-PTR).** Saving or deleting an A/AAAA record can create,
   update or remove the matching PTR in a reverse zone hosted on any backend, including RFC
   2317 classless zones. Off by default; enabled globally (`auto_ptr` setting, also in
@@ -39,6 +46,12 @@ All notable changes to this project are documented here. The format is based on
   `zone_sync_status`), alongside `reverse_dns_report`, `reverse_dns_links`,
   `reverse_dns_rectify`, `zone_monitoring` and `zone_monitoring_refresh`, so everything the new
   pages do is available to an assistant.
+- **Notifications page and a compact bell.** The bell now previews the three most pressing
+  active notifications with a count by severity and **Show all**; `/notifications` lists every
+  notification with status, severity and source filters, search, an accordion for the detail,
+  per-row and bulk dismissal, and live refresh. New `GET /api/admin/notifications`,
+  `POST /api/admin/notifications/dismiss` and MCP tools `list_notifications` /
+  `dismiss_notifications`.
 - **Zone Monitoring** (`/zones/monitoring`): every hosted zone checked from the outside on a
   schedule. The delegation is read by walking from the root servers to the parent rather than
   through a recursive resolver, so the NS set, glue and DS the internet actually sees are
@@ -56,6 +69,17 @@ All notable changes to this project are documented here. The format is based on
   the configuration guide.
 
 ### Fixed
+
+- **Zone monitoring reported serial disagreement on every SOA-EDIT zone.** The check compared
+  the serial PowerDNS stores with the serial the nameservers serve, which always differ under
+  SOA-EDIT / SOA-EDIT-API. It now compares against the served serial (`edited_serial`).
+- **Zone findings were visible to anyone who could read any zone.** The bell showed every
+  monitoring advisory to every zone reader, including users granted a single zone. Each
+  notification is now filtered by `zone.read` on its own zone, and dismissal applies the same
+  rule (previously it needed `server.read`, so zone-only users could not dismiss at all).
+- **A single internal nameserver no longer rings the bell.** It is reported as information on
+  the Zone Monitoring page; public zones still warn (RFC 2182). Bell titles for the internal
+  copy of a split-horizon zone say "(internal)".
 
 - **Header chip stuck on "connecting" after a tab slept.** Safari (and Chrome on battery)
   freezes background tabs and hands back a dead or permanently connecting event stream that

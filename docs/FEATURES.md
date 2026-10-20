@@ -1216,7 +1216,8 @@ folder (`drizzle/`, `drizzle-sqlite/`); the boot entrypoint picks one based on
   `list_backends`, `list_zones`, `find_zones`, `get_zone`, `list_records`, `records_at`,
   `set_records`, `add_record`, `delete_records`, `create_zone`, `delete_zone`,
   `zone_sync_status`, `reverse_dns_report`, `reverse_dns_links`, `reverse_dns_rectify`,
-  `zone_monitoring`, `zone_monitoring_refresh` - so Claude Code, Codex, Cursor or any MCP
+  `zone_monitoring`, `zone_monitoring_refresh`, `search`, `list_notifications`,
+  `dismiss_notifications` - so Claude Code, Codex, Cursor or any MCP
   client can manage zones, maintain reverse DNS and read the monitoring from a prompt. Every
   feature in the UI has a tool counterpart; the tool table in the operator guide is the
   contract. Reads go through the same
@@ -1343,6 +1344,41 @@ errors are gated behind an explicit "Save anyway" checkbox so an override is nev
 - **Where.** `components/ui/select-menu.tsx` (+ `select-menu-keys.ts`, unit-tested),
   `components/ui/data-table.tsx` (`searchShortcut`, `getRowProps`).
 
+### 19.11 Global search
+
+- **What.** A header search palette (the **Search…** button, `Ctrl K` / `⌘K`, or `/` when
+  focus is not in a text field and the page has no primary list that already owns `/`) that
+  fuzzy-matches zones, records, config, the PowerDNS request log and the audit log. Letters can
+  be skipped (`exmp` finds `example.com`); matches are highlighted, and prefixes, word
+  boundaries (after `.`, `-`, `_`, space, `@`, `/`) and runs of consecutive letters rank
+  higher. It opens as a floating panel on desktop and a full-screen sheet on phones.
+- **Tabs.** **All** shows the best six of each group with labels; **Zones**, **Records**,
+  **Config**, **Requests** and **Audit** each show up to 25 hits with that tab's columns
+  inline (zones: backend, horizon, kind; records: type, value, zone; config: section, value;
+  requests: method, status, backend, time; audit: actor, resource, time), collapsing to a
+  subtitle line on phones. Every tab shows its match count; the last tab is remembered per
+  browser. **Config** covers app settings and their current values, admin pages by title,
+  backends (slug, name, URL host only), clusters, users (name, email), teams, roles, zone
+  templates and sign-in providers (name and slug only). **Requests** and **Audit** match the
+  newest 500 rows of each log.
+- **Permissions.** Each source is filtered on its own with the permission its page uses:
+  `zone.read` / `record.read` per zone (global or a zone grant on that backend), then
+  `settings.read`, `server.read`, `user.read`, `team.read` (team-scoped owners see their own
+  teams), `role.read`, `template.use`, `auth.read`, `system.backup` and `audit.read`. Tabs the
+  user cannot use are hidden. A user with no roles gets empty results, not an error.
+- **Never returned.** Password hashes, API tokens, session ids, TSIG key material, OIDC / SAML
+  / LDAP client secrets, signing keys and bind passwords, PowerDNS API keys, encryption keys,
+  SMTP passwords, WebAuthn credentials, backup contents, request headers and bodies, and audit
+  before/after snapshots. Docs are not searched either: the footer link **Looking for docs
+  instead? Search powerdns-authadmin.org** hands the query to the website's search.
+- **Keys.** `↑`/`↓`, Home and End move, `←`/`→` switch tabs, Enter opens, Shift+Enter or a
+  Cmd/Ctrl click opens a new tab, Esc closes and returns focus to the trigger. A record hit
+  opens its zone with the record table already filtered (`?q=`); a request or audit hit opens
+  the log with its filters set.
+- **Where.** `components/domain/global-search.tsx`, `components/ui/search-trigger.tsx`,
+  `lib/search/` (`fuzzy.ts`, `index.ts`, `sources.ts`), `app/api/search/route.ts`
+  (`GET /api/search?q=&scope=`, about 60 requests a minute per user), MCP tool `search`.
+
 ### 19.10 Compliance hard-stops
 
 - **What.** Operators with `must_change_password = true` or unmet MFA-per-role requirements
@@ -1423,7 +1459,7 @@ Findings are sorted worst first, and a zone's verdict is its worst finding.
 | `dnssec.ds-orphan`                                      | error                                                                                                                          | The parent publishes a DS and the zone serves no DNSKEY. Validating resolvers return `SERVFAIL` for every name in the zone.                                                                                                     | Remove the DS at the parent, or re-sign the zone.                                                                                       |
 | `dnssec.ds-stale`                                       | error                                                                                                                          | No DS at the parent matches a DNSKEY by key tag and algorithm; a key rollover was not completed.                                                                                                                                | Replace the DS at the parent with the current KSK's.                                                                                    |
 | `nameserver.none`                                       | error                                                                                                                          | No NS RRset at the apex.                                                                                                                                                                                                        | Add NS records.                                                                                                                         |
-| `nameserver.count`                                      | warn                                                                                                                           | A single nameserver (RFC 2182).                                                                                                                                                                                                 | Add a second, independent nameserver.                                                                                                   |
+| `nameserver.count`                                      | warn (info for internal zones)                                                                                                 | A single nameserver (RFC 2182). A single internal nameserver is a common design, so for an internal zone it stays on the page and does not ring the bell.                                                                       | Add a second, independent nameserver.                                                                                                   |
 | `nameserver.cname`                                      | warn                                                                                                                           | An NS target is a CNAME (RFC 2181 § 10.3).                                                                                                                                                                                      | Point the NS record at a hostname that has A/AAAA records.                                                                              |
 | `nameserver.no-address`                                 | error                                                                                                                          | The NS name resolves to no A/AAAA, so nobody can query it.                                                                                                                                                                      | Add address records (and glue at the parent when in-bailiwick).                                                                         |
 | `nameserver.private-address`                            | warn (public zones only)                                                                                                       | The NS name resolves to loopback, RFC 1918, CGNAT or ULA space, unreachable from the internet. Such addresses are not probed.                                                                                                   | Publish a routable address, or classify the zone as internal (§ 4.1.1).                                                                 |
@@ -1432,11 +1468,11 @@ Findings are sorted worst first, and a zone's verdict is its worst finding.
 | `nameserver.lame`                                       | error                                                                                                                          | The server answered without the AA flag or with an rcode other than `NOERROR`: the delegation points at a server not serving the zone.                                                                                          | Load the zone on that server, or drop it from the NS set and the delegation.                                                            |
 | `nameserver.diversity`                                  | info                                                                                                                           | Every nameserver address sits in one /24 (IPv4) or /48 (IPv6); one network outage takes the zone offline (RFC 2182 § 3.1).                                                                                                      | Add a nameserver on another network.                                                                                                    |
 | `consistency.ns-set`                                    | warn                                                                                                                           | A nameserver answers a different NS RRset than PowerDNS holds.                                                                                                                                                                  | Let the secondary transfer; fix the stale copy.                                                                                         |
-| `consistency.serial`                                    | warn                                                                                                                           | Nameservers disagree with each other, or with PowerDNS, on the SOA serial.                                                                                                                                                      | Check AXFR and NOTIFY to the lagging secondary (zone Sync tab, § 3.4; TSIG, § 7).                                                       |
+| `consistency.serial`                                    | warn                                                                                                                           | Nameservers disagree with each other, or with the serial PowerDNS serves (`edited_serial`, so SOA-EDIT and SOA-EDIT-API zones compare correctly), on the SOA serial.                                                            | Check AXFR and NOTIFY to the lagging secondary (zone Sync tab, § 3.4; TSIG, § 7).                                                       |
 | `transfer.open`                                         | error for public zones, warn for internal                                                                                      | A nameserver answered an unsigned AXFR for the zone.                                                                                                                                                                            | Restrict transfers: `allow-axfr-ips`, the `ALLOW-AXFR-FROM` zone metadata (§ 6), TSIG.                                                  |
 | `soa.missing`                                           | error                                                                                                                          | No SOA at the apex.                                                                                                                                                                                                             | Add the SOA.                                                                                                                            |
 | `soa.timers`                                            | error when expire is not above refresh + retry, else warn                                                                      | Refresh below 20 minutes, retry not below refresh, expire not above refresh + retry or below one week, minimum above one day.                                                                                                   | Adjust the SOA timers (RFC 1912 § 2.2, RFC 2308 § 4), or the zone template that seeds them (§ 4.4).                                     |
-| `soa.mname`                                             | warn                                                                                                                           | The SOA MNAME is not one of the zone's nameservers (RFC 1996).                                                                                                                                                                  | Set MNAME to the primary's NS name.                                                                                                     |
+| `soa.mname`                                             | warn                                                                                                                           | The SOA MNAME is not one of the zone's nameservers (RFC 1996). When it is `a.misconfigured.powerdns.server.`, the placeholder PowerDNS writes without `default-soa-content`, the detail says so.                                | Set MNAME to the primary's NS name, and `default-soa-content` in pdns.conf for new zones.                                               |
 | `soa.rname`                                             | info                                                                                                                           | The RNAME has no `.` or contains `@`; it should be a mailbox with the `@` written as `.`.                                                                                                                                       | Correct the RNAME (`hostmaster.example.com.`).                                                                                          |
 | `resolution.public` / `resolution.internal`             | error on `SERVFAIL` or `NXDOMAIN`; warn on any other rcode; no answer: warn for a public resolver and a public zone, else info | What a recursive resolver returns for the zone's SOA. `SERVFAIL` means a broken DNSSEC chain, a lame delegation or unreachable nameservers from that resolver's point of view; `NXDOMAIN` means it does not see the delegation. | Fix the underlying delegation, DNSSEC or nameserver finding; an unreachable resolver is a connectivity question for the AuthAdmin host. |
 | `resolution.public.stale` / `resolution.internal.stale` | info                                                                                                                           | The resolver still caches a serial lower than PowerDNS serves.                                                                                                                                                                  | Nothing; it refreshes when its cache expires.                                                                                           |
@@ -1494,9 +1530,26 @@ zone that is not meant to be on the internet is not a problem.
   manual refresh is authoritative and shows its advisories immediately. An advisory disappears
   as soon as a cycle no longer reports it; an acknowledged one re-alerts when its severity or
   detail changes (ADR-0015 § 4).
-- **Who sees what.** The bell now shows backend-health advisories to users who can read
-  backends and monitoring advisories to users who can read zones; each user gets only the kind
-  they are allowed to act on, and the bell renders for either permission.
+- **Who sees what.** Visibility is decided per notification, not per audience. A backend-health
+  advisory needs `server.read`. A monitoring advisory names a zone, so it needs `zone.read` on
+  that zone on that backend, globally or through a zone grant: a user granted a few zones sees
+  only those zones' findings, never the names of the rest of the fleet. The same rule gates
+  dismissal, so a zone-scoped user can dismiss their own zones' findings and an id outside
+  their view answers 404. One module applies it everywhere (`lib/health/notifications.ts`).
+- **The bell.** The bell shows the three most pressing active notifications (errors first, then
+  the most recently seen), a one-line count by severity, and **Show all** to the Notifications
+  page. Only that preview and the counts are sent with each page, so a fleet with hundreds of
+  findings costs a page render nothing extra. The panel is anchored under the bell from `sm`
+  up and wider again on `lg`; on phones it spans the viewport with small gutters.
+- **Notifications page.** `/notifications` (the bell icon in its header) lists every visible
+  notification, active and dismissed: status (Active / Dismissed / All), severity and source
+  filters with live counts, search, a chevron accordion for the full detail with backend, zone,
+  first and last seen, per-row **Dismiss**, and **Dismiss N shown** with a confirmation. It
+  refreshes in place on `health.updated` and after a realtime reconnect. API:
+  `GET /api/admin/notifications?status=active|all` and
+  `POST /api/admin/notifications/dismiss { ids }` (CSRF, at most 500 ids, each re-checked and
+  audited as `backend_advisory.acknowledge`); MCP: `list_notifications`,
+  `dismiss_notifications`.
 - **Sidebar badges.** Two entries nest under **Zones** for users holding the permission
   globally: **Reverse DNS** (global `record.read`; amber badge with the number of addresses
   needing attention: missing, mismatch, ambiguous, orphan) and **Zone Monitoring** (global

@@ -381,7 +381,9 @@ function advisoriesFor(results: readonly ZoneMonitorResult[]): EvaluatedAdvisory
       byCode.set(code, {
         code,
         severity: f.severity,
-        title: `${r.zone} ${f.title}`,
+        // A split-horizon zone has two results under one name; say which copy.
+        title:
+          r.horizon === "internal" ? `${r.zone} (internal) ${f.title}` : `${r.zone} ${f.title}`,
         detail: f.detail,
       });
     }

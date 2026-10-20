@@ -7,7 +7,7 @@
  */
 
 import "server-only";
-import { asc, inArray } from "drizzle-orm";
+import { asc, desc, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { pdnsRequests, type PdnsRequestRow } from "@/lib/db/schema";
 
@@ -34,4 +34,43 @@ export async function findPdnsRequestsByRequestIds(
     grouped.set(row.requestId, list);
   }
   return grouped;
+}
+
+/** A request-log row without its headers or body. */
+export interface PdnsRequestSummaryRow {
+  id: string;
+  ts: Date;
+  serverSlug: string | null;
+  op: string;
+  method: string;
+  url: string;
+  responseStatus: number | null;
+  requestId: string | null;
+}
+
+const MAX_SUMMARY_ROWS = 500;
+
+/**
+ * The newest `limit` PowerDNS requests as summaries, for in-memory matching by
+ * the global search. Headers and bodies are not selected: even redacted, they
+ * carry zone contents and TSIG material the search must never surface.
+ */
+export async function listRecentPdnsRequestSummaries(
+  limit = MAX_SUMMARY_ROWS,
+): Promise<PdnsRequestSummaryRow[]> {
+  const rows = await db
+    .select({
+      id: pdnsRequests.id,
+      ts: pdnsRequests.ts,
+      serverSlug: pdnsRequests.serverSlug,
+      op: pdnsRequests.op,
+      method: pdnsRequests.method,
+      url: pdnsRequests.url,
+      responseStatus: pdnsRequests.responseStatus,
+      requestId: pdnsRequests.requestId,
+    })
+    .from(pdnsRequests)
+    .orderBy(desc(pdnsRequests.ts))
+    .limit(Math.min(Math.max(limit, 1), MAX_SUMMARY_ROWS));
+  return rows.map((r) => ({ ...r, id: String(r.id) }));
 }

@@ -11,3 +11,8 @@ Reverse DNS and zone monitoring pieces: `ptr-links.tsx` / `ptr-links-format.ts`
 (the A/AAAA ↔ PTR chips in record tables, fed by the links API),
 `zone-monitor-findings.tsx` / `zone-monitor-format.ts` (verdict chips, finding
 lists and the result summary used by the Zone Monitoring page).
+
+Global search: `global-search.tsx` is the header palette (trigger from
+`components/ui/search-trigger.tsx`, results from `GET /api/search`, wire types
+from `lib/search/types.ts`). Tab visibility and quick links arrive as props
+from the `(app)` layout.

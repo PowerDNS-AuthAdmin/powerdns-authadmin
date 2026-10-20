@@ -950,6 +950,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
         noDataMessage="No records on this zone yet."
         initialSort={[{ id: "name", desc: false }]}
         stateKey="records"
+        filterParam="q"
         layout="fixed"
         getRowProps={showActions ? rowProps : undefined}
         renderRowDetail={(row) =>

@@ -98,6 +98,7 @@ const PAGES = [
   { name: "reverse-dns", path: "/zones/auto-ptr" },
   { name: "zone-monitoring", path: "/zones/monitoring" },
   { name: "add-record", path: "/zones/new-record" },
+  { name: "notifications", path: "/notifications" },
   { name: "zone-detail", path: ZONE_PATH },
   {
     name: "zone-change-history",

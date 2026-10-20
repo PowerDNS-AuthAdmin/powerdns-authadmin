@@ -73,7 +73,7 @@ import type { PdnsZoneDetail } from "@/lib/pdns/types";
 
 interface PageProps {
   params: Promise<{ zoneId: string }>;
-  searchParams: Promise<{ server?: string; cluster?: string; tab?: string }>;
+  searchParams: Promise<{ server?: string; cluster?: string; tab?: string; q?: string }>;
 }
 
 type ZoneTab =
@@ -106,6 +106,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
     server: requestedSlug,
     cluster: requestedClusterSlug,
     tab: requestedTab,
+    q: requestedFilter,
   } = await searchParams;
 
   // Two entry points land in cluster mode:
@@ -178,8 +179,9 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
         // the cluster is. Redirect so refreshes, bookmarks, and
         // sharing all reflect the cluster as the addressable thing.
         const tabSegment = requestedTab ? `&tab=${encodeURIComponent(requestedTab)}` : "";
+        const filterSegment = requestedFilter ? `&q=${encodeURIComponent(requestedFilter)}` : "";
         redirect(
-          `/zones/${encodeURIComponent(zoneId)}?cluster=${encodeURIComponent(cluster.slug)}${tabSegment}`,
+          `/zones/${encodeURIComponent(zoneId)}?cluster=${encodeURIComponent(cluster.slug)}${tabSegment}${filterSegment}`,
         );
       }
     }

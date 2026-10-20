@@ -21,7 +21,10 @@ import { listRoleMfaStatesForUser } from "@/lib/db/repositories/roles";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UserMenu } from "@/components/ui/user-menu";
 import { HealthBell } from "@/components/domain/health-bell";
-import { listActiveAdvisories } from "@/lib/db/repositories/backend-advisories";
+import { GlobalSearch } from "@/components/domain/global-search";
+import { buildSearchQuickLinks, searchTabsFor } from "@/lib/search/quick-links";
+import { loadNotificationsFor } from "@/lib/health/load-notifications";
+import { bellPreview, summarizeNotifications } from "@/lib/health/notifications";
 import { BrandMark } from "@/components/ui/brandmark";
 import { AppShell } from "@/components/ui/app-shell";
 import { DialogProvider } from "@/components/ui/dialog";
@@ -40,7 +43,6 @@ import {
   reverseDnsBadge,
   zoneMonitorBadge,
 } from "@/lib/monitoring/zone-monitor";
-import { MONITOR_CODE_PREFIXES } from "@/lib/health/evaluator";
 
 /**
  * Paths a non-compliant user (forced-MFA-not-enrolled, or flagged
@@ -122,25 +124,13 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // Zone monitoring runs in the background from the first authenticated render.
   ensureZoneMonitorRunning();
 
-  // Health-bell advisories (ADR-0015): backend health for users who can read
-  // backends, zone-monitoring advisories (`monitor.` codes) for users who can
-  // read zones. Everything else is filtered out before it reaches the client.
-  const isMonitorAdvisory = (code: string): boolean =>
-    MONITOR_CODE_PREFIXES.some((p) => code.startsWith(p));
-  const advisories =
-    canReadServers || canReadZones
-      ? (await listActiveAdvisories())
-          .filter((a) => (isMonitorAdvisory(a.code) ? canReadZones : canReadServers))
-          .map((a) => ({
-            id: a.id,
-            backendId: a.backendId,
-            backendName: a.backendName,
-            severity: a.severity,
-            title: a.title,
-            detail: a.detail,
-            acknowledged: a.acknowledgedAt !== null,
-          }))
-      : [];
+  // Notifications (ADR-0015): backend health and zone monitoring, filtered per
+  // row to what this user may see (a zone finding needs zone.read on its zone).
+  // Only the preview and the counts reach the client; the full list lives on
+  // /notifications.
+  const notifications = canReadServers || canReadZones ? await loadNotificationsFor(current) : [];
+  const bellSummary = summarizeNotifications(notifications);
+  const bellItems = bellPreview(notifications);
 
   // Sidebar is grouped by function (Infrastructure / Access / System) rather
   // than one flat "Admin" pile. Each group renders only when the user can see
@@ -268,7 +258,13 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   const headerControls = (
     <>
-      {canReadServers || canReadZones ? <HealthBell advisories={advisories} /> : null}
+      <GlobalSearch
+        visibility={searchTabsFor(current)}
+        quickLinks={buildSearchQuickLinks(current)}
+      />
+      {canReadServers || canReadZones ? (
+        <HealthBell preview={bellItems} summary={bellSummary} />
+      ) : null}
       <ThemeToggle />
       <UserMenu email={current.user.email} name={current.user.name} />
     </>

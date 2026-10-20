@@ -165,3 +165,19 @@ export async function listAllUsers(limit = 100, offset = 0): Promise<User[]> {
 export async function deleteUserById(id: string, executor: DbExecutor = db): Promise<void> {
   await executor.delete(users).where(eq(users.id, id));
 }
+
+/**
+ * The directory columns of every user (id, name, email), newest first. A
+ * projection rather than `listAllUsers` so callers that only need to show or
+ * search people - the global search - never hold password hashes or MFA
+ * secrets in memory.
+ */
+export async function listUserDirectory(
+  limit = 1000,
+): Promise<Array<{ id: string; name: string | null; email: string }>> {
+  return db
+    .select({ id: users.id, name: users.name, email: users.email })
+    .from(users)
+    .orderBy(sql`${users.createdAt} DESC`)
+    .limit(limit);
+}
