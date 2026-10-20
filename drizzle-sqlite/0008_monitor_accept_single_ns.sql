@@ -1,0 +1,1 @@
+ALTER TABLE `pdns_servers` ADD `monitor_accept_single_ns` integer DEFAULT false NOT NULL;

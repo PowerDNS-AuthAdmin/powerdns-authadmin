@@ -89,6 +89,10 @@ export const createPdnsServerSchema = z.object({
   // hatch for nodes whose database user is read-only, which PowerDNS itself
   // has no way to advertise.
   writeMode: writeModeSchema.default("auto"),
+  // Zone monitoring: accept a single nameserver on this backend's zones (the
+  // finding stays visible as information, out of the bell). Ignored, and
+  // stored as false, for a backend in a group.
+  monitorAcceptSingleNameserver: z.boolean().default(false),
   // Optional group (ADR-0014): the multi-primary cluster a peer belongs to, or
   // the group a secondary shares with its primary. null = stands alone. A
   // backend's primary/secondary nature is observed from /config, not declared.
@@ -120,6 +124,8 @@ export const updatePdnsServerSchema = z.object({
   disabled: z.boolean().optional(),
   // See createPdnsServerSchema. Omit to leave unchanged.
   writeMode: writeModeSchema.optional(),
+  // See createPdnsServerSchema. Omit to leave unchanged.
+  monitorAcceptSingleNameserver: z.boolean().optional(),
   // Group membership (ADR-0014). Send null to leave the group, a uuid to join
   // one, omit to leave unchanged.
   clusterId: z.string().uuid().optional().nullable(),

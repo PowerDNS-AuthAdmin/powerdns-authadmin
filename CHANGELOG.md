@@ -13,8 +13,9 @@ record can keep its PTR in step, with a fleet-wide **Reverse DNS** report to rec
 already there. Alongside it: **Zone Monitoring** (delegation, nameservers, DNSSEC chain and open
 AXFR checked from the outside), an **Add record** wizard that waits for propagation, a **global
 search** palette, a **Notifications** page, and a realtime stream that recovers on its own after
-a tab sleeps. Every new page has an MCP tool. **No schema change, no migration.** New optional
-environment variables only. Search, Notifications, Add record and the editor's per-save "Sync
+a tab sleeps. Every new page has an MCP tool. **One small additive migration** (a boolean column on
+`pdns_servers`, off by default), applied automatically at boot. New optional environment
+variables only. Search, Notifications, Add record and the editor's per-save "Sync
 PTR" checkbox are there from the start (no PTR is written unless it is ticked); the opt-in
 features below stay off until you turn them on (see the
 [upgrade notes](./docs/09-UPGRADING.md#upgrading-to-1100-from-191)).
@@ -116,6 +117,12 @@ setting and does not need either variable.
   searched only from their own tabs, which sit apart after a "Logs" divider and are never
   remembered as the opening tab, so the everyday search does not scan the logs. The MCP
   `search` tool follows the same rule (`scope: requests` / `scope: audit`).
+- **Accept single-nameserver zones per backend.** A standalone backend's settings have **Don't
+  warn about single-nameserver zones on this backend**; zone monitoring then reports
+  `nameserver.count` as accepted information, kept on the page and out of the notification bell.
+  Hidden, and ignored, for a backend in a group, where the group provides the redundancy. Also
+  `monitor_accept_single_ns` in provisioning (optional, so a boot does not override the UI).
+  Adds the `pdns_servers.monitor_accept_single_ns` column.
 - **The app takes the project website's look.** The colour palette (light and dark), the Inter
   and JetBrains Mono typefaces (self-hosted, no font CDN; the CSP is unchanged), softer corner
   radii, a translucent top bar and matching chart colours. The search pill sits centred in the

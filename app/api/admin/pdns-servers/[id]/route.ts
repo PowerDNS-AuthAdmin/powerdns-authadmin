@@ -82,6 +82,9 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     }
     if (input.writeMode !== undefined) patch.writeMode = input.writeMode;
     if (input.isDefault !== undefined) patch.isDefault = input.isDefault;
+    if (input.monitorAcceptSingleNameserver !== undefined) {
+      patch.monitorAcceptSingleNameserver = input.monitorAcceptSingleNameserver;
+    }
     // The default backend is the implicit write target, so it can't be one the
     // operator has marked read-only (#111). Checked against the merged state so
     // "set default" and "set read_only" in the same request is caught too.
@@ -105,6 +108,12 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
         });
       }
       patch.clusterId = input.clusterId;
+    }
+    // Redundancy comes from the group for a grouped backend, so the
+    // single-nameserver acceptance only lives on standalone backends.
+    const effectiveClusterId = "clusterId" in patch ? patch.clusterId : existing.clusterId;
+    if (effectiveClusterId !== null && effectiveClusterId !== undefined) {
+      patch.monitorAcceptSingleNameserver = false;
     }
     if (input.advertisedAddresses !== undefined) {
       patch.advertisedAddresses =
@@ -204,6 +213,7 @@ function snapshotForAudit(row: {
   isDefault: boolean;
   writeMode: PdnsWriteMode;
   disabledAt: Date | null;
+  monitorAcceptSingleNameserver: boolean;
 }) {
   return {
     id: row.id,
@@ -215,5 +225,6 @@ function snapshotForAudit(row: {
     isDefault: row.isDefault,
     writeMode: row.writeMode,
     disabledAt: row.disabledAt?.toISOString() ?? null,
+    monitorAcceptSingleNameserver: row.monitorAcceptSingleNameserver,
   };
 }

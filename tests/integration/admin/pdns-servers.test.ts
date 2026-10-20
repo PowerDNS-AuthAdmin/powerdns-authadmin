@@ -22,6 +22,7 @@ interface PdnsServerRow {
   isDefault: boolean;
   disabledAt: string | null;
   clusterId: string | null;
+  monitorAcceptSingleNameserver: boolean;
   versionCache?: unknown;
   capabilities?: {
     api: boolean;
@@ -138,6 +139,52 @@ describe("/api/admin/pdns-servers", () => {
     expect(patched.name).toBe("Renamed");
     expect(patched.description).toBe("edited description");
     await admin.sendJson("DELETE", `/api/admin/pdns-servers/${server.id}`);
+  });
+
+  it("keeps the single-nameserver acceptance only on a standalone backend", async () => {
+    const admin = await loginAsBootstrap();
+    const { server } = await admin.sendJson<{ server: PdnsServerRow }>(
+      "POST",
+      "/api/admin/pdns-servers",
+      {
+        slug: uniqueSlug("single-ns"),
+        name: "Single nameserver",
+        baseUrl: "http://192.0.2.7:9999/api/v1",
+        apiKey: "k",
+        monitorAcceptSingleNameserver: true,
+      },
+    );
+    try {
+      expect(server.monitorAcceptSingleNameserver).toBe(true);
+      const { server: off } = await admin.sendJson<{ server: PdnsServerRow }>(
+        "PATCH",
+        `/api/admin/pdns-servers/${server.id}`,
+        { monitorAcceptSingleNameserver: false },
+      );
+      expect(off.monitorAcceptSingleNameserver).toBe(false);
+
+      // Joining a group drops it: the group provides the redundancy.
+      const { servers } = await admin.getJson<{ servers: PdnsServerRow[] }>(
+        "/api/admin/pdns-servers",
+      );
+      const group = servers.find((s) => s.slug === "peer-1")!.clusterId!;
+      const { server: grouped } = await admin.sendJson<{ server: PdnsServerRow }>(
+        "PATCH",
+        `/api/admin/pdns-servers/${server.id}`,
+        { clusterId: group, monitorAcceptSingleNameserver: true },
+      );
+      expect(grouped.monitorAcceptSingleNameserver).toBe(false);
+
+      // Leaving the group lets it be accepted again.
+      const { server: alone } = await admin.sendJson<{ server: PdnsServerRow }>(
+        "PATCH",
+        `/api/admin/pdns-servers/${server.id}`,
+        { clusterId: null, monitorAcceptSingleNameserver: true },
+      );
+      expect(alone.monitorAcceptSingleNameserver).toBe(true);
+    } finally {
+      await admin.sendJson("DELETE", `/api/admin/pdns-servers/${server.id}`);
+    }
   });
 
   it("DELETE removes a server (round-trip create + delete)", async () => {

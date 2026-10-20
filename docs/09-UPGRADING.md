@@ -41,8 +41,11 @@ half-migrated schema; fix the cause and restart.
 
 ### Upgrading to 1.10.0 (from 1.9.1)
 
-No migration, no schema change - pull the new tag and recreate the container.
-Search, Notifications, the Add record wizard and the record editor's per-save
+Pull the new tag and recreate the container. One small migration runs
+automatically at boot: it adds the `monitor_accept_single_ns` column (boolean,
+default off) to `pdns_servers`, for the new "Don't warn about single-nameserver
+zones on this backend" setting. Nothing to do by hand, and an older image keeps
+working against the migrated database if you roll back. Search, Notifications, the Add record wizard and the record editor's per-save
 "Sync PTR" checkbox are available straight away (no PTR is written unless the
 box is ticked). Everything below is off by default until you opt in.
 

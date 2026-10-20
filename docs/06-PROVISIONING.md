@@ -92,6 +92,11 @@ Every block is optional - drop what you don't need.
   writes even though its `/config` looks writable - the database-replicated
   public nameserver case. It's excluded from peer selection and from every
   backend picker, and can't be `is_default`. Defaults to `auto`.
+- `pdns_servers`: `monitor_accept_single_ns: true` accepts single-nameserver
+  zones on a standalone backend, so zone monitoring reports them as accepted
+  information instead of a warning in the bell. Ignored (stored as off) for a
+  backend with a `cluster_slug`. Omit it to leave the choice to the UI: a boot
+  only changes it when the key is present.
 - `clusters`: whether a group renders as a **multi-primary cluster** or as
   **primary + secondaries** is derived from what its members report - every
   member writable means cluster; one writable plus mirrors means primary +

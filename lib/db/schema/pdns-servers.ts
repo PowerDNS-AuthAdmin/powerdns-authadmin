@@ -131,6 +131,14 @@ export const pdnsServers = pgTable(
     isDefault: boolean("is_default").notNull().default(false),
 
     /**
+     * Zone monitoring: the operator accepts that zones on this backend have a
+     * single nameserver, so "Only one nameserver" is reported as accepted
+     * information rather than a warning in the bell. Only meaningful for a
+     * backend outside any group; the monitor ignores it on grouped backends.
+     */
+    monitorAcceptSingleNameserver: boolean("monitor_accept_single_ns").notNull().default(false),
+
+    /**
      * Group membership (ADR-0014). A group is any set of related backends -
      * the writable peers of a multi-primary cluster, OR a primary together
      * with its secondaries. NULL means the backend stands alone. A primary's

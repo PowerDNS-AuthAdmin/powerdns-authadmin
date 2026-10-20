@@ -397,4 +397,19 @@ describe("evaluateZone", () => {
     expect(placeholder?.detail).toContain("placeholder PowerDNS writes");
     expect(placeholder?.detail).toContain("default-soa-content");
   });
+
+  it("reports an accepted single nameserver as information on a public zone", () => {
+    const base = healthy();
+    const single = {
+      pdns: { ...base.pdns, nsNames: ["ns1.example.com."] },
+      delegation: delegated({ nameservers: ["ns1.example.com."] }),
+      nameservers: [base.nameservers[0]!],
+    };
+    expect(codes(healthy(single))).toContain("warn:nameserver.count");
+    const accepted = evaluateZone(healthy({ ...single, acceptSingleNameserver: true })).find(
+      (f) => f.code === "nameserver.count",
+    );
+    expect(accepted).toMatchObject({ severity: "info", title: "Only one nameserver (accepted)" });
+    expect(accepted?.detail).toContain("server settings");
+  });
 });

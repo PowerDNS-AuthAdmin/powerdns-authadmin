@@ -28,6 +28,10 @@ export const pdnsServers = sqliteTable(
     writeMode: text("write_mode").notNull().default("auto").$type<PdnsWriteMode>(),
 
     isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+    // See the Postgres schema: accepted single-nameserver zones (standalone backends only).
+    monitorAcceptSingleNameserver: integer("monitor_accept_single_ns", { mode: "boolean" })
+      .notNull()
+      .default(false),
     clusterId: text("cluster_id").references(() => pdnsClusters.id, { onDelete: "set null" }),
     disabledAt: integer("disabled_at", { mode: "timestamp_ms" }),
     createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),

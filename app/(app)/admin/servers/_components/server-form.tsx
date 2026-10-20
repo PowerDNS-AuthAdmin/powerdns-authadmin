@@ -30,6 +30,7 @@ interface ServerFormInitial {
   disabled: boolean;
   clusterId: string | null;
   advertisedAddresses: string[] | null;
+  monitorAcceptSingleNameserver: boolean;
 }
 
 interface GroupOption {
@@ -74,6 +75,7 @@ const DEFAULTS: ServerFormInitial = {
   disabled: false,
   clusterId: null,
   advertisedAddresses: null,
+  monitorAcceptSingleNameserver: false,
 };
 
 export function ServerForm(props: ServerFormProps) {
@@ -88,6 +90,7 @@ export function ServerForm(props: ServerFormProps) {
   const [apiKey, setApiKey] = useState("");
   const [isDefault, setIsDefault] = useState(initial.isDefault);
   const [readOnly, setReadOnly] = useState(initial.writeMode === "read_only");
+  const [acceptSingleNs, setAcceptSingleNs] = useState(initial.monitorAcceptSingleNameserver);
   const [disabled, setDisabled] = useState(props.mode === "edit" ? initial.disabled : false);
   const [clusterId, setClusterId] = useState<string | null>(
     props.mode === "edit" ? initial.clusterId : (props.forGroup ?? null),
@@ -130,6 +133,7 @@ export function ServerForm(props: ServerFormProps) {
       disabled?: boolean;
       clusterId: string | null;
       advertisedAddresses: string[] | null;
+      monitorAcceptSingleNameserver: boolean;
     } = {
       slug,
       name,
@@ -138,6 +142,9 @@ export function ServerForm(props: ServerFormProps) {
       isDefault,
       writeMode: readOnly ? "read_only" : "auto",
       clusterId,
+      // A grouped backend gets its redundancy from the group; the acceptance
+      // only applies to standalone ones (the server enforces the same).
+      monitorAcceptSingleNameserver: clusterId === null && acceptSingleNs,
       // Empty → null (the server derives from the API host). Non-empty → the
       // explicit override list.
       advertisedAddresses: cleaned.length > 0 ? cleaned : null,
@@ -356,6 +363,27 @@ export function ServerForm(props: ServerFormProps) {
           </p>
         ))}
       </div>
+
+      {clusterId === null ? (
+        <div className="space-y-1">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={acceptSingleNs}
+              onChange={(e) => setAcceptSingleNs(e.target.checked)}
+            />
+            Don&apos;t warn about single-nameserver zones on this backend
+          </label>
+          <p className="pl-6 text-xs text-[color:var(--color-fg-muted)]">
+            Zone monitoring flags a zone served by only one nameserver, because there is no fallback
+            during maintenance or an outage. Tick this when that is a deliberate choice for this
+            backend: the finding stays on the Zone Monitoring page, marked accepted, and no longer
+            reaches the notification bell. Not shown for a backend in a group, where the group
+            provides the redundancy.
+          </p>
+        </div>
+      ) : null}
 
       {props.mode === "edit" ? (
         <label className="flex items-center gap-2 text-sm">

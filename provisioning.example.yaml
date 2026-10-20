@@ -371,6 +371,10 @@ clusters:
 #                      a node fed by database replication whose DB user has no
 #                      write access - PowerDNS reports such a daemon as a plain
 #                      standalone primary, so nothing else can detect it.
+#   • monitor_accept_single_ns → optional; true accepts single-nameserver zones
+#                      on a standalone backend (zone monitoring then reports
+#                      them as accepted information, not a warning). Ignored
+#                      with a cluster_slug. Omit to leave the UI's choice alone.
 #
 # `api_key` is the PDNS X-API-Key in plaintext; encrypted with
 # APP_ENCRYPTION_KEY before persisting. `base_url` must point at the PDNS

@@ -35,14 +35,15 @@ Two ways, both equivalent - they write the same `pdns_servers` row:
 - **Admin UI** → **Admin → PowerDNS servers → Add server**.
 - **Provisioning** → the `pdns_servers:` block (see [Provisioning](./06-PROVISIONING.md)).
 
-| Field               | Notes                                                                                                                                         |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Name** / **slug** | Display name and URL-safe identifier.                                                                                                         |
-| **Base URL**        | The API root, ending in `/api/v1`. `https://` required in production unless `APP_PDNS_ALLOW_INSECURE_HTTP=true`.                              |
-| **Server ID**       | The PDNS server-id path segment - almost always `localhost`.                                                                                  |
-| **API key**         | The `X-API-Key`. Encrypted at rest with `APP_ENCRYPTION_KEY`; never sent back to the browser.                                                 |
-| **Cluster**         | The group this backend belongs to - a multi-primary cluster, or a primary with its secondaries (`cluster_slug`).                              |
-| **Read-only**       | **Never write to this backend** (`write_mode: read_only`) - see [hidden primary](#hidden-primary--read-only-public-nameservers-native-zones). |
+| Field                 | Notes                                                                                                                                                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Name** / **slug**   | Display name and URL-safe identifier.                                                                                                                                                                                                            |
+| **Base URL**          | The API root, ending in `/api/v1`. `https://` required in production unless `APP_PDNS_ALLOW_INSECURE_HTTP=true`.                                                                                                                                 |
+| **Server ID**         | The PDNS server-id path segment - almost always `localhost`.                                                                                                                                                                                     |
+| **API key**           | The `X-API-Key`. Encrypted at rest with `APP_ENCRYPTION_KEY`; never sent back to the browser.                                                                                                                                                    |
+| **Cluster**           | The group this backend belongs to - a multi-primary cluster, or a primary with its secondaries (`cluster_slug`).                                                                                                                                 |
+| **Read-only**         | **Never write to this backend** (`write_mode: read_only`) - see [hidden primary](#hidden-primary--read-only-public-nameservers-native-zones).                                                                                                    |
+| **Single nameserver** | **Don't warn about single-nameserver zones on this backend** (`monitor_accept_single_ns`). Shown only for a backend outside any group. Zone monitoring then reports `nameserver.count` as accepted information instead of a warning in the bell. |
 
 There is no role field. Whether a backend is a primary or a secondary is
 **observed** from its `/config` (`primary`, `secondary`, `autosecondary` - see

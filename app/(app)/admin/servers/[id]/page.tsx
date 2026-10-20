@@ -146,6 +146,7 @@ export default async function EditPdnsServerPage({ params }: PageProps) {
           disabled: row.disabledAt !== null,
           clusterId: row.clusterId,
           advertisedAddresses: row.advertisedAddresses,
+          monitorAcceptSingleNameserver: row.monitorAcceptSingleNameserver,
         }}
       />
 

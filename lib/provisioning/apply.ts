@@ -309,6 +309,7 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
           isDefault: s.is_default,
           writeMode: s.write_mode,
           clusterId,
+          monitorAcceptSingleNameserver: clusterId === null && s.monitor_accept_single_ns === true,
         })
         .onConflictDoUpdate({
           target: pdnsServers.slug,
@@ -321,6 +322,12 @@ export async function applyProvisioning(config: ProvisioningConfig): Promise<Pro
             isDefault: s.is_default,
             writeMode: s.write_mode,
             clusterId,
+            // Only when the YAML says so (see the schema); a grouped backend never keeps it.
+            ...(clusterId !== null
+              ? { monitorAcceptSingleNameserver: false }
+              : s.monitor_accept_single_ns !== undefined
+                ? { monitorAcceptSingleNameserver: s.monitor_accept_single_ns }
+                : {}),
             updatedAt: new Date(),
           },
         })

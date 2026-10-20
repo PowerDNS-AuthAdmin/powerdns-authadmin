@@ -57,6 +57,13 @@
       "when": 1787788309672,
       "tag": "0007_granular_zone_permissions_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792524553742,
+      "tag": "0008_monitor_accept_single_ns",
+      "breakpoints": true
     }
   ]
 }

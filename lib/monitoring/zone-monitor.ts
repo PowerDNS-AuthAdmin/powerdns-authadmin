@@ -246,6 +246,8 @@ interface ProbeContext {
   roots: string[];
   rootsReachable: boolean;
   reverse: Map<string, { addresses: number; missing: number; mismatch: number }>;
+  /** Slugs of standalone backends whose operator accepts single-nameserver zones. */
+  acceptSingleNameserver: ReadonlySet<string>;
 }
 
 async function probeZone(z: ScannedZone, ctx: ProbeContext): Promise<ZoneMonitorResult> {
@@ -298,6 +300,7 @@ async function probeZone(z: ScannedZone, ctx: ProbeContext): Promise<ZoneMonitor
     zone: z.name,
     horizon: z.horizon,
     pdns: { serial: z.serial, soa: z.soa, nsNames: z.nsNames, dnskeys, glue: z.glue },
+    acceptSingleNameserver: ctx.acceptSingleNameserver.has(z.server),
     delegation,
     nameservers,
     resolvers,
@@ -443,7 +446,18 @@ async function runCycle(opts: {
     ? await rootsReachable(roots)
     : true;
   state.offline = !reachable;
-  const ctx: ProbeContext = { roots, rootsReachable: reachable, reverse: reverseTallies(scan) };
+  const ctx: ProbeContext = {
+    roots,
+    rootsReachable: reachable,
+    reverse: reverseTallies(scan),
+    // A grouped backend's redundancy is the group's business: the acceptance
+    // only counts on a standalone backend, whatever the column says.
+    acceptSingleNameserver: new Set(
+      scan.servers
+        .filter((s) => s.monitorAcceptSingleNameserver && s.clusterId === null)
+        .map((s) => s.slug),
+    ),
+  };
   const seen = new Set<string>();
   const dedup = new Map<string, ScannedZone>();
   for (const z of scan.zones)

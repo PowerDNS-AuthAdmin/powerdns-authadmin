@@ -108,6 +108,10 @@ export async function POST(request: Request): Promise<Response> {
           isDefault: input.isDefault,
           writeMode: input.writeMode,
           clusterId: input.clusterId ?? null,
+          // Only standalone backends can accept a single nameserver (see the schema).
+          monitorAcceptSingleNameserver: input.clusterId
+            ? false
+            : input.monitorAcceptSingleNameserver,
           advertisedAddresses:
             input.advertisedAddresses && input.advertisedAddresses.length > 0
               ? input.advertisedAddresses

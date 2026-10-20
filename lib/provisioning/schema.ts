@@ -149,6 +149,11 @@ const pdnsServerEntry = z
      *  - for nodes fed by database replication whose DB user can't write, a
      *  state PowerDNS has no way to advertise over its API. */
     write_mode: z.enum(["auto", "read_only"]).default("auto"),
+    /** Zone monitoring: accept single-nameserver zones on this backend (the
+     *  finding stays as information, out of the bell). Standalone backends
+     *  only. Optional on purpose: when omitted, a boot leaves whatever an
+     *  operator chose in the UI alone. */
+    monitor_accept_single_ns: z.boolean().optional(),
     /** Group membership (ADR-0014). References a cluster slug from the
      *  `clusters:` section above. A backend's primary/secondary nature is
      *  OBSERVED from its `/config`, not declared here: group the writable

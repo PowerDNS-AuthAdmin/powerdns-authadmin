@@ -66,6 +66,8 @@ export interface ResolverObservation {
 export interface ZoneProbeData {
   zone: string;
   horizon: ZoneHorizon;
+  /** The backend's operator accepts a single nameserver (server settings). */
+  acceptSingleNameserver?: boolean;
   pdns: {
     serial: number | null;
     soa: SoaRdata | null;
@@ -210,9 +212,14 @@ export function evaluateZone(data: ZoneProbeData): ZoneFinding[] {
       code: "nameserver.count",
       // RFC 2182 is about resolvability on the internet; a single internal
       // nameserver is a common, deliberate design, so it informs, not alerts.
-      severity: data.horizon === "internal" ? "info" : "warn",
-      title: "Only one nameserver",
-      detail: `Only ${apexNs[0]} serves the zone; a second, independent nameserver keeps the zone resolvable through maintenance and outages (RFC 2182).`,
+      // An operator can also accept it per backend (server settings).
+      severity: data.horizon === "internal" || data.acceptSingleNameserver ? "info" : "warn",
+      title: data.acceptSingleNameserver ? "Only one nameserver (accepted)" : "Only one nameserver",
+      detail: `Only ${apexNs[0]} serves the zone; a second, independent nameserver keeps the zone resolvable through maintenance and outages (RFC 2182).${
+        data.acceptSingleNameserver
+          ? " Accepted for this backend in its server settings, so it does not reach the notification bell."
+          : ""
+      }`,
     });
   }
   const serials = new Map<string, number | null>();
