@@ -16,3 +16,5 @@ Global search: `global-search.tsx` is the header palette (trigger from
 `components/ui/search-trigger.tsx`, results from `GET /api/search`, wire types
 from `lib/search/types.ts`). Tab visibility and quick links arrive as props
 from the `(app)` layout.
+
+- `ptr-row-groups.ts` - folds Reverse DNS rows that report the same finding (orphan, mismatch, unhosted with identical targets, forward names and scope) into one row, sorts addresses numerically, and caps long cell lists at three entries. Pure, unit-tested.

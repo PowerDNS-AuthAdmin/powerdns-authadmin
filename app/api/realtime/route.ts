@@ -56,9 +56,6 @@ export async function GET(request: Request): Promise<Response> {
     // MAX_CONNS_PER_USER). That's a small concession for honest UX -
     // far better than a "OFFLINE" badge on every page for them.
     const canReadAudit = globalPermissions.has("audit.read");
-    // The health bell's audience (ADR-0015) - gates the payload-free
-    // `health.updated` nudge so it isn't sent to users with no bell mounted.
-    const canReadServers = globalPermissions.has("server.read");
 
     // Per-user connection cap.
     const active = conns.get(user.id) ?? 0;
@@ -144,10 +141,9 @@ export async function GET(request: Request): Promise<Response> {
             ) {
               return;
             }
-            // Health-bell nudge only matters to users who can read backends.
-            if (event.type === "health.updated" && !canReadServers) {
-              return;
-            }
+            // `health.updated` and `search.index.updated` carry no data: every
+            // user may get them (the bell now also serves zone-grant users,
+            // who hold neither global zone nor server read).
             try {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
             } catch {

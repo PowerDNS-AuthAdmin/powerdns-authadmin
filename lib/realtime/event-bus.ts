@@ -65,6 +65,13 @@ export type RealtimeEvent =
       at: string;
     }
   | {
+      // The search index was rebuilt and swapped in: an open search palette
+      // re-runs its query. Carries only the new version number.
+      type: "search.index.updated";
+      version: number;
+      at: string;
+    }
+  | {
       // Zone monitoring or the reverse-DNS / external-PTR state moved: a nudge
       // for the Zones pages to re-read their reports. `source` says which.
       type: "monitor.updated";
@@ -207,4 +214,8 @@ export function publishHealthEvent(): void {
 
 export function publishMonitorEvent(source: "zone-monitor" | "external-ptr" | "fleet-scan"): void {
   emit({ type: "monitor.updated", source, at: new Date().toISOString() });
+}
+
+export function publishSearchIndexEvent(version: number): void {
+  emit({ type: "search.index.updated", version, at: new Date().toISOString() });
 }

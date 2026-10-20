@@ -42,16 +42,22 @@ describe("global search API", () => {
       kind: "Master",
       nameservers: NS,
     });
-    // The fleet scan is cached briefly; a fresh report read makes the new zone visible.
-    await admin.call("/api/admin/pdns/auto-ptr/report?refresh=1", { method: "GET" });
-
+    // Searches answer from a prebuilt index that is rebuilt and hot-swapped a
+    // moment after a change (lib/search/search-index.ts), so poll for the swap.
     const label = zone.replace(/\.example\.com\.$/, "");
-    const res = await admin.call(`/api/search?q=${encodeURIComponent(label)}&scope=zones`, {
-      method: "GET",
-    });
-    expect(res.status).toBe(200);
-    expect(res.headers.get("cache-control")).toContain("no-store");
-    const body = (await res.json()) as SearchBody;
+    let res: Response | null = null;
+    let body: SearchBody | null = null;
+    for (let attempt = 0; attempt < 40; attempt++) {
+      res = await admin.call(`/api/search?q=${encodeURIComponent(label)}&scope=zones`, {
+        method: "GET",
+      });
+      expect(res.status).toBe(200);
+      body = (await res.json()) as SearchBody;
+      if (body.groups.some((g) => g.items.some((i) => i.title === zone.slice(0, -1)))) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    expect(res!.headers.get("cache-control")).toContain("no-store");
+    body = body!;
     expect(body.scope).toBe("zones");
     expect(body.groups.map((g) => g.key)).toEqual(["zones"]);
     const hit = body.groups[0]!.items.find((i) => i.title === zone.slice(0, -1));

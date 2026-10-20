@@ -695,7 +695,13 @@ the audit trail behave identically whichever door the user came through.
   carries the number of rows needing attention (missing, mismatch, ambiguous, orphan), counted
   by the zone monitor's last cycle (§ 20.5). An **orphan** row offers **Add** next to its empty
   forward column: it opens the Add record wizard (§ 4.9) with the PTR's target name, the
-  address and the record type prefilled, so the missing A/AAAA is two clicks away.
+  address and the record type prefilled, so the missing A/AAAA is two clicks away. Rows that
+  report the same finding (orphans pointing at one host, the same mismatch, unhosted addresses
+  with the same forward names and upstream answer) fold into one row, "10.42.1.1 + 27
+  others", with **Show all** opening a wide, scrollable list where each address keeps its own
+  checkbox and action and the group has one bulk action; **Group similar rows** turns it off.
+  Long cells stop at three entries with "+ N more" opening the full list, and every forward
+  record links to its zone with the table filtered to that name.
 - **Horizons.** Matching is scoped to the horizon (§ 4.1.1): a public forward record is only
   matched against public reverse zones, an internal one only against internal reverse zones, so
   a split-horizon install keeps its two reverse trees apart and the same address can carry a
@@ -1375,6 +1381,18 @@ errors are gated behind an explicit "Save anyway" checkbox so an override is nev
   Cmd/Ctrl click opens a new tab, Esc closes and returns focus to the trigger. A record hit
   opens its zone with the record table already filtered (`?q=`); a request or audit hit opens
   the log with its filters set.
+- **Speed: a prebuilt, hot-swapped index.** Reading zones, records, settings, people and the
+  logs happens in the background, never on a keystroke (`lib/search/search-index.ts`). A query
+  is permission filtering and fuzzy scoring over a snapshot already in memory. Zone, audit and
+  request-log events mark the index stale; a 0.75 s debounce folds a burst of changes into one
+  rebuild (request-log-only changes at most every 15 s), and a five-minute rebuild catches
+  edits made directly on a backend. A rebuild builds a complete new snapshot and swaps it in
+  with one assignment, so queries keep being answered from the previous snapshot while it
+  runs and nothing ever sees half an index; a failed rebuild keeps the previous one. After each
+  swap the server publishes `search.index.updated` and an open palette re-runs its query in
+  place, keeping the results and the selection on screen until the new answer arrives. The
+  palette also keeps the last 50 answers, so typing back and forth is instant; they are dropped
+  on every swap. The index is warmed on the first page render after boot.
 - **Where.** `components/domain/global-search.tsx`, `components/ui/search-trigger.tsx`,
   `lib/search/` (`fuzzy.ts`, `index.ts`, `sources.ts`), `app/api/search/route.ts`
   (`GET /api/search?q=&scope=`, about 60 requests a minute per user), MCP tool `search`.

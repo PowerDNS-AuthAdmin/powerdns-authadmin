@@ -18,3 +18,5 @@ Two of them carry a convention every list follows:
 - `toggle-chip` - the `aria-pressed` filter pill with a status dot and a count
   (skeleton while the count is unknown) used in status strips. Tones are
   `error | warn | success | muted | accent`.
+
+- `scroll-dialog.tsx` - a wide modal for long lists: fixed title and close button, scrolling body, `min(64rem, 100vw - 2rem)` wide and at most 80vh tall, a full-screen sheet under `sm`; Esc and backdrop close it, focus is trapped and restored. Used by the Reverse DNS page's "+ N others / + N more" lists.

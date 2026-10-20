@@ -23,6 +23,7 @@ import { UserMenu } from "@/components/ui/user-menu";
 import { HealthBell } from "@/components/domain/health-bell";
 import { GlobalSearch } from "@/components/domain/global-search";
 import { buildSearchQuickLinks, searchTabsFor } from "@/lib/search/quick-links";
+import { warmSearchIndex } from "@/lib/search/search-index";
 import { hasNotificationAudience, loadNotificationsFor } from "@/lib/health/load-notifications";
 import { bellPreview, summarizeNotifications } from "@/lib/health/notifications";
 import { BrandMark } from "@/components/ui/brandmark";
@@ -123,6 +124,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   // Zone monitoring runs in the background from the first authenticated render.
   ensureZoneMonitorRunning();
+  // Build the search index in the background so the first Ctrl/Cmd K is instant.
+  warmSearchIndex();
 
   // Notifications (ADR-0015): backend health and zone monitoring, filtered per
   // row to what this user may see (a zone finding needs zone.read on its zone).

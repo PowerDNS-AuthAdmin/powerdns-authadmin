@@ -46,6 +46,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { apiFetch } from "@/lib/client/api-fetch";
+import { useRealtimeEvent } from "@/components/realtime/realtime-provider";
 import type {
   SearchGroupKey,
   SearchItem,
@@ -66,7 +67,9 @@ import {
 import { isTypingTarget } from "@/components/ui/data-table";
 import { SearchTrigger, useShortcutLabel } from "@/components/ui/search-trigger";
 
-const DEBOUNCE_MS = 150;
+const DEBOUNCE_MS = 100;
+/** Answers kept for instant back-and-forth typing; dropped whenever the index swaps. */
+const RESPONSE_CACHE_SIZE = 50;
 const MAX_QUERY_LENGTH = 100;
 const SCOPE_STORAGE_KEY = "pda.search.scope";
 const DOCS_SEARCH_URL = "https://powerdns-authadmin.org/search/";
@@ -265,6 +268,21 @@ export function GlobalSearch({ visibility, quickLinks }: GlobalSearchProps) {
 
   const trimmed = query.trim();
 
+  // The server swaps in a rebuilt index after every change and says so over
+  // the realtime bus: drop cached answers and quietly re-run the open query,
+  // keeping the current results and selection on screen until the new ones land.
+  const cacheRef = useRef(new Map<string, SearchResponse>());
+  const quietRef = useRef(false);
+  const [indexVersion, setIndexVersion] = useState(0);
+  useRealtimeEvent(
+    (event) => event.type === "search.index.updated" || event.type === "realtime.reconnected",
+    () => {
+      cacheRef.current.clear();
+      quietRef.current = true;
+      setIndexVersion((v) => v + 1);
+    },
+  );
+
   // Debounced fetch; each keystroke aborts the request before it.
   useEffect(() => {
     if (!open) return;
@@ -272,34 +290,52 @@ export function GlobalSearch({ visibility, quickLinks }: GlobalSearchProps) {
       setState({ status: "idle" });
       return;
     }
+    const key = `${scope}\u0000${trimmed}`;
+    const cached = cacheRef.current.get(key);
+    if (cached) {
+      setState({ status: "done", data: cached });
+      setActive(0);
+      return;
+    }
+    const quiet = quietRef.current;
+    quietRef.current = false;
     const controller = new AbortController();
     setState((s) => ({
       status: "loading",
       previous: s.status === "done" ? s.data : s.status === "loading" ? s.previous : null,
     }));
-    const timer = window.setTimeout(() => {
-      const params = new URLSearchParams({ q: trimmed, scope });
-      apiFetch(`/api/search?${params.toString()}`, { signal: controller.signal })
-        .then(async (res) => {
-          if (res.status === 429) throw new Error("Searching too fast. Try again in a moment.");
-          if (!res.ok) throw new Error("Search is unavailable right now.");
-          const data = (await res.json()) as SearchResponse;
-          setState({ status: "done", data });
-          setActive(0);
-        })
-        .catch((err: unknown) => {
-          if (controller.signal.aborted) return;
-          setState({
-            status: "error",
-            message: err instanceof Error ? err.message : "Search failed.",
+    const timer = window.setTimeout(
+      () => {
+        const params = new URLSearchParams({ q: trimmed, scope });
+        apiFetch(`/api/search?${params.toString()}`, { signal: controller.signal })
+          .then(async (res) => {
+            if (res.status === 429) throw new Error("Searching too fast. Try again in a moment.");
+            if (!res.ok) throw new Error("Search is unavailable right now.");
+            const data = (await res.json()) as SearchResponse;
+            const cache = cacheRef.current;
+            cache.set(key, data);
+            if (cache.size > RESPONSE_CACHE_SIZE) {
+              const oldest = cache.keys().next().value;
+              if (oldest !== undefined) cache.delete(oldest);
+            }
+            setState({ status: "done", data });
+            if (!quiet) setActive(0);
+          })
+          .catch((err: unknown) => {
+            if (controller.signal.aborted) return;
+            setState({
+              status: "error",
+              message: err instanceof Error ? err.message : "Search failed.",
+            });
           });
-        });
-    }, DEBOUNCE_MS);
+      },
+      quiet ? 0 : DEBOUNCE_MS,
+    );
     return () => {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [open, trimmed, scope]);
+  }, [open, trimmed, scope, indexVersion]);
 
   const data =
     state.status === "done" ? state.data : state.status === "loading" ? state.previous : null;
@@ -494,8 +530,17 @@ export function GlobalSearch({ visibility, quickLinks }: GlobalSearchProps) {
       <a key={props.id} {...props}>
         {renderIcon(it.kind, selected)}
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-sm font-semibold">
-            <Highlighted text={it.title} ranges={it.ranges} />
+          <span className="flex min-w-0 items-center gap-2">
+            {/* Several records share an owner name; the type tells them apart at a glance
+                (the Records tab has its own type column). */}
+            {!dense && it.group === "records" && it.meta?.["type"] ? (
+              <span className="shrink-0 rounded border border-[color:var(--color-border)] px-1.5 font-mono text-[0.68rem] leading-5 text-[color:var(--color-fg-muted)]">
+                {it.meta["type"]}
+              </span>
+            ) : null}
+            <span className="truncate text-sm font-semibold">
+              <Highlighted text={it.title} ranges={it.ranges} />
+            </span>
           </span>
           {it.subtitle && !(dense && subtitleInColumns) ? (
             <span className="truncate text-xs text-[color:var(--color-fg-muted)]">
@@ -553,7 +598,7 @@ export function GlobalSearch({ visibility, quickLinks }: GlobalSearchProps) {
       quickLinks.length > 0 ? (
         <div role="group" aria-labelledby={`${baseId}-quick-label`}>
           {groupHeading(`${baseId}-quick-label`, "Jump to")}
-          <div className="grid grid-cols-1 gap-0.5 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-1 md:grid-cols-2 xl:grid-cols-3">
             {quickLinks.map((l) => {
               const props = optionProps(l.href);
               return (
@@ -660,7 +705,7 @@ export function GlobalSearch({ visibility, quickLinks }: GlobalSearchProps) {
       <SearchTrigger ref={triggerRef} onOpen={openPalette} expanded={open} />
       {open ? (
         <ModalPortal>
-          <div className="fixed inset-0 z-[100] flex md:items-start md:justify-center md:px-4 md:pt-[11vh]">
+          <div className="fixed inset-0 z-[100] flex md:items-start md:justify-center md:px-8 md:pt-[8vh]">
             <div
               aria-hidden
               onClick={closePalette}
@@ -673,12 +718,12 @@ export function GlobalSearch({ visibility, quickLinks }: GlobalSearchProps) {
               aria-labelledby={titleId}
               data-global-search=""
               onKeyDown={onPanelKeyDown}
-              className="pda-search-panel relative flex h-[100dvh] w-full flex-col overflow-hidden bg-[color:var(--color-bg)] text-[color:var(--color-fg)] md:h-auto md:max-h-[min(680px,calc(100vh-11vh-2rem))] md:max-w-3xl md:rounded-xl md:border md:border-[color:var(--color-border)] md:shadow-2xl"
+              className="pda-search-panel relative flex h-[100dvh] w-full flex-col overflow-hidden bg-[color:var(--color-bg)] text-[color:var(--color-fg)] md:h-auto md:max-h-[min(860px,calc(100vh-8vh-2rem))] md:max-w-[min(76rem,calc(100vw-4rem))] md:rounded-2xl md:border md:border-[color:var(--color-border)] md:shadow-2xl"
             >
               <h2 id={titleId} className="sr-only">
                 Search
               </h2>
-              <div className="flex min-h-14 shrink-0 items-center gap-2.5 border-b border-[color:var(--color-border)] pr-2 pl-4">
+              <div className="flex min-h-14 shrink-0 items-center gap-3 border-b border-[color:var(--color-border)] pr-3 pl-4 transition-colors focus-within:border-[color:var(--color-accent)] md:min-h-16 md:pl-6">
                 {loading ? (
                   <LoaderCircle
                     aria-hidden
@@ -712,7 +757,8 @@ export function GlobalSearch({ visibility, quickLinks }: GlobalSearchProps) {
                     setActive(0);
                   }}
                   onKeyDown={onInputKeyDown}
-                  className="h-14 min-w-0 flex-1 border-0 bg-transparent p-0 text-base outline-none placeholder:text-[color:var(--color-fg-subtle)] focus-visible:outline-none md:text-[1.05rem]"
+                  data-search-input=""
+                  className="h-14 min-w-0 flex-1 border-0 bg-transparent p-0 text-base outline-none placeholder:text-[color:var(--color-fg-subtle)] md:h-16 md:text-lg"
                 />
                 <button
                   type="button"
@@ -790,7 +836,7 @@ export function GlobalSearch({ visibility, quickLinks }: GlobalSearchProps) {
               <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-xs text-[color:var(--color-fg-subtle)]">
                 <div
                   aria-hidden
-                  className="hidden flex-wrap items-center gap-x-3.5 gap-y-1 md:flex"
+                  className="hidden min-w-0 items-center gap-x-4 whitespace-nowrap md:flex"
                 >
                   <span className="inline-flex items-center gap-1">
                     <Kbd>
@@ -828,9 +874,10 @@ export function GlobalSearch({ visibility, quickLinks }: GlobalSearchProps) {
                   href={docsHref}
                   target="_blank"
                   rel="noopener"
-                  className="ml-auto inline-flex items-center gap-1 text-right text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-accent)]"
+                  className="ml-auto inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-accent)]"
                 >
-                  Looking for docs instead? Search powerdns-authadmin.org
+                  <span className="hidden lg:inline">Looking for docs instead?</span>
+                  <span>Search the docs</span>
                   <ExternalLink aria-hidden className="h-3 w-3 shrink-0" />
                 </a>
               </div>

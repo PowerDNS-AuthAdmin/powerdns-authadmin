@@ -8,6 +8,10 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- **Global search answers from a prebuilt index.** The index is rebuilt in the background after
+  each change and hot-swapped in, an open search palette updates itself over the realtime
+  stream, and recent answers are cached in the palette, so a keystroke never waits on a backend
+  or the database.
 - **Global search.** A header palette (`Ctrl K` / `⌘K`, `/`, or the **Search…** button) that
   fuzzy-matches zones, records (names and values), config (settings, admin pages, backends,
   clusters, users, teams, roles, zone templates, sign-in providers), the PowerDNS request log

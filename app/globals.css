@@ -340,6 +340,14 @@ body {
     animation-name: pda-search-in;
   }
 }
+/* The palette's input sits inside a panel that already shows focus (the
+   accent underline on its row and the caret); the global :focus-visible
+   outline is unlayered, so it beats Tailwind's outline utilities and drew a
+   box around the field. Scoped to this one input. */
+.pda-search-panel [data-search-input]:focus-visible {
+  outline: none;
+}
+
 .pda-search-backdrop {
   animation: pda-search-fade 0.2s ease-out;
 }

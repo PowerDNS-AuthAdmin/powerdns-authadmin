@@ -31,27 +31,20 @@ import { listAllSamlProviders } from "@/lib/db/repositories/saml-providers";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import type { SearchSources } from "./index";
 
-/** How long one read of a source is reused across requests. */
-const MEMO_TTL_MS = 5_000;
 /** The request log and audit log are matched over this many newest rows. */
 export const LOG_WINDOW_ROWS = 500;
-/** Scan age the search accepts before asking for a fresh fleet read. */
-const SCAN_MAX_AGE_MS = 60_000;
-
+/**
+ * Share one in-flight read between callers (zones and records come from the
+ * same fleet read). Nothing is kept after it settles: the search index
+ * (search-index.ts) is the cache, and a rebuild must see the newest data.
+ */
 function memo<T>(load: () => Promise<T>): () => Promise<T> {
-  let at = 0;
-  let value: Promise<T> | null = null;
+  let pending: Promise<T> | null = null;
   return () => {
-    const now = Date.now();
-    if (!value || now - at > MEMO_TTL_MS) {
-      at = now;
-      value = load().catch((err: unknown) => {
-        // A failed read must not be cached for the whole TTL.
-        value = null;
-        throw err;
-      });
-    }
-    return value;
+    pending ??= load().finally(() => {
+      pending = null;
+    });
+    return pending;
   };
 }
 
@@ -78,7 +71,9 @@ const clusterSlugs = memo(async () => {
 
 const fleet = memo(async () => {
   const [scan, slugs] = await Promise.all([
-    getFleetScan({ maxAgeMs: SCAN_MAX_AGE_MS }),
+    // A rebuild follows a change, so ask for a fresh scan (the scan itself
+    // rate-limits refreshes and reuses unchanged zones' details).
+    getFleetScan({ refresh: true }),
     clusterSlugs(),
   ]);
   const byId = new Map(scan.servers.map((s) => [s.id, s]));

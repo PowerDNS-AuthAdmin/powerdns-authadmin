@@ -19,3 +19,7 @@ The global search behind the header palette, `GET /api/search` and the MCP
 
 Never add a field that carries a secret to a source row: what a source returns
 can end up in a response.
+
+- `search-index.ts` - the prebuilt index: reads every source in the background, hot-swaps a
+  complete snapshot after each change (debounced zone / audit / request-log events plus a
+  five-minute rebuild), and publishes `search.index.updated`. Queries never do I/O.

@@ -719,7 +719,14 @@ export interface SearchEverythingInput {
  */
 export async function searchEverything(input: SearchEverythingInput): Promise<SearchResponse> {
   const { q, scope, auth } = input;
-  const sources = input.sources ?? (await import("./sources")).defaultSearchSources;
+  // Production queries read the prebuilt, hot-swapped snapshot: no I/O per keystroke.
+  let sources: SearchSources;
+  if (input.sources) {
+    sources = input.sources;
+  } else {
+    const index = await import("./search-index");
+    sources = index.snapshotSources(await index.getSearchSnapshot());
+  }
   const cap = scope === "all" ? ALL_SCOPE_GROUP_LIMIT : SINGLE_SCOPE_LIMIT;
   const perGroup = Math.max(1, Math.min(input.limit ?? cap, cap));
   const visibility = searchTabVisibility(auth);
