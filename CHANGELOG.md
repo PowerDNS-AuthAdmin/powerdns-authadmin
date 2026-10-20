@@ -14,7 +14,9 @@ already there. Alongside it: **Zone Monitoring** (delegation, nameservers, DNSSE
 AXFR checked from the outside), an **Add record** wizard that waits for propagation, a **global
 search** palette, a **Notifications** page, and a realtime stream that recovers on its own after
 a tab sleeps. Every new page has an MCP tool. **No schema change, no migration.** New optional
-environment variables only; nothing behaves differently until you turn it on (see below and the
+environment variables only. Search, Notifications, Add record and the editor's per-save "Sync
+PTR" checkbox are there from the start (no PTR is written unless it is ticked); the opt-in
+features below stay off until you turn them on (see the
 [upgrade notes](./docs/09-UPGRADING.md#upgrading-to-1100-from-191)).
 
 **Opt-in features.** Zone monitoring and the Reverse DNS checks are **off by default** because
@@ -104,8 +106,22 @@ setting and does not need either variable.
 - **Both maintainers are code owners of every path.** Every change needs an approving review
   from a code owner other than its author, and branch protection now applies to admins too.
   ([#175](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pull/175))
+- **Filter chips show their counts at a glance.** A chip whose count is 0 renders neutral
+  instead of in its status colour, on the Reverse DNS, Zone Monitoring and Notifications
+  filters. The Reverse DNS status chips are ordered by count, highest first; "Not hosted"
+  always follows Missing, Mismatch, Ambiguous and OK when those have a count, and empty
+  statuses come last. The zones list's scope and horizon filters use the same chips, and its Reverse
+  DNS, Add record and Add zone actions are compact bordered buttons like the page toolbars.
 
 ### Fixed
+
+- **Zone Monitoring showed "Next run: N seconds ago" while checks were running.** Opening the
+  page right after a start begins a catch-up check of zones not seen yet; the first scheduled
+  full cycle fired during it and was dropped rather than queued, so "Last run" stayed empty and
+  "Next run" counted into the past for up to a whole interval. A full cycle asked for during a
+  partial one now runs as soon as it ends, the schedule re-arms itself after every run so "Next
+  run" is the real next start, and the header says "due now" instead of a time in the past.
+  ([#177](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/177))
 
 - **Header chip stuck on "connecting" after a tab slept.** Safari (and Chrome on battery)
   freezes background tabs and hands back a dead or permanently connecting event stream that

@@ -42,8 +42,9 @@ half-migrated schema; fix the cause and restart.
 ### Upgrading to 1.10.0 (from 1.9.1)
 
 No migration, no schema change - pull the new tag and recreate the container.
-Nothing behaves differently until you opt in; every new setting below is off
-by default.
+Search, Notifications, the Add record wizard and the record editor's per-save
+"Sync PTR" checkbox are available straight away (no PTR is written unless the
+box is ticked). Everything below is off by default until you opt in.
 
 - **Automatic PTR maintenance** is off until you enable the `auto_ptr` setting
   (Admin → Settings, or `auto_ptr: true` in provisioning), or per zone with
