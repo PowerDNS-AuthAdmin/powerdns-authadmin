@@ -86,7 +86,7 @@ import {
   useRowDisclosure,
 } from "@/components/ui/row-disclosure";
 import { SelectMenu } from "@/components/ui/select-menu";
-import { SkeletonTable } from "@/components/ui/skeleton";
+import { Skeleton, SkeletonTable } from "@/components/ui/skeleton";
 import { ToggleChip, type ToggleChipTone } from "@/components/ui/toggle-chip";
 import { mutate } from "@/lib/client/api-fetch";
 import { type AutoPtrOutcome, describePtrOutcome, summarizePtrOutcomes } from "@/lib/dns/auto-ptr";
@@ -196,6 +196,9 @@ const STATUS_ORDER: readonly PtrStatus[] = [
 ];
 
 const ALL_STATUSES: ReadonlySet<PtrStatus> = new Set(STATUS_ORDER);
+
+/** Widths of the placeholder pills shown before the first scan, one per status chip. */
+const STATUS_CHIP_PLACEHOLDER_WIDTHS = ["w-16", "w-24", "w-20", "w-20", "w-24", "w-24"] as const;
 
 const STATUS_LABEL: Record<PtrStatus, string> = {
   ok: "OK",
@@ -1127,18 +1130,30 @@ export function PtrReconciler() {
 
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
-          {orderStatusChips(stats).map((status) => (
-            <ToggleChip
-              key={status}
-              active={activeStatuses.has(status)}
-              tone={statusTone(status)}
-              title={STATUS_HINT[status]}
-              onClick={() => toggleStatus(status)}
-              count={stats ? stats[status] : null}
-            >
-              {STATUS_LABEL[status]}
-            </ToggleChip>
-          ))}
+          {/* The chips are ordered by their counts, so until the first scan
+              lands they are placeholders: labelled chips would appear in the
+              default order and then jump into place. */}
+          {!stats &&
+            STATUS_CHIP_PLACEHOLDER_WIDTHS.map((width, i) => (
+              <Skeleton
+                key={i}
+                className={`h-[1.625rem] rounded-full ${width}`}
+                label="Counting…"
+              />
+            ))}
+          {stats &&
+            orderStatusChips(stats).map((status) => (
+              <ToggleChip
+                key={status}
+                active={activeStatuses.has(status)}
+                tone={statusTone(status)}
+                title={STATUS_HINT[status]}
+                onClick={() => toggleStatus(status)}
+                count={stats ? stats[status] : null}
+              >
+                {STATUS_LABEL[status]}
+              </ToggleChip>
+            ))}
         </div>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by horizon">
           {HORIZON_FILTERS.map(({ value, label }) => (

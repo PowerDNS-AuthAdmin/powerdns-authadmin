@@ -885,7 +885,7 @@ export function GlobalSearch({ visibility, quickLinks }: GlobalSearchProps) {
                       {firstLog ? (
                         <span
                           aria-hidden
-                          className="ml-1 flex shrink-0 items-center gap-2 pl-2 text-[0.68rem] font-medium tracking-wide text-[color:var(--color-fg-subtle)] uppercase"
+                          className="mr-1.5 ml-1 flex shrink-0 items-center gap-2.5 pl-2 text-[0.68rem] font-medium tracking-wide text-[color:var(--color-fg-subtle)] uppercase"
                         >
                           <span className="h-4 w-px bg-[color:var(--color-border)]" />
                           Logs

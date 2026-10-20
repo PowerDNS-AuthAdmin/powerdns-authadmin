@@ -60,7 +60,9 @@ interface ToggleChipProps {
 export function ToggleChip({ active, tone, title, onClick, count, children }: ToggleChipProps) {
   // An empty bucket has nothing to call attention to: it renders neutral
   // whatever its tone or state, so only the chips with something in them light up.
-  const empty = count === 0;
+  // A count still loading is treated the same, so a chip never flashes its
+  // colour and then goes grey once its count turns out to be 0.
+  const empty = count === 0 || count === null;
   const lit = active && !empty;
   const dotTone: ToggleChipTone = empty ? "muted" : tone;
   return (

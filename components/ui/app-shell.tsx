@@ -47,6 +47,30 @@ export function AppShell({
   const pathname = usePathname();
   const asideRef = useRef<HTMLElement>(null);
   const hamburgerRef = useRef<HTMLButtonElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const headerLeftRef = useRef<HTMLDivElement>(null);
+  const headerRightRef = useRef<HTMLDivElement>(null);
+
+  // The search pill sits centred in the header with equal space on both
+  // sides, so both side columns take the width of the wider side (the status
+  // chip or the controls, whose width follows the user's name). Measured
+  // here and handed to the grid as a CSS variable: setting a property through
+  // the CSSOM is not an inline style attribute, so the CSP is unaffected.
+  useEffect(() => {
+    const header = headerRef.current;
+    const left = headerLeftRef.current;
+    const right = headerRightRef.current;
+    if (!header || !left || !right) return;
+    const update = () => {
+      const side = Math.ceil(Math.max(left.scrollWidth, right.scrollWidth));
+      header.style.setProperty("--header-side", `${side}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(left);
+    observer.observe(right);
+    return () => observer.disconnect();
+  }, []);
   const wasOpen = useRef(false);
 
   useEffect(() => {
@@ -118,10 +142,16 @@ export function AppShell({
 
       {/* Main column. */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Three columns from md up so the search pill sits truly centred,
-            whatever the widths of the status chip and the controls. */}
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)]/80 px-4 backdrop-blur-md md:grid md:grid-cols-[minmax(0,1fr)_minmax(16rem,28rem)_minmax(0,1fr)]">
-          <div className="flex min-w-0 items-center gap-3">
+        {/* From xl, three columns: two equal sides (the wider of the chip and
+            the controls, see --header-side above) and the search filling the
+            middle, so it starts and ends the same distance from the header's
+            edges. Narrower, equal sides would leave the search no room, so it
+            fills the space between the chip and the controls instead. */}
+        <header
+          ref={headerRef}
+          className="flex h-14 shrink-0 items-center gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)]/80 px-4 backdrop-blur-md [--header-side:14rem] xl:grid xl:grid-cols-[var(--header-side)_minmax(0,1fr)_var(--header-side)] xl:gap-6"
+        >
+          <div ref={headerLeftRef} className="flex min-w-0 items-center gap-3 xl:w-max">
             <button
               ref={hamburgerRef}
               type="button"
@@ -136,14 +166,17 @@ export function AppShell({
                 via <HeaderStatusMode/> in components that own a "synced" notion. */}
             <HeaderStatusChip />
           </div>
-          {/* Centred on the viewport, not on the header: from xl the column
-              moves left by half the sidebar (w-80, so 10rem). The width cap
-              keeps it clear of the status chip and the controls (about 58rem
-              of chrome in all). Below xl it centres in the header. */}
-          <div className="flex min-w-0 flex-1 justify-end md:justify-center xl:w-[min(28rem,calc(100vw-60rem))] xl:-translate-x-40 xl:justify-self-center">
+          {/* Capped so it stays a search box, not a banner, on very wide screens;
+              it stays centred either way. */}
+          <div className="flex min-w-0 flex-1 justify-end md:justify-center xl:mx-auto xl:w-full xl:max-w-3xl">
             {headerCenter}
           </div>
-          <div className="flex items-center justify-end gap-3">{headerControls}</div>
+          <div
+            ref={headerRightRef}
+            className="flex items-center justify-end gap-3 xl:w-max xl:justify-self-end"
+          >
+            {headerControls}
+          </div>
         </header>
 
         {/* `min-h-0` is the canonical flexbox-clipping fix: a `flex-1` child
