@@ -181,25 +181,29 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       <nav aria-label="Main" className="flex-1 space-y-1 overflow-y-auto p-3 text-base">
         <NavLink href="/dashboard" label="Dashboard" />
         {canReadZones ? <NavLink href="/zones" label="Zones" /> : null}
-        {canReadZones && globalRecordRead ? (
-          <NavLink
-            nested
-            href="/zones/auto-ptr"
-            label="Reverse DNS"
-            badge={reverseBadge}
-            badgeTone="warn"
-            badgeLabel={`${reverseBadge} address${reverseBadge === 1 ? "" : "es"} with reverse DNS problems`}
-          />
-        ) : null}
-        {canReadZones && globalZoneRead ? (
-          <NavLink
-            nested
-            href="/zones/monitoring"
-            label="Zone Monitoring"
-            badge={monitorBadge.problems}
-            badgeTone={monitorBadge.tone}
-            badgeLabel={`${monitorBadge.problems} zone${monitorBadge.problems === 1 ? "" : "s"} with findings`}
-          />
+        {canReadZones && (globalRecordRead || globalZoneRead) ? (
+          <NavChildren parent="Zones">
+            {globalRecordRead ? (
+              <NavLink
+                nested
+                href="/zones/auto-ptr"
+                label="Reverse DNS"
+                badge={reverseBadge}
+                badgeTone="warn"
+                badgeLabel={`${reverseBadge} address${reverseBadge === 1 ? "" : "es"} with reverse DNS problems`}
+              />
+            ) : null}
+            {globalZoneRead ? (
+              <NavLink
+                nested
+                href="/zones/monitoring"
+                label="Zone Monitoring"
+                badge={monitorBadge.problems}
+                badgeTone={monitorBadge.tone}
+                badgeLabel={`${monitorBadge.problems} zone${monitorBadge.problems === 1 ? "" : "s"} with findings`}
+              />
+            ) : null}
+          </NavChildren>
         ) : null}
 
         {hasInfrastructure ? (
@@ -342,6 +346,23 @@ function NavSection({ label, children }: { label: string; children: React.ReactN
         {label}
       </div>
       <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Children of a top-level item (Zones → Reverse DNS, Zone Monitoring): a left
+ * rail and an indent make the parent→child relationship read at a glance, the
+ * same way nested links sit under a section label.
+ */
+function NavChildren({ parent, children }: { parent: string; children: React.ReactNode }) {
+  return (
+    <div
+      role="group"
+      aria-label={`${parent} pages`}
+      className="mt-0.5 ml-4 space-y-0.5 border-l border-[color:var(--color-border)] pl-1"
+    >
+      {children}
     </div>
   );
 }

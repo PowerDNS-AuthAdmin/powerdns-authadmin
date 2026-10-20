@@ -75,6 +75,11 @@ export default async function ZonesPage() {
   const grantedZoneNames = new Set(zoneGrants.map((g) => g.zoneName));
   const canCreateServer = globalPermissions.has("server.create");
   const canCreateZone = globalPermissions.has("zone.create");
+  // The Add record wizard searches zones per grant, so a zone-granted operator
+  // gets the button too; the page itself re-checks with `anyInstance`.
+  const canCreateRecord =
+    globalPermissions.has("record.create") ||
+    zoneGrants.some((g) => g.permissions.includes("record.create"));
   const canReadAudit = globalPermissions.has("audit.read");
   // The reverse DNS reconciler reads every zone's records, so it is gated on
   // the global permission rather than on any single zone grant.
@@ -257,8 +262,8 @@ export default async function ZonesPage() {
             {errors.length > 0 ? ` · ${errors.length} unreachable` : ""}.
           </p>
         </div>
-        {canCreateZone || canReconcilePtr ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        {canCreateZone || canCreateRecord || canReconcilePtr ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
             {canReconcilePtr ? (
               <Link
                 href="/zones/auto-ptr"
@@ -269,6 +274,7 @@ export default async function ZonesPage() {
                 Reverse DNS
               </Link>
             ) : null}
+            {canCreateRecord ? <CreateButton href="/zones/new-record" label="Add record" /> : null}
             {canCreateZone ? <CreateButton href="/zones/new" label="Add zone" /> : null}
           </div>
         ) : null}

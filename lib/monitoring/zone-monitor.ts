@@ -47,7 +47,7 @@ import { zoneMonitorConfig } from "@/lib/env";
 import type { EvaluatedAdvisory } from "@/lib/health/evaluator";
 import { logger } from "@/lib/logger";
 import { classifyAddress } from "@/lib/net/url-safety";
-import { publishHealthEvent } from "@/lib/realtime/event-bus";
+import { publishHealthEvent, publishMonitorEvent } from "@/lib/realtime/event-bus";
 import { newSystemRequestId, withRequestId } from "@/lib/request-context";
 import { getFleetScan, type ScannedZone } from "@/app/api/admin/pdns/auto-ptr/_scan";
 
@@ -106,6 +106,8 @@ interface State {
   perZoneRefreshAt: Map<string, number>;
   /** Reverse DNS rows needing attention after the last cycle (missing, mismatch, ambiguous, orphan). */
   reverseNotOk: number;
+  /** Debounce for "zones without a result yet, check them now". */
+  catchUp: NodeJS.Timeout | null;
 }
 
 declare global {
@@ -121,6 +123,7 @@ const state: State = (globalThis.__zoneMonitor ??= {
   offline: false,
   perZoneRefreshAt: new Map(),
   reverseNotOk: 0,
+  catchUp: null,
 });
 
 const ZONE_CONCURRENCY = 3;
@@ -419,7 +422,7 @@ async function syncAdvisories(
 
 async function runCycle(opts: {
   immediate: boolean;
-  only?: { zone: string; server: string };
+  only?: ReadonlyArray<{ zone: string; server: string }>;
 }): Promise<void> {
   const scan = await getFleetScan({ maxAgeMs: zoneMonitorConfig.intervalMs });
   const roots = rootAddresses();
@@ -432,9 +435,8 @@ async function runCycle(opts: {
   const dedup = new Map<string, ScannedZone>();
   for (const z of scan.zones)
     if (!dedup.has(key(z.name, z.server))) dedup.set(key(z.name, z.server), z);
-  const zones = [...dedup.values()].filter(
-    (z) => !opts.only || (z.name === opts.only.zone && z.server === opts.only.server),
-  );
+  const onlyKeys = opts.only ? new Set(opts.only.map((o) => key(o.zone, o.server))) : null;
+  const zones = [...dedup.values()].filter((z) => !onlyKeys || onlyKeys.has(key(z.name, z.server)));
 
   // Spread the probes across the cycle instead of hammering every nameserver at once.
   const spacingMs = opts.only
@@ -470,11 +472,12 @@ async function runCycle(opts: {
     scan.servers,
     opts.immediate,
   );
+  publishMonitorEvent("zone-monitor");
 }
 
 function cycle(opts: {
   immediate: boolean;
-  only?: { zone: string; server: string };
+  only?: ReadonlyArray<{ zone: string; server: string }>;
 }): Promise<void> {
   if (state.inFlight) return state.inFlight;
   state.inFlight = withRequestId(newSystemRequestId(), () => runCycle(opts))
@@ -520,8 +523,29 @@ export async function refreshZone(
   if (Date.now() - (state.perZoneRefreshAt.get(k) ?? 0) < PER_ZONE_REFRESH_INTERVAL_MS)
     return false;
   state.perZoneRefreshAt.set(k, Date.now());
-  await cycle({ immediate: true, only: { zone, server } });
+  await cycle({ immediate: true, only: [{ zone, server }] });
   return state.results.get(k) ?? null;
+}
+
+/**
+ * Zones the fleet scan knows but the monitor has no result for yet (a fresh
+ * install, a zone created a moment ago) are checked within seconds of a page
+ * asking, instead of waiting for the next scheduled cycle. Debounced so one
+ * page render triggers one catch-up; the per-zone and full-run rate limits
+ * do not apply because nothing was probed before.
+ */
+export function ensureNewZonesProbed(
+  scanZones: ReadonlyArray<{ name: string; server: string }>,
+): void {
+  if (!zoneMonitorConfig.enabled || state.catchUp) return;
+  const missing = scanZones
+    .filter((z) => !state.results.has(key(z.name, z.server)))
+    .map((z) => ({ zone: z.name, server: z.server }));
+  if (missing.length === 0) return;
+  state.catchUp = setTimeout(() => {
+    state.catchUp = null;
+    void cycle({ immediate: true, only: missing });
+  }, 2_000);
 }
 
 export function getZoneMonitorState(): ZoneMonitorState {

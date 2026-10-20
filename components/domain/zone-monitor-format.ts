@@ -171,12 +171,11 @@ export function replaceResult(
 }
 
 /**
- * Whether the page should keep polling for the first results: nothing to
- * show yet and a cycle is either running or has not started (the monitor
- * waits a few seconds after boot before its first pass).
+ * Whether the page should keep polling for the first results: monitoring is
+ * on and no zone has been checked yet. The monitor probes new zones within
+ * seconds, so an empty list means "not yet", not "no zones" - and until a row
+ * exists there is nothing for the realtime bus to announce per row.
  */
 export function awaitingFirstResults(state: ZoneMonitorState): boolean {
-  return (
-    state.enabled && state.results.length === 0 && (state.running || state.lastCycleAt === null)
-  );
+  return state.enabled && state.results.length === 0;
 }

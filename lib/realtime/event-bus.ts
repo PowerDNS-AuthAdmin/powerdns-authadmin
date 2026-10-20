@@ -25,6 +25,13 @@ import { logger } from "@/lib/logger";
 import type { SyncState } from "@/lib/pdns/serial-sync";
 
 export type RealtimeEvent =
+  // Stream control, never published on the bus: `ready` opens every stream,
+  // `heartbeat` keeps it measurably alive, and `realtime.reconnected` is raised
+  // by the browser provider after it reopened a stream that had gone quiet, so
+  // pages refetch whatever they missed while the tab was asleep.
+  | { type: "ready"; at: string }
+  | { type: "heartbeat"; at: string }
+  | { type: "realtime.reconnected"; at: string; gapMs: number }
   | { type: "zone.updated"; zone: string; serverSlug: string; actor: string | null; at: string }
   | {
       type: "zone.sync.changed";
@@ -55,6 +62,13 @@ export type RealtimeEvent =
       // a nudge for the health bell to re-render against the freshly-computed,
       // permission-scoped set. Published only when the visible set actually moved.
       type: "health.updated";
+      at: string;
+    }
+  | {
+      // Zone monitoring or the reverse-DNS / external-PTR state moved: a nudge
+      // for the Zones pages to re-read their reports. `source` says which.
+      type: "monitor.updated";
+      source: "zone-monitor" | "external-ptr" | "fleet-scan";
       at: string;
     };
 
@@ -189,4 +203,8 @@ export function publishPdnsRequestEvent(event: RealtimeEvent): void {
 
 export function publishHealthEvent(): void {
   emit({ type: "health.updated", at: new Date().toISOString() });
+}
+
+export function publishMonitorEvent(source: "zone-monitor" | "external-ptr" | "fleet-scan"): void {
+  emit({ type: "monitor.updated", source, at: new Date().toISOString() });
 }

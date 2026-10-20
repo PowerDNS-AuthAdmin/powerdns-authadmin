@@ -490,6 +490,9 @@ export function DataTable<TData>({
                     );
                   }
                   if (label == null) {
+                    // An action cell with nothing to show for this row would
+                    // otherwise leave its margin as a gap at the card's foot.
+                    if (content == null || content === false) return null;
                     return (
                       <div key={cell.id} className="mt-3">
                         {content}

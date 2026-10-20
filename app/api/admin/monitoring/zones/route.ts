@@ -9,12 +9,19 @@
 
 import { requireUser } from "@/lib/auth/require-user";
 import { errorResponse } from "@/lib/http/error-response";
-import { ensureZoneMonitorRunning, getZoneMonitorState } from "@/lib/monitoring/zone-monitor";
+import {
+  ensureNewZonesProbed,
+  ensureZoneMonitorRunning,
+  getZoneMonitorState,
+} from "@/lib/monitoring/zone-monitor";
+import { peekFleetScan } from "../../pdns/auto-ptr/_scan";
 
 export async function GET(): Promise<Response> {
   try {
     await requireUser({ can: "zone.read" });
     ensureZoneMonitorRunning();
+    const cached = peekFleetScan();
+    if (cached) ensureNewZonesProbed(cached.zones);
     return Response.json(getZoneMonitorState());
   } catch (err) {
     return errorResponse(err, "monitoring.zones.error");

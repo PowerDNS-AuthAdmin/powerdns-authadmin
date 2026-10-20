@@ -6,12 +6,19 @@
  * The reverse DNS reconciler: one row per address found in an A/AAAA record
  * anywhere in the fleet, compared with the PTR that exists for it today.
  *
- * Fetches `GET /api/admin/pdns/auto-ptr/report` on mount (slow: it reads
- * every zone, so the page shell paints first) and rectifies through
- * `POST /api/admin/pdns/auto-ptr/rectify`, which runs the same planner, the
- * same permission checks and the same audit rows as the record editor's
- * auto-PTR. The outcomes come back in the editor's `AutoPtrOutcome` shape so
- * the toast reads identically in both places.
+ * Fetches `GET /api/admin/pdns/auto-ptr/report` after the shell has painted
+ * (the first scan reads every zone, so the stats strip and skeleton rows show
+ * first) and rectifies through `POST /api/admin/pdns/auto-ptr/rectify`, which
+ * runs the same planner, the same permission checks and the same audit rows
+ * as the record editor's auto-PTR. The outcomes come back in the editor's
+ * `AutoPtrOutcome` shape so the toast reads identically in both places.
+ *
+ * After the first load the page stays current over the realtime bus: a zone
+ * edit, a health change, a finished fleet scan or an external lookup nudges a
+ * debounced re-fetch. The report route serves an incremental scan, so that
+ * re-fetch is cheap, and it is quiet: the rows already on screen stay until
+ * the new ones arrive, and the operator's filters, selection and open row are
+ * left alone.
  *
  * What is and is not automated here, on purpose:
  *
@@ -39,14 +46,23 @@
  */
 
 import { type ColumnDef } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, Globe, RefreshCw, Trash2, Wand2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Earth, Globe, Plus, RefreshCw, Trash2, Wand2 } from "lucide-react";
+import Link from "next/link";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useRealtimeEvent } from "@/components/realtime/realtime-provider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/ui/data-table";
 import { useDialog } from "@/components/ui/dialog";
 import { LocalTime } from "@/components/ui/local-time";
+import {
+  DisclosureChevron,
+  RowDisclosurePanel,
+  rowDetailId,
+  useRowDisclosure,
+} from "@/components/ui/row-disclosure";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { SkeletonTable } from "@/components/ui/skeleton";
+import { ToggleChip, type ToggleChipTone } from "@/components/ui/toggle-chip";
 import { mutate } from "@/lib/client/api-fetch";
 import { type AutoPtrOutcome, describePtrOutcome, summarizePtrOutcomes } from "@/lib/dns/auto-ptr";
 import { ZONE_HORIZONS, type ZoneHorizon } from "@/lib/dns/zone-horizon";
@@ -59,6 +75,14 @@ const EXTERNAL_REFRESH_URL = "/api/admin/pdns/auto-ptr/external-refresh";
 /** The rectify route caps one call at this many items; longer runs are chunked. */
 const RECTIFY_BATCH_SIZE = 500;
 const HTTP_TOO_MANY_REQUESTS = 429;
+/**
+ * Realtime events arrive in bursts (a zone edit publishes `zone.updated` and
+ * `health.updated`; a scan publishes once per backend); one re-fetch per
+ * burst is enough.
+ */
+const REFETCH_DEBOUNCE_MS = 1500;
+/** The external-PTR lookup used the host's own resolver rather than a configured one. */
+const SYSTEM_RESOLVER = "system";
 
 type PtrStatus = "ok" | "missing" | "mismatch" | "ambiguous" | "orphan" | "unhosted";
 
@@ -184,25 +208,25 @@ const ATTENTION_STATUSES: ReadonlySet<PtrStatus> = new Set([
 /** The statuses "Rectify all fixable" may touch without a human choice. */
 const FIXABLE_STATUSES: ReadonlySet<PtrStatus> = new Set(["missing", "mismatch"]);
 
-function statusTone(status: PtrStatus): "warn" | "error" | "muted" {
+/** OK is a verdict, not an absence: it gets the success colour so it reads as a state the operator chose to see. */
+function statusTone(status: PtrStatus): ToggleChipTone {
   if (status === "orphan") return "error";
   if (ATTENTION_STATUSES.has(status)) return "warn";
+  if (status === "ok") return "success";
   return "muted";
 }
 
-const CHIP_TONE_CLASS = {
+/** The read-only chip in the Status column and the detail panel. */
+const CHIP_TONE_CLASS: Record<ToggleChipTone, string> = {
   warn: "border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 text-[color:var(--color-warn-fg)]",
   error:
     "border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 text-[color:var(--color-error-fg)]",
+  success:
+    "border-[color:var(--color-success)] bg-[color:var(--color-success)]/10 text-[color:var(--color-success-fg)]",
   muted: "border-[color:var(--color-border)] text-[color:var(--color-fg-muted)]",
   accent:
     "border-[color:var(--color-accent)] bg-[color:var(--color-accent)]/10 text-[color:var(--color-accent)]",
-} as const;
-
-const INACTIVE_CHIP_CLASS =
-  "border-[color:var(--color-border)] text-[color:var(--color-fg-muted)] opacity-70 hover:opacity-100";
-const FILTER_CHIP_CLASS =
-  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors";
+};
 
 /**
  * Same recipe as `ZoneHorizonBadge` (mono, uppercase, orange for internal) so
@@ -342,6 +366,32 @@ function confirmDescription(items: readonly RectifyItem[]): string {
   return `This ${parts.join(" and ")} in the hosted reverse zones. Every change is audited like a record edit.`;
 }
 
+/** Whose answer the earth icon stands for; the resolver address when the lookup names one. */
+function externalViewpoint(horizon: ZoneHorizon, external: ExternalPtr | undefined): string {
+  if (external?.resolver === SYSTEM_RESOLVER) return "This is what this server's resolver sees";
+  const base =
+    horizon === "public"
+      ? "This is what the public resolvers see"
+      : "This is what the internal resolvers see";
+  return external?.resolver ? `${base} (via ${external.resolver})` : base;
+}
+
+/** The resolver as the detail panel names it; the host's own resolver has no address to show. */
+function externalResolverLabel(resolver: string): string {
+  return resolver === SYSTEM_RESOLVER ? "this server's resolver" : resolver;
+}
+
+/** Events after which the report may have changed: zone edits, health moves, scans and lookups. */
+function isReportEvent(event: { type: string }): boolean {
+  return (
+    event.type === "monitor.updated" ||
+    event.type === "zone.updated" ||
+    event.type === "health.updated" ||
+    // the stream was reopened after a gap; anything may have changed meanwhile
+    event.type === "realtime.reconnected"
+  );
+}
+
 // ---------------------------------------------------------------- component
 
 export function PtrReconciler() {
@@ -355,27 +405,47 @@ export function PtrReconciler() {
   const [horizonFilter, setHorizonFilter] = useState<HorizonFilter>("all");
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [picks, setPicks] = useState<Readonly<Record<string, string>>>({});
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const details = useRowDisclosure();
+  const panelPrefix = useId();
+  /** A quiet re-fetch is in flight: the rows on screen are kept until it lands. */
+  const [updating, setUpdating] = useState(false);
+  /** The last quiet re-fetch failed; the rows on screen are from the previous one. */
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   /**
-   * Load the report; `refresh` asks the server for a fresh scan, which it
+   * Load the report. `refresh` asks the server for a fresh scan, which it
    * grants at most once per 15 s and otherwise answers with the cached one.
-   * Returns the report so the caller can tell which it got.
+   * `quiet` keeps the current report (and the table under it) in place while
+   * the request runs and never blanks the page on failure; it is what the
+   * realtime nudges and the post-rectify reload use. Returns the report so
+   * the caller can tell which it got.
    */
   const loadReport = useCallback(
-    async (opts: { refresh?: boolean } = {}): Promise<PtrReconcileReport | null> => {
-      setLoading(true);
-      setLoadError(null);
+    async (
+      opts: { refresh?: boolean; quiet?: boolean } = {},
+    ): Promise<PtrReconcileReport | null> => {
+      if (opts.quiet) setUpdating(true);
+      else {
+        setLoading(true);
+        setLoadError(null);
+      }
       const result = await mutate<PtrReconcileReport>(
         opts.refresh ? `${REPORT_URL}?refresh=1` : REPORT_URL,
       );
       if (!result.ok) {
-        setLoadError(result.error);
-        setReport(null);
-        setLoading(false);
+        if (opts.quiet) {
+          setUpdateError(result.error);
+          setUpdating(false);
+        } else {
+          setLoadError(result.error);
+          setReport(null);
+          setLoading(false);
+        }
         return null;
       }
       setReport(result.data);
+      setUpdateError(null);
+      setUpdating(false);
       setLoading(false);
       return result.data;
     },
@@ -385,6 +455,25 @@ export function PtrReconciler() {
   useEffect(() => {
     void loadReport();
   }, [loadReport]);
+
+  // Realtime: coalesce a burst of events into one quiet re-fetch. The timer
+  // lives in a ref so an unmount mid-burst cancels it instead of fetching
+  // into a component that is gone.
+  const refetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useRealtimeEvent(isReportEvent, () => {
+    setUpdating(true);
+    if (refetchTimer.current) clearTimeout(refetchTimer.current);
+    refetchTimer.current = setTimeout(() => {
+      refetchTimer.current = null;
+      void loadReport({ quiet: true });
+    }, REFETCH_DEBOUNCE_MS);
+  });
+  useEffect(
+    () => () => {
+      if (refetchTimer.current) clearTimeout(refetchTimer.current);
+    },
+    [],
+  );
 
   async function refreshReport() {
     const previous = report?.generatedAt;
@@ -477,15 +566,6 @@ export function PtrReconciler() {
     });
   }
 
-  function toggleExpanded(id: string) {
-    setExpanded((cur) => {
-      const next = new Set(cur);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
   /**
    * Send the items in route-sized batches, then report the combined outcome
    * the way the record editor does: a one-line summary, loudest level wins,
@@ -536,7 +616,7 @@ export function PtrReconciler() {
     } finally {
       setBusy(false);
       setSelected(new Set());
-      void loadReport();
+      void loadReport({ quiet: true });
     }
   }
 
@@ -608,19 +688,27 @@ export function PtrReconciler() {
         header: "Address",
         cell: ({ row }) => {
           const r = row.original;
+          // Chevron, checkbox, address on one line - also as the card title
+          // under `md`, where the address may wrap but the controls stay put.
           return (
-            <span className="inline-flex items-center gap-2">
+            <span className="inline-flex max-w-full min-w-0 items-center gap-2">
+              <DisclosureChevron
+                open={details.isOpen(r.id)}
+                onToggle={() => details.toggle(r.id)}
+                label={r.ip}
+                controls={rowDetailId(panelPrefix, r.id)}
+              />
               <Checkbox
                 checked={selected.has(r.id)}
                 onChange={(on) => toggleSelected(r.id, on)}
                 disabled={busy}
                 ariaLabel={`Select ${r.ip}`}
               />
-              <code className="font-mono text-sm break-all">{r.ip}</code>
+              <code className="min-w-0 font-mono text-sm break-all">{r.ip}</code>
             </span>
           );
         },
-        meta: { className: "w-[16%]" },
+        meta: { className: "w-[18%]" },
       },
       {
         id: "forward",
@@ -682,70 +770,65 @@ export function PtrReconciler() {
             row={row.original}
             pick={picks[row.original.id]}
             busy={busy}
-            expanded={expanded.has(row.original.id)}
             onPick={(name) => setPicks((cur) => ({ ...cur, [row.original.id]: name }))}
             onRectify={() => void rectifyRow(row.original)}
-            onToggleExpanded={() => toggleExpanded(row.original.id)}
           />
         ),
       },
     ],
-    // The cells close over selection, picks and expansion so the memo must
+    // The cells close over selection, picks and the open row so the memo must
     // follow them; rectifyRow is stable enough in practice because the row
     // it needs is passed in.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selected, picks, expanded, busy],
+    [selected, picks, details, busy, panelPrefix],
   );
 
-  if (loading && !report) {
-    return (
-      <div className="space-y-3">
-        <p
-          role="status"
-          className="flex items-center gap-2 text-sm text-[color:var(--color-fg-muted)]"
-        >
-          <RefreshCw className="h-4 w-4 animate-spin" aria-hidden />
-          Reading every zone on every backend. On a large installation this takes a while.
-        </p>
-        <SkeletonTable rows={8} cols={7} />
-      </div>
-    );
-  }
-
-  if (loadError && !report) {
-    return (
-      <div className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-4 text-sm text-[color:var(--color-error-fg)]">
-        <strong>Could not build the report.</strong> {loadError}
-        <div className="mt-3">
-          <button type="button" onClick={() => void loadReport()} className={TOOLBAR_BUTTON_CLASS}>
-            <RefreshCw className="h-4 w-4" aria-hidden />
-            Try again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!report) return null;
-
   const selectedCount = [...selected].filter((id) => rowById.has(id)).length;
+  const stats = report?.stats ?? null;
+  const firstLoad = report === null;
 
+  // The shell (status line, toolbar, chips, selection bar) renders at once;
+  // only the numbers and the rows wait for the report.
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <p className="text-xs text-[color:var(--color-fg-muted)]">
-          {plural(report.stats.recordsScanned, "address record")} across{" "}
-          {plural(report.stats.zonesScanned, "zone")} on {plural(report.backends.length, "backend")}
-          , {plural(report.reverseZones.length, "hosted reverse zone")}. Scanned{" "}
-          <LocalTime ts={report.generatedAt} style="relative" />.
+        <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-[color:var(--color-fg-muted)]">
+          {report ? (
+            <span>
+              {plural(report.stats.recordsScanned, "address record")} across{" "}
+              {plural(report.stats.zonesScanned, "zone")} on{" "}
+              {plural(report.backends.length, "backend")},{" "}
+              {plural(report.reverseZones.length, "hosted reverse zone")}. Scanned{" "}
+              <LocalTime ts={report.generatedAt} style="relative" />.
+            </span>
+          ) : loadError ? null : (
+            <span className="inline-flex items-center gap-2">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              Reading every zone on every backend. On a large installation this takes a while.
+            </span>
+          )}
+          {/* Only the live-update note is announced; the relative "scanned …"
+              text above re-renders every minute and would be noise. */}
+          <span role="status" aria-live="polite" className="inline-flex items-center gap-1">
+            {updating ? (
+              <>
+                <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />
+                updating…
+              </>
+            ) : updateError ? (
+              <span className="text-[color:var(--color-warn-fg)]">
+                Live update failed ({updateError}); showing the previous scan.
+              </span>
+            ) : null}
+          </span>
         </p>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <button
             type="button"
             onClick={() => void refreshExternal()}
-            disabled={externalBusy || loading || busy || report.stats.unhosted === 0}
+            disabled={externalBusy || loading || busy || !stats || stats.unhosted === 0}
             title={
-              report.stats.unhosted === 0
+              stats?.unhosted === 0
                 ? "Every address is covered by a hosted reverse zone; there is nothing to look up upstream."
                 : "Ask the world's resolvers now what PTR they answer for the addresses not hosted here. Otherwise lookups run in the background and spread over a few minutes."
             }
@@ -767,7 +850,23 @@ export function PtrReconciler() {
         </div>
       </div>
 
-      {report.errors.length > 0 ? (
+      {loadError && !report ? (
+        <div className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-4 text-sm text-[color:var(--color-error-fg)]">
+          <strong>Could not build the report.</strong> {loadError}
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => void loadReport()}
+              className={TOOLBAR_BUTTON_CLASS}
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden />
+              Try again
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {report && report.errors.length > 0 ? (
         <div className="rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 p-3 text-xs">
           <strong>
             {plural(report.errors.length, "zone")} could not be read; the report is incomplete.
@@ -785,41 +884,32 @@ export function PtrReconciler() {
 
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
-          {STATUS_ORDER.map((status) => {
-            const active = activeStatuses.has(status);
-            const tone = statusTone(status);
-            return (
-              <button
-                key={status}
-                type="button"
-                aria-pressed={active}
-                title={STATUS_HINT[status]}
-                onClick={() => toggleStatus(status)}
-                className={`${FILTER_CHIP_CLASS} ${active ? CHIP_TONE_CLASS[tone] : INACTIVE_CHIP_CLASS}`}
-              >
-                {STATUS_LABEL[status]}
-                <span className="tabular-nums">{report.stats[status]}</span>
-              </button>
-            );
-          })}
+          {STATUS_ORDER.map((status) => (
+            <ToggleChip
+              key={status}
+              active={activeStatuses.has(status)}
+              tone={statusTone(status)}
+              title={STATUS_HINT[status]}
+              onClick={() => toggleStatus(status)}
+              count={stats ? stats[status] : null}
+            >
+              {STATUS_LABEL[status]}
+            </ToggleChip>
+          ))}
         </div>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by horizon">
-          {HORIZON_FILTERS.map(({ value, label }) => {
-            const active = horizonFilter === value;
-            return (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={active}
-                title={value === "all" ? "Rows from both horizons." : HORIZON_HINT[value]}
-                onClick={() => setHorizonFilter(value)}
-                className={`${FILTER_CHIP_CLASS} ${active ? CHIP_TONE_CLASS.accent : INACTIVE_CHIP_CLASS}`}
-              >
-                {label}
-                <span className="tabular-nums">{horizonCounts[value]}</span>
-              </button>
-            );
-          })}
+          {HORIZON_FILTERS.map(({ value, label }) => (
+            <ToggleChip
+              key={value}
+              active={horizonFilter === value}
+              tone="accent"
+              title={value === "all" ? "Rows from both horizons." : HORIZON_HINT[value]}
+              onClick={() => setHorizonFilter(value)}
+              count={report ? horizonCounts[value] : null}
+            >
+              {label}
+            </ToggleChip>
+          ))}
         </div>
       </div>
 
@@ -827,7 +917,7 @@ export function PtrReconciler() {
         <Checkbox
           checked={allVisibleSelected}
           onChange={toggleAllVisible}
-          disabled={visibleRows.length === 0 || busy}
+          disabled={visibleRows.length === 0 || busy || firstLoad}
           label={
             <span className="text-sm">
               Select all {visibleRows.length} shown
@@ -869,22 +959,37 @@ export function PtrReconciler() {
         can be selected: an OK row is rewritten unchanged, a row not hosted here is skipped.
       </p>
 
-      <DataTable
-        columns={columns}
-        data={visibleRows}
-        searchPlaceholder="Search by address, name or zone…"
-        searchShortcut
-        pageSize={25}
-        initialSort={[{ id: "status", desc: false }]}
-        stateKey="auto-ptr"
-        layout="fixed"
-        noDataMessage={
-          rows.length === 0
-            ? "No A or AAAA records found in any zone."
-            : "No rows match the selected statuses and horizon."
-        }
-        renderRowDetail={(row) => (expanded.has(row.id) ? <RowDetail row={row} /> : null)}
-      />
+      {firstLoad ? (
+        loadError ? null : (
+          <SkeletonTable rows={8} cols={7} />
+        )
+      ) : (
+        <DataTable
+          columns={columns}
+          data={visibleRows}
+          searchPlaceholder="Search by address, name or zone…"
+          searchShortcut
+          pageSize={25}
+          initialSort={[{ id: "status", desc: false }]}
+          stateKey="auto-ptr"
+          layout="fixed"
+          noDataMessage={
+            rows.length === 0
+              ? "No A or AAAA records found in any zone."
+              : "No rows match the selected statuses and horizon."
+          }
+          renderRowDetail={(row) =>
+            details.isOpen(row.id) ? (
+              <RowDisclosurePanel
+                id={rowDetailId(panelPrefix, row.id)}
+                label={`Details for ${row.ip}`}
+              >
+                <RowDetail row={row} />
+              </RowDisclosurePanel>
+            ) : null
+          }
+        />
+      )}
     </div>
   );
 }
@@ -922,22 +1027,45 @@ function externalTitle(external: ExternalPtr): string | undefined {
 }
 
 /**
- * What the world answers for an address no hosted reverse zone covers. Colour
- * is never the only signal: the text names the state as well.
+ * The earth icon in front of an external answer: whose view this is. It is
+ * the only thing in the cell that says "upstream", so it carries the
+ * explanation as its accessible name and tooltip.
  */
-function ExternalPtrCell({ external }: { external: ExternalPtr | undefined }) {
+function ExternalViewpointIcon({ title }: { title: string }) {
+  return (
+    <span title={title} className="inline-flex shrink-0">
+      <Earth role="img" aria-label={title} className="h-3.5 w-3.5" />
+    </span>
+  );
+}
+
+/**
+ * What the upstream resolvers answer for an address no hosted reverse zone
+ * covers. Colour is never the only signal: the text names the state as well.
+ */
+function ExternalPtrCell({ row }: { row: PtrReconcileRow }) {
+  const external = row.external;
   const title = external ? externalTitle(external) : undefined;
+  const viewpoint = externalViewpoint(row.horizon, external);
   if (!external || external.status === "pending") {
     return (
-      <span className="text-xs text-[color:var(--color-fg-muted)]" title={title}>
-        world: {EXTERNAL_LABEL.pending}
+      <span
+        className="inline-flex items-center gap-1 text-xs text-[color:var(--color-fg-muted)]"
+        title={title}
+      >
+        <ExternalViewpointIcon title={viewpoint} />
+        {EXTERNAL_LABEL.pending}
       </span>
     );
   }
   if (external.status === "none" || external.status === "error") {
     return (
-      <span className="text-xs text-[color:var(--color-fg-muted)]" title={title}>
-        world: {EXTERNAL_LABEL[external.status]}
+      <span
+        className="inline-flex items-center gap-1 text-xs text-[color:var(--color-fg-muted)]"
+        title={title}
+      >
+        <ExternalViewpointIcon title={viewpoint} />
+        {EXTERNAL_LABEL[external.status]}
       </span>
     );
   }
@@ -946,25 +1074,29 @@ function ExternalPtrCell({ external }: { external: ExternalPtr | undefined }) {
       ? "text-[color:var(--color-success-fg)]"
       : "text-[color:var(--color-warn-fg)]";
   return (
-    <ul className="space-y-0.5" title={title}>
-      {(external.targets ?? []).map((t) => (
-        <li key={t} className={`font-mono text-xs break-all ${tone}`}>
-          <span className="font-sans">world: </span>
-          {t}
-          {external.status === "mismatch" ? (
-            <span className="font-sans text-[color:var(--color-fg-muted)]">
-              {" "}
-              (names another host)
-            </span>
-          ) : null}
-        </li>
-      ))}
-    </ul>
+    <span className={`flex items-start gap-1 ${tone}`} title={title}>
+      <span className="mt-px inline-flex">
+        <ExternalViewpointIcon title={viewpoint} />
+      </span>
+      <ul className="min-w-0 space-y-0.5">
+        {(external.targets ?? []).map((t) => (
+          <li key={t} className="font-mono text-xs break-all">
+            {t}
+            {external.status === "mismatch" ? (
+              <span className="font-sans text-[color:var(--color-fg-muted)]">
+                {" "}
+                (names another host)
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </span>
   );
 }
 
 function CurrentPtrCell({ row }: { row: PtrReconcileRow }) {
-  if (row.status === "unhosted") return <ExternalPtrCell external={row.external} />;
+  if (row.status === "unhosted") return <ExternalPtrCell row={row} />;
   if (row.currentTargets.length === 0) {
     return <span className="text-xs text-[color:var(--color-fg-muted)]">none</span>;
   }
@@ -979,9 +1111,41 @@ function CurrentPtrCell({ row }: { row: PtrReconcileRow }) {
   );
 }
 
+/**
+ * An orphan PTR names a host that has no A/AAAA record: the quickest fix is to
+ * add that record, so the empty cell carries a shortcut into the Add record
+ * wizard with the name, type and address prefilled (the wizard asks for the
+ * zone, since the PTR target alone does not say which hosted zone it belongs to).
+ */
+function addForwardHref(row: PtrReconcileRow): string | null {
+  const target = row.currentTargets[0];
+  if (!target) return null;
+  const params = new URLSearchParams({
+    name: target,
+    type: row.family === 4 ? "A" : "AAAA",
+    content: row.ip,
+  });
+  return `/zones/new-record?${params.toString()}`;
+}
+
 function ForwardCell({ row }: { row: PtrReconcileRow }) {
   if (row.forward.length === 0) {
-    return <span className="text-xs text-[color:var(--color-fg-muted)]">none</span>;
+    const href = row.status === "orphan" ? addForwardHref(row) : null;
+    return (
+      <span className="inline-flex flex-wrap items-center gap-2">
+        <span className="text-xs text-[color:var(--color-fg-muted)]">none</span>
+        {href ? (
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1 rounded-md border border-[color:var(--color-border)] px-1.5 py-0.5 text-xs font-medium text-[color:var(--color-accent)] hover:bg-[color:var(--color-bg-subtle)] focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent)] focus-visible:outline-none"
+            title={`Add an ${row.family === 4 ? "A" : "AAAA"} record for ${row.currentTargets[0]} pointing at ${row.ip}`}
+          >
+            <Plus className="h-3 w-3" aria-hidden="true" />
+            Add
+          </Link>
+        ) : null}
+      </span>
+    );
   }
   return (
     <ul className="space-y-1">
@@ -1007,18 +1171,14 @@ function RowActions({
   row,
   pick,
   busy,
-  expanded,
   onPick,
   onRectify,
-  onToggleExpanded,
 }: {
   row: PtrReconcileRow;
   pick: string | undefined;
   busy: boolean;
-  expanded: boolean;
   onPick: (name: string) => void;
   onRectify: () => void;
-  onToggleExpanded: () => void;
 }) {
   const title = noWriteTitle(row);
   const disabled = busy || !row.canWrite;
@@ -1075,25 +1235,8 @@ function RowActions({
       </button>
     );
   }
-  return (
-    <span className="flex flex-wrap items-center gap-2">
-      {action}
-      <button
-        type="button"
-        onClick={onToggleExpanded}
-        aria-expanded={expanded}
-        aria-label={expanded ? `Hide details for ${row.ip}` : `Show details for ${row.ip}`}
-        className={BUTTON_CLASS}
-      >
-        {expanded ? (
-          <ChevronUp className="h-3.5 w-3.5" aria-hidden />
-        ) : (
-          <ChevronDown className="h-3.5 w-3.5" aria-hidden />
-        )}
-        Details
-      </button>
-    </span>
-  );
+  if (action === null) return null;
+  return <span className="flex flex-wrap items-center gap-2">{action}</span>;
 }
 
 function externalSummary(external: ExternalPtr | undefined): string {
@@ -1140,12 +1283,14 @@ function RowDetail({ row }: { row: PtrReconcileRow }) {
         </dd>
         {row.status === "unhosted" ? (
           <>
-            <dt className="text-[color:var(--color-fg-muted)]">World&apos;s PTR</dt>
+            <dt className="text-[color:var(--color-fg-muted)]">Upstream PTR</dt>
             <dd className="font-mono break-all">
               {externalSummary(row.external)}
               {row.external && (row.external.resolver || row.external.checkedAt) ? (
                 <span className="font-sans text-[color:var(--color-fg-muted)]">
-                  {row.external.resolver ? ` via ${row.external.resolver}` : ""}
+                  {row.external.resolver
+                    ? ` via ${externalResolverLabel(row.external.resolver)}`
+                    : ""}
                   {row.external.checkedAt ? (
                     <>
                       , checked <LocalTime ts={row.external.checkedAt} style="relative" />

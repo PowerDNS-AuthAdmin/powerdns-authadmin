@@ -20,6 +20,7 @@ import { query } from "@/lib/dns/wire";
 import type { ZoneHorizon } from "@/lib/dns/zone-horizon";
 import { zoneMonitorConfig } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { publishMonitorEvent } from "@/lib/realtime/event-bus";
 
 export interface ExternalPtr {
   ip: string;
@@ -34,6 +35,8 @@ export interface ExternalPtr {
 
 interface State {
   timer: NodeJS.Timeout | null;
+  /** Debounce for "new addresses were queued, look them up soon". */
+  soon: NodeJS.Timeout | null;
   results: Map<string, ExternalPtr>;
   queue: Map<string, ZoneHorizon>;
   inFlight: Promise<void> | null;
@@ -45,6 +48,7 @@ declare global {
 }
 const state: State = (globalThis.__externalPtr ??= {
   timer: null,
+  soon: null,
   results: new Map(),
   queue: new Map(),
   inFlight: null,
@@ -147,9 +151,11 @@ async function drain(): Promise<void> {
 
 function run(): Promise<void> {
   if (state.inFlight) return state.inFlight;
-  state.inFlight = drain().finally(() => {
-    state.inFlight = null;
-  });
+  state.inFlight = drain()
+    .then(() => publishMonitorEvent("external-ptr"))
+    .finally(() => {
+      state.inFlight = null;
+    });
   return state.inFlight;
 }
 
@@ -162,15 +168,24 @@ export function scheduleExternalLookups(
   addresses: ReadonlyArray<{ ip: string; horizon: ZoneHorizon }>,
 ): void {
   if (!zoneMonitorConfig.enabled) return;
+  let queued = 0;
   for (const a of addresses) {
     const prev = state.results.get(a.ip);
     const stale =
       !prev || Date.now() - Date.parse(prev.checkedAt) > zoneMonitorConfig.externalPtrIntervalMs;
-    if (stale) state.queue.set(a.ip, a.horizon);
+    if (stale && !state.queue.has(a.ip)) {
+      state.queue.set(a.ip, a.horizon);
+      queued++;
+    }
   }
-  if (!state.timer) {
-    state.timer = setInterval(() => void run(), zoneMonitorConfig.externalPtrIntervalMs);
-    setTimeout(() => void run(), 2_000);
+  state.timer ??= setInterval(() => void run(), zoneMonitorConfig.externalPtrIntervalMs);
+  // A fresh install or a new record must not wait out a whole interval: a short
+  // debounce batches the queue from one page render, then looks it up.
+  if (queued > 0 && !state.soon) {
+    state.soon = setTimeout(() => {
+      state.soon = null;
+      void run();
+    }, 3_000);
   }
 }
 

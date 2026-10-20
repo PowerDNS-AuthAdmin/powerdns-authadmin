@@ -693,7 +693,9 @@ the audit trail behave identically whichever door the user came through.
   with a popover when there are several), fed by `GET /api/admin/pdns/auto-ptr/links` and
   filtered by `zone.read` on every zone it names. The sidebar entry **Zones → Reverse DNS**
   carries the number of rows needing attention (missing, mismatch, ambiguous, orphan), counted
-  by the zone monitor's last cycle (§ 20.5).
+  by the zone monitor's last cycle (§ 20.5). An **orphan** row offers **Add** next to its empty
+  forward column: it opens the Add record wizard (§ 4.9) with the PTR's target name, the
+  address and the record type prefilled, so the missing A/AAAA is two clicks away.
 - **Horizons.** Matching is scoped to the horizon (§ 4.1.1): a public forward record is only
   matched against public reverse zones, an internal one only against internal reverse zones, so
   a split-horizon install keeps its two reverse trees apart and the same address can carry a
@@ -727,6 +729,39 @@ the audit trail behave identically whichever door the user came through.
   `components/domain/ptr-links.tsx`.
 
 ---
+
+### 4.9 Add record wizard
+
+- **What.** **Add record** next to **Add zone** on the zones list (`/zones/new-record`) walks
+  an operator from "I need a record" to "it is live everywhere" without first finding the zone:
+  1. **Horizon** - public or internal, asked only when both kinds of zone exist (otherwise the
+     only one is assumed).
+  2. **Zone** - a type-ahead over every zone the user may read across all backends
+     (`GET /api/admin/pdns/zones/search`), showing backend, cluster and horizon; zones the user
+     may not create records in are listed but disabled.
+  3. **Record** - name, type (type-ahead; PTR first in a reverse zone), TTL, the structured
+     value editors the records page uses, disabled flag, comment, and for A/AAAA the auto-PTR
+     checkbox. While typing, `GET /api/admin/pdns/zones/[zoneId]/records?name=&type=` answers
+     whether that name already holds records: a green **available** tick, or a warning
+     "**TYPE record already exists**: fqdn" with an **[i]** showing the current values and a
+     link to edit it on the records page. Saving onto an existing RRset appends the value.
+  4. **Review** - the same wording and BIND-style preview as the records editor, then **Save**
+     through the same `PATCH …/rrsets` route (validation, RBAC, audit, NOTIFY, auto-PTR).
+  5. **Propagation** - for a primary with secondaries or a cluster,
+     `GET /api/admin/pdns/zones/[zoneId]/sync` is polled (and refreshed on `zone.updated` /
+     `zone.sync.changed` events) and each member is shown with its serial against the expected
+     one. **Finish** enables once every member is in sync; **Skip** is available until then and
+     confirms with "Your record has not yet propagated to all cluster members." A standalone
+     backend skips straight to done.
+     Deep links prefill the wizard: `?zone=&server=&name=&type=&content=` (used by the Reverse
+     DNS page's **Add** shortcut and usable from runbooks).
+- **Permission.** `record.create` anywhere (globally or through a zone grant) opens the page;
+  each zone is checked individually.
+- **MCP.** The same steps are available to an assistant as `find_zones` → `records_at` →
+  `add_record` / `set_records` → `zone_sync_status` (§ 18.2).
+- **Where.** `app/(app)/zones/new-record/`, `components/domain/record-wizard-format.ts`,
+  `app/api/admin/pdns/zones/search/route.ts`, `app/api/admin/pdns/zones/[zoneId]/records/route.ts`,
+  `app/api/admin/pdns/zones/[zoneId]/sync/route.ts`.
 
 ## 5. DNSSEC
 
@@ -1018,6 +1053,18 @@ vocabulary where a 1:1 mapping exists. Rows written before a rename keep the old
   PDNS calls are eliminated.
 - **Where.** `lib/realtime/event-bus.ts`, `lib/realtime/zone-poller.ts`,
   `lib/pdns/zone-state-cache.ts`.
+- **Self-healing stream.** The browser's own EventSource retry is not relied on: a tab that
+  Safari or Chrome froze comes back with a stream that is dead but never errors, or stuck in
+  CONNECTING for good, and the header chip would read "connecting" until a reload. The server
+  sends a `heartbeat` message every 25 s (a data message, because SSE comments never reach the
+  page), and the provider in `components/realtime/realtime-provider.tsx` reopens the stream
+  when it has been silent for more than two heartbeats, has not opened within 10 s, or is
+  closed. The check runs every 5 s while the tab is visible and immediately on tab show, window
+  focus, network back and back-forward-cache restore, so the chip recovers within seconds of
+  the operator returning. A reopen after a gap raises a client-side `realtime.reconnected`
+  event with the length of the gap; pages that keep live tables subscribe to it and refetch
+  what they may have missed. Nothing reloads the page. Policy:
+  `components/realtime/reconnect-policy.ts`.
 
 ---
 
@@ -1165,10 +1212,14 @@ folder (`drizzle/`, `drizzle-sqlite/`); the boot entrypoint picks one based on
 ### 18.2 MCP server (natural-language DNS)
 
 - **What.** `POST /api/mcp` is a Model Context Protocol server (Streamable HTTP, stateless,
-  JSON responses) authenticated with a personal access token. It exposes nine task-shaped
-  tools - `list_backends`, `list_zones`, `get_zone`, `list_records`, `set_records`,
-  `add_record`, `delete_records`, `create_zone`, `delete_zone` - so Claude Code, Codex,
-  Cursor or any MCP client can manage zones from a prompt. Reads go through the same
+  JSON responses) authenticated with a personal access token. It exposes task-shaped tools -
+  `list_backends`, `list_zones`, `find_zones`, `get_zone`, `list_records`, `records_at`,
+  `set_records`, `add_record`, `delete_records`, `create_zone`, `delete_zone`,
+  `zone_sync_status`, `reverse_dns_report`, `reverse_dns_links`, `reverse_dns_rectify`,
+  `zone_monitoring`, `zone_monitoring_refresh` - so Claude Code, Codex, Cursor or any MCP
+  client can manage zones, maintain reverse DNS and read the monitoring from a prompt. Every
+  feature in the UI has a tool counterpart; the tool table in the operator guide is the
+  contract. Reads go through the same
   `canActOnZone` gate as the pages; writes are dispatched into the existing REST route
   handlers, so RBAC ceilings, validation, optimistic concurrency, audit and NOTIFY are the
   ones the UI uses. Write tools are only advertised to tokens that can write somewhere;
@@ -1212,9 +1263,13 @@ this baseline.
   the same `<DataTable>` recipe. Desktop: `bg-bg-muted` thead, `even:bg-bg-subtle` striping,
   accent-tinted hover wash, sticky search + sort + per-column meta widths. Mobile (< md):
   each row reflows to a labelled card automatically - no horizontal scroll, no truncated
-  cells.
-- **Where.** `components/ui/data-table.tsx`. The Audit Log + Profile Sessions + OIDC
-  Providers + TSIG Keys + Autoprimaries were the final hold-outs converted in v1.1.4.
+  cells. Row details across the app (zone change history, audit log, PDNS request log,
+  Reverse DNS, Zone Monitoring) open through a single chevron accordion in front of the
+  first column, one row at a time, so a tall detail never pushes the rows being compared
+  off screen.
+- **Where.** `components/ui/data-table.tsx`, `components/ui/row-disclosure.tsx`. The Audit
+  Log + Profile Sessions + OIDC Providers + TSIG Keys + Autoprimaries were the final
+  hold-outs converted in v1.1.4.
 
 ### 19.3 Live header status chip
 

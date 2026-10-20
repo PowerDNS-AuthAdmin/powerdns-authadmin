@@ -96,15 +96,18 @@ const PAGES = [
   { name: "dashboard", path: "/dashboard" },
   { name: "zones-list", path: "/zones" },
   { name: "reverse-dns", path: "/zones/auto-ptr" },
+  { name: "zone-monitoring", path: "/zones/monitoring" },
+  { name: "add-record", path: "/zones/new-record" },
   { name: "zone-detail", path: ZONE_PATH },
   {
     name: "zone-change-history",
     path: ZONE_HISTORY_PATH,
     async prepare(page) {
       // Expand the FIRST visible change-log entry so the BEFORE/AFTER
-      // diff is in frame. Scoped to `[data-change-entry-toggle]` so we
-      // don't accidentally hit the hamburger / health-bell / other
-      // collapsibles that also use `aria-expanded`. The responsive
+      // diff is in frame. Scoped to `[data-change-entry-toggle]` (the
+      // row's DisclosureChevron) so we don't accidentally hit the
+      // hamburger / health-bell / other collapsibles that also use
+      // `aria-expanded`. The responsive
       // overlay has BOTH the desktop table and the mobile card list in
       // the DOM at once - only the visible form factor's toggle is
       // clicked, the hidden one is left alone.

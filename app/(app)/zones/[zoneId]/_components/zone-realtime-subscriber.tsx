@@ -38,7 +38,9 @@ export function ZoneRealtimeSubscriber({ zoneName, inSync }: Props) {
     // Match on zone name across ANY backend slug: a derived (ungrouped)
     // secondary's AXFR catch-up is published under its OWN slug, not the
     // primary's, so a serverSlug filter would miss it and the chip would stick.
-    (event) => event.type === "zone.updated" && event["zone"] === zoneName,
+    (event) =>
+      event.type === "realtime.reconnected" ||
+      (event.type === "zone.updated" && event["zone"] === zoneName),
     () => {
       const now = Date.now();
       if (now - lastRefreshAt.current < 500) return;

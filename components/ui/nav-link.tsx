@@ -61,15 +61,15 @@ export function NavLink({
       <span>{label}</span>
       {badge ? (
         <span
-          className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 font-mono text-[0.65rem] leading-none ${
+          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap ${
             badgeTone === "error"
-              ? "bg-[color:var(--color-error)] text-white"
-              : "bg-[color:var(--color-warn)] text-black"
+              ? "border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 text-[color:var(--color-error-fg)]"
+              : "border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 text-[color:var(--color-warn-fg)]"
           }`}
           aria-label={badgeLabel ?? `${badge} needing attention`}
           title={badgeLabel ?? `${badge} needing attention`}
         >
-          {badge > 99 ? "99+" : badge}
+          {badge > 999 ? "999+" : badge}
         </span>
       ) : null}
     </Link>

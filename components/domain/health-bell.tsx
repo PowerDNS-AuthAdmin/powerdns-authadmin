@@ -57,7 +57,7 @@ export function HealthBell({ advisories }: { advisories: BellAdvisory[] }) {
   // props in place rather than only on navigation. Debounced against a burst.
   const lastRefreshAt = useRef<number>(0);
   useRealtimeEvent(
-    (event) => event.type === "health.updated",
+    (event) => event.type === "health.updated" || event.type === "realtime.reconnected",
     () => {
       const now = Date.now();
       if (now - lastRefreshAt.current < 500) return;

@@ -33,6 +33,7 @@ import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
 import { isReadOnlyZoneKind } from "@/lib/pdns/writable-kind";
 import { readCachedZones } from "@/lib/pdns/zone-state-cache";
+import type { PdnsClient } from "@/lib/pdns/client";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 
 /** The apex facts zone monitoring needs about one zone, from its PowerDNS copy. */
@@ -72,6 +73,21 @@ export interface FleetScan {
 }
 
 const ZONE_CONCURRENCY = 4;
+
+type ZoneDetailLike = Awaited<ReturnType<PdnsClient["getZone"]>>;
+
+interface CachedZoneDetail {
+  stamp: string;
+  detail: ZoneDetailLike;
+}
+declare global {
+  var __pdnsZoneDetailCache: Map<string, CachedZoneDetail> | undefined;
+}
+/** Last full read of each zone, keyed by backend id + zone, stamped with serial|edited_serial. */
+const detailCache: Map<string, CachedZoneDetail> = (globalThis.__pdnsZoneDetailCache ??= new Map<
+  string,
+  CachedZoneDetail
+>());
 
 async function eachLimited<T>(
   items: readonly T[],
@@ -113,17 +129,28 @@ export async function scanFleet(): Promise<FleetScan> {
   };
 
   const horizons = await loadZoneHorizonIndex();
+  const liveKeys = new Set<string>();
   await Promise.all(
     servers.map(async (server) => {
       const client = getBackendGateway(server);
       const scope = horizonScopeFor(server);
-      let zones: Array<{ name: string; kind: string }>;
-      const cached = readCachedZones(server.id);
-      if (cached) {
-        zones = [...cached.zones.values()];
+      let zones: Array<{
+        name: string;
+        kind: string;
+        serial?: number | null;
+        editedSerial?: number | null;
+      }>;
+      const cachedList = readCachedZones(server.id);
+      if (cachedList) {
+        zones = [...cachedList.zones.values()];
       } else {
         try {
-          zones = await client.listZones();
+          zones = (await client.listZones()).map((z) => ({
+            name: z.name,
+            kind: z.kind,
+            serial: z.serial ?? null,
+            editedSerial: z.edited_serial ?? null,
+          }));
         } catch (err) {
           const message = err instanceof Error ? redact(err.message) : "unknown";
           scan.errors.push({ server: server.slug, message });
@@ -134,6 +161,8 @@ export async function scanFleet(): Promise<FleetScan> {
       const writable = server.writeMode !== "read_only";
       await eachLimited(zones, ZONE_CONCURRENCY, async (z) => {
         const name = canonicalZone(z.name);
+        const detailKey = `${server.id}|${name}`;
+        const stamp = `${z.serial ?? ""}|${z.editedSerial ?? ""}`;
         const kind = zoneKind(name);
         const horizon = effectiveHorizon(
           name,
@@ -148,14 +177,24 @@ export async function scanFleet(): Promise<FleetScan> {
             horizon,
           });
         }
-        let detail;
-        try {
-          detail = await client.getZone(name);
-        } catch (err) {
-          const message = err instanceof Error ? redact(err.message) : "unknown";
-          scan.errors.push({ server: server.slug, zone: name, message });
-          return;
+        // Reuse the last read when the listing's serial has not moved: a rescan
+        // then costs one list call per backend plus the zones that changed, which
+        // is what keeps the Reverse DNS page quick on a fleet of hundreds of zones.
+        const cached = detailCache.get(detailKey);
+        let detail: ZoneDetailLike;
+        if (cached?.stamp === stamp && stamp !== "|") {
+          detail = cached.detail;
+        } else {
+          try {
+            detail = await client.getZone(name);
+          } catch (err) {
+            const message = err instanceof Error ? redact(err.message) : "unknown";
+            scan.errors.push({ server: server.slug, zone: name, message });
+            return;
+          }
+          detailCache.set(detailKey, { stamp, detail });
         }
+        liveKeys.add(detailKey);
         scan.zonesScanned++;
         scan.zones.push(apexFacts(name, server.slug, horizon, detail));
         for (const rr of detail.rrsets ?? []) {
@@ -188,6 +227,8 @@ export async function scanFleet(): Promise<FleetScan> {
       });
     }),
   );
+  // Zones that disappeared from every listing leave the detail cache too.
+  for (const k of [...detailCache.keys()]) if (!liveKeys.has(k)) detailCache.delete(k);
   scan.at = Date.now();
   return scan;
 }
@@ -291,9 +332,9 @@ const cache = (globalThis.__pdnsFleetScanCache ??= {
 });
 
 /** Youngest a cached scan may be for `refresh` to force a new one. */
-export const MIN_REFRESH_INTERVAL_MS = 15_000;
+export const MIN_REFRESH_INTERVAL_MS = 5_000;
 /** How long the Reverse DNS page and the record-table link chips reuse a scan. */
-export const DEFAULT_SCAN_MAX_AGE_MS = 60_000;
+export const DEFAULT_SCAN_MAX_AGE_MS = 20_000;
 
 /**
  * The fleet scan, shared and deduplicated: concurrent callers join one
@@ -327,4 +368,9 @@ export async function getFleetScan(
 /** Forget the cached scan: a PTR was just written, so the next read must see it. */
 export function invalidateFleetScan(): void {
   cache.at = 0;
+}
+
+/** The last scan without triggering one (null before the first). */
+export function peekFleetScan(): FleetScan | null {
+  return cache.scan ?? null;
 }

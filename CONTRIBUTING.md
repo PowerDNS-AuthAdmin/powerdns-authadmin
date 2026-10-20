@@ -373,7 +373,7 @@ because the inline backticks terminate the template.
   layer or string catalogue in the codebase today. Keep user-visible copy in the component (not
   in shared constants scattered across `lib/`) so a future extraction pass has one place to look.
 - **Accessible primitives are hand-rolled** in `components/ui/` (dialog, select-menu, data-table,
-  disclosure, switch) - there is no `react-aria` or Radix dependency. Reuse those primitives rather
+  disclosure, row-disclosure, toggle-chip, switch) - there is no `react-aria` or Radix dependency. Reuse those primitives rather
   than adding a new focus-management implementation; if one of them is missing a behaviour, fix it
   there so every consumer gets it.
 

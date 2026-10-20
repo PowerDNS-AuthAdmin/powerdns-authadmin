@@ -37,6 +37,8 @@ export function ServerRealtimeSubscriber({ serverSlugs, inSync }: Props) {
 
   useRealtimeEvent(
     (event) => {
+      // A stream reopened after a gap may have missed updates: refresh once.
+      if (event.type === "realtime.reconnected") return true;
       if (event.type !== "zone.updated" && event.type !== "zone.sync.changed") return false;
       const slug = event["serverSlug"];
       return typeof slug === "string" && slugSet.has(slug);

@@ -5,9 +5,10 @@
  *
  * Per-zone change history. Table-shaped feed of audit events with filters
  * (search, action, actor, date range), pagination, and per-row click-to-
- * expand revealing the side-by-side Before / After diff. The diff itself
- * is rendered by `BareDiff`; the wrapper is intentionally chrome-light so
- * dense activity scans well.
+ * expand revealing the side-by-side Before / After diff, one row open at a
+ * time through the shared row disclosure. The diff itself is rendered by
+ * `BareDiff`; the wrapper is intentionally chrome-light so dense activity
+ * scans well.
  *
  * Audit row → diff input mapping:
  *   - record.create:        before=[]              after=[after-rrset]
@@ -22,9 +23,15 @@
  * Non-diffable events (zone.notify) render a one-line summary on expand.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { colorForAuditAction } from "@/lib/audit/action-color";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
+import {
+  DisclosureChevron,
+  RowDisclosurePanel,
+  rowDetailId,
+  useRowDisclosure,
+} from "@/components/ui/row-disclosure";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { BareDiff } from "./bare-diff";
 import { PdnsHttpLog, type PdnsHttpLogEntry } from "./pdns-http-log";
@@ -85,7 +92,10 @@ export function ZoneChangeLog({ entries, zoneName, pdnsHttpByRequestId }: ZoneCh
   const [to, setTo] = useState<string>("");
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(25);
   const [page, setPage] = useState(0);
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const details = useRowDisclosure();
+  // The table and the card list are both in the DOM (CSS hides one per
+  // breakpoint), so each needs its own panel ids for the same entry.
+  const panelPrefix = useId();
 
   // Distinct action / actor values for the filter dropdowns.
   const actionChoices = useMemo(
@@ -126,15 +136,6 @@ export function ZoneChangeLog({ entries, zoneName, pdnsHttpByRequestId }: ZoneCh
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages - 1);
   const shown = filtered.slice(safePage * pageSize, safePage * pageSize + pageSize);
-
-  function toggleRow(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   function clearFilters() {
     setQuery("");
@@ -198,8 +199,9 @@ export function ZoneChangeLog({ entries, zoneName, pdnsHttpByRequestId }: ZoneCh
                 key={entry.id}
                 entry={entry}
                 zoneName={zoneName}
-                expanded={expanded.has(entry.id)}
-                onToggle={() => toggleRow(entry.id)}
+                open={details.isOpen(entry.id)}
+                onToggle={() => details.toggle(entry.id)}
+                panelId={rowDetailId(`${panelPrefix}card-`, entry.id)}
                 httpLog={httpEntriesForAuditAction(
                   entry.action,
                   entry.requestId ? (pdnsHttpByRequestId?.get(entry.requestId) ?? []) : [],
@@ -208,14 +210,11 @@ export function ZoneChangeLog({ entries, zoneName, pdnsHttpByRequestId }: ZoneCh
             ))}
           </div>
 
-          {/* Desktop (md+): the dense 5-column table. */}
+          {/* Desktop (md+): the dense 4-column table. */}
           <div className="hidden overflow-hidden rounded-lg border border-[color:var(--color-border)] md:block">
             <table className="w-full text-sm">
               <thead className="bg-[color:var(--color-bg-muted)] text-left text-xs font-medium tracking-wide text-[color:var(--color-fg-muted)] uppercase">
                 <tr>
-                  <th scope="col" className="w-8 px-4 py-2.5">
-                    <span className="sr-only">Details</span>
-                  </th>
                   <th scope="col" className="px-4 py-2.5">
                     When
                   </th>
@@ -236,8 +235,9 @@ export function ZoneChangeLog({ entries, zoneName, pdnsHttpByRequestId }: ZoneCh
                     key={entry.id}
                     entry={entry}
                     zoneName={zoneName}
-                    expanded={expanded.has(entry.id)}
-                    onToggle={() => toggleRow(entry.id)}
+                    open={details.isOpen(entry.id)}
+                    onToggle={() => details.toggle(entry.id)}
+                    panelId={rowDetailId(`${panelPrefix}table-`, entry.id)}
                     httpLog={httpEntriesForAuditAction(
                       entry.action,
                       entry.requestId ? (pdnsHttpByRequestId?.get(entry.requestId) ?? []) : [],
@@ -309,40 +309,33 @@ function ExpandedPanel({
   );
 }
 
-function Chevron({ expanded }: { expanded: boolean }) {
-  return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 10 10"
-      aria-hidden
-      className={`transition-transform ${expanded ? "rotate-90" : ""}`}
-    >
-      <path
-        d="M3 2l4 3-4 3"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+/**
+ * The chevron is the accessible toggle; the rest of the row and the card
+ * header toggle too, as they always did, except when the click landed on a
+ * control of its own (the chevron itself, or a link in the panel).
+ */
+function isOwnControl(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  return Boolean(el?.closest("a,button,input,select,textarea,label,[role=button]"));
 }
 
-function ChangeRow({
-  entry,
-  zoneName,
-  expanded,
-  onToggle,
-  httpLog,
-}: {
+/** What the row is about, for the chevron's accessible name: "record.update www A". */
+function describeEntry(entry: ZoneAuditEntryClient, zoneName: string): string {
+  const resource = describeResource(entry, zoneName);
+  return resource ? `${entry.action} ${resource}` : entry.action;
+}
+
+interface ChangeEntryProps {
   entry: ZoneAuditEntryClient;
   zoneName: string;
-  expanded: boolean;
+  open: boolean;
   onToggle: () => void;
+  /** DOM id shared by the chevron's `aria-controls` and the revealed panel. */
+  panelId: string;
   httpLog: PdnsHttpLogEntry[];
-}) {
+}
+
+function ChangeRow({ entry, zoneName, open, onToggle, panelId, httpLog }: ChangeEntryProps) {
   const resourceLabel = describeResource(entry, zoneName);
   const actor = entry.actorEmail ?? (entry.actorType === "system" ? "system" : "-");
 
@@ -350,15 +343,25 @@ function ChangeRow({
     <>
       <tr
         className="cursor-pointer border-t border-[color:var(--color-border)] transition-colors hover:bg-[color-mix(in_oklch,var(--color-accent)_14%,transparent)]"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        data-change-entry-toggle="true"
+        onClick={(e) => {
+          if (isOwnControl(e.target)) return;
+          onToggle();
+        }}
       >
-        <td className="w-8 px-4 py-3 align-top text-[color:var(--color-fg-muted)]">
-          <Chevron expanded={expanded} />
-        </td>
         <td className="px-4 py-3 align-top font-mono text-[0.6875rem] whitespace-nowrap text-[color:var(--color-fg-muted)]">
-          {formatTimestamp(entry.ts)}
+          <span className="inline-flex items-center gap-2">
+            <DisclosureChevron
+              open={open}
+              onToggle={onToggle}
+              label={describeEntry(entry, zoneName)}
+              controls={panelId}
+              // The chevron's hit area is taller than the mono timestamp; the
+              // negative margin keeps the row at the height it had before.
+              className="-my-1"
+              data-change-entry-toggle="true"
+            />
+            {formatTimestamp(entry.ts)}
+          </span>
         </td>
         <td className="px-4 py-3 align-top">
           <ActionChip action={entry.action} />
@@ -373,10 +376,15 @@ function ChangeRow({
           ) : null}
         </td>
       </tr>
-      {expanded ? (
+      {open ? (
         <tr className="border-t border-[color:var(--color-border)]">
-          <td colSpan={5} className="bg-[color:var(--color-bg)] p-0">
-            <ExpandedPanel entry={entry} httpLog={httpLog} />
+          <td colSpan={4} className="bg-[color:var(--color-bg)] p-0">
+            <RowDisclosurePanel
+              id={panelId}
+              label={`Details for ${describeEntry(entry, zoneName)}`}
+            >
+              <ExpandedPanel entry={entry} httpLog={httpLog} />
+            </RowDisclosurePanel>
           </td>
         </tr>
       ) : null}
@@ -389,33 +397,26 @@ function ChangeRow({
  * stacks timestamp + action chip + resource + actor vertically so nothing
  * gets clipped at 360 px wide. The expanded body reuses ExpandedPanel.
  */
-function ChangeCard({
-  entry,
-  zoneName,
-  expanded,
-  onToggle,
-  httpLog,
-}: {
-  entry: ZoneAuditEntryClient;
-  zoneName: string;
-  expanded: boolean;
-  onToggle: () => void;
-  httpLog: PdnsHttpLogEntry[];
-}) {
+function ChangeCard({ entry, zoneName, open, onToggle, panelId, httpLog }: ChangeEntryProps) {
   const resourceLabel = describeResource(entry, zoneName);
   const actor = entry.actorEmail ?? (entry.actorType === "system" ? "system" : "-");
   return (
     <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)]">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        data-change-entry-toggle="true"
-        className="flex w-full items-start gap-2 p-3 text-left transition-colors hover:bg-[color:var(--color-bg-subtle)]"
+      <div
+        onClick={(e) => {
+          if (isOwnControl(e.target)) return;
+          onToggle();
+        }}
+        className="flex w-full cursor-pointer items-start gap-2 p-3 text-left transition-colors hover:bg-[color:var(--color-bg-subtle)]"
       >
-        <span className="mt-1.5 shrink-0 text-[color:var(--color-fg-muted)]">
-          <Chevron expanded={expanded} />
-        </span>
+        <DisclosureChevron
+          open={open}
+          onToggle={onToggle}
+          label={describeEntry(entry, zoneName)}
+          controls={panelId}
+          className="-mt-0.5"
+          data-change-entry-toggle="true"
+        />
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
             <span className="font-mono text-[0.6875rem] whitespace-nowrap text-[color:var(--color-fg-muted)]">
@@ -433,11 +434,15 @@ function ChangeCard({
             ) : null}
           </div>
         </div>
-      </button>
-      {expanded ? (
-        <div className="border-t border-[color:var(--color-border)]">
+      </div>
+      {open ? (
+        <RowDisclosurePanel
+          id={panelId}
+          label={`Details for ${describeEntry(entry, zoneName)}`}
+          className="border-t border-[color:var(--color-border)]"
+        >
           <ExpandedPanel entry={entry} httpLog={httpLog} />
-        </div>
+        </RowDisclosurePanel>
       ) : null}
     </div>
   );

@@ -144,10 +144,12 @@ describe("replaceResult", () => {
 });
 
 describe("awaitingFirstResults", () => {
-  it("polls only while enabled with nothing to show and a cycle pending or running", () => {
+  it("polls while enabled with no zone checked yet, whatever the cycle state", () => {
     expect(awaitingFirstResults(stateOf([], { lastCycleAt: null }))).toBe(true);
     expect(awaitingFirstResults(stateOf([], { running: true }))).toBe(true);
-    expect(awaitingFirstResults(stateOf([]))).toBe(false);
+    // A completed cycle with no rows still polls: new zones are probed within
+    // seconds and the realtime bus has no row to announce until then.
+    expect(awaitingFirstResults(stateOf([]))).toBe(true);
     expect(awaitingFirstResults(stateOf([], { lastCycleAt: null, enabled: false }))).toBe(false);
     expect(awaitingFirstResults(stateOf([resultOf("a.", null)], { running: true }))).toBe(false);
   });

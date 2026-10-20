@@ -166,7 +166,14 @@ export async function GET(request: Request): Promise<Response> {
               return;
             }
             try {
-              controller.enqueue(encoder.encode(`: keep-alive ${Date.now()}\n\n`));
+              // A data message rather than an SSE comment: comments never reach
+              // EventSource.onmessage, so the client could not tell a healthy idle
+              // stream from one a suspended tab or NAT silently dropped.
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: "heartbeat", at: new Date().toISOString() })}\n\n`,
+                ),
+              );
             } catch {
               cleanup();
             }

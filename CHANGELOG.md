@@ -30,6 +30,15 @@ All notable changes to this project are documented here. The format is based on
   (`POST /api/admin/pdns/auto-ptr/external-refresh`) refreshes them on demand
   (`EXTERNAL_PTR_INTERVAL_SECONDS`). The sidebar entry carries the
   number of addresses needing attention.
+- **Add record wizard** (`/zones/new-record`, **Add record** next to **Add zone**): horizon →
+  zone type-ahead across every backend → record with a live "already exists / available" check
+  → the editor's review and Save → a propagation step that waits for every secondary or cluster
+  peer (Finish when all are in sync, Skip with a confirmation before). Orphan rows on the
+  Reverse DNS page deep-link into it. Backed by three new read endpoints, zone search, records
+  at a name and per-zone sync status, which are also MCP tools (`find_zones`, `records_at`,
+  `zone_sync_status`), alongside `reverse_dns_report`, `reverse_dns_links`,
+  `reverse_dns_rectify`, `zone_monitoring` and `zone_monitoring_refresh`, so everything the new
+  pages do is available to an assistant.
 - **Zone Monitoring** (`/zones/monitoring`): every hosted zone checked from the outside on a
   schedule. The delegation is read by walking from the root servers to the parent rather than
   through a recursive resolver, so the NS set, glue and DS the internet actually sees are
@@ -45,6 +54,16 @@ All notable changes to this project are documented here. The format is based on
   sidebar shows a per-page count. Own wire-format DNS client (`lib/dns/wire.ts`), on by
   default, `ZONE_MONITOR_ENABLED=false` for air-gapped installs; `ZONE_MONITOR_*` variables in
   the configuration guide.
+
+### Fixed
+
+- **Header chip stuck on "connecting" after a tab slept.** Safari (and Chrome on battery)
+  freezes background tabs and hands back a dead or permanently connecting event stream that
+  never errors. The server heartbeat is now a message the page can measure, and the realtime
+  provider reopens the stream when it is silent past two heartbeats, stuck connecting, or
+  closed - on a 5 s watchdog and immediately when the tab is shown, the window focused or the
+  network returns. Pages receive a `realtime.reconnected` event and refetch; the page itself
+  never reloads.
 
 ## [1.9.1] - 2026-10-17
 

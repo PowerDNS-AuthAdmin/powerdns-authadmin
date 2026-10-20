@@ -29,6 +29,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { READY_STATE, shouldReopen, WATCHDOG_MS } from "./reconnect-policy";
 
 export interface RealtimeEventBase {
   type: string;
@@ -69,6 +70,24 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const [raw, setRaw] = useState<RawStatus>("connecting");
   const [status, setStatus] = useState<RealtimeStatus>("connecting");
   const listenersRef = useRef<Set<ListenerEntry>>(new Set());
+  // Bumping `generation` discards the current EventSource and opens a new one.
+  // The browser's own retry is not enough: a tab Safari froze comes back with a
+  // stream that is dead but never errors, or stuck in CONNECTING for good.
+  const [generation, setGeneration] = useState(0);
+  const lastSeenRef = useRef(Date.now());
+  const lastHealthyRef = useRef<number | null>(null);
+  const sourceRef = useRef<EventSource | null>(null);
+  const openedAtRef = useRef(Date.now());
+
+  const dispatch = useCallback((event: RealtimeEvent) => {
+    for (const entry of listenersRef.current) {
+      try {
+        if (entry.predicate(event)) entry.listener(event);
+      } catch {
+        // a faulty listener must never break the rest
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!enabled) {
@@ -76,9 +95,29 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       return;
     }
     const es = new EventSource("/api/realtime", { withCredentials: true });
+    sourceRef.current = es;
+    openedAtRef.current = Date.now();
+    lastSeenRef.current = Date.now();
     setRaw("connecting");
-    es.onopen = () => setRaw("live");
+    const markHealthy = () => {
+      const now = Date.now();
+      lastSeenRef.current = now;
+      // A gap means a reopen after silence: tell pages to refetch what they
+      // missed. The very first connection of a page load is not a gap.
+      const previous = lastHealthyRef.current;
+      if (previous !== null && generation > 0 && now - previous > WATCHDOG_MS) {
+        dispatch({
+          type: "realtime.reconnected",
+          at: new Date(now).toISOString(),
+          gapMs: now - previous,
+        });
+      }
+      lastHealthyRef.current = now;
+      setRaw("live");
+    };
+    es.onopen = markHealthy;
     es.onmessage = (e) => {
+      lastSeenRef.current = Date.now();
       const data: unknown = e.data;
       if (typeof data !== "string") return;
       let parsed: unknown;
@@ -90,20 +129,56 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       if (!parsed || typeof parsed !== "object") return;
       const event = parsed as RealtimeEvent;
       if (event.type === "ready") {
-        setRaw("live");
+        markHealthy();
         return;
       }
-      for (const entry of listenersRef.current) {
-        try {
-          if (entry.predicate(event)) entry.listener(event);
-        } catch {
-          // a faulty listener must never break the rest
-        }
+      if (event.type === "heartbeat") {
+        lastHealthyRef.current = Date.now();
+        return;
       }
+      dispatch(event);
     };
     es.onerror = () => setRaw("error");
     return () => {
       es.close();
+      if (sourceRef.current === es) sourceRef.current = null;
+    };
+  }, [enabled, generation, dispatch]);
+
+  // Watchdog: reopen a stream that is closed, stuck connecting, or silent past
+  // two heartbeats. Runs on a timer while the tab is visible and immediately on
+  // the events that follow a sleep (tab shown, window focused, network back,
+  // page restored from the back-forward cache), so the chip recovers within a
+  // few seconds of the operator coming back - without reloading the page.
+  useEffect(() => {
+    if (!enabled) return;
+    const check = () => {
+      if (document.visibilityState === "hidden") return;
+      const es = sourceRef.current;
+      const observation = {
+        readyState: es ? es.readyState : READY_STATE.CLOSED,
+        lastSeenAt: lastSeenRef.current,
+        openedAt: openedAtRef.current,
+        now: Date.now(),
+      };
+      if (shouldReopen(observation)) {
+        // Reset the clocks so one stall triggers one reopen, not one per tick.
+        openedAtRef.current = observation.now;
+        lastSeenRef.current = observation.now;
+        setGeneration((g) => g + 1);
+      }
+    };
+    const timer = setInterval(check, WATCHDOG_MS);
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("focus", check);
+    window.addEventListener("online", check);
+    window.addEventListener("pageshow", check);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", check);
+      window.removeEventListener("online", check);
+      window.removeEventListener("pageshow", check);
     };
   }, [enabled]);
 

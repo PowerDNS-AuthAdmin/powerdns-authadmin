@@ -12,13 +12,24 @@
  * keeps its own server-side `?offset=` prev/next nav (one limit-wide window
  * per HTTP request). DataTable's only job here is the consistent table chrome
  * (mobile cards, sortable headers, same CSS as every other list in the app).
+ *
+ * A row's detail (the before/after diff, the PDNS requests it issued, the
+ * client ip and the operation id) opens beneath it through the shared row
+ * disclosure, one row at a time; the diff and the request log stay as their
+ * own collapsibles inside that panel because either can run to a screenful.
  */
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import Link from "next/link";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { LocalTime } from "@/components/ui/local-time";
 import { Disclosure } from "@/components/ui/disclosure";
+import {
+  DisclosureChevron,
+  RowDisclosurePanel,
+  rowDetailId,
+  useRowDisclosure,
+} from "@/components/ui/row-disclosure";
 import { BareDiff } from "@/app/(app)/zones/[zoneId]/_components/bare-diff";
 import {
   PdnsHttpLog,
@@ -44,19 +55,51 @@ export interface AuditRowClient {
   requestId: string | null;
 }
 
+/** The row as the chevron's accessible name says it: "record.update www.example.com A". */
+function describeRow(row: AuditRowClient): string {
+  const resource = row.resourceDisplay ?? row.resourceId;
+  return resource ? `${row.action} ${resource}` : row.action;
+}
+
+/** False for rows with nothing beneath them; their chevron is disabled rather than opening an empty panel. */
+function hasDetail(row: AuditRowClient): boolean {
+  return (
+    row.beforeLines.length > 0 ||
+    row.afterLines.length > 0 ||
+    row.httpEntries.length > 0 ||
+    row.ip !== null ||
+    row.requestId !== null
+  );
+}
+
 export function AuditTable({ rows }: { rows: AuditRowClient[] }) {
+  const details = useRowDisclosure();
+  const panelPrefix = useId();
+
   const columns = useMemo<Array<ColumnDef<AuditRowClient, unknown>>>(
     () => [
       {
         accessorKey: "ts",
         header: "When",
-        cell: (ctx) => (
-          <LocalTime
-            ts={ctx.getValue<string>()}
-            className="font-mono text-[0.6875rem] whitespace-nowrap text-[color:var(--color-fg-muted)]"
-          />
-        ),
-        meta: { className: "w-44" },
+        cell: (ctx) => {
+          const row = ctx.row.original;
+          return (
+            <span className="inline-flex items-center gap-2">
+              <DisclosureChevron
+                open={details.isOpen(row.id)}
+                onToggle={() => details.toggle(row.id)}
+                label={describeRow(row)}
+                controls={rowDetailId(panelPrefix, row.id)}
+                disabled={!hasDetail(row)}
+              />
+              <LocalTime
+                ts={row.ts}
+                className="font-mono text-[0.6875rem] whitespace-nowrap text-[color:var(--color-fg-muted)]"
+              />
+            </span>
+          );
+        },
+        meta: { className: "w-52" },
       },
       {
         id: "actor",
@@ -129,56 +172,8 @@ export function AuditTable({ rows }: { rows: AuditRowClient[] }) {
           );
         },
       },
-      {
-        id: "detail",
-        header: "Detail",
-        enableSorting: false,
-        cell: (ctx) => {
-          const row = ctx.row.original;
-          const hasBeforeAfter = row.beforeLines.length > 0 || row.afterLines.length > 0;
-          return (
-            <div className="space-y-1 text-xs">
-              {hasBeforeAfter ? (
-                <Disclosure
-                  label="BEFORE / AFTER"
-                  className="space-y-1"
-                  summaryClassName="uppercase tracking-wide"
-                  bodyClassName="mt-1"
-                >
-                  <BareDiff removed={row.beforeLines} added={row.afterLines} layout="stacked" />
-                </Disclosure>
-              ) : null}
-              {row.httpEntries.length > 0 ? (
-                <Disclosure
-                  label={`POWERDNS HTTP REQUESTS (${row.httpEntries.length})`}
-                  className="space-y-1"
-                  summaryClassName="uppercase tracking-wide"
-                  bodyClassName="mt-1"
-                >
-                  <PdnsHttpLog entries={row.httpEntries} collapsible={false} />
-                </Disclosure>
-              ) : null}
-              {row.ip ? (
-                <div className="text-[color:var(--color-fg-muted)]">ip: {row.ip}</div>
-              ) : null}
-              {row.requestId ? (
-                <div className="text-[color:var(--color-fg-muted)]">
-                  req:{" "}
-                  <Link
-                    href={`/admin/audit?${new URLSearchParams({ requestId: row.requestId }).toString()}`}
-                    className="font-mono text-[color:var(--color-accent)] hover:underline"
-                    title="Filter to all rows from this request"
-                  >
-                    {row.requestId}
-                  </Link>
-                </div>
-              ) : null}
-            </div>
-          );
-        },
-      },
     ],
-    [],
+    [details, panelPrefix],
   );
 
   return (
@@ -190,6 +185,49 @@ export function AuditTable({ rows }: { rows: AuditRowClient[] }) {
       hideSearch
       emptyMessage="No entries match the current filter."
       noDataMessage="No audit rows yet."
+      renderRowDetail={(row) =>
+        details.isOpen(row.id) ? (
+          <RowDisclosurePanel
+            id={rowDetailId(panelPrefix, row.id)}
+            label={`Details for ${describeRow(row)}`}
+            className="space-y-2 pt-3 text-xs"
+          >
+            {row.beforeLines.length > 0 || row.afterLines.length > 0 ? (
+              <Disclosure
+                label="BEFORE / AFTER"
+                className="space-y-1"
+                summaryClassName="uppercase tracking-wide"
+                bodyClassName="mt-1"
+              >
+                <BareDiff removed={row.beforeLines} added={row.afterLines} layout="stacked" />
+              </Disclosure>
+            ) : null}
+            {row.httpEntries.length > 0 ? (
+              <Disclosure
+                label={`POWERDNS HTTP REQUESTS (${row.httpEntries.length})`}
+                className="space-y-1"
+                summaryClassName="uppercase tracking-wide"
+                bodyClassName="mt-1"
+              >
+                <PdnsHttpLog entries={row.httpEntries} collapsible={false} />
+              </Disclosure>
+            ) : null}
+            {row.ip ? <div className="text-[color:var(--color-fg-muted)]">ip: {row.ip}</div> : null}
+            {row.requestId ? (
+              <div className="text-[color:var(--color-fg-muted)]">
+                req:{" "}
+                <Link
+                  href={`/admin/audit?${new URLSearchParams({ requestId: row.requestId }).toString()}`}
+                  className="font-mono text-[color:var(--color-accent)] hover:underline"
+                  title="Filter to all rows from this request"
+                >
+                  {row.requestId}
+                </Link>
+              </div>
+            ) : null}
+          </RowDisclosurePanel>
+        ) : null
+      }
     />
   );
 }

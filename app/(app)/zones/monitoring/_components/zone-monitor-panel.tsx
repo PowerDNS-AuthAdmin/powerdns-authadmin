@@ -6,11 +6,13 @@
  * The zone monitoring table: one row per hosted zone per backend, with the
  * verdict of the last background pass and the findings behind it.
  *
- * Reads `GET /api/admin/monitoring/zones` on mount. The monitor runs its
- * first pass a few seconds after boot, so an empty result set with no
- * completed cycle is polled every few seconds rather than shown as "no
- * zones". After that the state is re-read once a minute while the tab is
- * visible, so a cycle finishing in the background shows up without a reload.
+ * Reads `GET /api/admin/monitoring/zones` after the shell has painted. The
+ * monitor probes new zones within seconds of boot, so an empty result set is
+ * polled every few seconds rather than shown as "no zones" until the first
+ * row lands. After that the page stays current over the realtime bus: a
+ * finished cycle, a zone edit or a health change nudges a debounced, quiet
+ * re-fetch that keeps the rows on screen until the new ones arrive and leaves
+ * the operator's filters and open row alone.
  *
  * Writes go to `POST /api/admin/monitoring/zones/refresh`: an empty body
  * re-runs the fleet, `{ zone, serverSlug }` re-checks one zone. Both are
@@ -20,14 +22,13 @@
  */
 
 import { type ColumnDef } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   FindingList,
   HorizonChip,
   ResultSummary,
-  VERDICT_CHIP_CLASS,
   VerdictChip,
 } from "@/components/domain/zone-monitor-findings";
 import {
@@ -48,11 +49,19 @@ import {
   type ZoneMonitorState,
   type ZoneVerdict,
 } from "@/components/domain/zone-monitor-format";
+import { useRealtimeEvent } from "@/components/realtime/realtime-provider";
 import { DataTable } from "@/components/ui/data-table";
 import { useDialog } from "@/components/ui/dialog";
 import { LocalTime } from "@/components/ui/local-time";
+import {
+  DisclosureChevron,
+  RowDisclosurePanel,
+  rowDetailId,
+  useRowDisclosure,
+} from "@/components/ui/row-disclosure";
 import { SelectMenu } from "@/components/ui/select-menu";
-import { SkeletonTable } from "@/components/ui/skeleton";
+import { Skeleton, SkeletonTable } from "@/components/ui/skeleton";
+import { ToggleChip, type ToggleChipTone } from "@/components/ui/toggle-chip";
 import { mutate } from "@/lib/client/api-fetch";
 
 // ---------------------------------------------------------------- contract
@@ -60,10 +69,24 @@ import { mutate } from "@/lib/client/api-fetch";
 const STATE_URL = "/api/admin/monitoring/zones";
 const REFRESH_URL = "/api/admin/monitoring/zones/refresh";
 const HTTP_TOO_MANY_REQUESTS = 429;
-/** While the first cycle has not produced anything yet. */
+/** While no zone has been checked yet; realtime takes over once the first row exists. */
 const FIRST_RESULTS_POLL_MS = 10_000;
-/** Background cycles finish without telling the tab; this keeps the page current. */
-const BACKGROUND_REFRESH_MS = 60_000;
+/**
+ * A cycle publishes one `monitor.updated` per backend and a zone edit publishes
+ * `zone.updated` plus `health.updated`; one re-fetch per burst is enough.
+ */
+const REFETCH_DEBOUNCE_MS = 1500;
+
+/** Events after which the results may have changed. */
+function isMonitorEvent(event: { type: string }): boolean {
+  return (
+    event.type === "monitor.updated" ||
+    event.type === "zone.updated" ||
+    event.type === "health.updated" ||
+    // the stream was reopened after a gap; anything may have changed meanwhile
+    event.type === "realtime.reconnected"
+  );
+}
 
 type HorizonFilter = "all" | "public" | "internal";
 
@@ -77,6 +100,14 @@ const HORIZON_OPTIONS: ReadonlyArray<{ value: HorizonFilter; label: string }> = 
 type Busy = { kind: "all" } | { kind: "row"; key: string } | null;
 
 const ALL_VERDICTS: ReadonlySet<ZoneVerdict> = new Set(VERDICT_ORDER);
+
+/** Info is neutral on purpose; OK gets the success colour so it reads as a verdict, not an absence. */
+const VERDICT_TONE: Record<ZoneVerdict, ToggleChipTone> = {
+  error: "error",
+  warn: "warn",
+  info: "muted",
+  ok: "success",
+};
 
 const BUTTON_CLASS =
   "inline-flex items-center gap-1 rounded border border-[color:var(--color-border)] px-2 py-1 text-xs whitespace-nowrap hover:bg-[color:var(--color-bg-muted)] disabled:cursor-not-allowed disabled:opacity-50";
@@ -99,11 +130,15 @@ export function ZoneMonitorPanel() {
   const [busy, setBusy] = useState<Busy>(null);
   const [activeVerdicts, setActiveVerdicts] = useState<ReadonlySet<ZoneVerdict>>(ALL_VERDICTS);
   const [horizon, setHorizon] = useState<HorizonFilter>("all");
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const details = useRowDisclosure();
+  const panelPrefix = useId();
   const [liveMessage, setLiveMessage] = useState("");
+  /** A quiet re-fetch is in flight: the rows on screen are kept until it lands. */
+  const [updating, setUpdating] = useState(false);
 
   const loadState = useCallback(async (opts: { quiet?: boolean } = {}) => {
-    if (!opts.quiet) setLoading(true);
+    if (opts.quiet) setUpdating(true);
+    else setLoading(true);
     const result = await mutate<ZoneMonitorState>(STATE_URL);
     if (!result.ok) {
       // A background refresh that fails must not blank a page that was fine;
@@ -116,6 +151,7 @@ export function ZoneMonitorPanel() {
       setLoadError(null);
       setState(result.data);
     }
+    setUpdating(false);
     setLoading(false);
   }, []);
 
@@ -125,36 +161,45 @@ export function ZoneMonitorPanel() {
 
   const waitingForFirst = state !== null && awaitingFirstResults(state);
 
+  // The one remaining poll: until the first zone has been checked there is
+  // nothing for the realtime bus to announce per row, and the first results
+  // arrive within seconds of boot.
   useEffect(() => {
     if (!waitingForFirst) return;
-    const timer = setInterval(() => void loadState({ quiet: true }), FIRST_RESULTS_POLL_MS);
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void loadState({ quiet: true });
+    }, FIRST_RESULTS_POLL_MS);
     return () => clearInterval(timer);
   }, [waitingForFirst, loadState]);
 
-  useEffect(() => {
-    if (!state?.enabled || waitingForFirst) return;
-    const timer = setInterval(() => {
-      if (document.visibilityState === "visible" && busy === null) {
-        void loadState({ quiet: true });
-      }
-    }, BACKGROUND_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [state?.enabled, waitingForFirst, busy, loadState]);
+  // Realtime: coalesce a burst of events into one quiet re-fetch. The timer
+  // lives in a ref so an unmount mid-burst cancels it instead of fetching
+  // into a component that is gone. A fleet run started from this tab already
+  // replaces the state when it returns, so events during it are ignored.
+  const refetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+  useRealtimeEvent(isMonitorEvent, () => {
+    if (busyRef.current?.kind === "all") return;
+    setUpdating(true);
+    if (refetchTimer.current) clearTimeout(refetchTimer.current);
+    refetchTimer.current = setTimeout(() => {
+      refetchTimer.current = null;
+      void loadState({ quiet: true });
+    }, REFETCH_DEBOUNCE_MS);
+  });
+  useEffect(
+    () => () => {
+      if (refetchTimer.current) clearTimeout(refetchTimer.current);
+    },
+    [],
+  );
 
   const toggleVerdict = useCallback((verdict: ZoneVerdict) => {
     setActiveVerdicts((cur) => {
       const next = new Set(cur);
       if (next.has(verdict)) next.delete(verdict);
       else next.add(verdict);
-      return next;
-    });
-  }, []);
-
-  const toggleExpanded = useCallback((key: string) => {
-    setExpanded((cur) => {
-      const next = new Set(cur);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
       return next;
     });
   }, []);
@@ -253,14 +298,27 @@ export function ZoneMonitorPanel() {
       {
         accessorKey: "zone",
         header: "Zone",
-        cell: ({ row }) => (
-          <Link
-            href={zoneHref(row.original)}
-            className="font-mono text-sm break-all text-[color:var(--color-accent)] hover:underline"
-          >
-            {row.original.zone}
-          </Link>
-        ),
+        cell: ({ row }) => {
+          const key = resultKey(row.original);
+          // Chevron then the zone link on one line - also as the card title
+          // under `md`, where a long zone name wraps but the chevron stays put.
+          return (
+            <span className="inline-flex max-w-full min-w-0 items-center gap-2">
+              <DisclosureChevron
+                open={details.isOpen(key)}
+                onToggle={() => details.toggle(key)}
+                label={`${row.original.zone} on ${row.original.server}`}
+                controls={rowDetailId(panelPrefix, key)}
+              />
+              <Link
+                href={zoneHref(row.original)}
+                className="min-w-0 font-mono text-sm break-all text-[color:var(--color-accent)] hover:underline"
+              >
+                {row.original.zone}
+              </Link>
+            </span>
+          );
+        },
       },
       {
         accessorKey: "server",
@@ -342,80 +400,25 @@ export function ZoneMonitorPanel() {
         cell: ({ row }) => {
           const key = resultKey(row.original);
           const checking = busy?.kind === "row" && busy.key === key;
-          const isExpanded = expanded.has(key);
           return (
-            <span className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void recheck(row.original)}
-                disabled={busy !== null}
-                aria-label={`Re-check ${row.original.zone} on ${row.original.server}`}
-                className={BUTTON_CLASS}
-              >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 ${checking ? "animate-spin" : ""}`}
-                  aria-hidden
-                />
-                {checking ? "Checking…" : "Re-check"}
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleExpanded(key)}
-                aria-expanded={isExpanded}
-                aria-label={
-                  isExpanded
-                    ? `Hide details for ${row.original.zone}`
-                    : `Show details for ${row.original.zone}`
-                }
-                className={BUTTON_CLASS}
-              >
-                {isExpanded ? (
-                  <ChevronUp className="h-3.5 w-3.5" aria-hidden />
-                ) : (
-                  <ChevronDown className="h-3.5 w-3.5" aria-hidden />
-                )}
-                Details
-              </button>
-            </span>
+            <button
+              type="button"
+              onClick={() => void recheck(row.original)}
+              disabled={busy !== null}
+              aria-label={`Re-check ${row.original.zone} on ${row.original.server}`}
+              className={BUTTON_CLASS}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${checking ? "animate-spin" : ""}`} aria-hidden />
+              {checking ? "Checking…" : "Re-check"}
+            </button>
           );
         },
       },
     ],
-    [busy, expanded, recheck, toggleExpanded],
+    [busy, details, panelPrefix, recheck],
   );
 
-  if (loading && !state) {
-    return (
-      <div className="space-y-3">
-        <p
-          role="status"
-          className="flex items-center gap-2 text-sm text-[color:var(--color-fg-muted)]"
-        >
-          <RefreshCw className="h-4 w-4 animate-spin" aria-hidden />
-          Loading the latest results…
-        </p>
-        <SkeletonTable rows={8} cols={7} />
-      </div>
-    );
-  }
-
-  if (loadError && !state) {
-    return (
-      <div className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-4 text-sm text-[color:var(--color-error-fg)]">
-        <strong>Could not load the monitoring results.</strong> {loadError}
-        <div className="mt-3">
-          <button type="button" onClick={() => void loadState()} className={TOOLBAR_BUTTON_CLASS}>
-            <RefreshCw className="h-4 w-4" aria-hidden />
-            Try again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!state) return null;
-
-  if (!state.enabled) {
+  if (state && !state.enabled) {
     return (
       <div className={NOTICE_WARN_CLASS} role="status">
         <strong>Zone monitoring is disabled by ZONE_MONITOR_ENABLED.</strong> Set it to{" "}
@@ -425,22 +428,31 @@ export function ZoneMonitorPanel() {
     );
   }
 
-  const checkingAll = busy?.kind === "all" || state.running;
+  const firstLoad = state === null;
+  const checkingAll = busy?.kind === "all" || state?.running === true;
 
+  // The shell (stats strip, chips, table frame) renders at once; only the
+  // numbers and the rows wait for the first response.
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-3 sm:flex-row sm:items-center sm:justify-between">
         <dl className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
-          <div className="flex gap-1.5">
+          <div className="flex items-center gap-1.5">
             <dt className="text-[color:var(--color-fg-muted)]">Last run</dt>
             <dd>
-              <LocalTime ts={state.lastCycleAt} style="relative" fallback="not yet" />
+              {state ? (
+                <LocalTime ts={state.lastCycleAt} style="relative" fallback="not yet" />
+              ) : (
+                <Skeleton className="h-3 w-16" />
+              )}
             </dd>
           </div>
-          <div className="flex gap-1.5">
+          <div className="flex items-center gap-1.5">
             <dt className="text-[color:var(--color-fg-muted)]">Next run</dt>
             <dd>
-              {checkingAll ? (
+              {!state ? (
+                <Skeleton className="h-3 w-16" />
+              ) : checkingAll ? (
                 <span className="inline-flex items-center gap-1">
                   <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />
                   checking now
@@ -450,19 +462,21 @@ export function ZoneMonitorPanel() {
               )}
             </dd>
           </div>
-          <div className="flex gap-1.5">
+          <div className="flex items-center gap-1.5">
             <dt className="text-[color:var(--color-fg-muted)]">Interval</dt>
-            <dd>{formatInterval(state.intervalMs)}</dd>
+            <dd>{state ? formatInterval(state.intervalMs) : <Skeleton className="h-3 w-20" />}</dd>
           </div>
-          <div className="flex gap-1.5">
+          <div className="flex items-center gap-1.5">
             <dt className="text-[color:var(--color-fg-muted)]">Zones</dt>
-            <dd className="tabular-nums">{state.counts.zones}</dd>
+            <dd className="tabular-nums">
+              {state ? state.counts.zones : <Skeleton className="h-3 w-6" />}
+            </dd>
           </div>
         </dl>
         <button
           type="button"
           onClick={() => void runAll()}
-          disabled={busy !== null || state.running}
+          disabled={firstLoad || busy !== null || checkingAll}
           className={TOOLBAR_BUTTON_CLASS}
         >
           <RefreshCw className={`h-4 w-4 ${checkingAll ? "animate-spin" : ""}`} aria-hidden />
@@ -470,11 +484,42 @@ export function ZoneMonitorPanel() {
         </button>
       </div>
 
-      <p role="status" aria-live="polite" className={liveMessage ? "text-xs" : "sr-only"}>
-        {liveMessage}
+      <p
+        role="status"
+        aria-live="polite"
+        className={
+          liveMessage || updating || (loading && firstLoad)
+            ? "flex flex-wrap items-center gap-x-1.5 text-xs text-[color:var(--color-fg-muted)]"
+            : "sr-only"
+        }
+      >
+        {liveMessage ? <span className="text-[color:var(--color-fg)]">{liveMessage}</span> : null}
+        {loading && firstLoad ? (
+          <span className="inline-flex items-center gap-1">
+            <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />
+            Loading the latest results…
+          </span>
+        ) : updating ? (
+          <span className="inline-flex items-center gap-1">
+            <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />
+            updating…
+          </span>
+        ) : null}
       </p>
 
-      {state.offline ? (
+      {loadError && !state ? (
+        <div className="rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-error)]/10 p-4 text-sm text-[color:var(--color-error-fg)]">
+          <strong>Could not load the monitoring results.</strong> {loadError}
+          <div className="mt-3">
+            <button type="button" onClick={() => void loadState()} className={TOOLBAR_BUTTON_CLASS}>
+              <RefreshCw className="h-4 w-4" aria-hidden />
+              Try again
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {state?.offline ? (
         <div className={NOTICE_WARN_CLASS} role="status">
           <strong>Offline: no path to the root servers.</strong> Delegation and DNSSEC chain checks
           for public zones were skipped this cycle and show as unverified. Nameserver and resolver
@@ -488,32 +533,24 @@ export function ZoneMonitorPanel() {
           className="flex items-center gap-2 text-sm text-[color:var(--color-fg-muted)]"
         >
           <RefreshCw className="h-4 w-4 animate-spin" aria-hidden />
-          First check is running… Results appear here as soon as the first pass finishes.
+          First checks are running; results appear here as each zone is checked.
         </p>
       ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
-          {VERDICT_ORDER.map((verdict) => {
-            const active = activeVerdicts.has(verdict);
-            return (
-              <button
-                key={verdict}
-                type="button"
-                aria-pressed={active}
-                title={VERDICT_HINT[verdict]}
-                onClick={() => toggleVerdict(verdict)}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                  active
-                    ? VERDICT_CHIP_CLASS[verdict]
-                    : "border-[color:var(--color-border)] text-[color:var(--color-fg-muted)] opacity-70 hover:opacity-100"
-                }`}
-              >
-                {VERDICT_LABEL[verdict]}
-                <span className="tabular-nums">{state.counts[verdict]}</span>
-              </button>
-            );
-          })}
+          {VERDICT_ORDER.map((verdict) => (
+            <ToggleChip
+              key={verdict}
+              active={activeVerdicts.has(verdict)}
+              tone={VERDICT_TONE[verdict]}
+              title={VERDICT_HINT[verdict]}
+              onClick={() => toggleVerdict(verdict)}
+              count={state ? state.counts[verdict] : null}
+            >
+              {VERDICT_LABEL[verdict]}
+            </ToggleChip>
+          ))}
         </div>
         {hasInternal ? (
           <SelectMenu
@@ -526,25 +563,39 @@ export function ZoneMonitorPanel() {
         ) : null}
       </div>
 
-      <DataTable
-        columns={columns}
-        data={visibleRows}
-        searchPlaceholder="Search by zone, backend or finding…"
-        searchShortcut
-        pageSize={25}
-        initialSort={[{ id: "status", desc: false }]}
-        stateKey="zone-monitoring"
-        noDataMessage={
-          rows.length === 0
-            ? waitingForFirst
-              ? "Waiting for the first results."
-              : "No hosted zones to check."
-            : "No zones match the selected filters."
-        }
-        renderRowDetail={(row) =>
-          expanded.has(resultKey(row)) ? <RowDetail result={row} /> : null
-        }
-      />
+      {firstLoad ? (
+        loadError ? null : (
+          <SkeletonTable rows={8} cols={7} />
+        )
+      ) : (
+        <DataTable
+          columns={columns}
+          data={visibleRows}
+          searchPlaceholder="Search by zone, backend or finding…"
+          searchShortcut
+          pageSize={25}
+          initialSort={[{ id: "status", desc: false }]}
+          stateKey="zone-monitoring"
+          noDataMessage={
+            rows.length === 0
+              ? waitingForFirst
+                ? "Waiting for the first results."
+                : "No hosted zones to check."
+              : "No zones match the selected filters."
+          }
+          renderRowDetail={(row) => {
+            const key = resultKey(row);
+            return details.isOpen(key) ? (
+              <RowDisclosurePanel
+                id={rowDetailId(panelPrefix, key)}
+                label={`Details for ${row.zone} on ${row.server}`}
+              >
+                <RowDetail result={row} />
+              </RowDisclosurePanel>
+            ) : null;
+          }}
+        />
+      )}
     </div>
   );
 }
