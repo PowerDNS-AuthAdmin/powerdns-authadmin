@@ -20,7 +20,13 @@ interface SearchBody {
     total: number;
     items: Array<{ kind: string; title: string; href: string; meta?: Record<string, string> }>;
   }>;
-  counts: { zones: number; records: number; config: number; requests: number; audit: number };
+  counts: {
+    zones: number;
+    records: number;
+    config: number;
+    requests: number | null;
+    audit: number | null;
+  };
 }
 
 function randomZone(prefix: string): string {
@@ -77,7 +83,14 @@ describe("global search API", () => {
     expect(empty.status).toBe(200);
     const emptyBody = (await empty.json()) as SearchBody;
     expect(emptyBody.groups).toEqual([]);
-    expect(emptyBody.counts).toEqual({ zones: 0, records: 0, config: 0, requests: 0, audit: 0 });
+    // The logs are not searched under All, so their counts are null rather than 0.
+    expect(emptyBody.counts).toEqual({
+      zones: 0,
+      records: 0,
+      config: 0,
+      requests: null,
+      audit: null,
+    });
   }, 60_000);
 
   it("rejects an over-long query and an unknown scope", async () => {
