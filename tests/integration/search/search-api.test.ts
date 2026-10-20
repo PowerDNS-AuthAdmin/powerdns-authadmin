@@ -53,7 +53,7 @@ describe("global search API", () => {
     const label = zone.replace(/\.example\.com\.$/, "");
     let res: Response | null = null;
     let body: SearchBody | null = null;
-    for (let attempt = 0; attempt < 40; attempt++) {
+    for (let attempt = 0; attempt < 60; attempt++) {
       res = await admin.call(`/api/search?q=${encodeURIComponent(label)}&scope=zones`, {
         method: "GET",
       });

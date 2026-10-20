@@ -41,6 +41,13 @@ export interface SearchSnapshot {
 const DEBOUNCE_MS = 750;
 /** The request log changes on every PowerDNS call; rebuild for it at most this often. */
 const LOG_ONLY_MIN_INTERVAL_MS = 15_000;
+/**
+ * A rebuild re-reads the fleet, so at most one starts per this interval
+ * (matching the fleet scan's own refresh limit): a burst of zone changes, an
+ * import, a test run, collapses into one rebuild every few seconds instead
+ * of back-to-back full scans.
+ */
+const MIN_BUILD_INTERVAL_MS = 5_000;
 /** Catch-all rebuild for changes no event announces. */
 const PERIODIC_MS = 5 * 60_000;
 
@@ -160,8 +167,11 @@ function build(): Promise<SearchSnapshot | null> {
 
 function schedule(delayMs: number): void {
   // The earliest deadline wins: a zone change must not wait behind a slower
-  // rebuild already queued for request-log churn.
-  const dueAt = Date.now() + delayMs;
+  // rebuild already queued for request-log churn. But never sooner than the
+  // minimum interval after the last rebuild started.
+  const sinceLast = Date.now() - state.lastBuildStartedAt;
+  const delay = Math.max(delayMs, MIN_BUILD_INTERVAL_MS - sinceLast);
+  const dueAt = Date.now() + delay;
   if (state.timer && (state.timerDueAt ?? 0) <= dueAt) return;
   if (state.timer) clearTimeout(state.timer);
   state.timerDueAt = dueAt;
@@ -169,7 +179,7 @@ function schedule(delayMs: number): void {
     state.timer = null;
     state.timerDueAt = 0;
     void build();
-  }, delayMs);
+  }, delay);
 }
 
 function onEvent(event: RealtimeEvent): void {
