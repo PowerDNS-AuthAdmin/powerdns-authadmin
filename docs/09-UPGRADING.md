@@ -39,32 +39,6 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
-### Upgrading to 1.10.0 (from 1.9.1)
-
-No migration, no schema change - pull the new tag and recreate the container.
-Nothing behaves differently until you opt in; every new setting below is off
-by default.
-
-- **Automatic PTR maintenance** is off until you enable the `auto_ptr` setting
-  (Admin → Settings, or `auto_ptr: true` in provisioning), or per zone with
-  `X-AUTHADMIN-AUTO-PTR` metadata, or per save in the record editor. It never
-  creates reverse zones and never replaces a PTR that points elsewhere without
-  an explicit takeover.
-- **Reverse DNS checks** (`REVERSE_DNS_ENABLED=true`) add the fleet-wide
-  A/AAAA-vs-PTR report and PTR links on record tables. They read every zone on
-  every backend periodically, and look up uncovered addresses through
-  resolvers (`EXTERNAL_PTR_INTERVAL_SECONDS`).
-- **Zone monitoring** (`ZONE_MONITOR_ENABLED=true`) sends DNS queries outside
-  your network: to the root servers, to `ZONE_MONITOR_PUBLIC_RESOLVERS`
-  (default `1.1.1.1,8.8.8.8,9.9.9.9`) and to each zone's own nameservers,
-  including an unsigned AXFR attempt. On a restricted network, set
-  `ZONE_MONITOR_INTERNAL_RESOLVERS` and allow outbound DNS before enabling it.
-  See [Configuration](./03-CONFIGURATION.md) for every `ZONE_MONITOR_*`
-  variable.
-
-While either check is off, its page, sidebar entry, API routes and MCP tools
-do not exist. See the [CHANGELOG](../CHANGELOG.md#1100---2026-10-21).
-
 ### Upgrading to 1.9.1 (from 1.9.0)
 
 No migration, no schema change, no config change - pull the new tag and

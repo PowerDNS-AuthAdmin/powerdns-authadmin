@@ -109,13 +109,6 @@ const VERDICT_TONE: Record<ZoneVerdict, ToggleChipTone> = {
   ok: "success",
 };
 
-// The table only fits all nine columns from about 1600px. Below that, Horizon,
-// Serial and Checked step out (delegation, serial and timing are also in each
-// row's Observed panel), then Delegation below xl, so the table fits down to md
-// instead of scrolling sideways.
-const WIDE_ONLY = "hidden min-[1600px]:table-cell";
-const WIDE_ONLY_HIDE = "min-[1600px]:hidden";
-
 const BUTTON_CLASS =
   "inline-flex items-center gap-1 rounded border border-[color:var(--color-border)] px-2 py-1 text-xs whitespace-nowrap hover:bg-[color:var(--color-bg-muted)] disabled:cursor-not-allowed disabled:opacity-50";
 const TOOLBAR_BUTTON_CLASS =
@@ -305,9 +298,6 @@ export function ZoneMonitorPanel() {
       {
         accessorKey: "zone",
         header: "Zone",
-        // The other headers do not wrap, so in the auto layout this was the only
-        // column left to give, and `break-all` let it shrink to one character.
-        meta: { className: "min-w-[9rem]" },
         cell: ({ row }) => {
           const key = resultKey(row.original);
           // Chevron then the zone link on one line - also as the card title
@@ -333,20 +323,11 @@ export function ZoneMonitorPanel() {
       {
         accessorKey: "server",
         header: "Backend",
-        cell: ({ row }) => (
-          <span className="flex flex-col items-start gap-1">
-            <span className="font-mono text-xs">{row.original.server}</span>
-            {/* Stands in for the Horizon column while that one is hidden. */}
-            <span className={`hidden md:inline-block ${WIDE_ONLY_HIDE}`}>
-              <HorizonChip horizon={row.original.horizon} />
-            </span>
-          </span>
-        ),
+        cell: ({ row }) => <span className="font-mono text-xs">{row.original.server}</span>,
       },
       {
         accessorKey: "horizon",
         header: "Horizon",
-        meta: { className: WIDE_ONLY },
         cell: ({ row }) => <HorizonChip horizon={row.original.horizon} />,
       },
       {
@@ -380,7 +361,6 @@ export function ZoneMonitorPanel() {
         id: "delegation",
         header: "Delegation",
         accessorFn: (r) => DELEGATION_LABEL[r.summary.delegation],
-        meta: { className: "hidden xl:table-cell" },
         cell: ({ row }) => (
           <span
             className="text-xs whitespace-nowrap"
@@ -395,7 +375,6 @@ export function ZoneMonitorPanel() {
         header: "Serial",
         accessorFn: (r) => r.summary.serial ?? "",
         sortingFn: (a, b) => (a.original.summary.serial ?? -1) - (b.original.summary.serial ?? -1),
-        meta: { className: WIDE_ONLY },
         cell: ({ row }) =>
           row.original.summary.serial === null ? (
             <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>
@@ -406,7 +385,6 @@ export function ZoneMonitorPanel() {
       {
         accessorKey: "checkedAt",
         header: "Checked",
-        meta: { className: WIDE_ONLY },
         cell: ({ row }) => (
           <LocalTime
             ts={row.original.checkedAt}
