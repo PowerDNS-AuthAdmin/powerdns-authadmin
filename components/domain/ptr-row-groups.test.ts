@@ -75,11 +75,7 @@ describe("groupPtrRows", () => {
     const groups = groupPtrRows(rows);
     expect(groups).toHaveLength(1);
     expect(groups[0]!.lead.ip).toBe("10.42.2.1");
-    expect(groups[0]!.members.map((m) => m.ip)).toEqual([
-      "10.42.2.1",
-      "10.42.4.1",
-      "10.42.10.1",
-    ]);
+    expect(groups[0]!.members.map((m) => m.ip)).toEqual(["10.42.2.1", "10.42.4.1", "10.42.10.1"]);
     expect(groups[0]!.id.startsWith("group:")).toBe(true);
   });
 
