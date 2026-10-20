@@ -50,6 +50,8 @@ interface IndexState {
   /** A change arrived while a build was running: build again when it ends. */
   rerun: boolean;
   timer: NodeJS.Timeout | null;
+  /** When the scheduled rebuild fires (epoch ms); 0 when none is scheduled. */
+  timerDueAt?: number;
   periodic: NodeJS.Timeout | null;
   unsubscribe: (() => void) | null;
   lastBuildStartedAt: number;
@@ -157,9 +159,15 @@ function build(): Promise<SearchSnapshot | null> {
 }
 
 function schedule(delayMs: number): void {
-  if (state.timer) return;
+  // The earliest deadline wins: a zone change must not wait behind a slower
+  // rebuild already queued for request-log churn.
+  const dueAt = Date.now() + delayMs;
+  if (state.timer && (state.timerDueAt ?? 0) <= dueAt) return;
+  if (state.timer) clearTimeout(state.timer);
+  state.timerDueAt = dueAt;
   state.timer = setTimeout(() => {
     state.timer = null;
+    state.timerDueAt = 0;
     void build();
   }, delayMs);
 }
