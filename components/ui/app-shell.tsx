@@ -136,7 +136,13 @@ export function AppShell({
                 via <HeaderStatusMode/> in components that own a "synced" notion. */}
             <HeaderStatusChip />
           </div>
-          <div className="flex min-w-0 flex-1 justify-end md:justify-center">{headerCenter}</div>
+          {/* Centred on the viewport, not on the header: from xl the column
+              moves left by half the sidebar (w-80, so 10rem). The width cap
+              keeps it clear of the status chip and the controls (about 58rem
+              of chrome in all). Below xl it centres in the header. */}
+          <div className="flex min-w-0 flex-1 justify-end md:justify-center xl:w-[min(28rem,calc(100vw-60rem))] xl:-translate-x-40 xl:justify-self-center">
+            {headerCenter}
+          </div>
           <div className="flex items-center justify-end gap-3">{headerControls}</div>
         </header>
 
