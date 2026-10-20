@@ -50,7 +50,7 @@ operator sets, and key the amalgamated zone list on `(horizon, name)` instead of
 ## Rationale
 
 The operator is the only one who knows. Both zones are byte-identical in every property the app can
-observe - the internal one is frequently a real public name (`ngn.au.`), so no heuristic on the name
+observe - the internal one is frequently a real public name (`example.com.`), so no heuristic on the name
 works, and no probe distinguishes them. This is the same shape as the `write_mode` exception in
 ADR-0014: an operator-declared field, admitted because PowerDNS is _incapable_ of reporting the
 fact, not merely inconvenient to ask.

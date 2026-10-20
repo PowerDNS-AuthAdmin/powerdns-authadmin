@@ -19,13 +19,15 @@ const row = (
 
 describe("zoneIdentityKey", () => {
   it("separates the same name on different horizons", () => {
-    expect(zoneIdentityKey(row("a", "ngn.au.", { horizon: "internal" }))).not.toBe(
-      zoneIdentityKey(row("b", "ngn.au.")),
+    expect(zoneIdentityKey(row("a", "example.com.", { horizon: "internal" }))).not.toBe(
+      zoneIdentityKey(row("b", "example.com.")),
     );
   });
 
   it("is equal for the same (horizon, name) regardless of source backend", () => {
-    expect(zoneIdentityKey(row("a", "ngn.au."))).toBe(zoneIdentityKey(row("b", "ngn.au.")));
+    expect(zoneIdentityKey(row("a", "example.com."))).toBe(
+      zoneIdentityKey(row("b", "example.com.")),
+    );
   });
 });
 
@@ -43,8 +45,8 @@ describe("dedupeZonesByIdentity", () => {
   // public one that happens to share its name, so both must list.
   it("keeps an internal and a public copy of the same name as separate rows", () => {
     const { kept, hidden } = dedupeZonesByIdentity([
-      row("public-ns", "ngn.au."),
-      row("internal-ns", "ngn.au.", { horizon: "internal" }),
+      row("public-ns", "example.com."),
+      row("internal-ns", "example.com.", { horizon: "internal" }),
     ]);
     expect(kept.map((r) => r.backend)).toEqual(["public-ns", "internal-ns"]);
     expect(hidden).toEqual([]);
@@ -52,8 +54,8 @@ describe("dedupeZonesByIdentity", () => {
 
   it("still collapses two internal copies of one name", () => {
     const { kept, hidden } = dedupeZonesByIdentity([
-      row("internal-a", "ngn.au.", { horizon: "internal" }),
-      row("internal-b", "ngn.au.", { horizon: "internal" }),
+      row("internal-a", "example.com.", { horizon: "internal" }),
+      row("internal-b", "example.com.", { horizon: "internal" }),
     ]);
     expect(kept).toHaveLength(1);
     expect(hidden.map((r) => r.backend)).toEqual(["internal-b"]);
