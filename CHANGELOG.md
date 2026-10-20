@@ -123,6 +123,12 @@ setting and does not need either variable.
   Hidden, and ignored, for a backend in a group, where the group provides the redundancy. Also
   `monitor_accept_single_ns` in provisioning (optional, so a boot does not override the UI).
   Adds the `pdns_servers.monitor_accept_single_ns` column.
+- **Change log.** `/admin/changes` gathers what people changed, everywhere: records, zones,
+  DNSSEC, users and access (accounts, passwords, MFA, passkeys, tokens, sessions, roles, teams,
+  zone grants) and configuration, in the zone page's own colour-coded layout plus a Zone column
+  and a Category filter. A zone's **Change history** tab is now **Change log** and links to it
+  with **Show all changes**. The sidebar has a new **Logs** section: Change log, Request log,
+  Audit log. Gated on global `audit.read`, like the logs beside it.
 - **The app takes the project website's look.** The colour palette (light and dark), the Inter
   and JetBrains Mono typefaces (self-hosted, no font CDN; the CSP is unchanged), softer corner
   radii, a translucent top bar and matching chart colours. The search pill sits centred in the

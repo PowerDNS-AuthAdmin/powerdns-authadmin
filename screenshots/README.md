@@ -191,7 +191,7 @@ Per-zone landing: kind / serial / DNSSEC status; last-edit attribution;
 backend (with cluster + RRset count); Clone-zone button; tabs for
 **Records**, **SOA**, **Zone settings**, **DNSSEC**, **Metadata & TSIG**,
 **Sync** and **Statistics** (with `PDNS_BACKGROUND_POLLING=true`), **Access**,
-**Change history** - each shown only to users holding its read permission.
+**Change log** - each shown only to users holding its read permission.
 The records table groups records by RRset and surfaces type / TTL /
 value / comment in a per-row editor.
 

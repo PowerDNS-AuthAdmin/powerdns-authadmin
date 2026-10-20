@@ -117,7 +117,11 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const canReadUsers = current.ability.can("read", "User");
   const canReadRoles = current.ability.can("read", "Role");
   const canReadTeams = current.ability.can("read", "Team");
-  const canReadAudit = current.ability.can("read", "Audit");
+  // The three log pages require GLOBAL audit.read (requireUserForPage without
+  // an instance), so the Logs section uses the same test: a type-level
+  // ability check would also pass for a team-scoped role and show links that
+  // answer 403.
+  const canReadLogs = current.globalPermissions.has("audit.read");
   const canReadSettings = current.ability.can("read", "Settings");
   const canReadAuth = current.ability.can("read", "Auth");
   const canUseTemplates = current.ability.can("use", "Template");
@@ -138,17 +142,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   // Sidebar is grouped by function (Infrastructure / Access / System) rather
   // than one flat "Admin" pile. Each group renders only when the user can see
-  // at least one of its children. The PowerDNS section now also houses the
-  // Request log (moved from System), which is `audit.read`-gated.
+  // at least one of its children. The three logs (Change, Request, Audit) sit
+  // together under Logs.
   const hasInfrastructure =
-    canReadServers ||
-    canReadTsig ||
-    canManageAutoprimary ||
-    canUseTemplates ||
-    canReadZones ||
-    canReadAudit;
+    canReadServers || canReadTsig || canManageAutoprimary || canUseTemplates || canReadZones;
   const hasAccess = canReadUsers || canReadRoles || canReadTeams || canReadAuth;
-  const hasSystem = canReadSettings || canReadAudit;
+  const hasSystem = canReadSettings;
   // The two fleet-wide zone pages need global read (they list every zone), so
   // the links only show to users who could open them.
   const globalRecordRead = current.globalPermissions.has("record.read");
@@ -233,12 +232,6 @@ export default async function AppLayout({ children }: Readonly<{ children: React
                 <NavLink nested href="/admin/tsig-keys" label="TSIG keys" />
               </>
             ) : null}
-            {canReadAudit ? (
-              <>
-                <NavGroupLabel label="Activity" />
-                <NavLink nested href="/admin/requests" label="Request log" />
-              </>
-            ) : null}
           </NavSection>
         ) : null}
 
@@ -256,7 +249,14 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         {hasSystem ? (
           <NavSection label="System">
             {canReadSettings ? <NavLink nested href="/admin/settings" label="Settings" /> : null}
-            {canReadAudit ? <NavLink nested href="/admin/audit" label="Audit log" /> : null}
+          </NavSection>
+        ) : null}
+
+        {canReadLogs ? (
+          <NavSection label="Logs">
+            <NavLink nested href="/admin/changes" label="Change log" />
+            <NavLink nested href="/admin/requests" label="Request log" />
+            <NavLink nested href="/admin/audit" label="Audit log" />
           </NavSection>
         ) : null}
       </nav>

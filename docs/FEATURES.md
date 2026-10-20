@@ -609,11 +609,13 @@ the audit trail behave identically whichever door the user came through.
 - **Where.** `lib/db/schema/zone-templates.ts`, `lib/validators/zone-templates.ts`,
   `app/(app)/admin/zone-templates/`.
 
-### 4.5 Zone change history
+### 4.5 Zone change log
 
-- **What.** Per-zone history feed at `/zones/<id>?tab=history` rendering every audit event
-  with diff (rrset before/after) and one-line summaries for DNSSEC / metadata events. Chip
-  colours match the action vocabulary's tone (`lib/audit/action-color.ts`).
+- **What.** Per-zone feed at `/zones/<id>?tab=history` (the **Change log** tab) rendering every
+  audit event with diff (rrset before/after) and one-line summaries for DNSSEC / metadata
+  events. Chip colours match the action vocabulary's tone (`lib/audit/action-color.ts`).
+  **Show all changes** opens the fleet-wide Change log (§ 9.2) narrowed to this zone, across
+  all of its cluster peers.
 - **Where.** `app/(app)/zones/[zoneId]/_components/zone-change-log.tsx`.
 
 <picture>
@@ -873,6 +875,29 @@ the audit trail behave identically whichever door the user came through.
   <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/audit-log.png" />
   <img src="../screenshots/light/audit-log.png" alt="Audit log" width="720" />
 </picture>
+
+### 9.2 Change log
+
+- **What.** `/admin/changes` (sidebar **Logs → Change log**, beside the Request log and the
+  Audit log) is the audit log filtered to what people _changed_: records, zones, DNSSEC, users
+  and access (accounts, passwords, MFA, passkeys, tokens, sessions, roles, teams, zone grants)
+  and configuration (backends, groups, settings, templates, TSIG keys, autoprimaries, sign-in
+  providers, backup restore, provisioning). Sign-ins, reads, reveals, exports, NOTIFYs and
+  notification dismissals stay in the Audit log. It is drawn with the zone page's own Change
+  log component (same colour-coded chips, compact table and mobile cards, filters, paging and
+  diffs) plus a **Zone** column (zone link and backend) and a **Category** filter; account and
+  configuration changes expand to a field-by-field before/after. It loads the newest 1,000
+  changes; `?zone=&server=` narrows it to one zone, which is where a zone page's **Show all
+  changes** lands.
+- **Classification.** `lib/audit/change-actions.ts` puts every action in the vocabulary in
+  exactly one category or in its not-a-change list; a contract test fails when a new action is
+  left unclassified.
+- **Permission.** Global `audit.read`, the same as the Audit log, the Request log and the zone
+  page's Change log tab. The **Logs** section shows only to users holding it globally (a
+  team-scoped role does not pass the pages' gate, so it does not show the links either); a
+  zone-grant holder without it is turned away like any other user.
+- **Where.** `app/(app)/admin/changes/`, `lib/audit/change-actions.ts`,
+  `lib/db/repositories/audit-log.ts` (`changeLogEntries`).
 
 ### 9.1 Audit action vocabulary
 

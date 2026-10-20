@@ -135,6 +135,45 @@ export async function zoneAuditLog(
 }
 
 /**
+ * The fleet-wide Change log (/admin/changes): the newest audit rows whose
+ * action is one of `actions` (the change vocabulary in
+ * lib/audit/change-actions.ts), optionally narrowed to one zone - across all
+ * of its backend slugs, exactly as the zone page's own Change log scopes it.
+ * Same columns and actor join as `zoneAuditLog`, so both pages render the
+ * same rows.
+ */
+export async function changeLogEntries(
+  actions: readonly string[],
+  opts: { zone?: { serverSlugs: readonly string[]; name: string }; limit?: number } = {},
+): Promise<ZoneAuditEntry[]> {
+  if (actions.length === 0) return [];
+  const where: SQL[] = [inArray(auditLog.action, [...actions])];
+  if (opts.zone && opts.zone.serverSlugs.length > 0) {
+    where.push(zoneResourceScope(opts.zone.serverSlugs, opts.zone.name));
+  }
+  return db
+    .select({
+      id: castToText(auditLog.id),
+      ts: auditLog.ts,
+      actorType: auditLog.actorType,
+      actorEmail: users.email,
+      actorName: users.name,
+      action: auditLog.action,
+      resourceType: auditLog.resourceType,
+      resourceId: auditLog.resourceId,
+      before: auditLog.before,
+      after: auditLog.after,
+      ip: castToNullableText(auditLog.ip),
+      requestId: auditLog.requestId,
+    })
+    .from(auditLog)
+    .leftJoin(users, eq(auditLog.actorId, users.id))
+    .where(and(...where))
+    .orderBy(desc(auditLog.ts))
+    .limit(Math.min(Math.max(opts.limit ?? 1000, 1), 5000));
+}
+
+/**
  * Latest non-`zone.notify` audit row for a single zone on a single
  * backend. Used by the zone-detail header to surface a "last edit"
  * stat - operators landing on the page want to see "modified 2h ago

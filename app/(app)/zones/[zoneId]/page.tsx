@@ -48,7 +48,7 @@ import { logger } from "@/lib/logger";
 import { optionalFeatures, pdnsBackgroundPollingEnabled } from "@/lib/env";
 import { redact } from "@/lib/errors/redact";
 import { parseSoaContent, type SoaFields } from "@/lib/validators/soa";
-import { Lock } from "lucide-react";
+import { History, Lock } from "lucide-react";
 import { RecordTable } from "@/components/domain/record-table";
 import { EditableRecordTable } from "./_components/editable-record-table";
 import { SoaPanel } from "./_components/soa-panel";
@@ -643,11 +643,24 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
         ) : tab === "access" ? (
           <AccessSection serverId={selected.id} zoneName={zone.name} />
         ) : (
-          <ZoneChangeLog
-            entries={auditEntries}
-            zoneName={zone.name}
-            pdnsHttpByRequestId={pdnsHttpByRequestId}
-          />
+          <div className="space-y-3">
+            {/* The fleet-wide Change log, already narrowed to this zone (its
+                cluster peers included), with every other change one click away. */}
+            <div className="flex justify-end">
+              <Link
+                href={`/admin/changes?${new URLSearchParams({ zone: zone.name, server: selected.slug }).toString()}`}
+                className="inline-flex items-center gap-1.5 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-1.5 text-sm font-medium whitespace-nowrap hover:bg-[color:var(--color-bg-muted)]"
+              >
+                <History className="h-4 w-4" aria-hidden />
+                Show all changes
+              </Link>
+            </div>
+            <ZoneChangeLog
+              entries={auditEntries}
+              zoneName={zone.name}
+              pdnsHttpByRequestId={pdnsHttpByRequestId}
+            />
+          </div>
         )}
       </Suspense>
     </div>
