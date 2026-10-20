@@ -37,6 +37,7 @@ import {
   DELEGATION_HINT,
   DELEGATION_LABEL,
   formatInterval,
+  isNextRunDue,
   plural,
   replaceResult,
   resultKey,
@@ -480,7 +481,7 @@ export function ZoneMonitorPanel() {
                   checking now
                 </span>
               ) : (
-                <LocalTime ts={state.nextCycleAt} style="relative" fallback="-" />
+                <NextRun at={state.nextCycleAt} />
               )}
             </dd>
           </div>
@@ -641,4 +642,15 @@ function RowDetail({ result }: { result: ZoneMonitorResult }) {
       </section>
     </div>
   );
+}
+
+/** The next scheduled run, re-checked every few seconds so it never counts into the past. */
+function NextRun({ at }: { at: string | null }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 5_000);
+    return () => clearInterval(timer);
+  }, []);
+  if (isNextRunDue(at, now)) return <span>due now</span>;
+  return <LocalTime ts={at} style="relative" fallback="-" />;
 }

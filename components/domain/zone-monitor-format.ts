@@ -97,6 +97,17 @@ export function formatInterval(ms: number): string {
   return `every ${plural(Math.round(ms / SECOND_MS), "second")}`;
 }
 
+/**
+ * True once the scheduled run's moment has passed. The header then says "due
+ * now" rather than counting into the past, which reads like a stuck scheduler;
+ * the run starts within moments, or is queued behind a partial check.
+ */
+export function isNextRunDue(nextCycleAt: string | null, now: number): boolean {
+  if (!nextCycleAt) return false;
+  const at = Date.parse(nextCycleAt);
+  return Number.isFinite(at) && at <= now;
+}
+
 /** Probe duration: sub-second in ms, otherwise one decimal of seconds. */
 export function formatDuration(ms: number): string {
   if (ms < SECOND_MS) return `${Math.round(ms)} ms`;

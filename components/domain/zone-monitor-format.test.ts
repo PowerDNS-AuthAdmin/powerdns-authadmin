@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isNextRunDue,
   awaitingFirstResults,
   compareNameserverSets,
   compareResults,
@@ -152,5 +153,18 @@ describe("awaitingFirstResults", () => {
     expect(awaitingFirstResults(stateOf([]))).toBe(true);
     expect(awaitingFirstResults(stateOf([], { lastCycleAt: null, enabled: false }))).toBe(false);
     expect(awaitingFirstResults(stateOf([resultOf("a.", null)], { running: true }))).toBe(false);
+  });
+});
+
+describe("isNextRunDue", () => {
+  const now = Date.parse("2026-10-21T10:00:00Z");
+  it("is due once the scheduled moment has passed", () => {
+    expect(isNextRunDue("2026-10-21T09:59:50Z", now)).toBe(true);
+    expect(isNextRunDue("2026-10-21T10:00:00Z", now)).toBe(true);
+  });
+  it("is not due before it, or without a schedule", () => {
+    expect(isNextRunDue("2026-10-21T10:05:00Z", now)).toBe(false);
+    expect(isNextRunDue(null, now)).toBe(false);
+    expect(isNextRunDue("not a date", now)).toBe(false);
   });
 });
