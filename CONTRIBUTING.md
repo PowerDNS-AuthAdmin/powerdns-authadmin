@@ -354,7 +354,9 @@ because the inline backticks terminate the template.
 - **Dependencies are managed by Renovate.** Weekly PRs, batched, with security advisories auto-merging
   if CI passes.
 - **`npm audit --omit=dev` runs in CI** and blocks high/critical findings.
-- **Auth code requires two reviewers**, one of whom is a maintainer.
+- **Every change needs an approving review from a code owner other than its author**
+  (`.github/CODEOWNERS`), and branch protection applies to admins too. Auth, RBAC, the PDNS
+  client and the workflows get that review with the threat-model paragraph below in hand.
 - **Threat-modeling is mandatory** for any change to auth, RBAC, session handling, the PDNS client,
   or the public API surface. Write a short paragraph in the PR description: what could go wrong, what
   prevents it.

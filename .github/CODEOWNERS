@@ -1,25 +1,23 @@
 # CODEOWNERS - required reviewers for sensitive paths.
 #
-# At this stage the project has one maintainer. As contributors are added,
-# their handles go alongside @jseifeddine for the paths they own.
-#
-# Two-reviewer paths (per CONTRIBUTING.md § Ground rules) are enforced via
-# branch protection rules referencing this file.
+# Two maintainers. Branch protection requires one approving review from a code
+# owner other than the PR's author, so each path lists both: either maintainer
+# can review the other's work, and nobody can approve their own change.
 
 # Catch-all
-*                            @jseifeddine
+*                            @jseifeddine @slargosa
 
-# Security-sensitive - two reviewers required at branch-protection level.
-/lib/auth/                   @jseifeddine
-/lib/rbac/                   @jseifeddine
-/lib/pdns/                   @jseifeddine
-/proxy.ts                    @jseifeddine
-/.github/workflows/          @jseifeddine
-/Dockerfile                  @jseifeddine
-/SECURITY.md                 @jseifeddine
+# Security-sensitive paths.
+/lib/auth/                   @jseifeddine @slargosa
+/lib/rbac/                   @jseifeddine @slargosa
+/lib/pdns/                   @jseifeddine @slargosa
+/proxy.ts                    @jseifeddine @slargosa
+/.github/workflows/          @jseifeddine @slargosa
+/Dockerfile                  @jseifeddine @slargosa
+/SECURITY.md                 @jseifeddine @slargosa
 
 # Design documents
-/REBUILD.md                  @jseifeddine
-/CONTRIBUTING.md             @jseifeddine
-/CLAUDE.md                   @jseifeddine
-/docs/adr/                   @jseifeddine
+/REBUILD.md                  @jseifeddine @slargosa
+/CONTRIBUTING.md             @jseifeddine @slargosa
+/CLAUDE.md                   @jseifeddine @slargosa
+/docs/adr/                   @jseifeddine @slargosa
