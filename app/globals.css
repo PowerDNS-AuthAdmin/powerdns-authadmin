@@ -262,6 +262,15 @@ body {
   outline-offset: 2px;
 }
 
+/* Elements with tabindex="-1" (the main region, dialogs, list options) are
+   focused only by script: after a save, a dialog closing or the skip link.
+   Safari counts focus moved after a key press (Enter on Create record) as
+   focus-visible and drew the ring around the whole page. They are never tab
+   stops, so they never need the ring; the controls inside them keep theirs. */
+[tabindex="-1"]:focus-visible {
+  outline: none;
+}
+
 /* ---------------------------------------------------------------------------
  * Shimmer animation for skeleton loaders. A 200%-wide gradient slides across
  * the element so it reads as a "loading wave" rather than a solid pulse.
