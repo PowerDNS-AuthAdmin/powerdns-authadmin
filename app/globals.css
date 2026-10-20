@@ -33,20 +33,21 @@
  * Light-mode tokens. The `.dark` block below overrides these.
  * ------------------------------------------------------------------------- */
 :root {
-  /* Color palette - purpose-named, not appearance-named. */
-  --color-bg: oklch(99% 0 0);
-  --color-bg-subtle: oklch(97% 0 0);
-  --color-bg-muted: oklch(94% 0 0);
-  --color-fg: oklch(20% 0 0);
-  --color-fg-muted: oklch(45% 0 0);
-  /* 52% keeps "subtle" readable at the 10–11px sizes it's used at: 60% was
-   * 3.8:1 on the page and 3.3:1 on bg-muted, under the AA 4.5:1 for text. */
-  --color-fg-subtle: oklch(52% 0 0);
-  --color-border: oklch(90% 0 0);
+  /* Color palette - purpose-named, not appearance-named. The values follow
+   * the project website (powerdns-authadmin.org): cool blue-grey surfaces and
+   * text, one blue accent. Contrast is checked for small text: fg-subtle is
+   * 5.4:1 on bg and 4.8:1 on bg-muted; white on the accent is 4.6:1. */
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f6f8fb;
+  --color-bg-muted: #eef1f6;
+  --color-fg: #0d1524;
+  --color-fg-muted: #4f5d75;
+  --color-fg-subtle: #5f6c83;
+  --color-border: #e2e7ef;
 
-  /* Accent - indigo placeholder. Per-deployment branding will override. */
-  --color-accent: oklch(55% 0.18 270);
-  --color-accent-fg: oklch(99% 0 0);
+  /* Accent - the website's blue. Per-deployment branding may override. */
+  --color-accent: #2b6be6;
+  --color-accent-fg: #ffffff;
 
   /* Semantic */
   --color-success: oklch(58% 0.15 145);
@@ -61,23 +62,24 @@
    * is the same hue pushed to a readable lightness. Yellow/orange also need
    * it on top of a /15 tint of themselves (CLUSTER works because the accent
    * indigo is already dark enough; warn/orange aren't). */
-  --color-warn-fg: oklch(38% 0.12 80);
+  --color-warn-fg: #9a5a00;
   --color-orange-fg: oklch(40% 0.13 55);
-  --color-success-fg: oklch(42% 0.13 145);
-  --color-error-fg: oklch(50% 0.2 25);
+  --color-success-fg: #18794a;
+  --color-error-fg: #c4223f;
 
-  /* Typography - system stack, zero font downloads, instant render. No CDN. */
+  /* Typography - the website's Inter and JetBrains Mono, self-hosted through
+   * next/font (app/layout.tsx); the system stack stands in until they load. */
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono:
-    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Courier New",
-    monospace;
+    var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
 
   /* Radii */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
 }
 
 /* Used by the must-change-password banner when the operator tries to navigate
@@ -172,17 +174,18 @@
 }
 
 .dark {
-  --color-bg: oklch(15% 0 0);
-  --color-bg-subtle: oklch(20% 0 0);
-  --color-bg-muted: oklch(25% 0 0);
-  --color-fg: oklch(98% 0 0);
-  --color-fg-muted: oklch(70% 0 0);
-  /* Lightened from 55% for the same reason the light value darkened: small
-   * subtle text on bg-muted was 3.3:1. */
-  --color-fg-subtle: oklch(62% 0 0);
-  --color-border: oklch(30% 0 0);
-  --color-accent: oklch(65% 0.18 270);
-  --color-accent-fg: oklch(15% 0 0);
+  /* The website's dark palette: near-black blue surfaces, blue-grey text.
+   * fg-subtle is 6:1 on bg and 5:1 on bg-muted; dark text on the accent is
+   * 6.6:1 (the bright blue is too light for white text at small sizes). */
+  --color-bg: #08090d;
+  --color-bg-subtle: #0f1219;
+  --color-bg-muted: #161b25;
+  --color-fg: #eceff5;
+  --color-fg-muted: #a2abbb;
+  --color-fg-subtle: #828da0;
+  --color-border: #1f2531;
+  --color-accent: #4f8ef7;
+  --color-accent-fg: #08090d;
   /* On dark bg the warn/orange /15 tint is a dim wash of the same hue, so
    * same-hue text (even at high lightness) visually blends. Use near-white
    * with a faint tone instead - max lightness contrast against the dim tint,
@@ -191,8 +194,8 @@
   --color-orange-fg: oklch(95% 0.07 55);
   /* Success is already light enough on the dark page; error at 55% L is only
    * 3.6:1 against it, so the text variant is lifted. */
-  --color-success-fg: oklch(78% 0.14 145);
-  --color-error-fg: oklch(76% 0.17 25);
+  --color-success-fg: #52d28f;
+  --color-error-fg: #ff8a9b;
 }
 
 /* ---------------------------------------------------------------------------
@@ -345,6 +348,13 @@ body {
    outline is unlayered, so it beats Tailwind's outline utilities and drew a
    box around the field. Scoped to this one input. */
 .pda-search-panel [data-search-input]:focus-visible {
+  outline: none;
+}
+
+/* The header search pill shows focus with its own accent border and soft ring
+   (the website's style). The global outline around a fully rounded pill drew
+   a second, offset border in Safari. */
+[data-search-trigger]:focus-visible {
   outline: none;
 }
 

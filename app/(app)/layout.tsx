@@ -264,12 +264,14 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     </>
   );
 
+  const headerSearch = (
+    <GlobalSearch
+      visibility={searchTabsFor(current)}
+      quickLinks={buildSearchQuickLinks(current, optionalFeatures)}
+    />
+  );
   const headerControls = (
     <>
-      <GlobalSearch
-        visibility={searchTabsFor(current)}
-        quickLinks={buildSearchQuickLinks(current, optionalFeatures)}
-      />
       {showBell ? <HealthBell preview={bellItems} summary={bellSummary} /> : null}
       <ThemeToggle />
       <UserMenu email={current.user.email} name={current.user.name} />
@@ -312,7 +314,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   });
 
   const shell = (
-    <AppShell sidebar={sidebar} headerControls={headerControls}>
+    <AppShell sidebar={sidebar} headerCenter={headerSearch} headerControls={headerControls}>
       {children}
     </AppShell>
   );

@@ -16,6 +16,7 @@
  */
 
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import { headers } from "next/headers";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import "./globals.css";
@@ -38,9 +39,27 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: dark)", color: "#08090d" },
   ],
 };
+
+// The website's typefaces, self-hosted (Latin subsets; OFL licences beside the
+// files in app/fonts). Served from /_next/static, so the CSP's font-src 'self'
+// is unchanged and nothing is fetched from a font CDN.
+const inter = localFont({
+  src: "./fonts/inter-latin.woff2",
+  weight: "400 800",
+  display: "swap",
+  variable: "--font-inter",
+  adjustFontFallback: "Arial",
+});
+const jetbrainsMono = localFont({
+  src: "./fonts/jetbrains-mono-latin.woff2",
+  weight: "400 700",
+  display: "swap",
+  variable: "--font-jetbrains-mono",
+  adjustFontFallback: false,
+});
 
 /**
  * Pre-hydration theme initializer. Runs before React mounts, applies the
@@ -60,7 +79,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
+    >
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>

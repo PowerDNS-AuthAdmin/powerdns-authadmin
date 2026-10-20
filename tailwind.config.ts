@@ -44,6 +44,17 @@ const config: Config = {
         "8xl": ["7.2rem", "1"],
         "9xl": ["9.6rem", "1"],
       },
+      /**
+       * Softer corners, after the project website: every step one notch
+       * rounder than Tailwind's defaults (rounded-md 6px → 8px, lg 8 → 12px).
+       */
+      borderRadius: {
+        DEFAULT: "0.3125rem",
+        md: "0.5rem",
+        lg: "0.75rem",
+        xl: "1rem",
+        "2xl": "1.25rem",
+      },
     },
   },
   plugins: [],

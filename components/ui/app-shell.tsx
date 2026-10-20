@@ -31,10 +31,13 @@ export const MAIN_CONTENT_ID = "main-content";
 export function AppShell({
   sidebar,
   headerControls,
+  headerCenter,
   children,
 }: {
   sidebar: React.ReactNode;
   headerControls: React.ReactNode;
+  /** Sits in the middle of the top bar (the search pill); right-aligned on phones. */
+  headerCenter?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -115,21 +118,26 @@ export function AppShell({
 
       {/* Main column. */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4">
-          <button
-            ref={hamburgerRef}
-            type="button"
-            onClick={() => setOpen(true)}
-            aria-label="Open navigation"
-            aria-expanded={open}
-            className="-ml-1 rounded-md p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-subtle)] hover:text-[color:var(--color-fg)] md:hidden"
-          >
-            <Menu className="h-5 w-5" aria-hidden />
-          </button>
-          {/* Single SSE chip for the whole app - its label is driven per page
-              via <HeaderStatusMode/> in components that own a "synced" notion. */}
-          <HeaderStatusChip />
-          <div className="ml-auto flex items-center gap-3">{headerControls}</div>
+        {/* Three columns from md up so the search pill sits truly centred,
+            whatever the widths of the status chip and the controls. */}
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)]/80 px-4 backdrop-blur-md md:grid md:grid-cols-[minmax(0,1fr)_minmax(16rem,28rem)_minmax(0,1fr)]">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              ref={hamburgerRef}
+              type="button"
+              onClick={() => setOpen(true)}
+              aria-label="Open navigation"
+              aria-expanded={open}
+              className="-ml-1 rounded-md p-2 text-[color:var(--color-fg-muted)] hover:bg-[color:var(--color-bg-subtle)] hover:text-[color:var(--color-fg)] md:hidden"
+            >
+              <Menu className="h-5 w-5" aria-hidden />
+            </button>
+            {/* Single SSE chip for the whole app - its label is driven per page
+                via <HeaderStatusMode/> in components that own a "synced" notion. */}
+            <HeaderStatusChip />
+          </div>
+          <div className="flex min-w-0 flex-1 justify-end md:justify-center">{headerCenter}</div>
+          <div className="flex items-center justify-end gap-3">{headerControls}</div>
         </header>
 
         {/* `min-h-0` is the canonical flexbox-clipping fix: a `flex-1` child

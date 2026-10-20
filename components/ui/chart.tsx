@@ -92,17 +92,23 @@ export function Chart({ option, height = 280, className = "" }: ChartProps) {
  * call sites style axes themselves.
  */
 function withThemeDefaults(option: EChartsOption, theme: "light" | "dark"): EChartsOption {
-  const text = theme === "dark" ? "#d1d5db" : "#374151";
-  const grid = theme === "dark" ? "#374151" : "#e5e7eb";
+  // The app palette's fg-muted and border (app/globals.css); the canvas cannot read CSS variables.
+  const text = theme === "dark" ? "#a2abbb" : "#4f5d75";
+  const grid = theme === "dark" ? "#1f2531" : "#e2e7ef";
+  // next/font gives Inter a generated family name, so take the body's resolved stack.
+  const fontFamily =
+    typeof document === "undefined"
+      ? "ui-sans-serif, system-ui, sans-serif"
+      : getComputedStyle(document.body).fontFamily;
 
   return {
     backgroundColor: "transparent",
     textStyle: {
       color: text,
-      fontFamily: "ui-sans-serif, system-ui, sans-serif",
+      fontFamily,
     },
     color: [
-      "#6366f1", // indigo (accent)
+      "#4f8ef7", // blue (the app accent)
       "#10b981", // emerald
       "#f59e0b", // amber
       "#ef4444", // red

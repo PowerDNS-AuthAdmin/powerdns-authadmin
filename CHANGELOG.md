@@ -112,6 +112,15 @@ setting and does not need either variable.
   always follows Missing, Mismatch, Ambiguous and OK when those have a count, and empty
   statuses come last. The zones list's scope and horizon filters use the same chips, and its Reverse
   DNS, Add record and Add zone actions are compact bordered buttons like the page toolbars.
+- **Search covers zones, records and config by default.** The request log and the audit log are
+  searched only from their own tabs, which sit apart after a "Logs" divider and are never
+  remembered as the opening tab, so the everyday search does not scan the logs. The MCP
+  `search` tool follows the same rule (`scope: requests` / `scope: audit`).
+- **The app takes the project website's look.** The colour palette (light and dark), the Inter
+  and JetBrains Mono typefaces (self-hosted, no font CDN; the CSP is unchanged), softer corner
+  radii, a translucent top bar and matching chart colours. The search pill sits centred in the
+  top bar, wider, names what it searches, and keeps your recent searches (in this browser
+  only); its focus ring no longer draws a doubled border in Safari.
 
 ### Fixed
 
