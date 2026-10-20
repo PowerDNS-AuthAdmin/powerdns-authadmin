@@ -170,10 +170,14 @@ export function AppShell({
                 via <HeaderStatusMode/> in components that own a "synced" notion. */}
             <HeaderStatusChip />
           </div>
-          {/* Capped so it stays a search box, not a banner, on very wide screens;
-              it stays centred either way. */}
-          <div className="flex min-w-0 flex-1 justify-end md:justify-center xl:mx-auto xl:w-full xl:max-w-3xl">
-            {headerCenter}
+          {/* From lg the search takes 60% of the middle space, centred (margin:
+              0 auto), so it scales with the window; capped at 60% of 48rem so
+              it stays a search box on very wide screens. Narrower, the space
+              beside the chip is already tight, so it takes all of it. */}
+          <div className="flex min-w-0 flex-1 justify-end md:justify-center">
+            <div className="flex justify-end md:mx-auto md:w-full md:justify-center lg:w-3/5 lg:max-w-[28.8rem] lg:min-w-[12rem]">
+              {headerCenter}
+            </div>
           </div>
           <div
             ref={headerRightRef}
