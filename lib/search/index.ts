@@ -32,6 +32,7 @@ import type {
   SearchScope,
   SearchTabVisibility,
 } from "./types";
+import { LOG_GROUPS } from "./types";
 
 export * from "./types";
 
@@ -730,8 +731,10 @@ export interface SearchEverythingInput {
 /**
  * Run one search across every source the user may read.
  *
- * Every visible source is matched even for a single-tab scope, because the
- * tab row shows each tab's count; only the returned groups narrow to `scope`.
+ * Zones, records and config are matched for every scope, because the tab row
+ * shows their counts; only the returned groups narrow to `scope`. The request
+ * and audit logs are matched only when their own scope is chosen: "All" never
+ * includes them, so the everyday search stays small and fast.
  *
  * @returns groups (non-empty ones, in tab order) and per-tab match counts.
  */
@@ -750,14 +753,24 @@ export async function searchEverything(input: SearchEverythingInput): Promise<Se
   const visibility = searchTabVisibility(auth);
 
   const results = await Promise.all(
-    GROUP_ORDER.map(async (key) =>
-      visibility[key] ? { key, items: await SEARCHERS[key](q, auth, sources) } : { key, items: [] },
-    ),
+    GROUP_ORDER.map(async (key) => {
+      if (LOG_GROUPS.has(key) && scope !== key) return { key, items: null };
+      return visibility[key]
+        ? { key, items: await SEARCHERS[key](q, auth, sources) }
+        : { key, items: [] };
+    }),
   );
 
-  const counts = { zones: 0, records: 0, config: 0, requests: 0, audit: 0 };
+  const counts: SearchResponse["counts"] = {
+    zones: 0,
+    records: 0,
+    config: 0,
+    requests: null,
+    audit: null,
+  };
   const groups: SearchGroup[] = [];
   for (const { key, items } of results) {
+    if (items === null) continue;
     counts[key] = items.length;
     if (items.length === 0 || (scope !== "all" && scope !== key)) continue;
     items.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));

@@ -1363,12 +1363,16 @@ errors are gated behind an explicit "Save anyway" checkbox so an override is nev
   be skipped (`exmp` finds `example.com`); matches are highlighted, and prefixes, word
   boundaries (after `.`, `-`, `_`, space, `@`, `/`) and runs of consecutive letters rank
   higher. It opens as a floating panel on desktop and a full-screen sheet on phones.
-- **Tabs.** **All** shows the best six of each group with labels; **Zones**, **Records**,
+- **Tabs.** **All** covers zones, records and config and shows the best six of each group with
+  labels. **Requests** and **Audit** sit apart, after a divider labelled "Logs": the logs are
+  searched only when their own tab is picked, never under **All**, and are never remembered as
+  the tab to open with, so the everyday search stays small and fast (their tabs show no count
+  until picked). **Zones**, **Records**,
   **Config**, **Requests** and **Audit** each show up to 25 hits with that tab's columns
   inline (zones: backend, horizon, kind; records: type, value, zone; config: section, value;
   requests: method, status, backend, time; audit: actor, resource, time), collapsing to a
-  subtitle line on phones. Every tab shows its match count; the last tab is remembered per
-  browser. **Config** covers app settings and their current values, admin pages by title,
+  subtitle line on phones. The content tabs show their match counts; the last content tab is
+  remembered per browser. **Config** covers app settings and their current values, admin pages by title,
   backends (slug, name, URL host only), clusters, users (name, email), teams, roles, zone
   templates and sign-in providers (name and slug only). **Requests** and **Audit** match the
   newest 500 rows of each log.

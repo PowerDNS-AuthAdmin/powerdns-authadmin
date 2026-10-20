@@ -375,13 +375,15 @@ export function buildMcpServer(ctx: McpContext): McpServer {
     {
       title: "Search everything",
       description:
-        "Fuzzy search across zones, records (owner names and values), config (settings, admin pages, backends, clusters, users, teams, roles, zone templates, sign-in providers), the PowerDNS request log and the audit log. Each result has a kind, title, inline meta and an app link; every source is filtered by this token's permissions and secrets are never returned. Requests and audit cover the newest 500 rows.",
+        'Fuzzy search across zones, records (owner names and values), config (settings, admin pages, backends, clusters, users, teams, roles, zone templates, sign-in providers), the PowerDNS request log and the audit log. Each result has a kind, title, inline meta and an app link; every source is filtered by this token\'s permissions and secrets are never returned. The default scope "all" covers zones, records and config only; the request log and audit log are searched only with scope "requests" or "audit" (newest 500 rows), and their counts are null otherwise.',
       inputSchema: {
         query: z.string().min(1).max(100).describe("What to look for; fuzzy, case-insensitive."),
         scope: z
           .enum(["all", "zones", "records", "config", "requests", "audit"])
           .optional()
-          .describe("Narrow to one kind of result. Defaults to all (6 per group)."),
+          .describe(
+            "Narrow to one kind of result. Defaults to all: zones, records and config, 6 per group. Use requests or audit to search those logs.",
+          ),
         limit: z.number().int().min(1).max(25).optional(),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },

@@ -154,13 +154,10 @@ const run = (
 describe("searchEverything", () => {
   it("finds zones, records and config for a fully privileged user", async () => {
     const res = await run("example", auth(ALL_PERMISSIONS));
-    expect(res.groups.map((g) => g.key)).toEqual([
-      "zones",
-      "records",
-      "config",
-      "requests",
-      "audit",
-    ]);
+    // "All" never includes the logs: they are searched only under their own tab.
+    expect(res.groups.map((g) => g.key)).toEqual(["zones", "records", "config"]);
+    expect(res.counts.requests).toBeNull();
+    expect(res.counts.audit).toBeNull();
     const zone = res.groups.find((g) => g.key === "zones")!.items[0]!;
     expect(zone).toMatchObject({
       kind: "zone",
@@ -189,7 +186,8 @@ describe("searchEverything", () => {
 
   it("returns empty groups and zero counts for a user without permissions", async () => {
     const res = await run("example", auth([]));
-    expect(res.counts).toEqual({ zones: 0, records: 0, config: 0, requests: 0, audit: 0 });
+    // Under "All" the logs are not searched at all, so their counts are null.
+    expect(res.counts).toEqual({ zones: 0, records: 0, config: 0, requests: null, audit: null });
     expect(res.groups).toEqual([]);
   });
 
@@ -245,9 +243,9 @@ describe("searchEverything", () => {
   });
 
   it("keeps requests and audit behind audit.read", async () => {
-    const without = await run("zone", auth(ALL_PERMISSIONS.filter((p) => p !== "audit.read")));
-    expect(without.counts.requests).toBe(0);
-    expect(without.counts.audit).toBe(0);
+    const noAudit = auth(ALL_PERMISSIONS.filter((p) => p !== "audit.read"));
+    expect((await run("zone", noAudit, "requests")).counts.requests).toBe(0);
+    expect((await run("zone", noAudit, "audit")).counts.audit).toBe(0);
     const withAudit = await run("zones.get", auth(["audit.read"]), "requests");
     expect(withAudit.groups[0]!.items[0]).toMatchObject({
       kind: "request",

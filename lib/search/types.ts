@@ -61,8 +61,16 @@ export interface SearchResponse {
   q: string;
   scope: SearchScope;
   groups: SearchGroup[];
-  counts: Record<SearchGroupKey, number>;
+  /**
+   * Matches per tab. The request and audit logs are searched only when their
+   * own scope is chosen, never under "All"; their count is null when they
+   * were not searched (the palette then shows no number for them).
+   */
+  counts: Record<SearchGroupKey, number | null>;
 }
+
+/** Searched only when picked: the logs are big and rarely what a search is for. */
+export const LOG_GROUPS: ReadonlySet<SearchGroupKey> = new Set(["requests", "audit"]);
 
 /** Which palette tabs a user may see; the layout computes it from their grants. */
 export type SearchTabVisibility = Record<SearchGroupKey, boolean>;
