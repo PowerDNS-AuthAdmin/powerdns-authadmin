@@ -50,6 +50,7 @@ import {
   VERDICT_HINT,
   VERDICT_LABEL,
   VERDICT_ORDER,
+  orderVerdictChips,
   verdictOf,
   type ZoneFinding,
   type ZoneFindingFix,
@@ -578,18 +579,29 @@ export function ZoneMonitorPanel() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
-          {VERDICT_ORDER.map((verdict) => (
-            <ToggleChip
-              key={verdict}
-              active={activeVerdicts.has(verdict)}
-              tone={VERDICT_TONE[verdict]}
-              title={VERDICT_HINT[verdict]}
-              onClick={() => toggleVerdict(verdict)}
-              count={state ? state.counts[verdict] : null}
-            >
-              {VERDICT_LABEL[verdict]}
-            </ToggleChip>
-          ))}
+          {/* Ordered by count, so until the first state lands they are
+              placeholders rather than chips that jump into place. */}
+          {!state &&
+            VERDICT_ORDER.map((verdict) => (
+              <Skeleton
+                key={verdict}
+                className="h-[1.625rem] w-20 rounded-full"
+                label="Counting…"
+              />
+            ))}
+          {state &&
+            orderVerdictChips(state.counts).map((verdict) => (
+              <ToggleChip
+                key={verdict}
+                active={activeVerdicts.has(verdict)}
+                tone={VERDICT_TONE[verdict]}
+                title={VERDICT_HINT[verdict]}
+                onClick={() => toggleVerdict(verdict)}
+                count={state.counts[verdict]}
+              >
+                {VERDICT_LABEL[verdict]}
+              </ToggleChip>
+            ))}
         </div>
         {hasInternal ? (
           <SelectMenu

@@ -15,6 +15,7 @@ import {
   describeFix,
   type ZoneMonitorResult,
   type ZoneMonitorState,
+  orderVerdictChips,
 } from "./zone-monitor-format";
 
 function resultOf(
@@ -209,5 +210,34 @@ describe("describeFix", () => {
         suggested: "ns1.example-dns.net.",
       }),
     ).toBe("Suggested fix: set the SOA MNAME to ns1.example-dns.net.");
+  });
+});
+
+describe("orderVerdictChips", () => {
+  it("puts the biggest count first and empty verdicts last", () => {
+    expect(orderVerdictChips({ error: 0, warn: 10, info: 4, ok: 31 })).toEqual([
+      "ok",
+      "warn",
+      "info",
+      "error",
+    ]);
+  });
+
+  it("never lets info jump ahead of errors, warnings or OK", () => {
+    expect(orderVerdictChips({ error: 2, warn: 1, info: 50, ok: 3 })).toEqual([
+      "ok",
+      "error",
+      "warn",
+      "info",
+    ]);
+  });
+
+  it("breaks ties by severity", () => {
+    expect(orderVerdictChips({ error: 5, warn: 5, info: 0, ok: 0 })).toEqual([
+      "error",
+      "warn",
+      "info",
+      "ok",
+    ]);
   });
 });

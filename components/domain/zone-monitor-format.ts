@@ -15,6 +15,7 @@
 
 import type { FindingSeverity, ZoneFinding, ZoneFindingFix } from "@/lib/dns/zone-checks";
 import type { ZoneMonitorResult, ZoneMonitorState } from "@/lib/monitoring/zone-monitor";
+import { orderChipsByCount } from "./chip-order";
 
 export type { FindingSeverity, ZoneFinding, ZoneFindingFix, ZoneMonitorResult, ZoneMonitorState };
 
@@ -25,6 +26,18 @@ export type DelegationStatus = ZoneMonitorResult["summary"]["delegation"];
 
 /** Worst first; the default sort and the chip order. */
 export const VERDICT_ORDER: readonly ZoneVerdict[] = ["error", "warn", "info", "ok"];
+
+/**
+ * The verdict chips, ordered like the Reverse DNS status chips: biggest count
+ * first, empty verdicts last. Info (nothing to act on) never jumps ahead of
+ * errors, warnings or OK.
+ */
+export function orderVerdictChips(counts: Readonly<Record<ZoneVerdict, number>>): ZoneVerdict[] {
+  return orderChipsByCount(
+    { order: VERDICT_ORDER, passive: "info", passiveAfter: new Set(["error", "warn", "ok"]) },
+    counts,
+  );
+}
 
 export const VERDICT_LABEL: Record<ZoneVerdict, string> = {
   error: "Error",
