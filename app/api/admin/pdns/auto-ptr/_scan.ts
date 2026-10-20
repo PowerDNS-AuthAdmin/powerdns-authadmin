@@ -141,23 +141,26 @@ export async function scanFleet(): Promise<FleetScan> {
         serial?: number | null;
         editedSerial?: number | null;
       }>;
-      const cachedList = readCachedZones(server.id);
-      if (cachedList) {
-        zones = [...cachedList.zones.values()];
-      } else {
-        try {
-          zones = (await client.listZones()).map((z) => ({
-            name: z.name,
-            kind: z.kind,
-            serial: z.serial ?? null,
-            editedSerial: z.edited_serial ?? null,
-          }));
-        } catch (err) {
-          const message = err instanceof Error ? redact(err.message) : "unknown";
+      // One live list call per backend: the poller's copy lags by up to a poll,
+      // so a zone created moments ago would be missing from search, the
+      // wizard and the reverse report. Its copy covers a backend that does not
+      // answer right now.
+      try {
+        zones = (await client.listZones()).map((z) => ({
+          name: z.name,
+          kind: z.kind,
+          serial: z.serial ?? null,
+          editedSerial: z.edited_serial ?? null,
+        }));
+      } catch (err) {
+        const message = err instanceof Error ? redact(err.message) : "unknown";
+        const cachedList = readCachedZones(server.id);
+        if (!cachedList) {
           scan.errors.push({ server: server.slug, message });
           logger.warn({ server: server.slug, error: message }, "auto-ptr.scan.list-zones.failed");
           return;
         }
+        zones = [...cachedList.zones.values()];
       }
       const writable = server.writeMode !== "read_only";
       await eachLimited(zones, ZONE_CONCURRENCY, async (z) => {

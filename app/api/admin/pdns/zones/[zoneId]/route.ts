@@ -14,6 +14,7 @@ import { headers } from "next/headers";
 import { z, ZodError } from "zod";
 import { appendAudit } from "@/lib/audit/log";
 import { publishZoneEvent } from "@/lib/realtime/event-bus";
+import { invalidateFleetScan } from "@/app/api/admin/pdns/auto-ptr/_scan";
 import { scheduleImmediatePoll } from "@/lib/realtime/zone-poller";
 import { getRequestContext } from "@/lib/client-ip";
 import { requireUser } from "@/lib/auth/require-user";
@@ -139,6 +140,8 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
       actor: actor.email,
       at: new Date().toISOString(),
     });
+    // Search, the record wizard and the reverse report read the fleet scan.
+    invalidateFleetScan();
     scheduleImmediatePoll();
 
     return Response.json({ ok: true });

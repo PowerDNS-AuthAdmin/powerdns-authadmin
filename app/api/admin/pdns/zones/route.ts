@@ -34,6 +34,7 @@ import { PdnsError } from "@/lib/pdns/errors";
 import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
 import { publishZoneEvent } from "@/lib/realtime/event-bus";
+import { invalidateFleetScan } from "@/app/api/admin/pdns/auto-ptr/_scan";
 import { scheduleImmediatePoll } from "@/lib/realtime/zone-poller";
 import { horizonScopeFor, setZoneHorizon } from "@/lib/db/repositories/zone-horizons";
 import { DEFAULT_ZONE_HORIZON, ZONE_HORIZONS } from "@/lib/dns/zone-horizon";
@@ -460,6 +461,8 @@ export async function POST(request: Request): Promise<Response> {
       actor: user.email,
       at: new Date().toISOString(),
     });
+    // Search, the record wizard and the reverse report read the fleet scan.
+    invalidateFleetScan();
     scheduleImmediatePoll();
 
     return Response.json(

@@ -129,19 +129,21 @@ async function discoverReverseZones(deps: AutoPtrDeps): Promise<Map<string, Host
   await Promise.all(
     servers.map(async (server) => {
       let zones: Array<{ name: string; kind: string }>;
-      const cached = deps.cachedZones(server.id);
-      if (cached) {
-        zones = [...cached.values()];
-      } else {
-        try {
-          zones = await deps.clientFor(server).listZones();
-        } catch (err) {
+      // Live first: the poller's copy lags by up to one poll, and a reverse
+      // zone created moments ago must be found. The cache only covers a
+      // backend that does not answer right now.
+      try {
+        zones = await deps.clientFor(server).listZones();
+      } catch (err) {
+        const cached = deps.cachedZones(server.id);
+        if (!cached) {
           logger.warn(
             { server: server.slug, error: err instanceof Error ? redact(err.message) : "unknown" },
             "auto-ptr.list-zones.failed",
           );
           return;
         }
+        zones = [...cached.values()];
       }
       for (const z of zones) {
         if (!isReverseZone(z.name)) continue;
@@ -484,6 +486,6 @@ export async function resolveZoneAutoPtr(
       "auto-ptr.metadata.read-failed",
     );
   }
-  const global = (await getAppSettings()).autoPtr;
-  return resolveAutoPtr({ zone, global });
+  const settings = await getAppSettings();
+  return resolveAutoPtr({ zone, global: settings.autoPtrConfigured ? settings.autoPtr : null });
 }

@@ -66,7 +66,8 @@ async function standaloneId(admin: TestHttp): Promise<string> {
   return standalone.id;
 }
 
-async function setGlobalAutoPtr(admin: TestHttp, on: boolean): Promise<void> {
+/** `null` clears the setting back to the built-in default (resetState leaves settings alone). */
+async function setGlobalAutoPtr(admin: TestHttp, on: boolean | null): Promise<void> {
   const res = await admin.call("/api/admin/settings", { method: "PATCH", json: { auto_ptr: on } });
   expect(res.status).toBe(200);
 }
@@ -292,7 +293,7 @@ describe("auto-PTR on PATCH /rrsets", () => {
       );
       expect(res.status).toBe(400);
     } finally {
-      await setGlobalAutoPtr(admin, false);
+      await setGlobalAutoPtr(admin, null);
     }
   }, 60_000);
 

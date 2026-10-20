@@ -63,6 +63,12 @@ export interface AppSettings {
    * to false.
    */
   autoPtr: boolean;
+  /**
+   * True when an operator stored `auto_ptr` (settings page, API or
+   * provisioning), so "off because an admin chose off" can be told apart from
+   * "off because nothing was configured" in the editor's explanation.
+   */
+  autoPtrConfigured: boolean;
 }
 
 const KEY_TO_FIELD: Record<KnownSettingKey, keyof AppSettings> = {
@@ -90,6 +96,7 @@ export async function getAppSettings(): Promise<AppSettings> {
     authDefaultProvider: SETTING_DEFAULTS.auth_default_provider,
     defaultRecordTtl: SETTING_DEFAULTS.default_record_ttl,
     autoPtr: SETTING_DEFAULTS.auto_ptr,
+    autoPtrConfigured: false,
   };
 
   let rows;
@@ -125,6 +132,7 @@ export async function getAppSettings(): Promise<AppSettings> {
       out.defaultRecordTtl = row.value;
     } else if (field === "autoPtr" && typeof row.value === "boolean") {
       out.autoPtr = row.value;
+      out.autoPtrConfigured = true;
     }
   }
 

@@ -378,7 +378,10 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
     zone: zoneDefaultTtl,
     global: appSettings.defaultRecordTtl,
   });
-  const autoPtr = resolveAutoPtr({ zone: zoneAutoPtr, global: appSettings.autoPtr });
+  const autoPtr = resolveAutoPtr({
+    zone: zoneAutoPtr,
+    global: appSettings.autoPtrConfigured ? appSettings.autoPtr : null,
+  });
 
   // Direct ?tab=sync / ?tab=statistics on a polling-off install bounces
   // back to the default records view with an error flash toast - these

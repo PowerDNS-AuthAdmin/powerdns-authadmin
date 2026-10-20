@@ -23,7 +23,7 @@ import { UserMenu } from "@/components/ui/user-menu";
 import { HealthBell } from "@/components/domain/health-bell";
 import { GlobalSearch } from "@/components/domain/global-search";
 import { buildSearchQuickLinks, searchTabsFor } from "@/lib/search/quick-links";
-import { loadNotificationsFor } from "@/lib/health/load-notifications";
+import { hasNotificationAudience, loadNotificationsFor } from "@/lib/health/load-notifications";
 import { bellPreview, summarizeNotifications } from "@/lib/health/notifications";
 import { BrandMark } from "@/components/ui/brandmark";
 import { AppShell } from "@/components/ui/app-shell";
@@ -128,7 +128,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // row to what this user may see (a zone finding needs zone.read on its zone).
   // Only the preview and the counts reach the client; the full list lives on
   // /notifications.
-  const notifications = canReadServers || canReadZones ? await loadNotificationsFor(current) : [];
+  const showBell = hasNotificationAudience(current);
+  const notifications = showBell ? await loadNotificationsFor(current) : [];
   const bellSummary = summarizeNotifications(notifications);
   const bellItems = bellPreview(notifications);
 
@@ -262,9 +263,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         visibility={searchTabsFor(current)}
         quickLinks={buildSearchQuickLinks(current)}
       />
-      {canReadServers || canReadZones ? (
-        <HealthBell preview={bellItems} summary={bellSummary} />
-      ) : null}
+      {showBell ? <HealthBell preview={bellItems} summary={bellSummary} /> : null}
       <ThemeToggle />
       <UserMenu email={current.user.email} name={current.user.name} />
     </>

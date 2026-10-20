@@ -33,9 +33,23 @@ export function notificationViewerFor(auth: AuthenticatedRequest): NotificationV
   };
 }
 
+/**
+ * Could this user see any notification at all? Backend readers, zone readers,
+ * and users whose only zone access is a zone grant: grants are not part of
+ * the CASL ability, so `ability.can("read", "Zone")` alone would hide the
+ * bell from exactly the users per-row filtering exists for.
+ */
+export function hasNotificationAudience(auth: AuthenticatedRequest): boolean {
+  return (
+    auth.ability.can("read", "Server") ||
+    auth.ability.can("read", "Zone") ||
+    auth.zoneGrants.some((g) => g.permissions.includes("zone.read"))
+  );
+}
+
 export async function loadNotificationsFor(auth: AuthenticatedRequest): Promise<AppNotification[]> {
+  // A user with no audience sees nothing; skip the query entirely.
+  if (!hasNotificationAudience(auth)) return [];
   const viewer = notificationViewerFor(auth);
-  // A user with neither audience sees nothing; skip the query entirely.
-  if (!viewer.canReadServers && !auth.ability.can("read", "Zone")) return [];
   return visibleNotifications(await listActiveAdvisories(), viewer);
 }

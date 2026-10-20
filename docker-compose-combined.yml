@@ -34,6 +34,12 @@ networks:
     ipam:
       config:
         - subnet: 172.30.0.0/24
+          # Dynamic addresses come only from the upper half. The primary and
+          # secondaries pin .10-.13 (their IPs are baked into ALLOW-AXFR /
+          # also-notify), and with two dozen containers dynamic allocation
+          # from .2 upwards reached them first: an intermittent "Address
+          # already in use" at start-up, depending on container order.
+          ip_range: 172.30.0.128/25
 
 name: powerdns-authadmin-combined
 
