@@ -16,6 +16,11 @@
  *   5. Send the PATCH; on success, write one audit row per change with
  *      before/after RRset snapshots.
  *   6. NOTIFY secondaries when the zone is Master/Primary (best-effort).
+ *   7. Auto-PTR (issue #164): for A/AAAA changes whose `ptr` flag - or, when
+ *      absent, the zone's / the global auto_ptr setting - says so, maintain
+ *      the matching PTRs in the hosted reverse zones. Runs AFTER the forward
+ *      write succeeded, never rolls it back, and reports per address in the
+ *      response's `ptr` array. See ./_auto-ptr.ts.
  *
  * Concurrency: per-RRset optimistic locking (ADR 0010). When a change
  * carries `expected: { hash }`, the server compares the live PDNS
@@ -42,39 +47,28 @@ import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositori
 import { assertEditableZoneKind } from "@/lib/pdns/writable-kind";
 import { assertZoneAllowsLua } from "@/lib/pdns/lua-enablement";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
-import { normalizeZoneId, type PdnsClient } from "@/lib/pdns/client";
+import { normalizeZoneId } from "@/lib/pdns/client";
 import { isTransferredKind } from "@/lib/pdns/zone-kinds";
-import type { PdnsZoneDetail } from "@/lib/pdns/types";
 import { deleteRRset, replaceRRset, zonePatchBody, type RRsetPatch } from "@/lib/pdns/rrsets";
 import { detectRRsetConflicts } from "@/lib/pdns/rrset-hash";
 import { PdnsError, PdnsNotFoundError } from "@/lib/pdns/errors";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { protectedRRsetPermission } from "@/lib/rbac/protected-rrsets";
 import { patchRRsetsSchema } from "@/lib/validators/rrsets";
+import { isAddressType, type AutoPtrOutcome } from "@/lib/dns/auto-ptr";
+import type { ResolvedAutoPtr } from "@/lib/dns/auto-ptr-setting";
+import { resolveZoneAutoPtr, runAutoPtr, type AutoPtrChange } from "./_auto-ptr";
+import { invalidateFleetScan } from "@/app/api/admin/pdns/auto-ptr/_scan";
+import {
+  dedupeRecordsByContent,
+  loadZoneBefore,
+  normalizeName,
+  normalizeRRsetForAudit,
+  readComments,
+} from "./_shared";
 
 interface RouteContext {
   params: Promise<{ zoneId: string }>;
-}
-
-/**
- * Drop duplicate-content records from an RRset. PowerDNS rejects an RRset that
- * carries the same content twice ("Duplicate record in RRset …"), which happens
- * naturally when an operator edits one record to a value another record in the
- * same RRset already holds. Deduping makes that edit MERGE - the same net result
- * the Review-changes diff already shows - instead of failing on apply. First
- * occurrence wins (preserves order); a present `disabled:false` beats a later
- * disabled duplicate so a merge doesn't silently disable the record.
- */
-function dedupeRecordsByContent<T extends { content: string; disabled?: boolean }>(
-  records: readonly T[],
-): T[] {
-  const byContent = new Map<string, T>();
-  for (const r of records) {
-    const existing = byContent.get(r.content);
-    if (!existing) byContent.set(r.content, r);
-    else if (existing.disabled && !r.disabled) byContent.set(r.content, r);
-  }
-  return [...byContent.values()];
 }
 
 export async function PATCH(request: Request, context: RouteContext): Promise<Response> {
@@ -414,28 +408,74 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       });
     }
 
+    // Auto-PTR runs last, on purpose: the forward change is already applied,
+    // audited and announced. A PTR problem is reported per address in `ptr`
+    // and audited as record.ptr-sync; it never fails the request.
+    let ptr: AutoPtrOutcome[] | undefined;
+    const addressChanges = input.changes.filter((c) => isAddressType(c.type));
+    if (addressChanges.length > 0) {
+      let zoneDefault: ResolvedAutoPtr | null = null;
+      const enabledChanges: AutoPtrChange[] = [];
+      for (const c of addressChanges) {
+        if (!isAddressType(c.type)) continue;
+        let enabled: boolean;
+        if (typeof c.ptr === "boolean") {
+          enabled = c.ptr;
+        } else {
+          // Resolved once per request, and only when a change leaves it to the zone.
+          zoneDefault ??= await resolveZoneAutoPtr(client, zoneName);
+          enabled = zoneDefault.enabled;
+        }
+        if (!enabled) continue;
+        const name = normalizeName(c.name, zoneName);
+        const before = beforeMap.get(`${name}|${c.type}`) ?? null;
+        enabledChanges.push({
+          change:
+            c.kind === "upsert"
+              ? {
+                  kind: "upsert",
+                  name,
+                  type: c.type,
+                  ttl: c.ttl,
+                  records: dedupeRecordsByContent(c.records),
+                }
+              : { kind: "delete", name, type: c.type },
+          before: before ? { ttl: before.ttl, records: before.records } : null,
+          takeover: c.ptrTakeover === true,
+        });
+      }
+      if (enabledChanges.length > 0) {
+        ptr = await runAutoPtr({
+          forwardServer: server,
+          forwardZone: zoneName,
+          changes: enabledChanges,
+          canOnZone: (serverId, zone, permission) =>
+            canActOnZone({
+              hasGlobalPermission: globalPermissions.has(permission),
+              grants: zoneGrants,
+              serverId,
+              zoneName: zone,
+              permission,
+            }),
+          dryRun: false,
+          actor: { type: "user", id: user.id },
+          request: reqInfo,
+        });
+      }
+    }
+    // Any A/AAAA change moves the reverse DNS picture, PTR or not.
+    invalidateFleetScan();
+
     return Response.json({
       ok: true,
       applied: input.changes.length,
+      ...(ptr ? { ptr } : {}),
     });
   } catch (err) {
     return errorResponse(err, "rrsets.patch.error");
   }
 }
 
-/**
- * Normalize a user-typed RRset name. Accepts:
- *   - "@" → zone apex
- *   - relative ("www") → www.zone.
- *   - fully-qualified ("www.example.com.") → as-is
- */
-/**
- * Pull a comments array off a PDNS rrset snapshot. PDNS returns the
- * field as an array of `{ content, account, modified_at }` objects, but
- * older / proxied responses may omit it. We don't reshape the entries -
- * we forward whatever PDNS gave us so the PATCH round-trip preserves
- * them byte-for-byte.
- */
 /**
  * Map the editor's plain-string comment into PDNS' wire shape. Empty
  * string clears the rrset's comments (returns `[]`). Otherwise one
@@ -455,67 +495,4 @@ function buildCommentList(
       modified_at: Math.floor(Date.now() / 1000),
     },
   ];
-}
-
-function readComments(rrset: unknown): Array<Record<string, unknown>> {
-  if (!rrset || typeof rrset !== "object") return [];
-  const raw = (rrset as { comments?: unknown }).comments;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((c): c is Record<string, unknown> => typeof c === "object" && c !== null);
-}
-
-/**
- * Normalize a PDNS rrset shape for the audit `before` snapshot - always
- * including `comments: []` when PDNS didn't supply the field, so the
- * before/after diff doesn't show a spurious "comments removed" line.
- */
-function normalizeRRsetForAudit(rrset: unknown): Record<string, unknown> {
-  if (!rrset || typeof rrset !== "object") return { comments: [] };
-  const r = rrset as Record<string, unknown>;
-  return { ...r, comments: readComments(rrset) };
-}
-
-function normalizeName(raw: string, zoneName: string): string {
-  const trimmed = raw.trim().toLowerCase();
-  if (trimmed === "" || trimmed === "@") return zoneName;
-  if (trimmed.endsWith(".")) return trimmed;
-  return `${trimmed}.${zoneName}`;
-}
-
-/**
- * Above this many distinct RRsets in one batch, one full zone GET is cheaper
- * than a filtered GET per RRset (each is a round-trip plus a backend query).
- */
-const MAX_FILTERED_RRSET_FETCHES = 3;
-
-/**
- * The zone state the patch is checked against: kind, metadata and the RRsets
- * the batch touches (for the conflict hashes, the audit `before` snapshots and
- * the comment carry-through). A typical edit touches one RRset, so on a daemon
- * with the `rrset_name` filter we fetch the zone header without records plus
- * one filtered GET per touched RRset instead of transferring every record of
- * the zone - twice per edit, once here and once for the after-snapshot - which
- * is what made single-record edits on large zones slow. Larger batches and
- * older daemons fall back to the full GET.
- */
-async function loadZoneBefore(
-  client: PdnsClient,
-  zoneName: string,
-  changes: ReadonlyArray<{ name: string; type: string }>,
-): Promise<PdnsZoneDetail> {
-  const keys = new Map<string, { name: string; type: string }>();
-  for (const change of changes) {
-    const name = normalizeName(change.name, zoneName);
-    keys.set(`${name}|${change.type}`, { name, type: change.type });
-  }
-  if (!client.supports("supportsRrsetFilter") || keys.size > MAX_FILTERED_RRSET_FETCHES) {
-    return client.getZone(zoneName);
-  }
-  const [header, ...parts] = await Promise.all([
-    client.getZone(zoneName, { rrsets: false }),
-    ...[...keys.values()].map((k) =>
-      client.getZone(zoneName, { rrsetName: k.name, rrsetType: k.type }),
-    ),
-  ]);
-  return { ...header, rrsets: parts.flatMap((p) => p.rrsets ?? []) };
 }

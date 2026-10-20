@@ -656,6 +656,50 @@ the audit trail behave identically whichever door the user came through.
 - **Where.** `lib/pdns/lua-enablement.ts`, `lib/pdns/metadata-policy.ts`,
   `lib/validators/rr-types/lua.ts`.
 
+### 4.8 Automatic PTR maintenance (auto-PTR)
+
+- **What.** Saving or deleting an A/AAAA record also creates, updates or removes the matching
+  PTR in a reverse zone hosted on one of the backends (`in-addr.arpa` / `ip6.arpa`, including
+  RFC 2317 classless zones such as `0/25.2.0.192.in-addr.arpa.`). Off by default. Switched on
+  globally (`auto_ptr` in Settings / provisioning), per zone (`X-AUTHADMIN-AUTO-PTR` = `on` |
+  `off` metadata, set from the zone's Metadata tab or seeded by a template), or per save (the
+  editor's **Keep the reverse (PTR) record in sync** checkbox; `ptr: true|false` on the RRset
+  PATCH and on the MCP record tools). The PTR mirrors the forward record's TTL and `disabled`
+  flag.
+- **Rules.** The reverse zone is never created: an address with no hosted reverse zone is
+  reported as skipped. A PTR that points at a different name is never overwritten unless the
+  change carries `ptrTakeover` (the editor offers it in the review step after showing the
+  current target), and is never deleted: removing an address only removes a PTR that still
+  points at the record's own name. The user needs `record.create`/`record.update`
+  (`record.delete` for removals) on the reverse zone, through a global role or a grant on that
+  zone; otherwise the PTR is skipped and the current target is not revealed. Forward and
+  reverse are two PATCHes: the forward write succeeds first and is never rolled back; every
+  PTR outcome is returned per address (`ptr[]` in the response, one line each in the editor's
+  toast) and audited as `record.ptr-sync` on the forward RRset, next to the ordinary
+  `record.*` rows on the reverse RRset, all sharing the request id. The reverse zone's backend
+  is the forward zone's own when it hosts the zone, else a peer of its cluster, else the first
+  writable copy; read-only backends and secondary copies are never written.
+- **Preview.** The review dialog calls a dry run (`POST …/rrsets/ptr-plan`, same body and
+  permissions as the PATCH) and lists what the save will do to reverse DNS before Save.
+- **Reverse DNS page.** `/zones/auto-ptr` (button on the zones list; global `record.read`)
+  reads every zone once, cached for a minute and shared across users, and lists one row per
+  address: **ok**, **missing** (no PTR), **mismatch** (PTR points elsewhere), **ambiguous**
+  (several names share the address; pick one), **orphan** (PTR with no forward record) and
+  **unhosted**. Rows can be rectified one at a time, as a selection, or all fixable at once
+  (`POST /api/admin/pdns/auto-ptr/rectify`), through the same orchestrator with the same
+  permission checks and audit rows. Record tables show a chip per A/AAAA row (what its PTR
+  says, linked to the reverse zone) and per PTR row (every A/AAAA pointing at the address,
+  with a popover when there are several), fed by `GET /api/admin/pdns/auto-ptr/links` and
+  filtered by `zone.read` on every zone it names.
+- **Not covered.** The DynDNS endpoint and zonefile import write records directly and do not
+  touch PTRs; use the Reverse DNS page afterwards.
+- **Where.** `lib/dns/reverse-name.ts` (address ↔ owner name, classless zones),
+  `lib/dns/auto-ptr.ts` (the decision table), `lib/dns/auto-ptr-setting.ts`,
+  `lib/dns/ptr-reconcile.ts` (the fleet diff),
+  `app/api/admin/pdns/zones/[zoneId]/rrsets/_auto-ptr.ts` (reads, permission checks, writes,
+  audit), `app/api/admin/pdns/auto-ptr/`, `app/(app)/zones/auto-ptr/`,
+  `components/domain/ptr-links.tsx`.
+
 ---
 
 ## 5. DNSSEC
@@ -766,7 +810,7 @@ truth; add there first). Names follow `<resource>.<verb>` and line up with the p
 vocabulary where a 1:1 mapping exists. Rows written before a rename keep the old name.
 
 | Action                                                 | Written when                                                                                                                                                    |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------- |
 | `auth.login.success`                                   | A sign-in completed (any method; `after.method` is `local`, `oidc`, `saml`, `ldap`, `webauthn-primary` or `webauthn-second-factor`, `after.provider` the slug). |
 | `auth.login.failure`                                   | A sign-in was refused - bad credentials, lockout, captcha missing/failed, unverified email, MFA step failed.                                                    |
 | `auth.logout`                                          | A session was ended by its owner.                                                                                                                               |
@@ -849,9 +893,10 @@ vocabulary where a 1:1 mapping exists. Rows written before a rename keep the old
 - **What.** Operator-tunable runtime values: site name, support contact, login intro text,
   brand logo (https:// URL or inline data: URI), failed-login lockout policy, the
   self-service password-reset toggle (`allow_password_reset`), the default sign-in method
-  (`auth_default_provider`, edited from `/admin/authentication`), and the default TTL for
-  new records (`default_record_ttl`, overridable per zone - see § 4.2). `SETTINGS_RO=true`
-  freezes the whole page (§ 17.1).
+  (`auth_default_provider`, edited from `/admin/authentication`), the default TTL for
+  new records (`default_record_ttl`, overridable per zone - see § 4.2) and automatic PTR
+  maintenance (`auto_ptr`, off by default, overridable per zone - see § 4.8).
+  `SETTINGS_RO=true` freezes the whole page (§ 17.1).
 - **Where.** `lib/validators/settings.ts`, `app/(app)/admin/settings/`,
   `lib/settings/app-settings.ts`.
 

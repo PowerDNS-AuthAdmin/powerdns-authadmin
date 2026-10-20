@@ -18,9 +18,12 @@
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const ROOT = new URL("../../", import.meta.url).pathname;
+// fileURLToPath rather than `.pathname`: a checkout under a directory with a
+// space in its name would otherwise be looked up as `%20` and walk nothing.
+const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
 /**
  * Routes allowed to keep a bare zone name. Empty on purpose: every zone

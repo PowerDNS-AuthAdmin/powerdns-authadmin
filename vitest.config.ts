@@ -9,10 +9,14 @@
  * Compose. That file lands when the first integration test does.
  */
 
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
-const root = new URL("./", import.meta.url).pathname;
+// fileURLToPath, not `.pathname`: a checkout under a directory with a space in
+// its name would otherwise alias `server-only` to a `%20` path that does not
+// exist, and every server-only module would fail to load.
+const root = fileURLToPath(new URL("./", import.meta.url));
 
 const alias = {
   "@/": root,

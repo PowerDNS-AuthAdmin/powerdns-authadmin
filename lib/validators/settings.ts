@@ -44,6 +44,10 @@ export const KNOWN_SETTING_KEYS = [
   // A zone's X-AUTHADMIN-DEFAULT-TTL metadata overrides it - see
   // lib/dns/default-ttl.ts.
   "default_record_ttl",
+  // Keep PTR records in sync with A/AAAA records (issue #164). Off by default;
+  // a zone's X-AUTHADMIN-AUTO-PTR metadata overrides it either way - see
+  // lib/dns/auto-ptr-setting.ts.
+  "auto_ptr",
 ] as const;
 
 export type KnownSettingKey = (typeof KNOWN_SETTING_KEYS)[number];
@@ -119,6 +123,7 @@ export const SETTING_VALUE_SCHEMAS = {
       "Must be 'local' or '<type>:<slug>' (type ∈ oidc | saml | ldap).",
     ),
   default_record_ttl: z.coerce.number().int().min(MIN_DEFAULT_TTL).max(MAX_DEFAULT_TTL),
+  auto_ptr: z.boolean(),
 } satisfies Record<KnownSettingKey, z.ZodTypeAny>;
 
 /**
@@ -135,6 +140,7 @@ export const settingsResponseSchema = z.object({
   allow_password_reset: z.boolean().optional(),
   auth_default_provider: z.string().optional(),
   default_record_ttl: z.number().int().optional(),
+  auto_ptr: z.boolean().optional(),
 });
 
 export type SettingsResponse = z.infer<typeof settingsResponseSchema>;
@@ -159,6 +165,7 @@ export const updateSettingsSchema = z.object({
     .union([SETTING_VALUE_SCHEMAS.auth_default_provider, z.null()])
     .optional(),
   default_record_ttl: z.union([SETTING_VALUE_SCHEMAS.default_record_ttl, z.null()]).optional(),
+  auto_ptr: z.union([SETTING_VALUE_SCHEMAS.auto_ptr, z.null()]).optional(),
 });
 
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
@@ -180,4 +187,7 @@ export const SETTING_DEFAULTS: Required<SettingsResponse> = {
   // (show the form) for deployments that don't pick a provider explicitly.
   auth_default_provider: "local",
   default_record_ttl: BUILTIN_DEFAULT_TTL,
+  // Reverse records are only touched when an operator turns this on (or a
+  // zone opts in), so an upgrade never starts writing into reverse zones.
+  auto_ptr: false,
 };

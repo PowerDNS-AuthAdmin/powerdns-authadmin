@@ -38,6 +38,7 @@ import {
   isLuaEnabledGlobally,
 } from "@/lib/pdns/metadata-policy";
 import { resolveDefaultTtl, zoneDefaultTtlFromMetadata } from "@/lib/dns/default-ttl";
+import { resolveAutoPtr, zoneAutoPtrFromMetadata } from "@/lib/dns/auto-ptr-setting";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { normalizeMaster } from "@/lib/pdns/topology";
 import { derivedUpstreamFor } from "@/lib/pdns/topology-cache";
@@ -335,15 +336,17 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   // gesture that refreshes every other capability. Only a snapshot predating
   // that field (or a never-probed backend) falls back to the live read.
   //
-  // The same metadata read carries the zone's default-TTL override, so new
-  // records cost no extra round-trip; a failed read just falls back to the
-  // global default.
+  // The same metadata read carries the zone's default-TTL and auto-PTR
+  // overrides, so new records cost no extra round-trip; a failed read just
+  // falls back to the global defaults.
   let luaRecordsEnabled = false;
   let zoneDefaultTtl: number | null = null;
+  let zoneAutoPtr: boolean | null = null;
   if (canEdit) {
     try {
       const zoneMetadata = await client.listZoneMetadata(canonical);
       zoneDefaultTtl = zoneDefaultTtlFromMetadata(zoneMetadata);
+      zoneAutoPtr = zoneAutoPtrFromMetadata(zoneMetadata);
       luaRecordsEnabled = isLuaEnabledByZoneMetadata(zoneMetadata);
       if (!luaRecordsEnabled) {
         const observed = selected.capabilities?.luaRecords;
@@ -368,10 +371,12 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
       );
     }
   }
+  const appSettings = await getAppSettings();
   const defaultTtl = resolveDefaultTtl({
     zone: zoneDefaultTtl,
-    global: (await getAppSettings()).defaultRecordTtl,
+    global: appSettings.defaultRecordTtl,
   });
+  const autoPtr = resolveAutoPtr({ zone: zoneAutoPtr, global: appSettings.autoPtr });
 
   // Direct ?tab=sync / ?tab=statistics on a polling-off install bounces
   // back to the default records view with an error flash toast - these
@@ -534,6 +539,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
               canUpdateApexNs={canUpdateApexNs}
               luaRecordsEnabled={luaRecordsEnabled}
               defaultTtl={defaultTtl}
+              autoPtr={autoPtr}
             />
           ) : (
             <RecordTable
@@ -550,6 +556,7 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
                   ? { comments: rr.comments as Array<{ content?: string }> }
                   : {}),
               }))}
+              serverSlug={selected.slug}
             />
           )
         ) : tab === "soa" ? (

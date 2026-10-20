@@ -12,6 +12,7 @@
  */
 
 import { z } from "zod";
+import { ZONE_AUTO_PTR_KIND, zoneAutoPtrValuesError } from "@/lib/dns/auto-ptr-setting";
 import { ZONE_DEFAULT_TTL_KIND, zoneDefaultTtlValuesError } from "@/lib/dns/default-ttl";
 import { slugSchema, ttlSchema } from "./common";
 
@@ -65,6 +66,9 @@ const metadataBagSchema = z
     const values = bag[ZONE_DEFAULT_TTL_KIND];
     const error = values ? zoneDefaultTtlValuesError(values) : null;
     if (error) ctx.addIssue({ code: "custom", path: [ZONE_DEFAULT_TTL_KIND], message: error });
+    const ptrValues = bag[ZONE_AUTO_PTR_KIND];
+    const ptrError = ptrValues ? zoneAutoPtrValuesError(ptrValues) : null;
+    if (ptrError) ctx.addIssue({ code: "custom", path: [ZONE_AUTO_PTR_KIND], message: ptrError });
   });
 
 export const createZoneTemplateSchema = z.object({

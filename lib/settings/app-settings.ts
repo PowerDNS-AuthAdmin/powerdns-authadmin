@@ -57,6 +57,12 @@ export interface AppSettings {
    * (`lib/dns/default-ttl.ts`). Never null - defaults to 3600.
    */
   defaultRecordTtl: number;
+  /**
+   * Whether saving an A/AAAA record also maintains its PTR, before any
+   * per-zone override (`lib/dns/auto-ptr-setting.ts`). Never null - defaults
+   * to false.
+   */
+  autoPtr: boolean;
 }
 
 const KEY_TO_FIELD: Record<KnownSettingKey, keyof AppSettings> = {
@@ -69,6 +75,7 @@ const KEY_TO_FIELD: Record<KnownSettingKey, keyof AppSettings> = {
   allow_password_reset: "allowPasswordReset",
   auth_default_provider: "authDefaultProvider",
   default_record_ttl: "defaultRecordTtl",
+  auto_ptr: "autoPtr",
 };
 
 export async function getAppSettings(): Promise<AppSettings> {
@@ -82,6 +89,7 @@ export async function getAppSettings(): Promise<AppSettings> {
     allowPasswordReset: SETTING_DEFAULTS.allow_password_reset,
     authDefaultProvider: SETTING_DEFAULTS.auth_default_provider,
     defaultRecordTtl: SETTING_DEFAULTS.default_record_ttl,
+    autoPtr: SETTING_DEFAULTS.auto_ptr,
   };
 
   let rows;
@@ -115,6 +123,8 @@ export async function getAppSettings(): Promise<AppSettings> {
       out.authDefaultProvider = row.value || SETTING_DEFAULTS.auth_default_provider;
     } else if (field === "defaultRecordTtl" && typeof row.value === "number") {
       out.defaultRecordTtl = row.value;
+    } else if (field === "autoPtr" && typeof row.value === "boolean") {
+      out.autoPtr = row.value;
     }
   }
 

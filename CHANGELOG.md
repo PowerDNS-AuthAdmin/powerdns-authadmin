@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Automatic PTR maintenance (auto-PTR).** Saving or deleting an A/AAAA record can create,
+  update or remove the matching PTR in a reverse zone hosted on any backend, including RFC
+  2317 classless zones. Off by default; enabled globally (`auto_ptr` setting, also in
+  provisioning), per zone (`X-AUTHADMIN-AUTO-PTR` metadata) or per save (editor checkbox,
+  `ptr` / `ptrTakeover` on the RRset PATCH, `ptr` / `ptr_takeover` on the MCP record tools).
+  Reverse zones are never created, a PTR that points at a different name is never replaced
+  without an explicit takeover and never deleted, the user needs record permissions in the
+  reverse zone, and every outcome is reported per address and audited (`record.ptr-sync`).
+  The review dialog previews the reverse changes before Save.
+  ([#164](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/164))
+- **Reverse DNS page** (`/zones/auto-ptr`): every A/AAAA record across the fleet diffed
+  against its PTR - ok, missing, mismatch, ambiguous, orphan, unhosted - with per-row,
+  selected or all-fixable rectification through the same audited path. Record tables link
+  each A/AAAA row to its PTR and each PTR row to every forward record pointing at the address.
+
 ## [1.9.1] - 2026-10-17
 
 Focus fix for the Create zone form. **No schema change, no migration.** Pull the new

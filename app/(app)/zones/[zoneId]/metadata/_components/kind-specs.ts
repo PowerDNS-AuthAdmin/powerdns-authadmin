@@ -15,6 +15,7 @@
  * zone-object fields, so they live on `ZoneSettingsPanel` (see
  * `ZONE_OBJECT_KINDS`) instead of here.
  */
+import { ZONE_AUTO_PTR_KIND, ZONE_AUTO_PTR_VALUES } from "@/lib/dns/auto-ptr-setting";
 import { ZONE_DEFAULT_TTL_KIND } from "@/lib/dns/default-ttl";
 
 interface KindShapeBase {
@@ -144,6 +145,12 @@ export const KIND_SPECS: Record<string, KindShape> = {
     type: "string",
     description:
       "AuthAdmin: TTL in seconds pre-filled for new records in this zone. Overrides the global default in Settings; no effect on PowerDNS itself.",
+  },
+  [ZONE_AUTO_PTR_KIND]: {
+    type: "enum",
+    options: ZONE_AUTO_PTR_VALUES,
+    description:
+      "AuthAdmin: keep PTR records in hosted reverse zones in sync when A/AAAA records in this zone are saved. Overrides the Auto-PTR default in Settings; no effect on PowerDNS itself.",
   },
   "TSIG-ALLOW-DNSUPDATE": {
     type: "list",

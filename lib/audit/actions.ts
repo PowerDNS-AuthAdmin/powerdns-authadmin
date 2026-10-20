@@ -150,6 +150,12 @@ export const AUDIT_ACTIONS = [
   "record.create",
   "record.update",
   "record.delete",
+  // Automatic PTR maintenance (issue #164): one row per A/AAAA change that had
+  // PTR work to do, listing what happened to each address's reverse record.
+  // The reverse writes themselves are ordinary record.* rows on the reverse
+  // zone's RRset; this row ties them to the forward change and makes a
+  // skipped, refused or failed PTR visible without opening the reverse zone.
+  "record.ptr-sync",
 
   // Servers
   "server.create",

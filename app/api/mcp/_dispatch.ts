@@ -54,6 +54,9 @@ export interface RRsetChange {
   ttl?: number;
   records?: Array<{ content: string; disabled?: boolean }>;
   comment?: string;
+  /** Auto-PTR for A/AAAA (issue #164); omitted = the zone's setting. */
+  ptr?: boolean;
+  ptrTakeover?: boolean;
 }
 
 export async function dispatchPatchRrsets(

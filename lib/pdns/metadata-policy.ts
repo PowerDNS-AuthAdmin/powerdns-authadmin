@@ -32,6 +32,12 @@
  */
 
 import {
+  autoPtrFlagValue,
+  parseAutoPtrFlag,
+  ZONE_AUTO_PTR_KIND,
+  zoneAutoPtrValuesError,
+} from "@/lib/dns/auto-ptr-setting";
+import {
   parseDefaultTtl,
   ZONE_DEFAULT_TTL_KIND,
   zoneDefaultTtlValuesError,
@@ -97,6 +103,11 @@ export function normalizeMetadataValues(kind: string, values: readonly string[])
     const error = zoneDefaultTtlValuesError(values);
     if (error) throw new ValidationError(error, { fieldErrors: { values: [error] } });
     return [String(parseDefaultTtl(values[0]!))];
+  }
+  if (kind === ZONE_AUTO_PTR_KIND) {
+    const error = zoneAutoPtrValuesError(values);
+    if (error) throw new ValidationError(error, { fieldErrors: { values: [error] } });
+    return [autoPtrFlagValue(parseAutoPtrFlag(values[0]!) === true)];
   }
   return [...values];
 }

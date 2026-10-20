@@ -62,6 +62,10 @@ ready-to-use install without a single click.
   the trust root), `pda_pat_` API tokens with per-token permission scopes.
 - **RP-initiated logout.** OIDC sessions sign you out at the IdP, not just locally; the
   `end_session_endpoint` + `id_token_hint` flow lands you on the IdP's signed-out screen.
+- **Reverse DNS.** Optional auto-PTR: saving an A/AAAA record keeps its PTR in a hosted
+  reverse zone in sync (global, per-zone or per-save; never creates zones, never clobbers a
+  PTR that points elsewhere), plus a fleet-wide Reverse DNS page that diffs every address
+  against its PTR and rectifies the rows you pick.
 - **Zones + records.** Per-RRset editor with diff-before-apply, zone cloning, zone templates
   (NS + SOA timers + prelude records + zone-object settings + per-kind metadata), per-type
   record validators, optimistic concurrency at the RRset level.

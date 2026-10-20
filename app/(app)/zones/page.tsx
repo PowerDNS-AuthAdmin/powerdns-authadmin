@@ -27,6 +27,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ArrowLeftRight } from "lucide-react";
 import { CreateButton } from "@/components/ui/create-button";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import {
@@ -75,6 +76,9 @@ export default async function ZonesPage() {
   const canCreateServer = globalPermissions.has("server.create");
   const canCreateZone = globalPermissions.has("zone.create");
   const canReadAudit = globalPermissions.has("audit.read");
+  // The reverse DNS reconciler reads every zone's records, so it is gated on
+  // the global permission rather than on any single zone grant.
+  const canReconcilePtr = globalPermissions.has("record.read");
 
   // Ask the broker to ensure a recent observation, then read its store. Serves
   // from the warm store on a hot path; runs/joins one poll when cold or stale.
@@ -253,7 +257,21 @@ export default async function ZonesPage() {
             {errors.length > 0 ? ` · ${errors.length} unreachable` : ""}.
           </p>
         </div>
-        {canCreateZone ? <CreateButton href="/zones/new" label="Add zone" /> : null}
+        {canCreateZone || canReconcilePtr ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {canReconcilePtr ? (
+              <Link
+                href="/zones/auto-ptr"
+                title="Compare every A/AAAA record with its PTR and fix the gaps"
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4 py-2 text-sm font-medium whitespace-nowrap hover:bg-[color:var(--color-bg-muted)] sm:w-auto"
+              >
+                <ArrowLeftRight className="h-4 w-4" aria-hidden />
+                Reverse DNS
+              </Link>
+            ) : null}
+            {canCreateZone ? <CreateButton href="/zones/new" label="Add zone" /> : null}
+          </div>
+        ) : null}
       </header>
 
       {errors.length > 0 ? (

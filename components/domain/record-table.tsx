@@ -14,6 +14,14 @@
 import { useMemo } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
+import {
+  AddressPtrChip,
+  OwnerPtrChip,
+  lookupAddressLink,
+  lookupOwnerLink,
+  usePtrLinks,
+} from "@/components/domain/ptr-links";
+import { isReverseZone } from "@/lib/dns/zone-kind";
 
 // UI-local shape of an RRset for display. Mirrors the relevant fields of
 // `PdnsZoneDetail.rrsets[number]` from `lib/pdns/types`, redeclared here
@@ -33,13 +41,26 @@ interface RecordTableProps {
   /** Canonical zone name including the trailing dot. */
   zoneName: string;
   rrsets: RRset[];
+  /** Backend the zone is shown from; scopes the reverse-DNS cross-link lookup. */
+  serverSlug: string;
 }
 
-export function RecordTable({ zoneName, rrsets }: RecordTableProps) {
+const ADDRESS_TYPES = new Set(["A", "AAAA"]);
+
+export function RecordTable({ zoneName, rrsets, serverSlug }: RecordTableProps) {
   // SOA is intentionally hidden from the records table - operators see and
   // edit it through the SOA panel above instead.
   const nonSoa = useMemo(() => rrsets.filter((rr) => rr.type !== "SOA"), [rrsets]);
   const sorted = useMemo(() => sortRRsets(nonSoa, zoneName), [nonSoa, zoneName]);
+
+  // Reverse-DNS cross-links: PTR state for A/AAAA rows on a forward zone, the
+  // forward names for PTR rows on a reverse zone. Skipped when no row could
+  // carry a chip so a zone of pure MX/TXT never triggers the fleet scan.
+  const reverse = isReverseZone(zoneName);
+  const hasLinkableRows = nonSoa.some((rr) =>
+    reverse ? rr.type === "PTR" : ADDRESS_TYPES.has(rr.type),
+  );
+  const { data: ptrLinks } = usePtrLinks({ zone: zoneName, serverSlug, enabled: hasLinkableRows });
 
   const columns = useMemo<Array<ColumnDef<RRset, unknown>>>(
     () => [
@@ -83,6 +104,18 @@ export function RecordTable({ zoneName, rrsets }: RecordTableProps) {
                     disabled
                   </span>
                 ) : null}
+                {!reverse && ADDRESS_TYPES.has(ctx.row.original.type) ? (
+                  <AddressPtrChip
+                    link={lookupAddressLink(ptrLinks, record.content)}
+                    recordName={ctx.row.original.name}
+                  />
+                ) : null}
+                {reverse && ctx.row.original.type === "PTR" && idx === 0 ? (
+                  <OwnerPtrChip
+                    link={lookupOwnerLink(ptrLinks, ctx.row.original.name)}
+                    ownerName={ctx.row.original.name}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>
@@ -105,7 +138,7 @@ export function RecordTable({ zoneName, rrsets }: RecordTableProps) {
         meta: { className: "w-[20%]" },
       },
     ],
-    [zoneName],
+    [zoneName, reverse, ptrLinks],
   );
 
   return (

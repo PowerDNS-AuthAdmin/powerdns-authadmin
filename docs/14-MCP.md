@@ -125,6 +125,14 @@ servers (Claude Desktop's hosted connectors, for example) needs the stdio bridge
 | `create_zone`    | `zone.create`                          | New zone (Native / Primary / Secondary) with optional nameservers.                                |
 | `delete_zone`    | `zone.delete`                          | Delete a zone; the assistant must repeat the name as `confirm`.                                   |
 
+`set_records`, `add_record` and `delete_records` take an optional `ptr` flag for A/AAAA
+records: `true` also creates, updates or removes the matching PTR in a reverse zone hosted
+here, `false` prevents it, and leaving it out follows the zone's `X-AUTHADMIN-AUTO-PTR`
+metadata or the deployment's `auto_ptr` setting. `ptr_takeover: true` lets the sync replace a
+PTR that points at a different name; without it such a PTR is reported as a conflict and left
+alone. The result lists what happened per address, and the token needs record permissions in
+the reverse zone for anything to be written (see the feature reference, § 4.8).
+
 Write tools are only advertised to tokens that can write somewhere, so a read-only token
 presents a read-only server and the assistant never tries. The SOA is edited through the UI
 only; the apex NS set needs `record.update.apex-ns` exactly as in the UI.

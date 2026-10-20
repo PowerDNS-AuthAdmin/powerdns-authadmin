@@ -46,7 +46,7 @@ export default async function SettingsPage() {
     const v = byKey.get(key);
     return typeof v === "number" ? v : SETTING_DEFAULTS[key];
   }
-  function readBool(key: KnownSettingKey & "allow_password_reset"): boolean {
+  function readBool(key: KnownSettingKey & ("allow_password_reset" | "auto_ptr")): boolean {
     const v = byKey.get(key);
     return typeof v === "boolean" ? v : SETTING_DEFAULTS[key];
   }
@@ -60,6 +60,7 @@ export default async function SettingsPage() {
     login_lockout_seconds: readNumber("login_lockout_seconds"),
     allow_password_reset: readBool("allow_password_reset"),
     default_record_ttl: readNumber("default_record_ttl"),
+    auto_ptr: readBool("auto_ptr"),
   };
 
   return (

@@ -95,6 +95,7 @@ const MOBILE_DEVICE = {
 const PAGES = [
   { name: "dashboard", path: "/dashboard" },
   { name: "zones-list", path: "/zones" },
+  { name: "reverse-dns", path: "/zones/auto-ptr" },
   { name: "zone-detail", path: ZONE_PATH },
   {
     name: "zone-change-history",

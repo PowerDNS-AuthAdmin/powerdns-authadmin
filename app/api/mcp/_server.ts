@@ -49,6 +49,7 @@ import {
   type RRsetChange,
 } from "./_dispatch";
 import { canonicalName, canonicalZone, filterRows, flattenRrsets } from "./_records";
+import { describePtrOutcome, type AutoPtrOutcome } from "@/lib/dns/auto-ptr";
 
 export interface McpContext {
   request: Request;
@@ -66,7 +67,8 @@ Conventions:
 - TTL is in seconds. When omitted on a new RRset the deployment's default TTL applies; when editing an existing RRset its current TTL is kept.
 - TXT values must be quoted ("v=spf1 -all"); MX values are "<preference> <host.>"; hostnames should end with a dot.
 - Installations with several backends need a backend slug: call list_backends once, then pass server_slug. The default backend is used when omitted.
-- Every write is authorised against the token's permissions and recorded in the audit log under the token owner's name. Prefer list_records before changing anything so you replace exactly what you intend.`;
+- Every write is authorised against the token's permissions and recorded in the audit log under the token owner's name. Prefer list_records before changing anything so you replace exactly what you intend.
+- Reverse DNS: when an A/AAAA record is written or deleted, the matching PTR in a reverse zone hosted here can be maintained automatically. Pass ptr=true to ask for it, ptr=false to prevent it, or omit it to follow the zone's / the deployment's auto_ptr setting. The result's "ptr" list says what happened per address; a PTR that already points at a different name is reported as a conflict and only replaced when ptr_takeover=true. Reverse zones are never created.`;
 
 const zoneArg = z
   .string()
@@ -88,6 +90,27 @@ const typeArg = z
   .max(12)
   .describe("Record type, e.g. A, AAAA, CNAME, MX, TXT, SRV, CAA.");
 const ttlArg = z.number().int().min(0).max(2_147_483_647).optional().describe("TTL in seconds.");
+const ptrArg = z
+  .boolean()
+  .optional()
+  .describe(
+    "A/AAAA only: also create, update or remove the matching PTR in a hosted reverse zone. Omit to follow the zone's auto_ptr setting.",
+  );
+const ptrTakeoverArg = z
+  .boolean()
+  .optional()
+  .describe("With ptr: replace a PTR that currently points at a different name. Default false.");
+
+/**
+ * Lift the route's per-address PTR outcomes into one readable line each, so the
+ * assistant can tell the operator about a skipped or conflicting reverse record
+ * without parsing the raw result.
+ */
+function ptrSummary(result: unknown): { ptr?: string[] } {
+  const ptr = (result as { ptr?: AutoPtrOutcome[] } | null)?.ptr;
+  if (!Array.isArray(ptr) || ptr.length === 0) return {};
+  return { ptr: ptr.map(describePtrOutcome) };
+}
 
 function text(data: unknown): CallToolResult {
   return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
@@ -336,37 +359,54 @@ export function buildMcpServer(ctx: McpContext): McpServer {
         records: z.array(recordValue).min(1).max(1000),
         ttl: ttlArg,
         comment: z.string().max(1000).optional().describe("Free-form note stored on the RRset."),
+        ptr: ptrArg,
+        ptr_takeover: ptrTakeoverArg,
       },
       annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
-    tool(async ({ zone: zoneInput, server_slug, name, type, records, ttl, comment }) => {
-      const { zone, selected, detail } = await readZone(zoneInput, server_slug);
-      const owner = canonicalName(name, zone);
-      const rtype = type.trim().toUpperCase();
-      const existing = (detail.rrsets ?? []).find((rr) => rr.name === owner && rr.type === rtype);
-      const change: RRsetChange = {
-        kind: "upsert",
-        name: owner,
-        type: rtype,
+    tool(
+      async ({
+        zone: zoneInput,
+        server_slug,
+        name,
+        type,
         records,
-        ...(ttl !== undefined ? { ttl } : existing ? { ttl: existing.ttl } : {}),
-        ...(comment !== undefined ? { comment } : {}),
-      };
-      const result = await dispatchPatchRrsets(request, {
-        zone,
-        serverSlug: selected.slug,
-        changes: [change],
-      });
-      return text({
-        ok: true,
-        zone,
-        server: selected.slug,
-        name: owner,
-        type: rtype,
-        records,
-        result,
-      });
-    }),
+        ttl,
+        comment,
+        ptr,
+        ptr_takeover,
+      }) => {
+        const { zone, selected, detail } = await readZone(zoneInput, server_slug);
+        const owner = canonicalName(name, zone);
+        const rtype = type.trim().toUpperCase();
+        const existing = (detail.rrsets ?? []).find((rr) => rr.name === owner && rr.type === rtype);
+        const change: RRsetChange = {
+          kind: "upsert",
+          name: owner,
+          type: rtype,
+          records,
+          ...(ttl !== undefined ? { ttl } : existing ? { ttl: existing.ttl } : {}),
+          ...(comment !== undefined ? { comment } : {}),
+          ...(ptr !== undefined ? { ptr } : {}),
+          ...(ptr_takeover !== undefined ? { ptrTakeover: ptr_takeover } : {}),
+        };
+        const result = await dispatchPatchRrsets(request, {
+          zone,
+          serverSlug: selected.slug,
+          changes: [change],
+        });
+        return text({
+          ok: true,
+          zone,
+          server: selected.slug,
+          name: owner,
+          type: rtype,
+          records,
+          ...ptrSummary(result),
+          result,
+        });
+      },
+    ),
   );
 
   server.registerTool(
@@ -382,10 +422,12 @@ export function buildMcpServer(ctx: McpContext): McpServer {
         type: typeArg,
         content: z.string().min(1).describe("Record value in zone-file syntax."),
         ttl: ttlArg,
+        ptr: ptrArg,
+        ptr_takeover: ptrTakeoverArg,
       },
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    tool(async ({ zone: zoneInput, server_slug, name, type, content, ttl }) => {
+    tool(async ({ zone: zoneInput, server_slug, name, type, content, ttl, ptr, ptr_takeover }) => {
       const { zone, selected, detail } = await readZone(zoneInput, server_slug);
       const owner = canonicalName(name, zone);
       const rtype = type.trim().toUpperCase();
@@ -400,6 +442,8 @@ export function buildMcpServer(ctx: McpContext): McpServer {
         type: rtype,
         records: [...current, { content }],
         ...(ttl !== undefined ? { ttl } : existing ? { ttl: existing.ttl } : {}),
+        ...(ptr !== undefined ? { ptr } : {}),
+        ...(ptr_takeover !== undefined ? { ptrTakeover: ptr_takeover } : {}),
       };
       const result = await dispatchPatchRrsets(request, {
         zone,
@@ -413,6 +457,7 @@ export function buildMcpServer(ctx: McpContext): McpServer {
         name: owner,
         type: rtype,
         records: change.records,
+        ...ptrSummary(result),
         result,
       });
     }),
@@ -433,10 +478,11 @@ export function buildMcpServer(ctx: McpContext): McpServer {
           .string()
           .optional()
           .describe("The exact value to remove. Omit to remove every value of this name+type."),
+        ptr: ptrArg,
       },
       annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
-    tool(async ({ zone: zoneInput, server_slug, name, type, content }) => {
+    tool(async ({ zone: zoneInput, server_slug, name, type, content, ptr }) => {
       const { zone, selected, detail } = await readZone(zoneInput, server_slug);
       const owner = canonicalName(name, zone);
       const rtype = type.trim().toUpperCase();
@@ -455,6 +501,7 @@ export function buildMcpServer(ctx: McpContext): McpServer {
             ? { kind: "delete", name: owner, type: rtype }
             : { kind: "upsert", name: owner, type: rtype, ttl: existing.ttl, records: remaining };
       }
+      if (ptr !== undefined) change.ptr = ptr;
       const result = await dispatchPatchRrsets(request, {
         zone,
         serverSlug: selected.slug,
@@ -467,6 +514,7 @@ export function buildMcpServer(ctx: McpContext): McpServer {
         name: owner,
         type: rtype,
         change: change.kind,
+        ...ptrSummary(result),
         result,
       });
     }),

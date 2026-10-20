@@ -87,6 +87,15 @@ const upsertChangeSchema = z.object({
    */
   comment: z.string().max(2048).optional(),
   expected: expectedHashSchema.optional(),
+  /**
+   * Automatic PTR maintenance for an A/AAAA change (ignored for other types).
+   * `ptr` overrides the zone's / the global `auto_ptr` setting for this change
+   * only; omitted means "whatever the zone is configured to do".
+   * `ptrTakeover` lets the PTR sync replace a reverse record that currently
+   * points at a DIFFERENT name - never done without this explicit opt-in.
+   */
+  ptr: z.boolean().optional(),
+  ptrTakeover: z.boolean().optional(),
 });
 
 const deleteChangeSchema = z.object({
@@ -94,6 +103,9 @@ const deleteChangeSchema = z.object({
   name: nameSchema,
   type: typeSchema,
   expected: expectedHashSchema.optional(),
+  /** Same semantics as on an upsert: removes the PTRs the deleted addresses left behind. */
+  ptr: z.boolean().optional(),
+  ptrTakeover: z.boolean().optional(),
 });
 
 export const rrsetChangeSchema = z.discriminatedUnion("kind", [

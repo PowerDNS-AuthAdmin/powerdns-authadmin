@@ -617,6 +617,11 @@ function isDiffableAction(action: string): boolean {
  *   dnssec.cryptokey.*  - `<field> = <value>` per key field
  */
 function computeEntryDiff(entry: ZoneAuditEntryClient): { removed: string[]; added: string[] } {
+  if (entry.action === "record.ptr-sync") {
+    // The summary row carries one readable line per address, not an RRset.
+    const lines = (entry.after as { lines?: unknown } | null)?.lines;
+    return { removed: [], added: Array.isArray(lines) ? lines.map(String) : [] };
+  }
   if (entry.resourceType === "rrset") {
     return computeRecordDiff(
       entry.before as RRsetSnapshot | null,

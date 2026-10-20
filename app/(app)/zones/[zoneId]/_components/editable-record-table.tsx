@@ -51,9 +51,24 @@ import {
 } from "@/lib/validators/rr-types";
 import { protectedRRsetPermission } from "@/lib/rbac/protected-rrsets";
 import type { DefaultTtlSource, ResolvedDefaultTtl } from "@/lib/dns/default-ttl";
+import {
+  describePtrOutcome,
+  isAddressType,
+  summarizePtrOutcomes,
+  type AutoPtrOutcome,
+} from "@/lib/dns/auto-ptr";
+import type { AutoPtrSource, ResolvedAutoPtr } from "@/lib/dns/auto-ptr-setting";
 import { BareDiff, computeBindDiff } from "./bare-diff";
 import { NumberInput } from "@/components/ui/number-input";
 import { getRREditor, RRContentField } from "@/components/domain/rr-editors";
+import {
+  AddressPtrChip,
+  OwnerPtrChip,
+  lookupAddressLink,
+  lookupOwnerLink,
+  usePtrLinks,
+} from "@/components/domain/ptr-links";
+import { isReverseZone } from "@/lib/dns/zone-kind";
 import { Field as EditorField } from "@/components/domain/rr-editors/_form";
 import { Field, inputClass } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
@@ -105,6 +120,13 @@ interface EditableRecordTableProps {
   luaRecordsEnabled: boolean;
   /** TTL a new record starts with, and where it came from (zone / global / built-in). */
   defaultTtl: ResolvedDefaultTtl;
+  /**
+   * Whether an A/AAAA save also maintains its PTR by default, and where that
+   * default came from (zone metadata / Settings / built-in off). The editor
+   * shows a per-save checkbox pre-set from it; the route re-resolves the same
+   * default for API callers that leave the flag out.
+   */
+  autoPtr: ResolvedAutoPtr;
 }
 
 interface EditorState {
@@ -134,6 +156,8 @@ interface EditorState {
    * because the row arrives with content the user can already act on.
    */
   valueTouched: boolean;
+  /** Auto-PTR for this save (A/AAAA only; ignored for other types). */
+  ptr: boolean;
 }
 
 interface PendingPatch {
@@ -158,7 +182,17 @@ interface PatchChange {
    * that don't touch the comment.
    */
   comment?: string;
+  /** Auto-PTR flags, set on A/AAAA changes only (see the route's `ptr` handling). */
+  ptr?: boolean;
+  ptrTakeover?: boolean;
 }
+
+const AUTO_PTR_ORIGIN: Record<AutoPtrSource, string> = {
+  change: "this save",
+  zone: "this zone's X-AUTHADMIN-AUTO-PTR metadata",
+  global: "the Auto-PTR default in Settings",
+  builtin: "the built-in default (off)",
+};
 
 const DEFAULT_TTL_ORIGIN: Record<DefaultTtlSource, string> = {
   zone: "this zone's default (X-AUTHADMIN-DEFAULT-TTL metadata)",
@@ -186,6 +220,29 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
 
   const rows = useMemo(() => flattenRrsetsToRows(nonSoa, props.zoneName), [nonSoa, props.zoneName]);
 
+  // Reverse-DNS cross-links for the Value column: PTR state on A/AAAA rows of
+  // a forward zone, forward names on PTR rows of a reverse zone. Only fetched
+  // when a row could carry a chip, so a zone of pure MX/TXT never triggers the
+  // fleet scan. Same ref trick as `nonSoaRef`: the columns memo excludes data
+  // on purpose, so the cells read the ref and `ptrLinksVersion` bumps when the
+  // answer lands to make them re-render once.
+  const reverseZone = isReverseZone(props.zoneName);
+  const hasLinkableRows = nonSoa.some((rr) =>
+    reverseZone ? rr.type === "PTR" : isAddressType(rr.type),
+  );
+  const { data: ptrLinks } = usePtrLinks({
+    zone: props.zoneName,
+    serverSlug: props.serverSlug,
+    enabled: hasLinkableRows,
+  });
+  const ptrLinksRef = useRef(ptrLinks);
+  const [ptrLinksVersion, setPtrLinksVersion] = useState(0);
+  useEffect(() => {
+    if (ptrLinksRef.current === ptrLinks) return;
+    ptrLinksRef.current = ptrLinks;
+    setPtrLinksVersion((v) => v + 1);
+  }, [ptrLinks]);
+
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [overrideErrors, setOverrideErrors] = useState(false);
@@ -196,8 +253,76 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
   // or the comment escalates to the full dialog.
   const [inline, setInline] = useState<InlineDraft | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
+  // What the save would do to reverse zones, fetched from the dry-run
+  // endpoint when a staged change asks for PTR maintenance. Shown in the
+  // review dialog so a skipped or conflicting PTR is known before Save.
+  const [ptrPlan, setPtrPlan] = useState<{
+    outcomes: AutoPtrOutcome[];
+    error: string | null;
+    loading: boolean;
+  } | null>(null);
 
   const showActions = props.canUpdate || props.canDelete;
+
+  /** The wire shape of a staged change - shared by the dry run and the real PATCH. */
+  function toWireChange(c: PatchChange) {
+    const ptrFlags = isAddressType(c.type)
+      ? {
+          ...(c.ptr !== undefined ? { ptr: c.ptr } : {}),
+          ...(c.ptrTakeover ? { ptrTakeover: true } : {}),
+        }
+      : {};
+    return c.kind === "upsert"
+      ? {
+          kind: "upsert" as const,
+          name: c.name,
+          type: c.type,
+          ttl: c.ttl ?? props.defaultTtl.ttl,
+          records: c.records ?? [],
+          ...(c.comment !== undefined ? { comment: c.comment } : {}),
+          ...ptrFlags,
+        }
+      : { kind: "delete" as const, name: c.name, type: c.type, ...ptrFlags };
+  }
+
+  const wantsPtr = (changes: readonly PatchChange[]): boolean =>
+    changes.some((c) => isAddressType(c.type) && c.ptr === true);
+
+  /** Stage a patch for review and, when it touches reverse DNS, fetch the dry-run plan. */
+  function stage(patch: PendingPatch): void {
+    setPending(patch);
+    if (!wantsPtr(patch.changes)) {
+      setPtrPlan(null);
+      return;
+    }
+    void loadPtrPlan(patch.changes);
+  }
+
+  async function loadPtrPlan(changes: readonly PatchChange[]): Promise<void> {
+    setPtrPlan({ outcomes: [], error: null, loading: true });
+    const result = await mutate(`/api/admin/pdns/zones/${props.zoneIdEncoded}/rrsets/ptr-plan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ serverSlug: props.serverSlug, changes: changes.map(toWireChange) }),
+    });
+    if (!result.ok) {
+      setPtrPlan({ outcomes: [], error: result.error, loading: false });
+      return;
+    }
+    const body = result.data as { ptr?: AutoPtrOutcome[] } | null;
+    setPtrPlan({ outcomes: body?.ptr ?? [], error: null, loading: false });
+  }
+
+  /** Flip takeover on every address change of the staged patch and re-plan. */
+  function setPendingTakeover(takeover: boolean): void {
+    if (!pending) return;
+    const changes = pending.changes.map((c) =>
+      isAddressType(c.type) && c.ptr ? { ...c, ptrTakeover: takeover } : c,
+    );
+    const next = { ...pending, changes };
+    setPending(next);
+    void loadPtrPlan(changes);
+  }
 
   /**
    * True when this row is an apex NS the actor may not touch. Uses the
@@ -269,6 +394,18 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                 <span className="ml-2 rounded bg-[color:var(--color-bg-muted)] px-1 py-0.5 text-[0.65rem] tracking-wide uppercase no-underline">
                   disabled
                 </span>
+              ) : null}
+              {!reverseZone && isAddressType(row.type) ? (
+                <AddressPtrChip
+                  link={lookupAddressLink(ptrLinksRef.current, row.value)}
+                  recordName={row.name}
+                />
+              ) : null}
+              {reverseZone && row.type === "PTR" ? (
+                <OwnerPtrChip
+                  link={lookupOwnerLink(ptrLinksRef.current, row.name)}
+                  ownerName={row.name}
+                />
               ) : null}
             </span>
           );
@@ -355,7 +492,15 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
     // the live `nonSoaRef.current`, see below), so rebuilding the column defs
     // when they change would be churn without correctness benefit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.canUpdate, props.canDelete, props.canUpdateApexNs, props.zoneName, showActions]);
+  }, [
+    props.canUpdate,
+    props.canDelete,
+    props.canUpdateApexNs,
+    props.zoneName,
+    showActions,
+    reverseZone,
+    ptrLinksVersion,
+  ]);
 
   // ===== Editor handlers =====================================================
 
@@ -375,6 +520,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
       disabled: false,
       comment: "",
       valueTouched: false,
+      ptr: props.autoPtr.enabled,
     });
   }
 
@@ -402,13 +548,20 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
       disabled: draft?.disabled ?? row.disabled,
       comment: row.comment,
       valueTouched: true,
+      ptr: draft?.ptr ?? props.autoPtr.enabled,
     });
   }
 
   function openInline(row: RecordRow) {
     if (isLockedRow(row) || !props.canUpdate) return;
     setInlineError(null);
-    setInline({ row, ttl: row.ttl, value: row.value, disabled: row.disabled });
+    setInline({
+      row,
+      ttl: row.ttl,
+      value: row.value,
+      disabled: row.disabled,
+      ptr: props.autoPtr.enabled,
+    });
   }
 
   function closeInline() {
@@ -418,9 +571,14 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
 
   async function handleDeleteRow(row: RecordRow) {
     if (isLockedRow(row)) return;
+    const syncPtr = isAddressType(row.type) && props.autoPtr.enabled;
     const ok = await confirm({
       title: "Delete this record?",
-      description: `Removes ${row.type} value "${row.value}" from ${displayName(row.name, props.zoneName) || "@"}. Other ${row.type} records on this name (if any) stay.`,
+      description:
+        `Removes ${row.type} value "${row.value}" from ${displayName(row.name, props.zoneName) || "@"}. Other ${row.type} records on this name (if any) stay.` +
+        (syncPtr
+          ? " Its PTR in a hosted reverse zone is removed too, if it still points at this name."
+          : ""),
       confirmLabel: "Delete record",
       variant: "danger",
     });
@@ -447,9 +605,10 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
       router.refresh();
       return;
     }
+    const withPtr = syncPtr ? { ...change, ptr: true } : change;
     await applyPatch({
-      changes: [change],
-      rrsetsAfter: applyChangesToRRsets(currentNonSoa, [change], props.defaultTtl.ttl),
+      changes: [withPtr],
+      rrsetsAfter: applyChangesToRRsets(currentNonSoa, [withPtr], props.defaultTtl.ttl),
       summary: "Record deleted.",
     });
   }
@@ -513,6 +672,12 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
 
     if (changes.length === 0) return "Nothing to change.";
 
+    // Auto-PTR rides on every A/AAAA change the draft produces, so a rename
+    // (delete old + upsert new) moves the reverse record along with it.
+    for (const c of changes) {
+      if (isAddressType(c.type)) c.ptr = draft.ptr;
+    }
+
     // A rename can move a record ONTO the apex NS RRset (or off it), so
     // check the changes the edit actually produces rather than the form's
     // target alone. The RRset route rejects the same set - this just says
@@ -532,7 +697,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
         : "Nothing to change.";
     }
 
-    setPending({
+    stage({
       changes,
       rrsetsAfter,
       summary: !draft.originalRow
@@ -559,6 +724,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
       disabled: editor.disabled,
       comment: editor.comment,
       overrideErrors,
+      ptr: editor.ptr,
     });
     if (error) setEditorError(error);
   }
@@ -577,6 +743,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
       // The strip has no "save anyway" - validation errors send the operator
       // to the full editor, which carries the draft across and offers it.
       overrideErrors: false,
+      ptr: inline.ptr,
     });
     if (error) setInlineError(error);
   }
@@ -614,22 +781,7 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serverSlug: props.serverSlug,
-          changes: patch.changes.map((c) =>
-            c.kind === "upsert"
-              ? {
-                  kind: "upsert" as const,
-                  name: c.name,
-                  type: c.type,
-                  ttl: c.ttl ?? props.defaultTtl.ttl,
-                  records: c.records ?? [],
-                  ...(c.comment !== undefined ? { comment: c.comment } : {}),
-                }
-              : {
-                  kind: "delete" as const,
-                  name: c.name,
-                  type: c.type,
-                },
-          ),
+          changes: patch.changes.map(toWireChange),
         }),
       });
 
@@ -645,18 +797,37 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
       const body = result.data as {
         notified?: boolean;
         notifyError?: string;
+        ptr?: AutoPtrOutcome[];
       } | null;
       const notifySuffix = body?.notifyError
         ? ` NOTIFY failed: ${body.notifyError}`
         : body?.notified
           ? " Secondaries notified."
           : "";
+      // The forward save succeeded; anything the PTR side could not do is
+      // said here, loudest first, because it will not be visible on this page.
+      const ptrOutcomes = body?.ptr ?? [];
+      const ptrSummary = summarizePtrOutcomes(ptrOutcomes);
+      const ptrDetail = ptrOutcomes
+        .filter((o) => o.action === "skip" || o.action === "conflict" || o.action === "failed")
+        .map(describePtrOutcome)
+        .join(" ");
+      const ptrSuffix = ptrSummary.text
+        ? ` ${ptrSummary.text}${ptrDetail ? ` ${ptrDetail}` : ""}`
+        : "";
       toast({
-        kind: body?.notifyError ? "warn" : "success",
-        description: patch.summary + notifySuffix,
+        kind:
+          ptrSummary.level === "error"
+            ? "error"
+            : body?.notifyError || ptrSummary.level === "warn"
+              ? "warn"
+              : "success",
+        ...(ptrSummary.level === "error" ? { title: "Saved, but reverse DNS failed" } : {}),
+        description: patch.summary + notifySuffix + ptrSuffix,
       });
       setEditor(null);
       setPending(null);
+      setPtrPlan(null);
       setInline(null);
       setInlineError(null);
       setOverrideErrors(false);
@@ -928,6 +1099,26 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
               Disabled (served as NXDOMAIN, kept in the zone for history)
             </label>
 
+            {isAddressType(editor.type) ? (
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={editor.ptr}
+                  onChange={(e) => setEditor({ ...editor, ptr: e.target.checked })}
+                  className="mt-0.5"
+                />
+                <span>
+                  Keep the reverse (PTR) record in sync
+                  <span className="mt-0.5 block text-xs text-[color:var(--color-fg-muted)]">
+                    Creates, updates or removes the PTR for each address in a reverse zone hosted
+                    here. A PTR that points at another name is left alone unless you choose to
+                    replace it at review. Pre-set {props.autoPtr.enabled ? "on" : "off"} by{" "}
+                    {AUTO_PTR_ORIGIN[props.autoPtr.source]}.
+                  </span>
+                </span>
+              </label>
+            ) : null}
+
             <Field
               label="Comment"
               hint="Free-form note attached to the rrset (shared by every value of this name + type)."
@@ -1005,13 +1196,24 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                 </div>
               );
             })()}
+            {wantsPtr(pending.changes) ? (
+              <PtrPlanPanel
+                plan={ptrPlan}
+                takeover={pending.changes.some((c) => c.ptrTakeover === true)}
+                onTakeoverChange={setPendingTakeover}
+                disabled={saving}
+              />
+            ) : null}
             <div className="flex flex-wrap items-center justify-end gap-3">
               <KeyHint className="mr-auto">
                 <Kbd>Enter</Kbd> save · <Kbd>Esc</Kbd> back
               </KeyHint>
               <button
                 type="button"
-                onClick={() => setPending(null)}
+                onClick={() => {
+                  setPending(null);
+                  setPtrPlan(null);
+                }}
                 disabled={saving}
                 className="rounded-md border border-[color:var(--color-border)] px-4 py-2 text-sm hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
               >
@@ -1064,6 +1266,8 @@ interface InlineDraft {
   ttl: number;
   value: string;
   disabled: boolean;
+  /** Auto-PTR for this save; only meaningful for A/AAAA rows. */
+  ptr: boolean;
 }
 
 /** What both editors hand to `stageDraft`. `originalRow` is unset for a create. */
@@ -1076,6 +1280,8 @@ interface StagedDraft {
   disabled: boolean;
   comment: string;
   overrideErrors: boolean;
+  /** Auto-PTR for the A/AAAA changes this draft produces. */
+  ptr: boolean;
 }
 
 function rowKey(row: RecordRow): string {
@@ -1115,7 +1321,7 @@ function InlineRecordEditor({
   draft: InlineDraft;
   zoneName: string;
   error: string | null;
-  onChange: (next: Partial<Pick<InlineDraft, "ttl" | "value" | "disabled">>) => void;
+  onChange: (next: Partial<Pick<InlineDraft, "ttl" | "value" | "disabled" | "ptr">>) => void;
   onReview: () => void;
   onCancel: () => void;
   onOpenFull: () => void;
@@ -1199,16 +1405,29 @@ function InlineRecordEditor({
             </EditorField>
           )}
         </div>
-        <EditorField label="Disabled">
-          {/* Sized to the text inputs' box so the switch sits on the input row. */}
-          <div className="mt-1 flex min-h-[2.375rem] items-center">
-            <Switch
-              checked={draft.disabled}
-              onChange={(next) => onChange({ disabled: next })}
-              ariaLabel="Disabled"
-            />
-          </div>
-        </EditorField>
+        <div className="flex gap-4">
+          <EditorField label="Disabled">
+            {/* Sized to the text inputs' box so the switch sits on the input row. */}
+            <div className="mt-1 flex min-h-[2.375rem] items-center">
+              <Switch
+                checked={draft.disabled}
+                onChange={(next) => onChange({ disabled: next })}
+                ariaLabel="Disabled"
+              />
+            </div>
+          </EditorField>
+          {isAddressType(draft.row.type) ? (
+            <EditorField label="Sync PTR">
+              <div className="mt-1 flex min-h-[2.375rem] items-center">
+                <Switch
+                  checked={draft.ptr}
+                  onChange={(next) => onChange({ ptr: next })}
+                  ariaLabel="Keep the reverse (PTR) record in sync"
+                />
+              </div>
+            </EditorField>
+          ) : null}
+        </div>
       </div>
 
       {draft.value.trim() !== "" ? <ValidationIssues result={validation} /> : null}
@@ -1246,6 +1465,75 @@ function InlineRecordEditor({
         </KeyHint>
       </div>
     </form>
+  );
+}
+
+/**
+ * Reverse DNS preview inside the review dialog: one line per address from the
+ * dry-run endpoint, and the takeover opt-in when a PTR points elsewhere. The
+ * list is informational - the forward save is never blocked by it.
+ */
+function PtrPlanPanel({
+  plan,
+  takeover,
+  onTakeoverChange,
+  disabled,
+}: {
+  plan: { outcomes: AutoPtrOutcome[]; error: string | null; loading: boolean } | null;
+  takeover: boolean;
+  onTakeoverChange: (next: boolean) => void;
+  disabled: boolean;
+}) {
+  const tone = (o: AutoPtrOutcome): string =>
+    o.action === "failed"
+      ? "text-[color:var(--color-error-fg)]"
+      : o.action === "conflict" || o.action === "skip"
+        ? "text-[color:var(--color-warn)]"
+        : o.action === "unchanged"
+          ? "text-[color:var(--color-fg-muted)]"
+          : "";
+  const conflicts = plan?.outcomes.some((o) => o.action === "conflict") ?? false;
+  return (
+    <section
+      aria-label="Reverse DNS"
+      className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-3 text-sm"
+    >
+      <p className="font-medium">Reverse DNS (PTR)</p>
+      {!plan || plan.loading ? (
+        <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
+          Checking hosted reverse zones…
+        </p>
+      ) : plan.error ? (
+        <p className="mt-1 text-xs text-[color:var(--color-error-fg)]">
+          Could not preview the PTR changes: {plan.error}. The save still runs them and reports the
+          outcome.
+        </p>
+      ) : plan.outcomes.length === 0 ? (
+        <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">Nothing to do.</p>
+      ) : (
+        <ul className="mt-1 space-y-0.5 font-mono text-xs">
+          {plan.outcomes.map((o) => (
+            <li key={`${o.forward.name}|${o.forward.type}|${o.ip}`} className={tone(o)}>
+              {describePtrOutcome(o)}
+            </li>
+          ))}
+        </ul>
+      )}
+      {conflicts || takeover ? (
+        <label className="mt-2 flex items-start gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={takeover}
+            onChange={(e) => onTakeoverChange(e.target.checked)}
+            disabled={disabled}
+            className="mt-0.5"
+          />
+          <span>
+            Replace existing PTRs that point at another name with this record&apos;s name.
+          </span>
+        </label>
+      ) : null}
+    </section>
   );
 }
 
