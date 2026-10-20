@@ -22,6 +22,7 @@ import { displayZoneName } from "@/lib/dns/zone-name";
 import { type ZoneHorizon } from "@/lib/dns/zone-horizon";
 import { ZoneHorizonBadge } from "@/components/domain/zone-horizon-badge";
 import { isSettledSyncState, type SyncState } from "@/lib/pdns/serial-sync";
+import { ToggleChip } from "@/components/ui/toggle-chip";
 
 type ScopeFilter = "all" | "forward" | "reverse";
 const SCOPE_STORAGE_KEY = "pda.zones.scope";
@@ -435,10 +436,9 @@ function HorizonTabs({
 }
 
 /**
- * Filter tabs over the table below. WAI-ARIA tabs keyboard model: the active
- * tab is the single Tab stop, ←/→ (wrapping) and Home/End move the selection
- * and apply it straight away, and every tab points at the table it filters via
- * `aria-controls`.
+ * One filter group above the table, drawn with the app's filter chips (the
+ * Reverse DNS page's horizon chips): single choice, the chosen chip lit, each
+ * with its count. A chip whose count is 0 renders neutral (ToggleChip).
  */
 function SegmentedTabs<T extends string>({
   ariaLabel,
@@ -451,61 +451,28 @@ function SegmentedTabs<T extends string>({
   active: T;
   tabs: Array<{ id: T; label: string; count: number }>;
   onChange: (next: T) => void;
-  /** Id of the element the tabs filter. */
+  /** Id of the element the chips filter. */
   controls: string;
 }) {
-  function onKeyDown(e: React.KeyboardEvent<HTMLButtonElement>, index: number) {
-    let next: number | null = null;
-    if (e.key === "ArrowRight") next = (index + 1) % tabs.length;
-    else if (e.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
-    else if (e.key === "Home") next = 0;
-    else if (e.key === "End") next = tabs.length - 1;
-    if (next === null) return;
-    e.preventDefault();
-    const target = tabs[next];
-    if (!target) return;
-    onChange(target.id);
-    // Focus follows the selection so the next arrow press continues from it.
-    (e.currentTarget.parentElement?.children[next] as HTMLElement | undefined)?.focus();
-  }
-
   return (
     <div
-      role="tablist"
+      role="group"
       aria-label={ariaLabel}
-      className="inline-flex rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-0.5 text-sm"
+      aria-controls={controls}
+      className="flex flex-wrap gap-2"
     >
-      {tabs.map((t, index) => {
-        const isActive = t.id === active;
-        return (
-          <button
-            key={t.id}
-            role="tab"
-            type="button"
-            aria-selected={isActive}
-            aria-controls={controls}
-            tabIndex={isActive ? 0 : -1}
-            onClick={() => onChange(t.id)}
-            onKeyDown={(e) => onKeyDown(e, index)}
-            className={
-              isActive
-                ? "rounded bg-[color:var(--color-accent)] px-3 py-1 font-medium text-[color:var(--color-accent-fg)]"
-                : "rounded px-3 py-1 text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)]"
-            }
-          >
-            {t.label}
-            <span
-              className={
-                isActive
-                  ? "ml-1.5 text-[color:var(--color-accent-fg)]/80"
-                  : "ml-1.5 text-[color:var(--color-fg-subtle)]"
-              }
-            >
-              ({t.count})
-            </span>
-          </button>
-        );
-      })}
+      {tabs.map((t) => (
+        <ToggleChip
+          key={t.id}
+          active={t.id === active}
+          tone="accent"
+          title={`Show ${t.label.toLowerCase()} (${t.count})`}
+          onClick={() => onChange(t.id)}
+          count={t.count}
+        >
+          {t.label}
+        </ToggleChip>
+      ))}
     </div>
   );
 }

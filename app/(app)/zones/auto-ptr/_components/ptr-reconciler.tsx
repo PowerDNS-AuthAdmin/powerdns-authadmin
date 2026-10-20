@@ -86,6 +86,7 @@ import { ToggleChip, type ToggleChipTone } from "@/components/ui/toggle-chip";
 import { mutate } from "@/lib/client/api-fetch";
 import { type AutoPtrOutcome, describePtrOutcome, summarizePtrOutcomes } from "@/lib/dns/auto-ptr";
 import { ZONE_HORIZONS, type ZoneHorizon } from "@/lib/dns/zone-horizon";
+import { orderStatusChips } from "@/components/domain/ptr-status-order";
 
 // ---------------------------------------------------------------- contract
 
@@ -1070,7 +1071,7 @@ export function PtrReconciler() {
 
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
-          {STATUS_ORDER.map((status) => (
+          {orderStatusChips(stats).map((status) => (
             <ToggleChip
               key={status}
               active={activeStatuses.has(status)}

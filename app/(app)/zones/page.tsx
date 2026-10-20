@@ -27,8 +27,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeftRight } from "lucide-react";
-import { CreateButton } from "@/components/ui/create-button";
+import { ArrowLeftRight, Plus } from "lucide-react";
 import { requireUserForPage } from "@/lib/auth/require-user";
 import {
   listSelectableBackends,
@@ -57,6 +56,10 @@ import { ZonesTable, type ZoneRow } from "./_components/zones-table";
 import { PollingDisabledHint } from "@/components/domain/polling-disabled-hint";
 import { ServerRealtimeSubscriber } from "./_components/server-realtime-subscriber";
 import { optionalFeatures, pdnsBackgroundPollingEnabled } from "@/lib/env";
+
+/** Compact bordered actions, the same recipe as the Reverse DNS page's Refresh buttons. */
+const TOOLBAR_LINK_CLASS =
+  "inline-flex items-center justify-center gap-1.5 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-1.5 text-sm font-medium whitespace-nowrap hover:bg-[color:var(--color-bg-muted)]";
 
 export const metadata: Metadata = { title: "Zones" };
 
@@ -264,19 +267,29 @@ export default async function ZonesPage() {
           </p>
         </div>
         {canCreateZone || canCreateRecord || canReconcilePtr ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             {canReconcilePtr ? (
               <Link
                 href="/zones/auto-ptr"
                 title="Compare every A/AAAA record with its PTR and fix the gaps"
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4 py-2 text-sm font-medium whitespace-nowrap hover:bg-[color:var(--color-bg-muted)] sm:w-auto"
+                className={TOOLBAR_LINK_CLASS}
               >
                 <ArrowLeftRight className="h-4 w-4" aria-hidden />
                 Reverse DNS
               </Link>
             ) : null}
-            {canCreateRecord ? <CreateButton href="/zones/new-record" label="Add record" /> : null}
-            {canCreateZone ? <CreateButton href="/zones/new" label="Add zone" /> : null}
+            {canCreateRecord ? (
+              <Link href="/zones/new-record" className={TOOLBAR_LINK_CLASS}>
+                <Plus className="h-4 w-4" aria-hidden />
+                Add record
+              </Link>
+            ) : null}
+            {canCreateZone ? (
+              <Link href="/zones/new" className={TOOLBAR_LINK_CLASS}>
+                <Plus className="h-4 w-4" aria-hidden />
+                Add zone
+              </Link>
+            ) : null}
           </div>
         ) : null}
       </header>

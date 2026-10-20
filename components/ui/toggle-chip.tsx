@@ -58,17 +58,22 @@ interface ToggleChipProps {
 }
 
 export function ToggleChip({ active, tone, title, onClick, count, children }: ToggleChipProps) {
+  // An empty bucket has nothing to call attention to: it renders neutral
+  // whatever its tone or state, so only the chips with something in them light up.
+  const empty = count === 0;
+  const lit = active && !empty;
+  const dotTone: ToggleChipTone = empty ? "muted" : tone;
   return (
     <button
       type="button"
       aria-pressed={active}
       title={title}
       onClick={onClick}
-      className={`${TOGGLE_CHIP_BASE} ${active ? TOGGLE_CHIP_ACTIVE[tone] : TOGGLE_CHIP_INACTIVE}`}
+      className={`${TOGGLE_CHIP_BASE} ${lit ? TOGGLE_CHIP_ACTIVE[tone] : TOGGLE_CHIP_INACTIVE}`}
     >
       <span
         aria-hidden
-        className={`h-1.5 w-1.5 shrink-0 rounded-full ${CHIP_DOT_CLASS[tone]} ${active ? "" : "opacity-60"}`}
+        className={`h-1.5 w-1.5 shrink-0 rounded-full ${CHIP_DOT_CLASS[dotTone]} ${lit ? "" : "opacity-60"}`}
       />
       {children}
       {count === null ? (
