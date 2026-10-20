@@ -37,6 +37,9 @@ function fakeSources(): SearchSources {
         clusterSlug: null,
         horizon: "public",
         kind: "Native",
+        dnssec: true,
+        serial: 2026102101,
+        rrsetCount: 4,
       },
       {
         name: "secret-lab.net.",
@@ -57,6 +60,9 @@ function fakeSources(): SearchSources {
         name: "www.example.com.",
         type: "A",
         contents: ["192.0.2.10"],
+        horizon: "public",
+        ttl: 3600,
+        disabledCount: 0,
       },
       {
         zone: "secret-lab.net.",
@@ -163,7 +169,15 @@ describe("searchEverything", () => {
       kind: "zone",
       title: "example.com",
       href: "/zones/example.com.?server=alpha",
-      meta: { backend: "alpha", horizon: "public", kind: "Native" },
+      meta: {
+        backend: "alpha",
+        backendType: "standalone",
+        horizon: "public",
+        kind: "Native",
+        dnssec: "signed",
+        serial: "2026102101",
+        rrsets: "4",
+      },
     });
     expect(zone.ranges.length).toBeGreaterThan(0);
   });
@@ -207,13 +221,28 @@ describe("searchEverything", () => {
     const zone = res.groups[0]!.items[0]!;
     // Cluster zones are addressed by their cluster.
     expect(zone.href).toBe("/zones/secret-lab.net.?cluster=edge");
+    // The result says where it lives; facts the index lacks are left out.
+    expect(zone.meta).toEqual({
+      backend: "edge",
+      backendType: "cluster",
+      horizon: "internal",
+      kind: "Master",
+    });
   });
 
   it("matches record content and links with the content as the table filter", async () => {
     const res = await run("192.0.2", auth(["record.read"]), "records");
     const rec = res.groups[0]!.items[0]!;
     expect(rec).toMatchObject({ kind: "record", title: "www.example.com", subtitle: "192.0.2.10" });
-    expect(rec.meta).toEqual({ type: "A", content: "192.0.2.10", zone: "example.com" });
+    expect(rec.meta).toEqual({
+      type: "A",
+      content: "192.0.2.10",
+      zone: "example.com",
+      backend: "alpha",
+      backendType: "standalone",
+      horizon: "public",
+      ttl: "3600",
+    });
     expect(rec.subtitleRanges?.length).toBeGreaterThan(0);
     expect(rec.href).toBe("/zones/example.com.?server=alpha&q=192.0.2.10");
   });

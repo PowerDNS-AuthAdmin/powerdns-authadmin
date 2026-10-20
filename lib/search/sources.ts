@@ -78,9 +78,15 @@ const fleet = memo(async () => {
   ]);
   const byId = new Map(scan.servers.map((s) => [s.id, s]));
   const bySlug = new Map(scan.servers.map((s) => [s.slug, s]));
+  const details = cachedZoneDetails();
+  const rrsetCounts = new Map(
+    details.map((d) => [`${d.serverId}|${d.zone}`, d.detail.rrsets?.length ?? 0]),
+  );
+  const horizons = new Map<string, string>();
   const zones = scan.zones.flatMap((z) => {
     const server = bySlug.get(z.server);
     if (!server) return [];
+    horizons.set(`${server.id}|${z.name}`, z.horizon);
     return [
       {
         name: z.name,
@@ -90,10 +96,13 @@ const fleet = memo(async () => {
         clusterSlug: server.clusterId ? (slugs.get(server.clusterId) ?? null) : null,
         horizon: z.horizon,
         kind: z.kind,
+        dnssec: z.dnssec,
+        serial: z.serial,
+        rrsetCount: rrsetCounts.get(`${server.id}|${z.name}`),
       },
     ];
   });
-  const records = cachedZoneDetails().flatMap((entry) => {
+  const records = details.flatMap((entry) => {
     const server = byId.get(entry.serverId);
     if (!server) return [];
     const clusterSlug = server.clusterId ? (slugs.get(server.clusterId) ?? null) : null;
@@ -105,6 +114,9 @@ const fleet = memo(async () => {
       name: rr.name,
       type: rr.type,
       contents: rr.records.map((r) => r.content),
+      horizon: horizons.get(`${entry.serverId}|${entry.zone}`),
+      ttl: rr.ttl,
+      disabledCount: rr.records.filter((r) => r.disabled).length,
     }));
   });
   return { zones, records };

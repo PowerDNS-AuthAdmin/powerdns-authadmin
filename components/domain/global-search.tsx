@@ -111,16 +111,10 @@ const KIND_ICON: Record<SearchItemKind, LucideIcon> = {
 
 /** The inline columns of a single-tab list, in order, with their widths. */
 const META_COLUMNS: Record<SearchGroupKey, ReadonlyArray<{ key: string; className: string }>> = {
-  zones: [
-    { key: "backend", className: "w-28" },
-    { key: "horizon", className: "w-20" },
-    { key: "kind", className: "w-20" },
-  ],
-  records: [
-    { key: "type", className: "w-14 font-medium" },
-    { key: "content", className: "w-56 font-mono" },
-    { key: "zone", className: "w-36" },
-  ],
+  // Zones and records carry more than fits in columns: they render
+  // <ResultFacts> in every view instead.
+  zones: [],
+  records: [],
   config: [
     { key: "section", className: "w-28" },
     { key: "value", className: "w-40" },
@@ -191,6 +185,70 @@ function storeScope(scope: SearchScope): void {
   } catch {
     // Private mode / blocked storage: the scope simply is not remembered.
   }
+}
+
+const FACT = "rounded px-1 py-0.5 font-mono text-[0.625rem] leading-none tracking-wide uppercase";
+const FACT_TONE = {
+  neutral: "bg-[color:var(--color-fg-muted)]/10 text-[color:var(--color-fg-muted)]",
+  accent: "bg-[color:var(--color-accent)]/15 text-[color:var(--color-accent)]",
+  orange: "bg-[color:var(--color-orange)]/15 text-[color:var(--color-orange-fg)]",
+  success: "bg-[color:var(--color-success)]/15 text-[color:var(--color-success-fg)]",
+  warn: "bg-[color:var(--color-warn)]/15 text-[color:var(--color-warn-fg)]",
+} as const;
+
+/**
+ * Where a zone or record lives and what state it is in, as the zones list
+ * shows it: backend, CLUSTER / STANDALONE, INTERNAL / PUBLIC, then per kind
+ * the zone's DNSSEC, serial and size or the record's TTL and value count.
+ * Read from the item's meta, so a field the index did not know is skipped.
+ */
+function ResultFacts({ item }: { item: SearchItem }) {
+  const m = item.meta ?? {};
+  const facts: Array<{ label: string; tone: keyof typeof FACT_TONE; title: string }> = [];
+  const add = (label: string | undefined, tone: keyof typeof FACT_TONE, title: string) => {
+    if (label) facts.push({ label, tone, title });
+  };
+  if (item.group === "records") add(m["zone"], "neutral", "Zone");
+  if (m["backend"]) {
+    const cluster = m["backendType"] === "cluster";
+    add(m["backend"], "neutral", cluster ? "Cluster" : "Backend");
+    add(cluster ? "cluster" : "standalone", cluster ? "accent" : "neutral", "Backend type");
+  }
+  if (m["horizon"])
+    add(
+      m["horizon"],
+      m["horizon"] === "internal" ? "orange" : "neutral",
+      m["horizon"] === "internal" ? "Internal zone (split horizon)" : "Public zone",
+    );
+  if (item.group === "zones") {
+    add(m["kind"], "neutral", "Zone kind");
+    if (m["dnssec"])
+      add(
+        m["dnssec"] === "signed" ? "dnssec" : "unsigned",
+        m["dnssec"] === "signed" ? "success" : "neutral",
+        "DNSSEC",
+      );
+    if (m["serial"]) add(`serial ${m["serial"]}`, "neutral", "SOA serial");
+    if (m["rrsets"]) add(`${m["rrsets"]} rrsets`, "neutral", "Record sets in the zone");
+  } else {
+    if (m["ttl"]) add(`ttl ${m["ttl"]}`, "neutral", "TTL (seconds)");
+    if (m["values"]) add(`${m["values"]} values`, "neutral", "Records in this set");
+    if (m["disabled"]) add(`${m["disabled"]} disabled`, "warn", "Disabled records in this set");
+  }
+  if (facts.length === 0) return null;
+  return (
+    <span className="flex min-w-0 flex-wrap items-center gap-1">
+      {facts.map((f) => (
+        <span
+          key={`${f.title}:${f.label}`}
+          className={`${FACT} ${FACT_TONE[f.tone]}`}
+          title={f.title}
+        >
+          {f.label}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 function formatMeta(key: string, value: string): string {
@@ -587,9 +645,8 @@ export function GlobalSearch({ visibility, quickLinks }: GlobalSearchProps) {
         {renderIcon(it.kind, selected)}
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="flex min-w-0 items-center gap-2">
-            {/* Several records share an owner name; the type tells them apart at a glance
-                (the Records tab has its own type column). */}
-            {!dense && it.group === "records" && it.meta?.["type"] ? (
+            {/* Several records share an owner name; the type tells them apart at a glance. */}
+            {it.group === "records" && it.meta?.["type"] ? (
               <span className="shrink-0 rounded border border-[color:var(--color-border)] px-1.5 font-mono text-[0.68rem] leading-5 text-[color:var(--color-fg-muted)]">
                 {it.meta["type"]}
               </span>
@@ -603,6 +660,7 @@ export function GlobalSearch({ visibility, quickLinks }: GlobalSearchProps) {
               <Highlighted text={it.subtitle} ranges={it.subtitleRanges} />
             </span>
           ) : null}
+          {it.group === "zones" || it.group === "records" ? <ResultFacts item={it} /> : null}
           {cells.length > 0 ? (
             <span className="truncate text-xs text-[color:var(--color-fg-muted)] md:hidden">
               {cells.map((c) => formatMeta(c.key, c.value)).join(" · ")}

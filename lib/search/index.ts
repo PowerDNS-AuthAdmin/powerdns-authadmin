@@ -46,6 +46,11 @@ export interface ZoneSourceRow {
   clusterSlug: string | null;
   horizon: string;
   kind: string;
+  /** Detail shown on the result, when the scan knows it. */
+  dnssec?: boolean;
+  serial?: number | null;
+  /** RRsets in the zone; only when its detail has been read. */
+  rrsetCount?: number;
 }
 
 export interface RecordSourceRow {
@@ -56,6 +61,27 @@ export interface RecordSourceRow {
   name: string;
   type: string;
   contents: string[];
+  /** Detail shown on the result, when the scan knows it. */
+  horizon?: string;
+  ttl?: number;
+  /** How many of `contents` are disabled. */
+  disabledCount?: number;
+}
+
+/**
+ * Meta that says where a zone or record lives: its backend (a cluster or a
+ * standalone server) and horizon, so two same-named hits are told apart.
+ */
+function placementMeta(row: {
+  serverSlug: string;
+  clusterSlug: string | null;
+  horizon?: string;
+}): Record<string, string> {
+  return {
+    backend: row.clusterSlug ?? row.serverSlug,
+    backendType: row.clusterSlug ? "cluster" : "standalone",
+    ...(row.horizon ? { horizon: row.horizon } : {}),
+  };
 }
 
 export interface SearchSources {
@@ -365,7 +391,13 @@ async function searchZones(
           kind: "zone",
           title,
           subtitle: [z.kind, backend, z.horizon].filter(Boolean).join(" · "),
-          meta: { backend, horizon: z.horizon, kind: z.kind },
+          meta: {
+            ...placementMeta(z),
+            kind: z.kind,
+            ...(z.dnssec === undefined ? {} : { dnssec: z.dnssec ? "signed" : "unsigned" }),
+            ...(z.serial == null ? {} : { serial: String(z.serial) }),
+            ...(z.rrsetCount === undefined ? {} : { rrsets: String(z.rrsetCount) }),
+          },
           href: zoneHref(z.name, z.serverSlug, z.clusterSlug),
         },
         m,
@@ -412,7 +444,15 @@ async function searchRecords(
           kind: "record",
           title,
           subtitle: content,
-          meta: { type: rr.type, content: `${content}${more}`, zone: withoutDot(rr.zone) },
+          meta: {
+            type: rr.type,
+            content: `${content}${more}`,
+            zone: withoutDot(rr.zone),
+            ...placementMeta(rr),
+            ...(rr.ttl === undefined ? {} : { ttl: String(rr.ttl) }),
+            ...(rr.contents.length > 1 ? { values: String(rr.contents.length) } : {}),
+            ...(rr.disabledCount ? { disabled: String(rr.disabledCount) } : {}),
+          },
           href: zoneHref(rr.zone, rr.serverSlug, rr.clusterSlug, filter),
         },
         match,
