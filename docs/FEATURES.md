@@ -472,9 +472,10 @@ the audit trail behave identically whichever door the user came through.
 - **What.** A bell in the top header surfaces active advisories computed every poll cycle:
   unreachable backends, API-key rejections (401/403), replication drift past a threshold, TSIG
   keys missing on a secondary, mirror zones without `masters`, daemon-config drift between
-  peers. Acknowledged advisories disappear automatically when the underlying condition
-  resolves. Same signal feeds the per-row red/warn tints on
-  [PowerDNS servers](#31-multi-backend-management) - bell and table never disagree.
+  peers. Zone monitoring findings (§ 20) land in the same bell under their own `monitor.`
+  code namespace, visible to users who can read zones. Acknowledged advisories disappear
+  automatically when the underlying condition resolves. Same signal feeds the per-row red/warn
+  tints on [PowerDNS servers](#31-multi-backend-management) - bell and table never disagree.
 - **Where.** `lib/health/evaluator.ts`, `components/domain/health-bell.tsx`,
   `lib/db/repositories/backend-advisories.ts`. Decision record:
   [ADR-0015](./adr/0015-backend-health-advisories.md).
@@ -690,14 +691,39 @@ the audit trail behave identically whichever door the user came through.
   permission checks and audit rows. Record tables show a chip per A/AAAA row (what its PTR
   says, linked to the reverse zone) and per PTR row (every A/AAAA pointing at the address,
   with a popover when there are several), fed by `GET /api/admin/pdns/auto-ptr/links` and
-  filtered by `zone.read` on every zone it names.
+  filtered by `zone.read` on every zone it names. The sidebar entry **Zones → Reverse DNS**
+  carries the number of rows needing attention (missing, mismatch, ambiguous, orphan), counted
+  by the zone monitor's last cycle (§ 20.5).
+- **Horizons.** Matching is scoped to the horizon (§ 4.1.1): a public forward record is only
+  matched against public reverse zones, an internal one only against internal reverse zones, so
+  a split-horizon install keeps its two reverse trees apart and the same address can carry a
+  different name on each side. A reverse zone's effective horizon is the operator's
+  classification; an unclassified reverse zone that covers private address space (RFC 1918,
+  CGNAT, ULA) counts as internal, because the operator may have
+  forgotten to classify it but the address space leaves no doubt. Forward zones follow their
+  classification (public by default). The same rule drives the PTR chips in record tables.
+- **Unhosted addresses.** For a row no hosted reverse zone covers, the report asks the world
+  instead: the address's PTR is looked up through the public resolvers for a public horizon and
+  through the internal resolvers for an internal one (the host's own resolver when none are
+  configured, `ZONE_MONITOR_INTERNAL_RESOLVERS`). The row carries an `external` verdict:
+  **pending** (not looked up yet), **match** (an upstream PTR names one of the forward records),
+  **mismatch** (it names something else), **none** (no PTR) or **error**, with the targets, the
+  resolver and the time of the lookup, so the operator knows whether the ISP's or cloud
+  provider's reverse record needs a ticket upstream. Lookups are scheduled by the report, spread
+  across `EXTERNAL_PTR_INTERVAL_SECONDS` (default 300) two at a time, cached per address and
+  re-done once the cached answer is older than the interval. The page's **Refresh external
+  lookups** button looks every unhosted address up now, once per 60 seconds
+  (`POST /api/admin/pdns/auto-ptr/external-refresh`; global `record.read`, CSRF). The lookups
+  are part of zone monitoring: with `ZONE_MONITOR_ENABLED=false` nothing is asked and the rows
+  stay **pending**.
 - **Not covered.** The DynDNS endpoint and zonefile import write records directly and do not
   touch PTRs; use the Reverse DNS page afterwards.
 - **Where.** `lib/dns/reverse-name.ts` (address ↔ owner name, classless zones),
   `lib/dns/auto-ptr.ts` (the decision table), `lib/dns/auto-ptr-setting.ts`,
   `lib/dns/ptr-reconcile.ts` (the fleet diff),
   `app/api/admin/pdns/zones/[zoneId]/rrsets/_auto-ptr.ts` (reads, permission checks, writes,
-  audit), `app/api/admin/pdns/auto-ptr/`, `app/(app)/zones/auto-ptr/`,
+  audit), `app/api/admin/pdns/auto-ptr/` (`_scan.ts` holds the effective-horizon rule),
+  `lib/monitoring/external-ptr.ts` (external lookups), `app/(app)/zones/auto-ptr/`,
   `components/domain/ptr-links.tsx`.
 
 ---
@@ -1058,7 +1084,9 @@ folder (`drizzle/`, `drizzle-sqlite/`); the boot entrypoint picks one based on
   subkeys per usage (`lib/crypto/encryption.ts`).
 - **Secret-field redaction** in audit `before`/`after` snapshots and free-form log strings.
 - **Argon2id** with OWASP 2024 parameters for passwords and API tokens.
-- **No telemetry phone-home.** Air-gapped enterprises are first-class.
+- **No telemetry phone-home.** Air-gapped enterprises are first-class. The only background
+  traffic that leaves the network is zone monitoring's outbound DNS (§ 20.8), on by default and
+  switched off with `ZONE_MONITOR_ENABLED=false`.
 - **`SECURITY.md`** for the vulnerability disclosure policy.
 
 ### 17.1 Public-demo locks (`BOOTSTRAP_ADMIN_RO`, `SETTINGS_RO`)
@@ -1269,3 +1297,204 @@ errors are gated behind an explicit "Save anyway" checkbox so an override is nev
   `CONNECTING`.
 - **Where.** `lib/auth/require-user.ts` (page gate), `app/(app)/layout.tsx` (compliance
   redirect), `components/auth/compliance-guard.tsx` (client-side intercept).
+
+---
+
+## 20. Zone monitoring
+
+A zone that PowerDNS serves correctly can still be broken for everyone else: the registrar
+points at the wrong nameservers, the DS at the parent no longer matches the DNSKEY after a key
+rollover, a secondary stopped transferring, or a nameserver hands the whole zone to anyone who
+asks for it. None of that is visible from inside PowerDNS, so AuthAdmin checks every hosted zone
+from the outside on a schedule and reports what it finds on **Zones → Zone Monitoring**
+(`/zones/monitoring`), in the notification bell and as a count on the sidebar entry.
+
+### 20.1 What is checked, and why from the outside
+
+- **Delegation at the parent.** The parent's NS set, its glue and its DS records are read by
+  walking down from the root servers (root, TLD, parent) the way a resolver does, not by asking
+  a recursive resolver. A recursive resolver answers from its cache and from the zone's own
+  nameservers, so it cannot show what the parent says, and a broken or lying resolver would make
+  a correct delegation look wrong. The root addresses are the published root hints, compiled in
+  (`lib/dns/root-hints.ts`) and rotated so repeated walks spread across the roots. Public zones
+  only; an internal zone has no delegation on the internet to compare against.
+- **Nameservers.** Every NS name at the apex is resolved (glue in the zone first, then the
+  parent's glue, then a lookup) and each address, at most two per name, is asked for the zone's
+  SOA without recursion: did it answer, with `NOERROR` and the AA flag, and with which serial. A
+  server that answered authoritatively is also asked for the apex NS RRset, so a nameserver
+  serving a different NS set than PowerDNS is caught, and is sent the transfer probe below.
+- **Open zone transfer.** An AXFR without a TSIG key, over TCP, against the zone's own
+  nameservers only. Reading stops at the first message: a server that is going to refuse does
+  so at once, and one that answers has already proven the leak, so a large zone is never pulled
+  in full (256 KiB cap).
+- **DNSSEC chain.** When PowerDNS has the zone signed, the DNSKEY RRset is read from an
+  authoritative nameserver and compared with the DS at the parent by key tag and algorithm: a
+  signed zone without a DS, a DS for an unsigned zone, or a DS matching no key. Signatures are
+  not validated; the chain of trust is checked, not the RRSIGs.
+- **Resolver view.** The zone's SOA is asked, with recursion, of the configured resolvers: the
+  public ones for a public zone, the internal ones for an internal zone. `SERVFAIL` or
+  `NXDOMAIN` there is the symptom the zone's users see; a serial lower than PowerDNS is only a
+  cache that has not expired yet.
+- **SOA sanity.** From the PowerDNS copy: refresh, retry, expire and minimum against RFC 1912
+  and RFC 2308, MNAME present in the NS set (NOTIFY and dynamic updates target it), RNAME shaped
+  like a mailbox.
+- **Reverse DNS drift.** The Reverse DNS reconciliation (§ 4.8) is tallied per forward zone:
+  addresses without a PTR, and addresses whose PTR names something else, counting only
+  addresses covered by a hosted reverse zone of the same horizon.
+
+The wire client behind all of this (`lib/dns/wire.ts`) exists because `node:dns` hides exactly
+what these checks need: the authority section of a referral, the AA flag, a serial per
+nameserver address, and the ability to ask for a transfer. It speaks IN class only, decodes the
+record types a delegation check reads (NS, A, AAAA, SOA, CNAME, PTR, MX, TXT, DS, DNSKEY,
+RRSIG), sets EDNS0 with the DO bit when asked, retries one lost UDP datagram once, falls back
+to TCP on truncation, and caps every TCP response.
+
+### 20.2 Findings
+
+Each check produces findings with a stable code, a severity and a detail text naming the
+addresses, serials or key tags involved. Severity policy: **error**: resolvers are, or soon
+will be, failing to answer for the zone; **warn**: the zone works but is fragile or
+inconsistent; **info**: worth knowing, nothing to fix today. A zone without findings is **OK**.
+Findings are sorted worst first, and a zone's verdict is its worst finding.
+
+| Code                                                    | Severity                                                                                                                       | Meaning                                                                                                                                                                                                                         | What to do                                                                                                                              |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `delegation.missing`                                    | error                                                                                                                          | The parent answers `NXDOMAIN` or gives no referral for the zone. Resolvers on the internet cannot reach it.                                                                                                                     | Create the delegation at the registrar or with the parent zone's operator.                                                              |
+| `delegation.ns-mismatch`                                | error when the parent's and the apex NS sets share no name, warn when they overlap                                             | The NS names the parent delegates to differ from the zone's apex NS RRset. The detail lists both sides and the difference.                                                                                                      | Make the registrar's nameserver list and the zone's NS RRset identical.                                                                 |
+| `delegation.glue-mismatch`                              | warn                                                                                                                           | The parent's glue for an in-bailiwick nameserver differs from the A/AAAA the zone holds for it.                                                                                                                                 | Update the glue (host records) at the registrar.                                                                                        |
+| `delegation.served-by-parent`                           | info                                                                                                                           | The parent's servers answer authoritatively for the zone themselves; there is no separate delegation to compare.                                                                                                                | Nothing. Expected when parent and child are served by the same nameservers.                                                             |
+| `delegation.unverified`                                 | info                                                                                                                           | The walk from the roots failed: no root server answered, or a nameserver on the path had no address.                                                                                                                            | Check outbound DNS from the AuthAdmin host; set `ZONE_MONITOR_ENABLED=false` if it is blocked on purpose.                               |
+| `dnssec.ds-missing`                                     | warn                                                                                                                           | The zone publishes DNSKEYs but the parent has no DS, so validators treat it as unsigned.                                                                                                                                        | Publish the DS (key tags in the detail) at the registrar.                                                                               |
+| `dnssec.ds-orphan`                                      | error                                                                                                                          | The parent publishes a DS and the zone serves no DNSKEY. Validating resolvers return `SERVFAIL` for every name in the zone.                                                                                                     | Remove the DS at the parent, or re-sign the zone.                                                                                       |
+| `dnssec.ds-stale`                                       | error                                                                                                                          | No DS at the parent matches a DNSKEY by key tag and algorithm; a key rollover was not completed.                                                                                                                                | Replace the DS at the parent with the current KSK's.                                                                                    |
+| `nameserver.none`                                       | error                                                                                                                          | No NS RRset at the apex.                                                                                                                                                                                                        | Add NS records.                                                                                                                         |
+| `nameserver.count`                                      | warn                                                                                                                           | A single nameserver (RFC 2182).                                                                                                                                                                                                 | Add a second, independent nameserver.                                                                                                   |
+| `nameserver.cname`                                      | warn                                                                                                                           | An NS target is a CNAME (RFC 2181 § 10.3).                                                                                                                                                                                      | Point the NS record at a hostname that has A/AAAA records.                                                                              |
+| `nameserver.no-address`                                 | error                                                                                                                          | The NS name resolves to no A/AAAA, so nobody can query it.                                                                                                                                                                      | Add address records (and glue at the parent when in-bailiwick).                                                                         |
+| `nameserver.private-address`                            | warn (public zones only)                                                                                                       | The NS name resolves to loopback, RFC 1918, CGNAT or ULA space, unreachable from the internet. Such addresses are not probed.                                                                                                   | Publish a routable address, or classify the zone as internal (§ 4.1.1).                                                                 |
+| `nameserver.unreachable`                                | error                                                                                                                          | None of the nameserver's probed addresses answered within the timeout.                                                                                                                                                          | Check the server and its firewall on 53/udp and 53/tcp.                                                                                 |
+| `nameserver.partially-unreachable`                      | warn                                                                                                                           | Some of the nameserver's addresses answered, others did not.                                                                                                                                                                    | Fix or remove the dead address.                                                                                                         |
+| `nameserver.lame`                                       | error                                                                                                                          | The server answered without the AA flag or with an rcode other than `NOERROR`: the delegation points at a server not serving the zone.                                                                                          | Load the zone on that server, or drop it from the NS set and the delegation.                                                            |
+| `nameserver.diversity`                                  | info                                                                                                                           | Every nameserver address sits in one /24 (IPv4) or /48 (IPv6); one network outage takes the zone offline (RFC 2182 § 3.1).                                                                                                      | Add a nameserver on another network.                                                                                                    |
+| `consistency.ns-set`                                    | warn                                                                                                                           | A nameserver answers a different NS RRset than PowerDNS holds.                                                                                                                                                                  | Let the secondary transfer; fix the stale copy.                                                                                         |
+| `consistency.serial`                                    | warn                                                                                                                           | Nameservers disagree with each other, or with PowerDNS, on the SOA serial.                                                                                                                                                      | Check AXFR and NOTIFY to the lagging secondary (zone Sync tab, § 3.4; TSIG, § 7).                                                       |
+| `transfer.open`                                         | error for public zones, warn for internal                                                                                      | A nameserver answered an unsigned AXFR for the zone.                                                                                                                                                                            | Restrict transfers: `allow-axfr-ips`, the `ALLOW-AXFR-FROM` zone metadata (§ 6), TSIG.                                                  |
+| `soa.missing`                                           | error                                                                                                                          | No SOA at the apex.                                                                                                                                                                                                             | Add the SOA.                                                                                                                            |
+| `soa.timers`                                            | error when expire is not above refresh + retry, else warn                                                                      | Refresh below 20 minutes, retry not below refresh, expire not above refresh + retry or below one week, minimum above one day.                                                                                                   | Adjust the SOA timers (RFC 1912 § 2.2, RFC 2308 § 4), or the zone template that seeds them (§ 4.4).                                     |
+| `soa.mname`                                             | warn                                                                                                                           | The SOA MNAME is not one of the zone's nameservers (RFC 1996).                                                                                                                                                                  | Set MNAME to the primary's NS name.                                                                                                     |
+| `soa.rname`                                             | info                                                                                                                           | The RNAME has no `.` or contains `@`; it should be a mailbox with the `@` written as `.`.                                                                                                                                       | Correct the RNAME (`hostmaster.example.com.`).                                                                                          |
+| `resolution.public` / `resolution.internal`             | error on `SERVFAIL` or `NXDOMAIN`; warn on any other rcode; no answer: warn for a public resolver and a public zone, else info | What a recursive resolver returns for the zone's SOA. `SERVFAIL` means a broken DNSSEC chain, a lame delegation or unreachable nameservers from that resolver's point of view; `NXDOMAIN` means it does not see the delegation. | Fix the underlying delegation, DNSSEC or nameserver finding; an unreachable resolver is a connectivity question for the AuthAdmin host. |
+| `resolution.public.stale` / `resolution.internal.stale` | info                                                                                                                           | The resolver still caches a serial lower than PowerDNS serves.                                                                                                                                                                  | Nothing; it refreshes when its cache expires.                                                                                           |
+| `reverse-dns.drift`                                     | warn                                                                                                                           | Addresses in this zone have no PTR, or a PTR naming something else, in a hosted reverse zone.                                                                                                                                   | Rectify them on the Reverse DNS page (§ 4.8).                                                                                           |
+
+### 20.3 Horizons
+
+The zone's horizon (§ 4.1.1) decides which audience it is judged against:
+
+| Horizon          | Delegation walk              | Resolvers asked                                    | Private nameserver addresses                                      | `transfer.open` |
+| ---------------- | ---------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- | --------------- |
+| public (default) | yes, from the root servers   | `ZONE_MONITOR_PUBLIC_RESOLVERS`                    | a `nameserver.private-address` finding; the address is not probed | error           |
+| internal         | skipped (shown as `skipped`) | `ZONE_MONITOR_INTERNAL_RESOLVERS`, none by default | probed like any other address                                     | warn            |
+
+An internal zone with no internal resolvers configured is checked against its own nameservers
+and its SOA only. The resolver findings for an internal zone, and for a public resolver that
+does not answer about an internal zone, are capped at info because the internet's view of a
+zone that is not meant to be on the internet is not a problem.
+
+### 20.4 Schedule and load
+
+- **Cycle.** One full pass every `ZONE_MONITOR_INTERVAL_SECONDS` (default 900, minimum 60), the
+  first one 15 seconds after the app shell first renders for an authenticated user (or after the
+  first hit on the monitoring API after a boot). Cycles never overlap: a trigger that arrives
+  while one is running joins it.
+- **Fleet scan.** The zone inventory (apex SOA, NS, glue, DNSSEC flag, horizon) comes from the
+  same fleet read the Reverse DNS page uses, reused when it is younger than one interval; one
+  peer per cluster is read because cluster peers share one database.
+- **Spacing.** Zones are probed three at a time and spaced across the first 60 % of the interval
+  (at most 10 seconds apart), so a fleet of hundreds of zones never hits every nameserver in one
+  burst. Each nameserver is probed on at most two addresses, each delegation level tries at most
+  four servers, each query has a 3 second timeout, and a lost UDP datagram is retried once; there
+  are no retry loops.
+- **Reachability check.** Before the walks, one `NS` query for `.` goes to up to three root
+  servers (2.5 second timeout each). When none answers, the cycle is marked **offline**: every
+  public zone gets `delegation.unverified` and no walk is attempted.
+- **Manual refresh.** The page offers a re-check of the whole fleet (allowed once per 60 seconds)
+  and of a single zone (once per 20 seconds per zone); a refused request answers `429` with the
+  interval. Manual runs are treated as authoritative: their advisories reach the bell at once
+  (see 20.5).
+- **Results** live in process memory, not in a table: they are derived state the next cycle
+  recomputes, and a restart simply starts over (the page polls until the first cycle lands).
+  Each replica of a multi-instance deployment runs its own monitor; advisories are upserted by
+  code, so the bell shows one entry per finding regardless of how many replicas saw it.
+
+### 20.5 The bell and the sidebar
+
+- **Advisories.** Every error and warn finding is mirrored into the backend advisories table as
+  `monitor.<zone>.<code>` on the zone's backend (info findings never leave the page). The two
+  producers of that table own disjoint code namespaces: the backend-health poller (§ 3.8) never
+  prunes `monitor.` rows and the monitor never prunes the poller's, so one cycle cannot erase
+  the other's findings.
+- **Debounce.** On the scheduled path a new advisory becomes visible after it has been seen on
+  two consecutive cycles, so a single lost packet or a transient outage never rings the bell. A
+  manual refresh is authoritative and shows its advisories immediately. An advisory disappears
+  as soon as a cycle no longer reports it; an acknowledged one re-alerts when its severity or
+  detail changes (ADR-0015 § 4).
+- **Who sees what.** The bell now shows backend-health advisories to users who can read
+  backends and monitoring advisories to users who can read zones; each user gets only the kind
+  they are allowed to act on, and the bell renders for either permission.
+- **Sidebar badges.** Two entries nest under **Zones** for users holding the permission
+  globally: **Reverse DNS** (global `record.read`; amber badge with the number of addresses
+  needing attention: missing, mismatch, ambiguous, orphan) and **Zone Monitoring** (global
+  `zone.read`; badge with the number of zones that have error or warn findings, red when any
+  zone has an error, amber otherwise). Both counts come from the last cycle's memory and cost
+  no I/O on render; `99+` caps the display.
+
+### 20.6 Without outbound DNS
+
+When no root server answers, delegation walks are skipped and public zones carry a single
+`delegation.unverified` info finding; the page shows the offline state. Nameserver and resolver
+probes still run and report what they see, so a host with no outbound DNS at all will also
+show `nameserver.unreachable` and `resolution.*` findings for every zone. The debounce keeps a
+transient outage out of the bell, but on an air-gapped install the right setting is
+`ZONE_MONITOR_ENABLED=false`, which stops the scheduler, the manual refresh routes and the
+external PTR lookups of § 4.8. The monitoring API then reports `enabled: false` and no results.
+
+### 20.7 Permissions
+
+The page, `GET /api/admin/monitoring/zones` and `POST /api/admin/monitoring/zones/refresh`
+require **global** `zone.read`: the page lists every zone on every backend, so a per-zone grant
+is not enough. The refresh route is CSRF-protected like every mutating route and accepts an
+empty body (whole fleet) or `{ zone, serverSlug }` (one zone). Nothing here writes to PowerDNS.
+
+### 20.8 Security posture
+
+- **Outbound DNS only.** The monitor opens UDP and TCP connections to port 53 and nothing else: root servers, the TLD and parent servers the walk is
+  referred to, the zone's own nameservers, and the resolvers from the environment.
+- **No user-controlled targets.** Which servers are probed follows from the NS records operators
+  manage in their zones, the parent's referrals, the compiled-in root hints and the resolver
+  list set by the deployer. Nothing in a request body names a target; the refresh route only
+  selects a zone that already exists.
+- **AXFR only against the zone's own nameservers**, never against a resolver or a third party,
+  and never read past the first message.
+- **Private addresses are not probed for public zones.** A public zone whose nameserver resolves
+  to loopback, RFC 1918, CGNAT or ULA space gets a finding instead of a packet, so the monitor
+  cannot be steered into an internal network by a public zone's NS record. Internal zones are
+  probed on their private addresses because that is where they live.
+- **Bounded.** Three zones in flight, two addresses per nameserver, four servers per delegation
+  level, 3 second timeouts, one UDP retry, 4 MiB cap on a TCP answer and 256 KiB on an AXFR
+  probe, manual runs rate-limited (60 s fleet, 20 s per zone).
+- **Read-only.** The monitor reads PowerDNS through the shared fleet scan and never writes to a
+  zone; its only persistent output is the advisories table.
+- **Off switch.** `ZONE_MONITOR_ENABLED=false` for air-gapped installs; see
+  [Configuration](./03-CONFIGURATION.md#zone-monitoring) and [Hardening](./08-HARDENING.md).
+
+### 20.9 Where
+
+`lib/dns/wire.ts` (wire-format client, AXFR probe), `lib/dns/root-hints.ts`,
+`lib/dns/delegation.ts` (the walk, I/O injected for tests), `lib/dns/zone-checks.ts` (the
+decision table; pure), `lib/monitoring/zone-monitor.ts` (scheduler, probes, advisories,
+badges), `lib/monitoring/external-ptr.ts` (external PTR lookups for § 4.8),
+`app/api/admin/monitoring/zones/`, `app/(app)/zones/monitoring/`,
+`components/domain/zone-monitor-format.ts` and `zone-monitor-findings.tsx`, `lib/env.ts`
+(`ZONE_MONITOR_*`, `EXTERNAL_PTR_INTERVAL_SECONDS`), `lib/health/evaluator.ts`
+(`MONITOR_CODE_PREFIXES`), `lib/db/repositories/backend-advisories.ts` (namespaced sync).

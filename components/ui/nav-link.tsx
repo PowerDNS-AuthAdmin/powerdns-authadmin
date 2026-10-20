@@ -24,9 +24,24 @@ interface NavLinkProps {
   /** When true, render as a child of a nav section: indented with a leading
    *  marker so the parent→child relationship reads at a glance. */
   nested?: boolean;
+  /**
+   * Number of things needing attention behind this link (0 or undefined hides
+   * the badge). `badgeTone` picks error (red) or warn (amber).
+   */
+  badge?: number;
+  badgeTone?: "error" | "warn";
+  /** Spoken alternative for the badge, e.g. "3 zones with problems". */
+  badgeLabel?: string;
 }
 
-export function NavLink({ href, label, nested = false }: NavLinkProps) {
+export function NavLink({
+  href,
+  label,
+  nested = false,
+  badge,
+  badgeTone = "warn",
+  badgeLabel,
+}: NavLinkProps) {
   const pathname = usePathname();
   const active = isActive(pathname, href);
 
@@ -41,9 +56,22 @@ export function NavLink({ href, label, nested = false }: NavLinkProps) {
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`block rounded-md ${pad} ${tone}`}
+      className={`flex items-center justify-between gap-2 rounded-md ${pad} ${tone}`}
     >
-      {label}
+      <span>{label}</span>
+      {badge ? (
+        <span
+          className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 font-mono text-[0.65rem] leading-none ${
+            badgeTone === "error"
+              ? "bg-[color:var(--color-error)] text-white"
+              : "bg-[color:var(--color-warn)] text-black"
+          }`}
+          aria-label={badgeLabel ?? `${badge} needing attention`}
+          title={badgeLabel ?? `${badge} needing attention`}
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      ) : null}
     </Link>
   );
 }

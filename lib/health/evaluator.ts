@@ -20,6 +20,14 @@ import type { PdnsDaemonCapabilities } from "@/lib/pdns/types";
 
 export type AdvisorySeverity = "error" | "warn" | "info";
 
+/**
+ * Advisory code namespace owned by zone monitoring rather than this
+ * evaluator: `monitor.<zone>.<check>` from `lib/monitoring/zone-monitor.ts`
+ * (the reverse-DNS tally is one of those checks). The poller's sync leaves
+ * those rows alone and monitoring leaves the poller's alone.
+ */
+export const MONITOR_CODE_PREFIXES = ["monitor."] as const;
+
 export interface EvaluatedAdvisory {
   /** Stable rule id - one row per (backend, code). */
   code: string;

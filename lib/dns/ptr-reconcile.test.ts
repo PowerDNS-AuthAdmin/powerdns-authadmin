@@ -2,9 +2,30 @@ import { describe, expect, it } from "vitest";
 import { reconcilePtrs, type ForwardAddressRecord, type ReversePtrRecord } from "./ptr-reconcile";
 
 const HOSTED = [
-  { name: "2.0.192.in-addr.arpa.", server: "standalone", writable: true },
-  { name: "8.b.d.0.1.0.0.2.ip6.arpa.", server: "standalone", writable: true },
-  { name: "113.0.203.in-addr.arpa.", server: "mirror", writable: false },
+  {
+    name: "2.0.192.in-addr.arpa.",
+    server: "standalone",
+    writable: true,
+    horizon: "public" as const,
+  },
+  {
+    name: "8.b.d.0.1.0.0.2.ip6.arpa.",
+    server: "standalone",
+    writable: true,
+    horizon: "public" as const,
+  },
+  {
+    name: "113.0.203.in-addr.arpa.",
+    server: "mirror",
+    writable: false,
+    horizon: "public" as const,
+  },
+  {
+    name: "42.10.in-addr.arpa.",
+    server: "standalone",
+    writable: true,
+    horizon: "internal" as const,
+  },
 ];
 const fwd = (
   name: string,
@@ -13,6 +34,7 @@ const fwd = (
 ): ForwardAddressRecord => ({
   zone: "example.com.",
   server: "standalone",
+  horizon: "public",
   name,
   type: content.includes(":") ? "AAAA" : "A",
   ttl: 300,
@@ -27,6 +49,7 @@ const ptr = (
 ): ReversePtrRecord => ({
   zone: "2.0.192.in-addr.arpa.",
   server: "standalone",
+  horizon: "public",
   owner,
   ttl: 300,
   targets,
@@ -158,6 +181,32 @@ describe("reconcilePtrs", () => {
       canWrite: false,
       reverseServer: "mirror",
     });
+  });
+
+  it("keeps public and internal horizons apart", () => {
+    const { rows } = run(
+      [
+        fwd("box.example.internal.", "10.42.1.5", {
+          zone: "example.internal.",
+          horizon: "internal",
+        }),
+        fwd("leak.example.com.", "10.42.1.6"),
+      ],
+      [
+        ptr("5.1.42.10.in-addr.arpa.", ["box.example.internal."], {
+          zone: "42.10.in-addr.arpa.",
+          horizon: "internal",
+        }),
+      ],
+    );
+    const byIp = Object.fromEntries(rows.map((r) => [r.ip, r]));
+    expect(byIp["10.42.1.5"]).toMatchObject({
+      status: "ok",
+      horizon: "internal",
+      reverseZone: "42.10.in-addr.arpa.",
+    });
+    // A public zone's private address never matches the internal reverse zone.
+    expect(byIp["10.42.1.6"]).toMatchObject({ status: "unhosted", horizon: "public" });
   });
 
   it("skips forward records whose content is not an address", () => {

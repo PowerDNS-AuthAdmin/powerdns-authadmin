@@ -14,10 +14,10 @@
  */
 
 import "server-only";
-import { and, eq, gt, isNull, notInArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { backendAdvisories, pdnsServers } from "@/lib/db/schema";
-import type { EvaluatedAdvisory } from "@/lib/health/evaluator";
+import { MONITOR_CODE_PREFIXES, type EvaluatedAdvisory } from "@/lib/health/evaluator";
 
 /** A confirmed advisory's bell-visible fields, for change detection. */
 const visibleSig = (r: {
@@ -48,8 +48,15 @@ const visibleSig = (r: {
 export async function syncBackendAdvisories(
   backendId: string,
   evaluated: readonly EvaluatedAdvisory[],
-  opts: { immediate?: boolean } = {},
+  opts: { immediate?: boolean; codePrefix?: string } = {},
 ): Promise<boolean> {
+  // Two producers write this table: the poller's backend-health evaluator and
+  // zone monitoring (`monitor.` / `reverse-dns.` codes). Each prunes only the
+  // codes it owns, so one cycle cannot delete the other's rows.
+  const ownsCode = (code: string): boolean =>
+    opts.codePrefix
+      ? code.startsWith(opts.codePrefix)
+      : !MONITOR_CODE_PREFIXES.some((prefix) => code.startsWith(prefix));
   return db.transaction(async (tx) => {
     const existing = await tx
       .select({
@@ -64,23 +71,27 @@ export async function syncBackendAdvisories(
       .where(eq(backendAdvisories.backendId, backendId));
     const existingByCode = new Map(existing.map((r) => [r.code, r]));
 
-    // Bell-visible set BEFORE this sync (confirmed = seen on ≥2 cycles).
+    // Bell-visible set BEFORE this sync (confirmed = seen on ≥2 cycles),
+    // restricted to this producer's codes so the other's rows never read as a change.
     const before = new Set(
-      existing.filter((r) => r.lastSeenAt > r.firstSeenAt).map((r) => visibleSig(r)),
+      existing
+        .filter((r) => ownsCode(r.code) && r.lastSeenAt > r.firstSeenAt)
+        .map((r) => visibleSig(r)),
     );
 
     const codes = evaluated.map((e) => e.code);
-    // Prune advisories that no longer apply to this backend.
-    await tx
-      .delete(backendAdvisories)
-      .where(
-        codes.length === 0
-          ? eq(backendAdvisories.backendId, backendId)
-          : and(
-              eq(backendAdvisories.backendId, backendId),
-              notInArray(backendAdvisories.code, codes),
-            ),
-      );
+    // Prune advisories that no longer apply to this backend, within this
+    // producer's code namespace only.
+    const stale = existing
+      .filter((r) => ownsCode(r.code) && !codes.includes(r.code))
+      .map((r) => r.code);
+    if (stale.length > 0) {
+      await tx
+        .delete(backendAdvisories)
+        .where(
+          and(eq(backendAdvisories.backendId, backendId), inArray(backendAdvisories.code, stale)),
+        );
+    }
 
     const now = new Date();
     // For an authoritative (immediate) probe, backdate first_seen so a brand-new

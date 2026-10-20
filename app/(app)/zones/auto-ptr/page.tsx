@@ -31,7 +31,10 @@ export default async function AutoPtrPage() {
         <p className="mt-1 text-sm text-[color:var(--color-fg-muted)]">
           Compares every A/AAAA record with the PTR in the hosted reverse zones. Rectifying writes
           the PTR exactly as the record editor&apos;s auto-PTR would, with the same permissions and
-          audit rows.
+          audit rows. Public zones are matched against public reverse zones and internal zones
+          against internal ones; a reverse zone covering private address space counts as internal.
+          Addresses no hosted reverse zone covers show what the world&apos;s resolvers answer
+          instead.
         </p>
       </header>
       <PtrReconciler />

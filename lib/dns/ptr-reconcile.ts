@@ -15,10 +15,13 @@
  */
 
 import { findReverseZone, ipFromReverseOwner, parseIp } from "./reverse-name";
+import type { ZoneHorizon } from "./zone-horizon";
 
 export interface ForwardAddressRecord {
   zone: string;
   server: string;
+  /** The forward zone's horizon; only reverse zones of the same horizon are consulted. */
+  horizon: ZoneHorizon;
   name: string;
   type: "A" | "AAAA";
   ttl: number;
@@ -30,6 +33,7 @@ export interface ForwardAddressRecord {
 export interface ReversePtrRecord {
   zone: string;
   server: string;
+  horizon: ZoneHorizon;
   owner: string;
   ttl: number;
   targets: string[];
@@ -39,6 +43,13 @@ export interface HostedReverseZoneInfo {
   name: string;
   server: string;
   writable: boolean;
+  /**
+   * Effective horizon: the operator's classification, else "internal" when the
+   * zone covers private address space (RFC 1918, ULA), else "public". A public
+   * forward record never matches an internal reverse zone and vice versa, so a
+   * split-horizon install keeps its two reverse trees apart.
+   */
+  horizon: ZoneHorizon;
 }
 
 export type PtrReconcileStatus =
@@ -53,6 +64,7 @@ export interface PtrReconcileRow {
   id: string;
   ip: string;
   family: 4 | 6;
+  horizon: ZoneHorizon;
   owner: string;
   reverseZone: string | null;
   reverseServer: string | null;
@@ -91,8 +103,9 @@ const lower = (s: string): string => s.toLowerCase();
 function hostOf(
   zone: string,
   hosted: readonly HostedReverseZoneInfo[],
+  horizon: ZoneHorizon,
 ): HostedReverseZoneInfo | null {
-  const copies = hosted.filter((h) => h.name === zone);
+  const copies = hosted.filter((h) => h.name === zone && h.horizon === horizon);
   return copies.find((h) => h.writable) ?? copies[0] ?? null;
 }
 
@@ -100,17 +113,29 @@ export function reconcilePtrs(input: PtrReconcileInput): {
   rows: PtrReconcileRow[];
   stats: PtrReconcileStats;
 } {
-  const hostedNames = [...new Set(input.hostedReverseZones.map((h) => h.name))];
+  const hostedByHorizon = (horizon: ZoneHorizon): string[] => [
+    ...new Set(input.hostedReverseZones.filter((h) => h.horizon === horizon).map((h) => h.name)),
+  ];
   const reverseByKey = new Map<string, ReversePtrRecord>();
   for (const r of input.reverse) reverseByKey.set(`${r.server}|${r.zone}|${lower(r.owner)}`, r);
 
   // Group forward records by canonical address.
-  const groups = new Map<string, { ip: string; family: 4 | 6; records: ForwardAddressRecord[] }>();
+  // Grouped by horizon as well as address: the same address can legitimately
+  // carry different names on each side of a split horizon.
+  const groups = new Map<
+    string,
+    { ip: string; family: 4 | 6; horizon: ZoneHorizon; records: ForwardAddressRecord[] }
+  >();
   for (const rec of input.forward) {
     const parsed = parseIp(rec.content);
     if (!parsed) continue;
-    const key = `${parsed.family}:${parsed.canonical}`;
-    const g = groups.get(key) ?? { ip: rec.content.trim(), family: parsed.family, records: [] };
+    const key = `${rec.horizon}:${parsed.family}:${parsed.canonical}`;
+    const g = groups.get(key) ?? {
+      ip: rec.content.trim(),
+      family: parsed.family,
+      horizon: rec.horizon,
+      records: [],
+    };
     g.records.push(rec);
     groups.set(key, g);
   }
@@ -118,14 +143,14 @@ export function reconcilePtrs(input: PtrReconcileInput): {
   const rows: PtrReconcileRow[] = [];
   const claimedOwners = new Set<string>();
   for (const [key, g] of groups) {
-    const match = findReverseZone(g.ip, hostedNames);
+    const match = findReverseZone(g.ip, hostedByHorizon(g.horizon));
     const owner = match?.owner ?? null;
-    const host = match ? hostOf(match.zone, input.hostedReverseZones) : null;
+    const host = match ? hostOf(match.zone, input.hostedReverseZones, g.horizon) : null;
     const current =
       match && host
         ? reverseByKey.get(`${host.server}|${match.zone}|${lower(match.owner)}`)
         : undefined;
-    if (match) claimedOwners.add(`${match.zone}|${lower(match.owner)}`);
+    if (match) claimedOwners.add(`${g.horizon}|${match.zone}|${lower(match.owner)}`);
 
     const names = [...new Set(g.records.map((r) => lower(r.name)))].sort();
     const targets = current ? current.targets.map(lower) : [];
@@ -148,6 +173,7 @@ export function reconcilePtrs(input: PtrReconcileInput): {
       id: key,
       ip: g.ip,
       family: g.family,
+      horizon: g.horizon,
       owner: owner ?? "",
       reverseZone: match?.zone ?? null,
       reverseServer: host?.server ?? null,
@@ -166,15 +192,16 @@ export function reconcilePtrs(input: PtrReconcileInput): {
   // PTRs nothing points at: reverse records whose owner no forward address claimed.
   for (const r of input.reverse) {
     if (r.targets.length === 0) continue;
-    if (claimedOwners.has(`${r.zone}|${lower(r.owner)}`)) continue;
+    if (claimedOwners.has(`${r.horizon}|${r.zone}|${lower(r.owner)}`)) continue;
     const ip = ipFromReverseOwner(r.owner);
     if (!ip) continue; // apex, delegation or otherwise not an address
     const parsed = parseIp(ip);
-    const host = hostOf(r.zone, input.hostedReverseZones);
+    const host = hostOf(r.zone, input.hostedReverseZones, r.horizon);
     rows.push({
       id: `orphan:${r.server}|${r.zone}|${lower(r.owner)}`,
       ip,
       family: parsed?.family ?? 4,
+      horizon: r.horizon,
       owner: lower(r.owner),
       reverseZone: r.zone,
       reverseServer: host?.server ?? r.server,

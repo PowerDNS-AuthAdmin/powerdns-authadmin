@@ -96,10 +96,14 @@ export async function GET(request: Request): Promise<Response> {
         )
         .map((s) => s.slug),
     );
-    const hostedNames = [...new Set(scan.hostedReverseZones.map((h) => h.name))];
-    const hostOf = (name: string) =>
-      scan.hostedReverseZones.find((h) => h.name === name && h.writable) ??
-      scan.hostedReverseZones.find((h) => h.name === name) ??
+    // Same horizon only: a public zone's address is matched against public
+    // reverse zones, an internal zone's against internal ones (ADR-0022).
+    const hostedIn = (horizon: string): string[] => [
+      ...new Set(scan.hostedReverseZones.filter((h) => h.horizon === horizon).map((h) => h.name)),
+    ];
+    const hostOf = (name: string, horizon: string) =>
+      scan.hostedReverseZones.find((h) => h.name === name && h.horizon === horizon && h.writable) ??
+      scan.hostedReverseZones.find((h) => h.name === name && h.horizon === horizon) ??
       null;
 
     if (zoneKind(zone) === "forward") {
@@ -107,7 +111,7 @@ export async function GET(request: Request): Promise<Response> {
       const byAddress: Record<string, AddressLink> = {};
       for (const rec of mine) {
         if (byAddress[rec.content]) continue;
-        const match = findReverseZone(rec.content, hostedNames);
+        const match = findReverseZone(rec.content, hostedIn(rec.horizon));
         if (!match) {
           byAddress[rec.content] = {
             owner: "",
@@ -118,7 +122,7 @@ export async function GET(request: Request): Promise<Response> {
           };
           continue;
         }
-        const host = hostOf(match.zone);
+        const host = hostOf(match.zone, rec.horizon);
         if (!host || !canReadBySlug(host.server, match.zone)) {
           byAddress[rec.content] = {
             owner: match.owner,
@@ -161,7 +165,12 @@ export async function GET(request: Request): Promise<Response> {
       if (!ip) continue;
       const forward: ForwardLink[] = [];
       for (const r of scan.forward) {
-        if (!sameAddress(r.content, ip) || !canReadBySlug(r.server, r.zone)) continue;
+        if (
+          r.horizon !== p.horizon ||
+          !sameAddress(r.content, ip) ||
+          !canReadBySlug(r.server, r.zone)
+        )
+          continue;
         if (
           forward.some(
             (f) =>

@@ -194,6 +194,17 @@ function classifyV6(addr: string): "ok" | "always-blocked" | "private" {
   return "ok";
 }
 
+/**
+ * Classify a bare address the way the URL guard does: "private" for loopback,
+ * RFC 1918, CGNAT and ULA, "always-blocked" for link-local / metadata /
+ * multicast / unspecified, "ok" for everything routable. Zone monitoring uses
+ * it to decide which nameserver addresses a public zone may legitimately have.
+ */
+export function classifyAddress(ip: string): "ok" | "always-blocked" | "private" {
+  const bare = stripBrackets(ip.trim());
+  return bare.includes(":") ? classifyV6(bare) : classifyV4(bare);
+}
+
 function stripBrackets(host: string): string {
   if (host.startsWith("[") && host.endsWith("]")) return host.slice(1, -1);
   return host;

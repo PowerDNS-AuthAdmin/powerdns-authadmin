@@ -22,6 +22,29 @@ All notable changes to this project are documented here. The format is based on
   against its PTR - ok, missing, mismatch, ambiguous, orphan, unhosted - with per-row,
   selected or all-fixable rectification through the same audited path. Record tables link
   each A/AAAA row to its PTR and each PTR row to every forward record pointing at the address.
+  Matching is scoped to the zone horizon: public forward records only match public reverse
+  zones and internal ones only internal, and an unclassified reverse zone over private address
+  space counts as internal. Addresses no hosted reverse zone covers are looked up through the
+  public or internal resolvers instead, so the row shows whether the upstream PTR matches, and
+  a rate-limited **Refresh external lookups** button
+  (`POST /api/admin/pdns/auto-ptr/external-refresh`) refreshes them on demand
+  (`EXTERNAL_PTR_INTERVAL_SECONDS`). The sidebar entry carries the
+  number of addresses needing attention.
+- **Zone Monitoring** (`/zones/monitoring`): every hosted zone checked from the outside on a
+  schedule. The delegation is read by walking from the root servers to the parent rather than
+  through a recursive resolver, so the NS set, glue and DS the internet actually sees are
+  compared with the zone's apex and DNSKEYs. Each nameserver is probed for reachability, the AA
+  flag, its serial and its NS set, and for an unsigned AXFR; the configured public or internal
+  resolvers are asked what they answer; SOA timers, MNAME and RNAME are checked; reverse-DNS
+  drift is tallied per zone. Findings have stable codes and three severities (error / warn /
+  info) with a what-to-do detail, horizon-aware rules (internal zones skip the root walk and
+  are judged against internal resolvers), bounded load (three zones at a time, spaced across
+  the interval, 3 s timeouts, no retry loops) and rate-limited manual re-checks. Error and warn
+  findings reach the notification bell as `monitor.<zone>.<code>` advisories after two
+  sightings (at once after a manual re-check), visible to users who can read zones, and the
+  sidebar shows a per-page count. Own wire-format DNS client (`lib/dns/wire.ts`), on by
+  default, `ZONE_MONITOR_ENABLED=false` for air-gapped installs; `ZONE_MONITOR_*` variables in
+  the configuration guide.
 
 ## [1.9.1] - 2026-10-17
 

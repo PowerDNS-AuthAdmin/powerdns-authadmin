@@ -341,6 +341,29 @@ export const envSchema = z.object({
     .pipe(z.boolean())
     .optional(),
 
+  // --- Zone monitoring (delegation, nameserver, DNSSEC chain, resolver view,
+  // open-AXFR and reverse-DNS checks; the Zones → Zone Monitoring page). On by
+  // default: it only reads, every check degrades to an "unverified" note when
+  // the host has no outbound DNS, and nothing rings the bell on a single
+  // failed cycle. Set ZONE_MONITOR_ENABLED=false on an air-gapped install.
+  ZONE_MONITOR_ENABLED: z
+    .string()
+    .optional()
+    .transform((s) => s?.toLowerCase() !== "false")
+    .pipe(z.boolean()),
+  // Seconds between full monitoring cycles; each zone is checked once per cycle,
+  // spread across the window so the fleet is never probed in one burst.
+  ZONE_MONITOR_INTERVAL_SECONDS: z.coerce.number().int().min(60).max(86400).default(900),
+  // Recursive resolvers that represent "the internet's view" of public zones,
+  // and (optionally) the internal resolvers that serve internal zones. Comma
+  // separated IP literals. Internal defaults to none: internal zones are then
+  // checked against their nameservers only.
+  ZONE_MONITOR_PUBLIC_RESOLVERS: z.string().default("1.1.1.1,8.8.8.8,9.9.9.9"),
+  ZONE_MONITOR_INTERNAL_RESOLVERS: z.string().default(""),
+  // Seconds between scattered external PTR lookups for addresses the Reverse
+  // DNS page cannot host (what the rest of the world answers for them).
+  EXTERNAL_PTR_INTERVAL_SECONDS: z.coerce.number().int().min(60).max(86400).default(300),
+
   // --- LDAP transport relaxations (mirrors the PDNS / OIDC pair) ---
   // LDAP traffic is admin-configured but it carries the user's password on
   // re-bind, so we default to strict TLS. The two opt-outs below are loud:
@@ -579,6 +602,11 @@ export const ENV_KEYS = [
   "APP_PDNS_ALLOW_PRIVATE_NETWORKS",
   "APP_PDNS_ALLOW_INSECURE_HTTP",
   "PDNS_BACKGROUND_POLLING",
+  "ZONE_MONITOR_ENABLED",
+  "ZONE_MONITOR_INTERVAL_SECONDS",
+  "ZONE_MONITOR_PUBLIC_RESOLVERS",
+  "ZONE_MONITOR_INTERNAL_RESOLVERS",
+  "EXTERNAL_PTR_INTERVAL_SECONDS",
   "APP_OIDC_ALLOW_PRIVATE_NETWORKS",
   "APP_OIDC_ALLOW_INSECURE_HTTP",
   "LDAP_ALLOW_INSECURE_PORT_389",
@@ -835,3 +863,20 @@ export const cookieDomain: string | undefined = env.COOKIE_DOMAIN ?? new URL(env
  * docstring above for full feature matrix.
  */
 export const pdnsBackgroundPollingEnabled: boolean = env.PDNS_BACKGROUND_POLLING === true;
+
+/** A comma-separated resolver list from the environment, IP literals only. */
+function resolverList(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((v) => v.trim())
+    .filter((v) => v !== "" && /^[0-9a-fA-F.:]+$/.test(v));
+}
+
+/** Zone monitoring knobs - see `ZONE_MONITOR_*` above. */
+export const zoneMonitorConfig = {
+  enabled: env.ZONE_MONITOR_ENABLED,
+  intervalMs: env.ZONE_MONITOR_INTERVAL_SECONDS * 1000,
+  publicResolvers: resolverList(env.ZONE_MONITOR_PUBLIC_RESOLVERS),
+  internalResolvers: resolverList(env.ZONE_MONITOR_INTERNAL_RESOLVERS),
+  externalPtrIntervalMs: env.EXTERNAL_PTR_INTERVAL_SECONDS * 1000,
+} as const;

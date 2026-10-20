@@ -13,6 +13,15 @@
 
 import type { PdnsServer } from "@/lib/db/schema";
 import { listAllActiveBackends } from "@/lib/db/repositories/pdns-servers";
+import {
+  horizonFrom,
+  horizonScopeFor,
+  loadZoneHorizonIndex,
+} from "@/lib/db/repositories/zone-horizons";
+import { ipFromReverseOwner, parseIp } from "@/lib/dns/reverse-name";
+import type { ZoneHorizon } from "@/lib/dns/zone-horizon";
+import { classifyAddress } from "@/lib/net/url-safety";
+import { parseSoaContent } from "@/lib/validators/soa";
 import type {
   ForwardAddressRecord,
   HostedReverseZoneInfo,
@@ -26,9 +35,32 @@ import { isReadOnlyZoneKind } from "@/lib/pdns/writable-kind";
 import { readCachedZones } from "@/lib/pdns/zone-state-cache";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 
+/** The apex facts zone monitoring needs about one zone, from its PowerDNS copy. */
+export interface ScannedZone {
+  name: string;
+  server: string;
+  horizon: ZoneHorizon;
+  kind: string;
+  dnssec: boolean;
+  serial: number | null;
+  soa: {
+    mname: string;
+    rname: string;
+    serial: number;
+    refresh: number;
+    retry: number;
+    expire: number;
+    minimum: number;
+  } | null;
+  nsNames: string[];
+  /** A/AAAA the zone holds for its own in-bailiwick nameservers. */
+  glue: Record<string, string[]>;
+}
+
 export interface FleetScan {
   /** When the scan finished (epoch ms). */
   at: number;
+  zones: ScannedZone[];
   backends: Array<{ slug: string; name: string }>;
   servers: PdnsServer[];
   forward: ForwardAddressRecord[];
@@ -71,6 +103,7 @@ export async function scanFleet(): Promise<FleetScan> {
     at: 0,
     backends: all.map((s) => ({ slug: s.slug, name: s.name })),
     servers: all,
+    zones: [],
     forward: [],
     reverse: [],
     hostedReverseZones: [],
@@ -79,9 +112,11 @@ export async function scanFleet(): Promise<FleetScan> {
     errors: [],
   };
 
+  const horizons = await loadZoneHorizonIndex();
   await Promise.all(
     servers.map(async (server) => {
       const client = getBackendGateway(server);
+      const scope = horizonScopeFor(server);
       let zones: Array<{ name: string; kind: string }>;
       const cached = readCachedZones(server.id);
       if (cached) {
@@ -100,11 +135,17 @@ export async function scanFleet(): Promise<FleetScan> {
       await eachLimited(zones, ZONE_CONCURRENCY, async (z) => {
         const name = canonicalZone(z.name);
         const kind = zoneKind(name);
+        const horizon = effectiveHorizon(
+          name,
+          kind !== "forward",
+          horizonFrom(horizons, scope, name),
+        );
         if (kind !== "forward") {
           scan.hostedReverseZones.push({
             name,
             server: server.slug,
             writable: writable && !isReadOnlyZoneKind(z.kind),
+            horizon,
           });
         }
         let detail;
@@ -116,6 +157,7 @@ export async function scanFleet(): Promise<FleetScan> {
           return;
         }
         scan.zonesScanned++;
+        scan.zones.push(apexFacts(name, server.slug, horizon, detail));
         for (const rr of detail.rrsets ?? []) {
           if (kind === "forward" && (rr.type === "A" || rr.type === "AAAA")) {
             for (const r of rr.records) {
@@ -123,6 +165,7 @@ export async function scanFleet(): Promise<FleetScan> {
               scan.forward.push({
                 zone: name,
                 server: server.slug,
+                horizon,
                 name: rr.name.toLowerCase(),
                 type: rr.type,
                 ttl: rr.ttl,
@@ -135,6 +178,7 @@ export async function scanFleet(): Promise<FleetScan> {
             scan.reverse.push({
               zone: name,
               server: server.slug,
+              horizon,
               owner: rr.name.toLowerCase(),
               ttl: rr.ttl,
               targets: rr.records.map((r) => r.content),
@@ -146,6 +190,91 @@ export async function scanFleet(): Promise<FleetScan> {
   );
   scan.at = Date.now();
   return scan;
+}
+
+/**
+ * A reverse zone that covers private address space is internal whatever the
+ * operator forgot to classify; a public tree stays public. Forward zones follow
+ * their classification (public by default, ADR-0022).
+ */
+function effectiveHorizon(zone: string, reverse: boolean, classified: ZoneHorizon): ZoneHorizon {
+  if (!reverse || classified === "internal") return classified;
+  const sample = ipFromReverseOwner(firstOwnerIn(zone));
+  if (sample && classifyAddress(sample) === "private") return "internal";
+  return classified;
+}
+
+/** `2.0.192.in-addr.arpa.` → `0.2.0.192.in-addr.arpa.`; ip6 zones padded with zero nibbles. */
+function firstOwnerIn(zone: string): string {
+  if (zone.endsWith(".ip6.arpa.")) {
+    const nibbles = zone
+      .replace(/\.ip6\.arpa\.$/, "")
+      .split(".")
+      .filter(Boolean);
+    const pad = Array.from({ length: Math.max(0, 32 - nibbles.length) }, () => "0");
+    return `${[...pad, ...nibbles].join(".")}.ip6.arpa.`;
+  }
+  const labels = zone
+    .replace(/\.in-addr\.arpa\.$/, "")
+    .split(".")
+    .filter(Boolean);
+  const pad = Array.from({ length: Math.max(0, 4 - labels.length) }, () => "0");
+  return `${[...pad, ...labels].join(".")}.in-addr.arpa.`;
+}
+
+const fqdn = (name: string): string => name.toLowerCase().replace(/\.?$/, ".");
+
+function apexFacts(
+  name: string,
+  server: string,
+  horizon: ZoneHorizon,
+  detail: {
+    kind?: string;
+    dnssec?: boolean;
+    serial?: number | null;
+    rrsets?: Array<{
+      name: string;
+      type: string;
+      records: Array<{ content: string; disabled?: boolean }>;
+    }>;
+  },
+): ScannedZone {
+  const rrsets = detail.rrsets ?? [];
+  const apex = (type: string) =>
+    rrsets.find((rr) => rr.name.toLowerCase() === name && rr.type === type);
+  const nsNames = (apex("NS")?.records ?? [])
+    .filter((r) => !r.disabled)
+    .map((r) => fqdn(r.content));
+  let soa: ScannedZone["soa"] = null;
+  const soaContent = apex("SOA")?.records[0]?.content;
+  if (soaContent) {
+    try {
+      const parsed = parseSoaContent(soaContent);
+      soa = { ...parsed, mname: fqdn(parsed.mname), rname: fqdn(parsed.rname) };
+    } catch {
+      soa = null; // reported as soa.missing by the checks
+    }
+  }
+  const glue: Record<string, string[]> = {};
+  for (const ns of nsNames) {
+    if (ns !== name && !ns.endsWith(`.${name}`)) continue;
+    for (const rr of rrsets) {
+      if (rr.name.toLowerCase() !== ns || (rr.type !== "A" && rr.type !== "AAAA")) continue;
+      for (const r of rr.records)
+        if (!r.disabled && parseIp(r.content)) (glue[ns] ??= []).push(r.content);
+    }
+  }
+  return {
+    name,
+    server,
+    horizon,
+    kind: detail.kind ?? "",
+    dnssec: detail.dnssec === true,
+    serial: typeof detail.serial === "number" ? detail.serial : (soa?.serial ?? null),
+    soa,
+    nsNames,
+    glue,
+  };
 }
 
 /* ---------------------------------------------------------------- cache */

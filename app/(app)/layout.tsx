@@ -35,6 +35,12 @@ import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
 import { globalAnyLagging, hasReplicationTopology } from "@/lib/pdns/sync";
 import { decideHeaderChipMode } from "@/lib/realtime/header-chip-mode";
 import { pdnsBackgroundPollingEnabled } from "@/lib/env";
+import {
+  ensureZoneMonitorRunning,
+  reverseDnsBadge,
+  zoneMonitorBadge,
+} from "@/lib/monitoring/zone-monitor";
+import { MONITOR_CODE_PREFIXES } from "@/lib/health/evaluator";
 
 /**
  * Paths a non-compliant user (forced-MFA-not-enrolled, or flagged
@@ -113,18 +119,28 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const canReadAuth = current.ability.can("read", "Auth");
   const canUseTemplates = current.ability.can("use", "Template");
 
-  // Health-bell advisories (ADR-0015) - only for users who can read backends.
-  const advisories = canReadServers
-    ? (await listActiveAdvisories()).map((a) => ({
-        id: a.id,
-        backendId: a.backendId,
-        backendName: a.backendName,
-        severity: a.severity,
-        title: a.title,
-        detail: a.detail,
-        acknowledged: a.acknowledgedAt !== null,
-      }))
-    : [];
+  // Zone monitoring runs in the background from the first authenticated render.
+  ensureZoneMonitorRunning();
+
+  // Health-bell advisories (ADR-0015): backend health for users who can read
+  // backends, zone-monitoring advisories (`monitor.` codes) for users who can
+  // read zones. Everything else is filtered out before it reaches the client.
+  const isMonitorAdvisory = (code: string): boolean =>
+    MONITOR_CODE_PREFIXES.some((p) => code.startsWith(p));
+  const advisories =
+    canReadServers || canReadZones
+      ? (await listActiveAdvisories())
+          .filter((a) => (isMonitorAdvisory(a.code) ? canReadZones : canReadServers))
+          .map((a) => ({
+            id: a.id,
+            backendId: a.backendId,
+            backendName: a.backendName,
+            severity: a.severity,
+            title: a.title,
+            detail: a.detail,
+            acknowledged: a.acknowledgedAt !== null,
+          }))
+      : [];
 
   // Sidebar is grouped by function (Infrastructure / Access / System) rather
   // than one flat "Admin" pile. Each group renders only when the user can see
@@ -139,6 +155,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     canReadAudit;
   const hasAccess = canReadUsers || canReadRoles || canReadTeams || canReadAuth;
   const hasSystem = canReadSettings || canReadAudit;
+  // The two fleet-wide zone pages need global read (they list every zone), so
+  // the links only show to users who could open them.
+  const globalRecordRead = current.globalPermissions.has("record.read");
+  const globalZoneRead = current.globalPermissions.has("zone.read");
+  const reverseBadge = globalRecordRead ? reverseDnsBadge() : 0;
+  const monitorBadge = globalZoneRead ? zoneMonitorBadge() : { problems: 0, tone: "warn" as const };
 
   const sidebar = (
     <>
@@ -159,6 +181,26 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       <nav aria-label="Main" className="flex-1 space-y-1 overflow-y-auto p-3 text-base">
         <NavLink href="/dashboard" label="Dashboard" />
         {canReadZones ? <NavLink href="/zones" label="Zones" /> : null}
+        {canReadZones && globalRecordRead ? (
+          <NavLink
+            nested
+            href="/zones/auto-ptr"
+            label="Reverse DNS"
+            badge={reverseBadge}
+            badgeTone="warn"
+            badgeLabel={`${reverseBadge} address${reverseBadge === 1 ? "" : "es"} with reverse DNS problems`}
+          />
+        ) : null}
+        {canReadZones && globalZoneRead ? (
+          <NavLink
+            nested
+            href="/zones/monitoring"
+            label="Zone Monitoring"
+            badge={monitorBadge.problems}
+            badgeTone={monitorBadge.tone}
+            badgeLabel={`${monitorBadge.problems} zone${monitorBadge.problems === 1 ? "" : "s"} with findings`}
+          />
+        ) : null}
 
         {hasInfrastructure ? (
           <NavSection label="PowerDNS">
@@ -222,7 +264,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   const headerControls = (
     <>
-      {canReadServers ? <HealthBell advisories={advisories} /> : null}
+      {canReadServers || canReadZones ? <HealthBell advisories={advisories} /> : null}
       <ThemeToggle />
       <UserMenu email={current.user.email} name={current.user.name} />
     </>
