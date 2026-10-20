@@ -147,9 +147,13 @@ export function AppShell({
             middle, so it starts and ends the same distance from the header's
             edges. Narrower, equal sides would leave the search no room, so it
             fills the space between the chip and the controls instead. */}
+        {/* z-20: the blur makes the header its own stacking context, which
+            traps the bell and user menus inside it; without a layer of its
+            own, positioned cards in <main> painted over those menus. It stays
+            under the mobile drawer (z-30 backdrop, z-40 drawer). */}
         <header
           ref={headerRef}
-          className="flex h-14 shrink-0 items-center gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)]/80 px-4 backdrop-blur-md [--header-side:14rem] xl:grid xl:grid-cols-[var(--header-side)_minmax(0,1fr)_var(--header-side)] xl:gap-6"
+          className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)]/80 px-4 backdrop-blur-md [--header-side:14rem] xl:grid xl:grid-cols-[var(--header-side)_minmax(0,1fr)_var(--header-side)] xl:gap-6"
         >
           <div ref={headerLeftRef} className="flex min-w-0 items-center gap-3 xl:w-max">
             <button
