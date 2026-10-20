@@ -1,5 +1,6 @@
+import { createServer, type AddressInfo } from "node:net";
 import { describe, expect, it } from "vitest";
-import { decodeMessage, dnskeyKeyTag, encodeName, encodeQuery } from "./wire";
+import { decodeMessage, dnskeyKeyTag, encodeName, encodeQuery, probeAxfr, query } from "./wire";
 
 /** Build a response the way a server would: header, the question, then records. */
 function buildResponse(opts: {
@@ -161,6 +162,17 @@ describe("decodeMessage", () => {
     expect(dnskeyKeyTag(rdata)).toBe(60485);
   });
 
+  it("escapes backslashes and quotes in TXT strings", () => {
+    const text = Buffer.from('a\\"b');
+    const msg = buildResponse({
+      id: 1,
+      flags: 0x8400,
+      question: { name: "t.example.", type: 16 },
+      answer: [rr("t.example.", 16, 60, Buffer.concat([Buffer.from([text.length]), text]))],
+    });
+    expect(decodeMessage(msg).answer[0]!.data).toBe('"a\\\\\\"b"');
+  });
+
   it("rejects malformed messages instead of reading out of bounds", () => {
     expect(() => decodeMessage(Buffer.alloc(5))).toThrow(/short/);
     const loop = buildResponse({ id: 1, flags: 0x8000, question: { name: "a.", type: 1 } });
@@ -168,5 +180,36 @@ describe("decodeMessage", () => {
     const bad = Buffer.concat([loop, Buffer.from([0xc0, loop.length]), Buffer.alloc(10)]);
     bad.writeUInt16BE(1, 6);
     expect(() => decodeMessage(bad)).toThrow(/pointer|truncated/);
+  });
+});
+
+describe("TCP transport", () => {
+  /** A nameserver that answers every TCP query with one length-prefixed garbage message. */
+  async function withGarbageServer(fn: (port: number) => Promise<void>): Promise<void> {
+    const server = createServer((sock) => {
+      sock.once("data", () => sock.end(Buffer.from([0, 3, 1, 2, 3])));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      await fn((server.address() as AddressInfo).port);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }
+
+  it("rejects a malformed reply instead of throwing out of the socket listener", async () => {
+    await withGarbageServer(async (port) => {
+      await expect(
+        query("example.com.", "SOA", { server: "127.0.0.1", port, tcp: true, timeoutMs: 2000 }),
+      ).rejects.toThrow(/short/);
+    });
+  });
+
+  it("reports a malformed AXFR reply as an error", async () => {
+    await withGarbageServer(async (port) => {
+      await expect(
+        probeAxfr("example.com.", { server: "127.0.0.1", port, timeoutMs: 2000 }),
+      ).resolves.toMatchObject({ result: "error" });
+    });
   });
 });

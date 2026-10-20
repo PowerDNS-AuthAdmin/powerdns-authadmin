@@ -230,7 +230,7 @@ function decodeRdata(buf: Buffer, type: number, start: number, len: number): Par
           `"${buf
             .subarray(p + 1, p + 1 + l)
             .toString("utf8")
-            .replace(/"/g, '\\"')}"`,
+            .replace(/["\\]/g, "\\$&")}"`,
         );
         p += 1 + l;
       }
@@ -416,7 +416,16 @@ function sendTcp(
         if (pending.length < 2 + len) break;
         const msg = pending.subarray(2, 2 + len);
         pending = pending.subarray(2 + len);
-        if (!onMessage(msg)) return finish();
+        // A throw here would escape the socket listener as an uncaught
+        // exception; a malformed reply from a remote nameserver must only
+        // fail this exchange.
+        let more: boolean;
+        try {
+          more = onMessage(msg);
+        } catch (err) {
+          return finish(err instanceof Error ? err : new Error(String(err)));
+        }
+        if (!more) return finish();
       }
     });
     sock.on("end", () => finish());
