@@ -210,6 +210,22 @@ shoot just the dashboard:
 node scripts/screenshots.mjs dashboard            # all 4 variants
 ```
 
+### Reverse DNS and Zone Monitoring shots
+
+Start the stack with `REVERSE_DNS_ENABLED=true` and `ZONE_MONITOR_ENABLED=true`
+(both pages answer 404 otherwise). The generated demo zones have no reverse
+zone and are not delegated, so seed a small real-looking pair first:
+
+```sh
+npm run demo:seed:ptr      # example.com. + 2.0.192.in-addr.arpa. on pdns-single
+```
+
+It gives the Reverse DNS report one address per status (OK, missing, mismatch,
+ambiguous, orphan) and Zone Monitoring a delegated zone to check. The shots
+filter to them (`SHOWCASE_PTR_FILTER`, default `192.0.2.`) and open that
+zone's findings (`SHOWCASE_MONITOR_ZONE`, default `example.com.`). Open both
+pages once and wait for the first scans (a minute or two) before shooting.
+
 ### Adding a new page
 
 Edit the `PAGES` array in `scripts/screenshots.mjs`:

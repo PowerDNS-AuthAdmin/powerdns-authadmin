@@ -43,6 +43,8 @@
  *   SHOWCASE_ZONE        default ps-6.demo. (used for zone-detail / change
  *                        history / edit-dialog / review-changes diff shots)
  *   SHOWCASE_CLUSTER     default ps-group (cluster slug for the showcase zone)
+ *   SHOWCASE_PTR_FILTER  default 192.0.2. (Reverse DNS table filter; "" = none)
+ *   SHOWCASE_MONITOR_ZONE default example.com. (Zone Monitoring row to expand; "" = none)
  *   PAGES_FILTER         comma-separated subset of page names (empty = all)
  *   SKIP_MOBILE / SKIP_DESKTOP   "1" to skip that half of the sweep
  *   SKIP_OPTIMIZE        "1" to skip the post-pass PNG optimizer
@@ -70,6 +72,9 @@ const PASSWORD = process.env.SCREENSHOT_PASSWORD ?? "bootstrap-admin-pw-changeme
 // stack with different seeded zones.
 const SHOWCASE_ZONE = process.env.SHOWCASE_ZONE ?? "ps-6.demo.";
 const SHOWCASE_CLUSTER = process.env.SHOWCASE_CLUSTER ?? "ps-group";
+// Filters for the Reverse DNS and Zone Monitoring shots; empty skips them.
+const SHOWCASE_PTR_FILTER = process.env.SHOWCASE_PTR_FILTER ?? "192.0.2.";
+const SHOWCASE_MONITOR_ZONE = process.env.SHOWCASE_MONITOR_ZONE ?? "example.com.";
 const ZONE_PATH = `/zones/${encodeURIComponent(SHOWCASE_ZONE)}?cluster=${encodeURIComponent(SHOWCASE_CLUSTER)}`;
 const ZONE_HISTORY_PATH = `${ZONE_PATH}&tab=history`;
 
@@ -98,8 +103,33 @@ const MOBILE_DEVICE = {
 const PAGES = [
   { name: "dashboard", path: "/dashboard" },
   { name: "zones-list", path: "/zones" },
-  { name: "reverse-dns", path: "/zones/auto-ptr" },
-  { name: "zone-monitoring", path: "/zones/monitoring" },
+  {
+    name: "reverse-dns",
+    path: "/zones/auto-ptr",
+    // The demo's own zones have no hosted reverse zone, so every one of them
+    // reads "Not hosted". SHOWCASE_PTR_FILTER narrows the table to a block
+    // that has one (see "Reverse DNS and Zone Monitoring shots" in
+    // docs/dev-setup.md), so the shot shows every status.
+    async prepare(page) {
+      if (!SHOWCASE_PTR_FILTER) return;
+      await fillVisible(page, /Search by address/, SHOWCASE_PTR_FILTER);
+    },
+  },
+  {
+    name: "zone-monitoring",
+    path: "/zones/monitoring",
+    // Open one zone's findings so the shot shows the checks, not just a list.
+    async prepare(page) {
+      if (!SHOWCASE_MONITOR_ZONE) return;
+      await fillVisible(page, /Search by zone/, SHOWCASE_MONITOR_ZONE);
+      const toggle = page
+        .getByRole("button", { name: `Show details for ${SHOWCASE_MONITOR_ZONE}`, exact: false })
+        .locator("visible=true")
+        .first();
+      await toggle.click({ timeout: 5_000 }).catch(() => {});
+      await page.waitForTimeout(600);
+    },
+  },
   { name: "add-record", path: "/zones/new-record" },
   { name: "notifications", path: "/notifications" },
   { name: "zone-detail", path: ZONE_PATH },
@@ -146,8 +176,13 @@ const PAGES = [
     name: "zone-edit",
     path: ZONE_PATH,
     async prepare(page) {
-      // Click the first row's "Edit" button - opens the Edit-record dialog.
-      await page.getByRole("button", { name: "Edit" }).first().click();
+      // The row's Edit button edits in place; the "…" button opens the
+      // full Edit-record dialog.
+      await page
+        .getByRole("button", { name: "Open full editor" })
+        .locator("visible=true")
+        .first()
+        .click();
       await page.getByRole("heading", { name: "Edit record" }).waitFor({ timeout: 5_000 });
       await page.waitForTimeout(200);
     },
@@ -156,7 +191,11 @@ const PAGES = [
     name: "zone-edit-diff",
     path: ZONE_PATH,
     async prepare(page) {
-      await page.getByRole("button", { name: "Edit" }).first().click();
+      await page
+        .getByRole("button", { name: "Open full editor" })
+        .locator("visible=true")
+        .first()
+        .click();
       await page.getByRole("heading", { name: "Edit record" }).waitFor({ timeout: 5_000 });
       // Append a digit to the Value field so the diff has something to show.
       // Inputs in DOM order are [Name, TTL, Value]; the Type selector is a
@@ -176,11 +215,17 @@ const PAGES = [
     name: "backend-health",
     path: "/dashboard",
     async prepare(page) {
-      // The bell's aria-label is "Backend health: N active issue(s)" - match
-      // by prefix so the exact count doesn't matter.
-      await page.getByRole("button", { name: /^Backend health:/ }).click();
+      // The bell's aria-label is "Notifications: N active…" - match by
+      // prefix so the exact count doesn't matter.
+      await page.getByRole("button", { name: /^Notifications:/ }).click();
       await page.waitForTimeout(300);
     },
+  },
+  {
+    name: "change-log",
+    path: "/admin/changes",
+    // Same expanded first entry as the zone's Change log tab.
+    prepare: (page) => PAGES.find((p) => p.name === "zone-change-history").prepare(page),
   },
   { name: "powerdns-servers", path: "/admin/servers" },
   { name: "users", path: "/admin/users" },
@@ -227,6 +272,15 @@ async function login(page) {
     page.waitForURL((url) => !url.pathname.endsWith("/login"), { timeout: 30_000 }),
     page.click('button[type="submit"]'),
   ]);
+}
+
+/** Type into the first visible input whose placeholder matches (desktop and mobile layouts both render one). */
+async function fillVisible(page, placeholder, value) {
+  const input = page.getByPlaceholder(placeholder).locator("visible=true").first();
+  await input.fill(value, { timeout: 5_000 }).catch(() => {});
+  // Drop focus so the shot shows the filter, not its focus ring.
+  await input.blur().catch(() => {});
+  await page.waitForTimeout(600);
 }
 
 async function settle(page) {

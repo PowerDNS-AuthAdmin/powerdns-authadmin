@@ -259,26 +259,50 @@ lands in [Audit log](#audit-log)).
 
 ---
 
-## Zone change history
+## Zone change log
 
-The audit log filtered to a single zone, with before / after diffs, the
-acting user, and a request-id deep-link to every related audit row
-(NOTIFY, PDNS HTTP traffic, etc.). Filters: search, action, actor,
-date range; click any row to reveal the full diff in place.
+A zone's Change log tab: the audit log filtered to that zone, with before /
+after diffs, the acting user, and a request-id deep-link to every related
+audit row (NOTIFY, PDNS HTTP traffic, etc.). Filters: search, action, actor,
+date range; click any row to reveal the full diff in place. **Show all
+changes** opens the fleet-wide Change log.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/zone-change-history.png" />
-  <img src="./light/zone-change-history.png" alt="Zone change history" />
+  <img src="./light/zone-change-history.png" alt="Zone change log" />
 </picture>
 
 <p align="center">
   <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./dark/zone-change-history-mobile.png" />
-  <img src="./light/zone-change-history-mobile.png" alt="Zone change history on mobile" width="300" />
+  <img src="./light/zone-change-history-mobile.png" alt="Zone change log on mobile" width="300" />
   </picture>
 </p>
 
-→ [Zone change history](../docs/FEATURES.md#45-zone-change-history)
+→ [Zone change log](../docs/FEATURES.md#45-zone-change-log)
+
+---
+
+## Change log
+
+What people changed, everywhere: records, zones, DNSSEC, users and access, and
+configuration, in the zone page's own layout plus a Zone column and a Category
+filter. Under **Logs** in the sidebar, beside the Request log and Audit log;
+needs global `audit.read`.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./dark/change-log.png" />
+  <img src="./light/change-log.png" alt="Change log" />
+</picture>
+
+<p align="center">
+  <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./dark/change-log-mobile.png" />
+  <img src="./light/change-log-mobile.png" alt="Change log on mobile" width="300" />
+  </picture>
+</p>
+
+→ [Change log](../docs/FEATURES.md#92-change-log)
 
 ---
 
