@@ -14,6 +14,7 @@
 [![CI](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/actions/workflows/ci.yml?query=branch%3Amain)
 [![Release](https://img.shields.io/github/v/release/PowerDNS-AuthAdmin/powerdns-authadmin)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/releases/latest)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PowerDNS-AuthAdmin/powerdns-authadmin/badge)](https://scorecard.dev/viewer/?uri=github.com/PowerDNS-AuthAdmin/powerdns-authadmin)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12974/badge)](https://www.bestpractices.dev/projects/12974)
 
 [![Container: GHCR](https://img.shields.io/badge/ghcr.io-powerdns--authadmin-2496ED?logo=docker&logoColor=white)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)
 [![GHCR version](https://ghcr-badge.ngn.au/powerdns-authadmin/powerdns-authadmin/latest_tag?ignore=latest,edge,%2Asha%2A,%5B0-9%5D,%5B0-9%5D.%5B0-9%5D,%5B0-9%5D.%5B0-9%5D%5B0-9%5D&label=ghcr.io&color=%232ea44f)](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pkgs/container/powerdns-authadmin)
