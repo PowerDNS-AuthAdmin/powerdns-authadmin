@@ -25,13 +25,18 @@
 
 import "server-only";
 import { db } from "@/lib/db";
-import { roles } from "@/lib/db/schema";
+import { pdnsServers, roles, teams } from "@/lib/db/schema";
 import type { Permission } from "@/lib/rbac/permissions";
-import { readGroupClaim, type GroupMapping } from "./group-sync-pure";
+import {
+  readGroupClaim,
+  resolveMappingScopeId,
+  type GroupMapping,
+  type ScopeTarget,
+} from "./group-sync-pure";
 
 export { readGroupClaim } from "./group-sync-pure";
 export type { GroupMapping, ResolvedAssignment, GroupSyncDiff } from "./group-sync-pure";
-export { diffGroupSync } from "./group-sync-pure";
+export { diffGroupSync, resolveMappingScopeId } from "./group-sync-pure";
 
 /**
  * One entry in `computeGroupSync`'s output. Matches the `AbilitySource`
@@ -51,7 +56,10 @@ export interface DerivedAbilitySource {
 export interface UnresolvedGroupMapping {
   group: string;
   roleSlug: string;
-  reason: "role-slug-not-found";
+  reason: "role-slug-not-found" | "scope-not-found";
+  /** Set for `scope-not-found`: the team/server reference that matched nothing. */
+  scopeType?: GroupMapping["scopeType"];
+  scopeId?: string | null;
 }
 
 export interface GroupSyncResult {
@@ -99,6 +107,16 @@ export async function computeGroupSync(input: ComputeGroupSyncInput): Promise<Gr
     }
   }
 
+  // Team/server scopes are read only when a matched mapping uses one.
+  const needTeams = matching.some((m) => m.scopeType === "team");
+  const needServers = matching.some((m) => m.scopeType === "server");
+  const targets: { teams: ScopeTarget[]; servers: ScopeTarget[] } = {
+    teams: needTeams ? await db.select({ id: teams.id, slug: teams.slug }).from(teams) : [],
+    servers: needServers
+      ? await db.select({ id: pdnsServers.id, slug: pdnsServers.slug }).from(pdnsServers)
+      : [],
+  };
+
   const derived: DerivedAbilitySource[] = [];
   const unresolved: UnresolvedGroupMapping[] = [];
   for (const m of matching) {
@@ -107,10 +125,21 @@ export async function computeGroupSync(input: ComputeGroupSyncInput): Promise<Gr
       unresolved.push({ group: m.group, roleSlug: m.roleSlug, reason: "role-slug-not-found" });
       continue;
     }
+    const scopeId = resolveMappingScopeId(m, targets);
+    if (scopeId === null && m.scopeType !== "global") {
+      unresolved.push({
+        group: m.group,
+        roleSlug: m.roleSlug,
+        reason: "scope-not-found",
+        scopeType: m.scopeType,
+        scopeId: m.scopeId,
+      });
+      continue;
+    }
     derived.push({
       permissions: perms,
       scopeType: m.scopeType,
-      scopeId: m.scopeId,
+      scopeId,
     });
   }
 

@@ -11,6 +11,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/client/api-fetch";
+import { prepareGroupMappings } from "@/lib/validators/group-mappings";
 import { safeIconUrl } from "@/lib/security/icon-url";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { Field, inputClass } from "@/components/ui/form";
@@ -169,6 +170,14 @@ export function OidcProviderForm(props: Props) {
     setError(null);
     setFieldErrors({});
 
+    const prepared = prepareGroupMappings(groupMappings);
+    if (prepared.problems.length > 0) {
+      setError("Some group mappings are incomplete.");
+      setFieldErrors({ groupMappings: prepared.problems });
+      setSaving(false);
+      return;
+    }
+
     interface Body {
       slug?: string;
       name: string;
@@ -207,19 +216,7 @@ export function OidcProviderForm(props: Props) {
       // Empty string → null clears the icon back to text-only
       // button. Trimmed value otherwise. Server re-validates.
       iconUrl: iconUrl.trim() === "" ? null : iconUrl.trim(),
-      // Strip rows where required fields are blank - the user added
-      // a row then walked away. The server's Zod refine would reject
-      // these anyway, but the better UX is to silently drop them
-      // (they're empty placeholders, not malformed data).
-      groupMappings: groupMappings
-        .map((m) => ({
-          ...m,
-          group: m.group.trim(),
-          roleSlug: m.roleSlug.trim(),
-          scopeId: m.scopeId !== null && m.scopeId.trim() !== "" ? m.scopeId.trim() : null,
-        }))
-        .filter((m) => m.group.length > 0 && m.roleSlug.length > 0)
-        .filter((m) => m.scopeType === "global" || (m.scopeId !== null && m.scopeId.length > 0)),
+      groupMappings: prepared.mappings,
     };
     if (props.mode === "create") body.slug = slug;
     if (clientSecret !== "") body.clientSecret = clientSecret;

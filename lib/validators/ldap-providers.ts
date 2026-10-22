@@ -16,6 +16,7 @@
 
 import "server-only";
 import { z } from "zod";
+import { groupMappingsSchema as sharedGroupMappingsSchema } from "./group-mappings";
 import { env } from "@/lib/env";
 import { slugSchema } from "./common";
 
@@ -112,20 +113,7 @@ const allowedEmailDomainsSchema = z
   .max(64, "At most 64 domains.")
   .nullable();
 
-const groupMappingSchema = z
-  .object({
-    /** Exact group value to match - for AD `memberOf` this is the DN of
-     *  the group, for OpenLDAP overlay the cn=… etc. Case-sensitive. */
-    group: z.string().min(1).max(1000),
-    roleSlug: z.string().min(1).max(64),
-    scopeType: z.enum(["global", "team", "zone", "server"]),
-    scopeId: z.string().min(1).max(255).nullable(),
-  })
-  .refine((m) => (m.scopeType === "global" ? m.scopeId === null : m.scopeId !== null), {
-    message: "scopeId must be null for global scope and non-null for team/zone/server scope.",
-  });
-
-const groupMappingsSchema = z.array(groupMappingSchema).max(200).nullable();
+const groupMappingsSchema = sharedGroupMappingsSchema(1000);
 
 /**
  * PEM CA certificate. Optional; when present, the LDAP TLS handshake

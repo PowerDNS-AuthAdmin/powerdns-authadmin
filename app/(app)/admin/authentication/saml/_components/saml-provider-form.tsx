@@ -12,6 +12,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/client/api-fetch";
+import { prepareGroupMappings } from "@/lib/validators/group-mappings";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { Field, inputClass } from "@/components/ui/form";
 
@@ -173,6 +174,14 @@ export function SamlProviderForm(props: Props) {
     setError(null);
     setFieldErrors({});
 
+    const prepared = prepareGroupMappings(groupMappings);
+    if (prepared.problems.length > 0) {
+      setError("Some group mappings are incomplete.");
+      setFieldErrors({ groupMappings: prepared.problems });
+      setSaving(false);
+      return;
+    }
+
     const parsedDomains: string[] = domainsText
       .split(/\r?\n/)
       .map((s) => s.trim().toLowerCase())
@@ -216,15 +225,7 @@ export function SamlProviderForm(props: Props) {
       claimGroups,
       enabled,
       allowedEmailDomains: overrideDomains ? parsedDomains : null,
-      groupMappings: groupMappings
-        .map((m) => ({
-          ...m,
-          group: m.group.trim(),
-          roleSlug: m.roleSlug.trim(),
-          scopeId: m.scopeId !== null && m.scopeId.trim() !== "" ? m.scopeId.trim() : null,
-        }))
-        .filter((m) => m.group.length > 0 && m.roleSlug.length > 0)
-        .filter((m) => m.scopeType === "global" || (m.scopeId !== null && m.scopeId.length > 0)),
+      groupMappings: prepared.mappings,
     };
     if (props.mode === "create") body.slug = slug;
     // Signing keypair: create always sends, edit only when both halves were

@@ -98,3 +98,49 @@ export function readGroupClaim(raw: unknown): Set<string> {
   }
   return new Set();
 }
+
+/** A team or pdns server as the scope resolver needs it. */
+export interface ScopeTarget {
+  id: string;
+  slug: string;
+}
+
+/**
+ * Turn a mapping's stored `scopeId` into the id the ability builder compares
+ * against. The admin forms store team and server scopes as slugs (stable
+ * across a restore that re-keys rows), provisioning stores the UUID it
+ * resolved at apply time, and `lib/rbac/ability.ts` matches team/server rules
+ * on UUIDs - so both spellings resolve here, at sign-in.
+ *
+ * Returns `null` for a team/server scope that names nothing: the mapping is
+ * dropped (fail closed) and reported as unresolved. Global and zone scopes
+ * pass through unchanged.
+ */
+export function resolveMappingScopeId(
+  mapping: Pick<GroupMapping, "scopeType" | "scopeId">,
+  targets: { teams: readonly ScopeTarget[]; servers: readonly ScopeTarget[] },
+): string | null {
+  if (mapping.scopeType !== "team" && mapping.scopeType !== "server") return mapping.scopeId;
+  if (mapping.scopeId === null) return null;
+  const ref = mapping.scopeId.trim();
+  const pool = mapping.scopeType === "team" ? targets.teams : targets.servers;
+  return (pool.find((t) => t.id === ref) ?? pool.find((t) => t.slug === ref))?.id ?? null;
+}
+
+/**
+ * The inverse for the admin forms: show a team/server scope as the slug the
+ * picker lists, whether the row holds a slug (saved from the form) or a UUID
+ * (written by provisioning). A reference that matches nothing is returned as
+ * stored, so the form shows what is there instead of silently picking another
+ * target.
+ */
+export function mappingForForm<M extends Pick<GroupMapping, "scopeType" | "scopeId">>(
+  mapping: M,
+  targets: { teams: readonly ScopeTarget[]; servers: readonly ScopeTarget[] },
+): M {
+  if (mapping.scopeType !== "team" && mapping.scopeType !== "server") return mapping;
+  if (mapping.scopeId === null) return mapping;
+  const pool = mapping.scopeType === "team" ? targets.teams : targets.servers;
+  const hit = pool.find((t) => t.id === mapping.scopeId);
+  return hit ? { ...mapping, scopeId: hit.slug } : mapping;
+}
