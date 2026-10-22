@@ -39,6 +39,21 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.11.0 (from 1.10.1)
+
+No migration, no schema change, no config change - pull the new tag and
+recreate the container. AuthAdmin now supports PowerDNS Authoritative 5.1.
+
+Nothing changes for backends older than 5.1. If you run a 5.1 backend that
+has LUA records, check one setting there. In 5.1 LUA records can't be
+created, edited or deleted unless `enable-lua-record-updates=yes` is set in
+`pdns.conf`, even with `enable-lua-records` on. That's a PowerDNS default,
+not an AuthAdmin one. On a backend without it, AuthAdmin stops offering the
+`LUA` type and refuses LUA changes with a message naming the setting. The
+setting also covers zone transfers, so a 5.1 secondary needs it too or it
+won't accept LUA records from its primary. After changing `pdns.conf`, use
+**Admin → PowerDNS servers → Refresh** so the editor picks it up.
+
 ### Upgrading to 1.10.1 (from 1.10.0)
 
 No migration, no schema change, no config change - pull the new tag and

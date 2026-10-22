@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-22
+
+Adds PowerDNS Authoritative 5.1 to the supported versions. **No schema change, no migration.**
+Pull the new tag and recreate the container. If a 5.1 backend serves LUA records, see the
+[upgrade notes](./docs/09-UPGRADING.md#upgrading-to-1110-from-1101).
+
 ### Added
 
 - **PowerDNS Authoritative 5.1 support.** 5.1 joins the compatibility matrix with its own
