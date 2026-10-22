@@ -7,6 +7,11 @@
  * `enable-lua-records` setting or the per-zone `ENABLE-LUA-RECORDS` metadata
  * (`metadata-policy.ts` explains why it is the OR of both).
  *
+ * PowerDNS 5.1+ adds a separate lock, `enable-lua-record-updates`, that makes
+ * every LUA change (create, edit, delete) 422 even with Lua armed. It is
+ * checked here too, for deletes as well as upserts, so the operator is told
+ * which setting to flip instead of getting PowerDNS's bare refusal back.
+ *
  * Every read happens here rather than trusting anything the client sent, so a
  * crafted request or a stale tab can't talk a disabled server into accepting
  * Lua. Any read failure denies the write: an unverifiable backend is treated
@@ -22,6 +27,8 @@ import { redact } from "@/lib/errors/redact";
 import type { PdnsClient } from "./client";
 import { PdnsError } from "./errors";
 import {
+  areLuaRecordUpdatesLocked,
+  ENABLE_LUA_RECORD_UPDATES_SETTING,
   ENABLE_LUA_RECORDS_SETTING,
   isLuaEnabledByZoneMetadata,
   isLuaEnabledGlobally,
@@ -35,8 +42,14 @@ const NOT_ENABLED_ON_BACKEND =
   "LUA records are not enabled on this PowerDNS backend. Set enable-lua-records on the host " +
   "before importing a zonefile that contains LUA records.";
 
+const UPDATES_LOCKED =
+  "This PowerDNS backend does not allow changes to LUA records. PowerDNS 5.1+ makes them " +
+  "read-only unless enable-lua-record-updates=yes is set on the host.";
+
 interface GlobalLuaState {
   enabled: boolean;
+  /** `enable-lua-record-updates` is reported and off (PDNS 5.1+). */
+  updatesLocked: boolean;
   /** Set when the config read failed - carries the operator-facing reason. */
   unreadable: string | null;
 }
@@ -44,12 +57,17 @@ interface GlobalLuaState {
 async function readGlobalLua(client: PdnsClient): Promise<GlobalLuaState> {
   try {
     const config = await client.getConfig();
-    const setting = config.find((row) => row.name === ENABLE_LUA_RECORDS_SETTING)?.value;
-    return { enabled: isLuaEnabledGlobally(setting), unreadable: null };
+    const valueOf = (name: string) => config.find((row) => row.name === name)?.value;
+    return {
+      enabled: isLuaEnabledGlobally(valueOf(ENABLE_LUA_RECORDS_SETTING)),
+      updatesLocked: areLuaRecordUpdatesLocked(valueOf(ENABLE_LUA_RECORD_UPDATES_SETTING)),
+      unreadable: null,
+    };
   } catch (err) {
     if (err instanceof PdnsError) {
       return {
         enabled: false,
+        updatesLocked: true,
         unreadable: `Could not verify Lua-records enablement: ${redact(err.message)}`,
       };
     }
@@ -58,8 +76,8 @@ async function readGlobalLua(client: PdnsClient): Promise<GlobalLuaState> {
 }
 
 /**
- * Gate a LUA write against an EXISTING zone. The per-zone metadata read
- * short-circuits the config read, since either signal arms Lua.
+ * Gate a LUA upsert against an EXISTING zone. Lua must be armed (zone metadata
+ * or daemon-wide) and LUA records must be mutable on this daemon.
  */
 export async function assertZoneAllowsLua(client: PdnsClient, zoneName: string): Promise<void> {
   let metadata;
@@ -71,13 +89,23 @@ export async function assertZoneAllowsLua(client: PdnsClient, zoneName: string):
     }
     throw err;
   }
-  if (isLuaEnabledByZoneMetadata(metadata)) return;
 
   const global = await readGlobalLua(client);
   if (global.unreadable) throw new ValidationError(global.unreadable);
-  if (global.enabled) return;
+  if (!isLuaEnabledByZoneMetadata(metadata) && !global.enabled) {
+    throw new ValidationError(NOT_ENABLED_FOR_ZONE);
+  }
+  if (global.updatesLocked) throw new ValidationError(UPDATES_LOCKED);
+}
 
-  throw new ValidationError(NOT_ENABLED_FOR_ZONE);
+/**
+ * Gate a LUA delete. Removing executable rdata needs no Lua enablement - only
+ * the 5.1+ immutability lock can refuse it.
+ */
+export async function assertLuaRecordsMutable(client: PdnsClient): Promise<void> {
+  const global = await readGlobalLua(client);
+  if (global.unreadable) throw new ValidationError(global.unreadable);
+  if (global.updatesLocked) throw new ValidationError(UPDATES_LOCKED);
 }
 
 /**
@@ -94,5 +122,6 @@ export async function assertZoneAllowsLua(client: PdnsClient, zoneName: string):
 export async function luaDenialReasonForNewZone(client: PdnsClient): Promise<string | null> {
   const global = await readGlobalLua(client);
   if (global.unreadable) return global.unreadable;
-  return global.enabled ? null : NOT_ENABLED_ON_BACKEND;
+  if (!global.enabled) return NOT_ENABLED_ON_BACKEND;
+  return global.updatesLocked ? UPDATES_LOCKED : null;
 }

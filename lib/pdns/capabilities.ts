@@ -7,7 +7,12 @@
  * which is why this replaces the operator-declared `role`.
  */
 
-import { ENABLE_LUA_RECORDS_SETTING, isLuaEnabledGlobally } from "./metadata-policy";
+import {
+  areLuaRecordUpdatesLocked,
+  ENABLE_LUA_RECORD_UPDATES_SETTING,
+  ENABLE_LUA_RECORDS_SETTING,
+  isLuaEnabledGlobally,
+} from "./metadata-policy";
 import type {
   PdnsConfigSetting,
   PdnsDaemonCapabilities,
@@ -66,6 +71,11 @@ export function deriveCapabilities(
     // even if the daemon doesn't echo the `api` flag back.
     api: map.has("api") ? isYes(map.get("api")) : true,
     luaRecords: luaRecordsMode(map.get(ENABLE_LUA_RECORDS_SETTING)),
+    ...(map.has(ENABLE_LUA_RECORD_UPDATES_SETTING)
+      ? {
+          luaRecordUpdates: !areLuaRecordUpdatesLocked(map.get(ENABLE_LUA_RECORD_UPDATES_SETTING)),
+        }
+      : {}),
     primary: isYes(map.get("primary")) || isYes(map.get("master")),
     secondary: isYes(map.get("secondary")) || isYes(map.get("slave")),
     autosecondary: isYes(map.get("autosecondary")) || isYes(map.get("superslave")),

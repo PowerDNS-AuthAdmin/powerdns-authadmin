@@ -118,6 +118,8 @@ interface EditableRecordTableProps {
   canUpdateApexNs: boolean;
   /** Live ENABLE-LUA-RECORDS=1 state for this zone. */
   luaRecordsEnabled: boolean;
+  /** PowerDNS 5.1+ `enable-lua-record-updates=no`: LUA records can't change at all. */
+  luaRecordUpdatesLocked: boolean;
   /** TTL a new record starts with, and where it came from (zone / global / built-in). */
   defaultTtl: ResolvedDefaultTtl;
   /**
@@ -636,6 +638,9 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
     if (draft.type === "LUA" && !props.luaRecordsEnabled) {
       return "LUA records require ENABLE-LUA-RECORDS to be set to 1 in this zone's metadata.";
     }
+    if (draft.type === "LUA" && props.luaRecordUpdatesLocked) {
+      return "This PowerDNS backend locks LUA records: set enable-lua-record-updates=yes on the host.";
+    }
 
     const validation = getRRTypeValidator(draft.type).validate(draft.value);
     if (hasErrors(validation) && !draft.overrideErrors) {
@@ -920,12 +925,18 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
     // type sits outside that menu (legacy data), thread it back in as the
     // first option so the operator can still see + save the row.
     const allowed = typesForZone(props.zoneName).filter(
-      (type) => type !== "LUA" || props.luaRecordsEnabled,
+      (type) => type !== "LUA" || (props.luaRecordsEnabled && !props.luaRecordUpdatesLocked),
     );
     const editing = editor?.mode === "edit" ? editor.type : null;
     const opts = editing && !allowed.includes(editing) ? [editing, ...allowed] : allowed;
     return opts.map((t) => ({ value: t, label: t, description: getRRTypeValidator(t).label }));
-  }, [props.zoneName, props.luaRecordsEnabled, editor?.mode, editor?.type]);
+  }, [
+    props.zoneName,
+    props.luaRecordsEnabled,
+    props.luaRecordUpdatesLocked,
+    editor?.mode,
+    editor?.type,
+  ]);
 
   return (
     <div className="space-y-3">
@@ -1053,6 +1064,11 @@ export function EditableRecordTable(props: EditableRecordTableProps) {
                   <p className="mt-1 text-[0.6875rem] text-[color:var(--color-fg-muted)]">
                     To add LUA records through AuthAdmin, set <code>ENABLE-LUA-RECORDS</code> to{" "}
                     <code>1</code> for this zone on the PowerDNS host.
+                  </p>
+                ) : props.luaRecordUpdatesLocked ? (
+                  <p className="mt-1 text-[0.6875rem] text-[color:var(--color-fg-muted)]">
+                    To add or change LUA records through AuthAdmin, set{" "}
+                    <code>enable-lua-record-updates=yes</code> on the PowerDNS host (5.1+).
                   </p>
                 ) : null}
               </Field>

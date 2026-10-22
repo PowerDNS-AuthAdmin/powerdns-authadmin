@@ -27,6 +27,11 @@
  *      pdnsutil-only. The two reads live at the call sites (they need the
  *      client); the interpretation of each value lives here.
  *
+ *      PowerDNS 5.1 adds a third, orthogonal signal: `enable-lua-record-updates`
+ *      (default `no`) makes LUA records immutable over the API and AXFR - creates, edits
+ *      AND deletes 422 - even when Lua is armed. Verified against 5.1.5. It only
+ *      decides whether LUA records may CHANGE, never whether they are served.
+ *
  * Pure + dependency-light (only the error type), like `writable-kind.ts`, so
  * it's usable from server components, route handlers, and client code alike.
  */
@@ -50,6 +55,9 @@ export const ENABLE_LUA_RECORDS_KIND = "ENABLE-LUA-RECORDS";
 
 /** Daemon-global config setting that enables Lua records fleet-wide. */
 export const ENABLE_LUA_RECORDS_SETTING = "enable-lua-records";
+
+/** Daemon-global config setting (PDNS 5.1+) that unlocks LUA record changes. */
+export const ENABLE_LUA_RECORD_UPDATES_SETTING = "enable-lua-record-updates";
 
 /**
  * Metadata kinds AuthAdmin treats as read-only. Verified against pdns-auth
@@ -135,6 +143,20 @@ export function isLuaEnabledGlobally(settingValue: string | undefined | null): b
   const v = settingValue.trim().toLowerCase();
   if (v === "") return true; // documented: empty is equivalent to `yes`
   return v === "shared" || v === "shard" || isTruthyFlag(v);
+}
+
+/**
+ * Whether the daemon refuses LUA record changes. A daemon that doesn't report
+ * `enable-lua-record-updates` at all predates 5.1 and has no such lock, so
+ * absence means unlocked - unlike `enable-lua-records`, where absence means the
+ * documented default `no`. A reported value is read the way PowerDNS's own
+ * boolean parser reads it - anything but `no`/`off` is on (verified on 5.1.5:
+ * `on`, `1` and `true` all unlock) - so the gate never refuses a write the
+ * daemon would accept.
+ */
+export function areLuaRecordUpdatesLocked(settingValue: string | undefined | null): boolean {
+  if (settingValue == null) return false;
+  return /^(no|off)$/i.test(settingValue.trim());
 }
 
 function isTruthyFlag(value: string): boolean {

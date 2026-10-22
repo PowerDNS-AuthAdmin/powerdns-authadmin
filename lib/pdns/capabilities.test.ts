@@ -72,6 +72,19 @@ describe("deriveCapabilities", () => {
   ])("derives enable-lua-records: %s", (_label, flags, expected) => {
     expect(deriveCapabilities(cfg(flags)).luaRecords).toBe(expected);
   });
+
+  // #195 - PowerDNS 5.1 locks LUA records against changes unless
+  // `enable-lua-record-updates` is on. Pre-5.1 daemons don't report the
+  // setting and have no lock, so the field stays absent rather than false.
+  it.each<[string, Record<string, string>, boolean | undefined]>([
+    ["absent on pre-5.1 daemons", {}, undefined],
+    ["5.1 default no → locked", { "enable-lua-record-updates": "no" }, false],
+    ["yes → unlocked", { "enable-lua-record-updates": "yes" }, true],
+    ["on → unlocked, as PowerDNS reads it", { "enable-lua-record-updates": "on" }, true],
+    ["off → locked", { "enable-lua-record-updates": "off" }, false],
+  ])("derives enable-lua-record-updates: %s", (_label, flags, expected) => {
+    expect(deriveCapabilities(cfg(flags)).luaRecordUpdates).toBe(expected);
+  });
 });
 
 describe("summarizeCapabilities", () => {

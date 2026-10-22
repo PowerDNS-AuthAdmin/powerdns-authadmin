@@ -508,6 +508,9 @@ the audit trail behave identically whichever door the user came through.
   server-side code, so which daemons have it armed has to be visible from the backend list, not
   discoverable only by opening a zone and looking for the type in a dropdown. A daemon-level `no`
   is not a veto: per-zone `ENABLE-LUA-RECORDS` metadata still enables Lua for that one zone.
+  PowerDNS 5.1+ also reports `enable-lua-record-updates`, and the snapshot carries it too: with
+  it off (the 5.1 default) LUA records are served but can't be created, changed or deleted, so
+  the editor stops offering the type.
 - **Freshness.** Badges reflect the last probe. After editing `pdns.conf`, re-probe the backend
   (**Admin → PowerDNS servers → Refresh**) - the same gesture that refreshes every other
   capability.
@@ -654,7 +657,10 @@ the audit trail behave identically whichever door the user came through.
   the daemon actually has Lua armed: the global `enable-lua-records` setting **or** the zone's
   `ENABLE-LUA-RECORDS` metadata. The check is re-read live from PowerDNS on every Lua write
   (RRset PATCH and zonefile import alike) and fails closed, so a stale tab or crafted request
-  can't land executable records on a server that has Lua off. The content validator checks the
+  can't land executable records on a server that has Lua off. On PowerDNS 5.1+ the same check
+  also requires `enable-lua-record-updates=yes`, which 5.1 needs for any LUA change, deletes
+  included; without it the operator gets a message naming that setting rather than PowerDNS's
+  bare 422. The content validator checks the
   presentation format (`<query-type> "<snippet>"`, adjacent quoted chunks, `\DDD` escapes,
   the 255-octet boundary) without attempting to parse Lua. Which backends have Lua armed is
   visible from the capability badges (§ 3.10); the DNSSEC tab warns about Lua records on

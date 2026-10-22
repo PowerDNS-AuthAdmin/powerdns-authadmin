@@ -380,6 +380,13 @@ export interface PdnsDaemonCapabilities {
    * a real negative.
    */
   luaRecords?: PdnsLuaRecordsMode;
+  /**
+   * `enable-lua-record-updates` (PDNS 5.1+) - whether LUA records may be
+   * created, changed or deleted at all. Absent when the daemon doesn't report
+   * the setting (pre-5.1, no such lock) or on snapshots predating this field;
+   * both read as "not locked", and the write path re-checks live regardless.
+   */
+  luaRecordUpdates?: boolean;
   /** `primary`/`master`=yes - sends NOTIFY + serves AXFR for its master zones. */
   primary: boolean;
   /** `secondary`/`slave`=yes - initiates AXFR for its slave zones. */

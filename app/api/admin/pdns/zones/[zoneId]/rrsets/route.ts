@@ -45,7 +45,7 @@ import { logger } from "@/lib/logger";
 import { redact } from "@/lib/errors/redact";
 import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositories/pdns-servers";
 import { assertEditableZoneKind } from "@/lib/pdns/writable-kind";
-import { assertZoneAllowsLua } from "@/lib/pdns/lua-enablement";
+import { assertLuaRecordsMutable, assertZoneAllowsLua } from "@/lib/pdns/lua-enablement";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { normalizeZoneId } from "@/lib/pdns/client";
 import { isTransferredKind } from "@/lib/pdns/zone-kinds";
@@ -173,9 +173,13 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     // LUA records execute code inside the authoritative server, so refuse to
     // create one unless PowerDNS actually has Lua enabled here. Verified live
     // (below) so a crafted request or a stale tab can't bypass a disabled
-    // server; any read failure denies the write.
-    if (input.changes.some((change) => change.kind === "upsert" && change.type === "LUA")) {
+    // server; any read failure denies the write. Deletes are gated too:
+    // PowerDNS 5.1+ can lock LUA records against every change, removal included.
+    const luaChanges = input.changes.filter((change) => change.type === "LUA");
+    if (luaChanges.some((change) => change.kind === "upsert")) {
       await assertZoneAllowsLua(client, zoneName);
+    } else if (luaChanges.length > 0) {
+      await assertLuaRecordsMutable(client);
     }
 
     // NOTE: zone-level edited_serial concurrency check was removed - it had

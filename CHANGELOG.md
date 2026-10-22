@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **PowerDNS Authoritative 5.1 support.** 5.1 joins the compatibility matrix with its own
+  monthly workflow and README badge. 5.1 makes LUA records immutable unless
+  `enable-lua-record-updates=yes`, even with `enable-lua-records` on: creates, edits and deletes
+  all come back as 422. The Lua gate now reads that setting too, for deletes as well as upserts,
+  on both the RRset editor and zonefile import, and tells the operator which setting to change.
+  The backend capability snapshot carries the setting, so the record editor stops offering
+  `LUA` on a locked daemon. Daemons older than 5.1 don't report the setting and behave as
+  before. ([#195](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/195))
+
 ## [1.10.1] - 2026-10-21
 
 Fixes from running 1.10.0 in production. **No schema change, no migration.** Pull the new tag

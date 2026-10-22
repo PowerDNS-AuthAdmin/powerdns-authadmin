@@ -287,6 +287,12 @@ on the primary so ALIASes are transferred expanded (and signed). Their
 addresses then only refresh on the next transfer. Enabling DNSSEC returns a
 warning when the zone holds either type.
 
+PowerDNS 5.1 makes LUA records immutable unless `enable-lua-record-updates=yes`.
+That covers AXFR/IXFR as well as the API, so a 5.1 secondary left at the
+default refuses to take LUA records from its primary. Set it on every 5.1
+daemon whose zones carry LUA records, the primary for edits through
+AuthAdmin and each secondary for transfers.
+
 ### Rolling out safely
 
 1. **Sign.** Enable DNSSEC on the zone.
