@@ -9,12 +9,14 @@
  *                       ⊇  server:<id> ⊇  zone:<id>
  *
  * `scope_id` is nullable: when `scope_type = "global"`, no specific resource
- * is referenced. For other scopes, it's the UUID of the team / zone / server.
- * We don't declare a foreign key on `scope_id` because the target table
- * varies; instead we validate at the application layer.
+ * is referenced. For team and server scopes it's the row's UUID; for a zone
+ * scope it's the canonical zone name, because zones live in PowerDNS and have
+ * no local row (ADR-0024) - hence `text`, not `uuid`. We don't declare a
+ * foreign key on `scope_id` because the target varies; instead we validate at
+ * the application layer.
  */
 
-import { index, pgEnum, pgTable, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { index, pgEnum, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { roles } from "./roles";
 import { users } from "./users";
 import { pk, timestamps } from "./_helpers";
@@ -33,7 +35,7 @@ export const roleAssignments = pgTable(
       .references(() => roles.id, { onDelete: "restrict" }),
 
     scopeType: scopeTypeEnum("scope_type").notNull(),
-    scopeId: uuid("scope_id"),
+    scopeId: text("scope_id"),
 
     // The user who created this assignment, for audit / revocation. NULL when
     // the assignment was created by the seed script or system boot.

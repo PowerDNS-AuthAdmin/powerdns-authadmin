@@ -147,6 +147,15 @@ and with or without the trailing dot. If you need access pinned to one backend,
 use a per-zone grant instead; it carries a server.
 [ADR-0024](./adr/0024-zone-scoped-roles-grant-zone-access.md) records the trade-off.
 
+### Assigning a zone scope
+
+**Admin → Users → _user_ → Role assignments** takes a **Zone** scope: pick the
+role, choose _Zone_ and type the zone name. It is stored canonically (lowercase,
+trailing dot), so `Corp.Example` and `corp.example.` are the same assignment. The
+assignment is accepted even when no backend serves the zone yet - a warning says
+so, and it grants nothing until the zone exists. IdP group mappings produce the
+same scope from a directory group.
+
 ### Per-zone grants
 
 A `zone_grants` row (Admin → Users / Teams → _Zone grants_) gives a user or a team a
@@ -155,10 +164,6 @@ way to pin access to one backend, and the way to give a whole team zone access.
 
 ### Known limitations
 
-- **Admin → Users can't issue a zone-scoped assignment yet.** The role-assignment
-  route refuses `zone` scope (on Postgres the scope column holds UUIDs only), so a
-  zone scope today comes from an **IdP group mapping**. To give one local user one
-  zone from the admin UI, use a per-zone grant.
 - **Team- and server-scoped roles don't open zones.** Zones live in PowerDNS and
   carry neither a team nor a server binding the authorizer can match, so a
   `team:` or `server:` assignment never grants zone or record access. Use team

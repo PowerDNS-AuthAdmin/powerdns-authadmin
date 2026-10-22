@@ -85,10 +85,9 @@ one zone and all its replicas (cluster peers, secondaries).
 - **Any-backend matching.** `zone:example.com.` covers a zone named `example.com.` on every backend,
   including an unrelated primary serving a same-named zone (e.g. an internal copy next to the public
   one). Operators who need backend-pinned access use a `zone_grant`. Documented in docs/07-RBAC.md.
-- The admin role-assignment route still refuses `zone` scope (the Postgres `scope_id` column is a
-  UUID), so today zone scopes come from IdP mappings; admin-issued zone-scoped rows are honoured
-  wherever they exist (SQLite, restored backups) and the route can be opened later without touching
-  authorization.
+- The admin role-assignment route refused `zone` scope at first (the Postgres `scope_id` column
+  was a UUID), so zone scopes came from IdP mappings only. Opened in #203: `scope_id` is `text` in
+  both dialects and the route stores the canonical zone name. Authorization needed no change.
 - Grant-delegation ceilings (`/admin/users/:id/zone-grants`, team grants, team membership) still
   count only global permissions and grants. A zone-scoped role lets you act on a zone, not hand it
   on.

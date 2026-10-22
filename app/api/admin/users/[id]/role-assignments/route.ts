@@ -2,6 +2,10 @@
  * app/api/admin/users/[id]/role-assignments/route.ts
  *
  * POST - assign a role to a user at a scope (role.assign permission).
+ *
+ * A zone scope names the zone (canonical name, matched on every backend -
+ * ADR-0024); it is accepted even when no backend serves the zone yet, and the
+ * response then carries a `warning` the panel shows.
  */
 
 import { headers } from "next/headers";
@@ -19,7 +23,9 @@ import {
 } from "@/lib/db/repositories/roles";
 import { findUserById } from "@/lib/db/repositories/users";
 import { findTeamById } from "@/lib/db/repositories/teams";
-import { findPdnsServerById } from "@/lib/db/repositories/pdns-servers";
+import { findPdnsServerById, listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
+import { unknownZoneTargetsFor } from "@/lib/realtime/unknown-zone-targets";
+import { displayZoneName } from "@/lib/dns/zone-name";
 import {
   globalPermissionsOf,
   permissionsExceedingGrant,
@@ -80,8 +86,9 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       );
     }
 
-    // Validate that the named scope target actually exists. Zone scope is
-    // deferred until future work brings a local zones table.
+    // Validate that the named scope target actually exists. A zone has no
+    // local row, so a zone scope is checked against the backends below and
+    // only warned about.
     if (input.scopeType === "team" && input.scopeId) {
       const team = await findTeamById(input.scopeId);
       if (!team) throw new ValidationError("Scope team does not exist.");
@@ -89,9 +96,6 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     if (input.scopeType === "server" && input.scopeId) {
       const server = await findPdnsServerById(input.scopeId);
       if (!server) throw new ValidationError("Scope server does not exist.");
-    }
-    if (input.scopeType === "zone") {
-      throw new ValidationError("Zone-scoped assignments aren't supported yet .");
     }
 
     const hdrs = await headers();
@@ -126,7 +130,24 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       return assignment;
     });
 
-    return Response.json({ assignment: created }, { status: 201 });
+    const [unknownZone] =
+      input.scopeType === "zone"
+        ? await unknownZoneTargetsFor(
+            [{ scopeType: "zone", scopeId: input.scopeId ?? null }],
+            await listAllPdnsServers(),
+          )
+        : [];
+    return Response.json(
+      {
+        assignment: created,
+        ...(unknownZone
+          ? {
+              warning: `No backend serves ${displayZoneName(unknownZone)} yet - the assignment grants nothing until that zone exists.`,
+            }
+          : {}),
+      },
+      { status: 201 },
+    );
   } catch (err) {
     return errorResponse(err, "admin.users.role-assignments.route.error");
   }

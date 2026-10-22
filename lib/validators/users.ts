@@ -6,6 +6,8 @@
 
 import "server-only";
 import { z } from "zod";
+import { canonicalZoneName } from "@/lib/dns/zone-name";
+import { isValidZoneScope } from "./group-mappings";
 // Re-exported from a client-safe module so client forms can mirror the policy
 // without pulling this `server-only` module into a client bundle (issue #32).
 import { MIN_PASSWORD_LENGTH } from "./password-policy";
@@ -139,17 +141,47 @@ export const roleAssignmentSchema = z
   .object({
     roleId: z.string().uuid("Role id must be a UUID."),
     scopeType: z.enum(["global", "team", "zone", "server"]),
-    scopeId: z.string().uuid().nullable().optional(),
+    /** Team / server UUID, or a zone name for zone scope (stored canonically). */
+    scopeId: z.string().trim().max(255).nullable().optional(),
   })
-  .refine(
-    (data) =>
-      data.scopeType === "global"
-        ? data.scopeId == null
-        : typeof data.scopeId === "string" && data.scopeId.length > 0,
-    {
-      message: "scopeId is required for non-global scopes.",
-      path: ["scopeId"],
-    },
+  .superRefine((data, ctx) => {
+    if (data.scopeType === "global") {
+      if (data.scopeId != null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["scopeId"],
+          message: "Global scope takes no target.",
+        });
+      }
+      return;
+    }
+    if (!data.scopeId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["scopeId"],
+        message: "scopeId is required for non-global scopes.",
+      });
+      return;
+    }
+    const valid =
+      data.scopeType === "zone"
+        ? isValidZoneScope(canonicalZoneName(data.scopeId))
+        : z.string().uuid().safeParse(data.scopeId).success;
+    if (!valid) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["scopeId"],
+        message:
+          data.scopeType === "zone"
+            ? "A zone target must be a zone name, e.g. example.com."
+            : `The ${data.scopeType} target must be an id.`,
+      });
+    }
+  })
+  .transform((data) =>
+    data.scopeType === "zone" && data.scopeId
+      ? { ...data, scopeId: canonicalZoneName(data.scopeId) }
+      : data,
   );
 
 export type RoleAssignmentInput = z.infer<typeof roleAssignmentSchema>;

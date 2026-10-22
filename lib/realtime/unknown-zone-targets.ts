@@ -1,11 +1,14 @@
 /**
- * Zone-scoped group mappings whose zone is not served by any backend. Read
- * from the broker's zone cache (no PDNS calls of its own); reports nothing
- * unless every enabled backend's zone list is known.
+ * lib/realtime/unknown-zone-targets.ts
+ *
+ * Zone scopes (IdP group mappings, role assignments) naming a zone no backend
+ * serves. Read from the broker's zone cache (no PDNS calls of its own);
+ * reports nothing unless every enabled backend's zone list is known, so an
+ * unreachable backend never produces a false warning.
  */
 
 import "server-only";
-import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
+import { ensureBackendsObserved } from "./zone-poller";
 import { readCachedZones } from "@/lib/pdns/zone-state-cache";
 import { unknownZoneTargets, type GroupMappingRow } from "@/lib/validators/group-mappings";
 

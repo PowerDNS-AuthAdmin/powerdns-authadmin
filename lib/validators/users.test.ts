@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MIN_PASSWORD_LENGTH, signupSchema } from "./users";
+import { MIN_PASSWORD_LENGTH, roleAssignmentSchema, signupSchema } from "./users";
 
 const validPassword = "a".repeat(MIN_PASSWORD_LENGTH);
 
@@ -55,5 +55,42 @@ describe("signupSchema", () => {
       name: "x".repeat(121),
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("roleAssignmentSchema", () => {
+  const roleId = "4f2c7e9a-1b3d-4c5e-8f60-7a8b9c0d1e2f";
+  const teamId = "0b1c2d3e-4f50-4617-8293-a4b5c6d7e8f9";
+
+  it("accepts a zone scope and stores the canonical name", () => {
+    const parsed = roleAssignmentSchema.parse({
+      roleId,
+      scopeType: "zone",
+      scopeId: " Example.COM ",
+    });
+    expect(parsed.scopeId).toBe("example.com.");
+  });
+
+  it("rejects a zone target that is not a zone name", () => {
+    expect(
+      roleAssignmentSchema.safeParse({ roleId, scopeType: "zone", scopeId: "not a zone" }).success,
+    ).toBe(false);
+  });
+
+  it("still requires an id for team and server scopes", () => {
+    expect(
+      roleAssignmentSchema.safeParse({ roleId, scopeType: "team", scopeId: teamId }).success,
+    ).toBe(true);
+    expect(
+      roleAssignmentSchema.safeParse({ roleId, scopeType: "team", scopeId: "noc" }).success,
+    ).toBe(false);
+    expect(roleAssignmentSchema.safeParse({ roleId, scopeType: "server" }).success).toBe(false);
+  });
+
+  it("takes no target at global scope", () => {
+    expect(roleAssignmentSchema.safeParse({ roleId, scopeType: "global" }).success).toBe(true);
+    expect(
+      roleAssignmentSchema.safeParse({ roleId, scopeType: "global", scopeId: teamId }).success,
+    ).toBe(false);
   });
 });
