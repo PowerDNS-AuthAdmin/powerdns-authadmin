@@ -47,16 +47,14 @@ export interface ZoneSyncMember {
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
     const { zoneId } = await context.params;
     const zone = normalizeZoneId(decodeURIComponent(zoneId));
     const slug = new URL(request.url).searchParams.get("serverSlug");
     const server = slug ? await findPdnsServerBySlug(slug) : await findDefaultPdnsServer();
     if (server?.disabledAt !== null)
       throw new ValidationError("Unknown or disabled PowerDNS backend.");
-    const allowed = canActOnZone({
-      hasGlobalPermission: globalPermissions.has("zone.read"),
-      grants: zoneGrants,
+    const allowed = canActOnZone(auth, {
       serverId: server.id,
       zoneName: zone,
       permission: "zone.read",

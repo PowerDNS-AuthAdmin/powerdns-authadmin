@@ -43,7 +43,8 @@ interface RouteContext {
 
 export async function PUT(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { user: actor, globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
+    const { user: actor } = auth;
     await requireCsrf(request);
 
     const { zoneId, id: rawId } = await context.params;
@@ -69,15 +70,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
     }
 
     const selected = await resolveServer(body.serverSlug);
-    if (
-      !canActOnZone({
-        hasGlobalPermission: globalPermissions.has("dnssec.configure"),
-        grants: zoneGrants,
-        serverId: selected.id,
-        zoneName,
-        permission: "dnssec.configure",
-      })
-    ) {
+    if (!canActOnZone(auth, { serverId: selected.id, zoneName, permission: "dnssec.configure" })) {
       throw new ForbiddenError("Missing dnssec.configure for this zone.");
     }
 
@@ -139,7 +132,8 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
 
 export async function DELETE(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { user: actor, globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
+    const { user: actor } = auth;
     await requireCsrf(request);
 
     const { zoneId, id: rawId } = await context.params;
@@ -152,15 +146,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     const url = new URL(request.url);
     const { serverSlug } = parseSearchParams(deleteQuerySchema, url);
     const selected = await resolveServer(serverSlug);
-    if (
-      !canActOnZone({
-        hasGlobalPermission: globalPermissions.has("dnssec.configure"),
-        grants: zoneGrants,
-        serverId: selected.id,
-        zoneName,
-        permission: "dnssec.configure",
-      })
-    ) {
+    if (!canActOnZone(auth, { serverId: selected.id, zoneName, permission: "dnssec.configure" })) {
       throw new ForbiddenError("Missing dnssec.configure for this zone.");
     }
 

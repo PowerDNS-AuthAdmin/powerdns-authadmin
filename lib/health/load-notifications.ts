@@ -10,40 +10,44 @@
 import "server-only";
 import type { AuthenticatedRequest } from "@/lib/auth/get-current-user";
 import { listActiveAdvisories } from "@/lib/db/repositories/backend-advisories";
-import { canActOnZone } from "@/lib/rbac/zone-permissions";
+import { canActOnZone, holdsOnSomeZone } from "@/lib/rbac/zone-permissions";
 import {
   visibleNotifications,
   type AppNotification,
   type NotificationViewer,
 } from "@/lib/health/notifications";
 
-export function notificationViewerFor(auth: AuthenticatedRequest): NotificationViewer {
-  const globalZoneRead = auth.globalPermissions.has("zone.read");
+/**
+ * Backend health rows are not per-backend filtered, so they follow the
+ * Servers page guard: a GLOBAL `server.read`. A type-level
+ * `ability.can("read", "Server")` would also be true for a role scoped to one
+ * server and show it every backend's advisories. Monitoring rows go through
+ * `canActOnZone`, so a zone grant or a role scoped to the zone (ADR-0024)
+ * sees that zone's findings and no other.
+ */
+export function notificationViewerFor(
+  auth: Pick<AuthenticatedRequest, "globalPermissions" | "zoneGrants" | "zoneScopedPermissions">,
+): NotificationViewer {
   return {
-    canReadServers: auth.ability.can("read", "Server"),
-    globalZoneRead,
+    canReadServers: auth.globalPermissions.has("server.read"),
+    globalZoneRead: auth.globalPermissions.has("zone.read"),
     canReadZone: (serverId, zone) =>
-      canActOnZone({
-        hasGlobalPermission: globalZoneRead,
-        grants: auth.zoneGrants,
-        serverId,
-        zoneName: zone,
-        permission: "zone.read",
-      }),
+      canActOnZone(auth, { serverId, zoneName: zone, permission: "zone.read" }),
   };
 }
 
 /**
- * Could this user see any notification at all? Backend readers, zone readers,
- * and users whose only zone access is a zone grant: grants are not part of
- * the CASL ability, so `ability.can("read", "Zone")` alone would hide the
- * bell from exactly the users per-row filtering exists for.
+ * Could this user see any notification at all? Backend readers, global zone
+ * readers, and users holding `zone.read` on some zone through a grant or a
+ * zone-scoped role - the users per-row filtering exists for.
  */
-export function hasNotificationAudience(auth: AuthenticatedRequest): boolean {
+export function hasNotificationAudience(
+  auth: Pick<AuthenticatedRequest, "globalPermissions" | "zoneGrants" | "zoneScopedPermissions">,
+): boolean {
   return (
-    auth.ability.can("read", "Server") ||
-    auth.ability.can("read", "Zone") ||
-    auth.zoneGrants.some((g) => g.permissions.includes("zone.read"))
+    auth.globalPermissions.has("server.read") ||
+    auth.globalPermissions.has("zone.read") ||
+    holdsOnSomeZone(auth, (p) => p === "zone.read")
   );
 }
 

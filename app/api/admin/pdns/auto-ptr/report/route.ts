@@ -21,7 +21,7 @@ const scanAt = (scan: { at?: number }): number => scan.at ?? Date.now();
 export async function GET(request: Request): Promise<Response> {
   try {
     requireFeature("reverseDns");
-    const { globalPermissions, zoneGrants } = await requireUser({ can: "record.read" });
+    const auth = await requireUser({ can: "record.read" });
     const refresh = new URL(request.url).searchParams.get("refresh") === "1";
     const scan = await getFleetScan({ refresh });
     const bySlug = new Map(scan.servers.map((s) => [s.slug, s]));
@@ -29,13 +29,7 @@ export async function GET(request: Request): Promise<Response> {
       const server = bySlug.get(serverSlug);
       if (!server) return false;
       const can = (permission: string): boolean =>
-        canActOnZone({
-          hasGlobalPermission: globalPermissions.has(permission),
-          grants: zoneGrants,
-          serverId: server.id,
-          zoneName: zone,
-          permission,
-        });
+        canActOnZone(auth, { serverId: server.id, zoneName: zone, permission });
       return can("record.create") || can("record.update");
     };
     const { rows, stats } = reconcilePtrs({

@@ -36,7 +36,7 @@ import {
   findPdnsServerBySlug,
   listActivePdnsServers,
 } from "@/lib/db/repositories/pdns-servers";
-import { canActOnZone } from "@/lib/rbac/zone-permissions";
+import { canActOnZone, holdsOnSomeZone } from "@/lib/rbac/zone-permissions";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { redact } from "@/lib/errors/redact";
@@ -188,13 +188,7 @@ export function buildMcpServer(ctx: McpContext): McpServer {
   );
 
   const zoneCan = (serverId: string, zone: string, permission: string): boolean =>
-    canActOnZone({
-      hasGlobalPermission: auth.globalPermissions.has(permission),
-      grants: auth.zoneGrants,
-      serverId,
-      zoneName: zone,
-      permission,
-    });
+    canActOnZone(auth, { serverId, zoneName: zone, permission });
 
   async function resolveServer(slug: string | undefined): Promise<PdnsServer> {
     const selected = slug ? await findPdnsServerBySlug(slug) : await findDefaultPdnsServer();
@@ -621,7 +615,7 @@ export function buildMcpServer(ctx: McpContext): McpServer {
 
   const canWriteSomewhere =
     WRITE_PERMISSIONS.some((p) => auth.globalPermissions.has(p)) ||
-    auth.zoneGrants.some((g) => g.permissions.some((p) => p.startsWith("record.")));
+    holdsOnSomeZone(auth, (p) => p.startsWith("record."));
   if (!canWriteSomewhere) return server;
 
   const recordValue = z.object({

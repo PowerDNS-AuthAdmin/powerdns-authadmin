@@ -84,8 +84,8 @@ Notes worth knowing:
 - **The gate is server-side.** Every write lands on the same RRset route
   whichever panel sent it, and the route classifies each change by its
   normalized name - a hand-rolled `PATCH` gets the same answer the UI does.
-- **These work as per-zone grants too**, so you can allow `soa.update` on one
-  customer's zone without granting it fleet-wide.
+- **These work as per-zone grants and in zone-scoped roles too**, so you can
+  allow `soa.update` on one customer's zone without granting it fleet-wide.
 
 [ADR-0023](./adr/0023-zone-authority-permissions.md) records why the SOA is
 modelled as its own resource while the apex NS stays a record with an extra
@@ -103,20 +103,80 @@ Records: yes. SOA, apex NS, zone settings: not shown, not writable.
 
 A role assignment can apply everywhere or be narrowed:
 
-| Scope              | Applies to                                                              |
-| ------------------ | ----------------------------------------------------------------------- |
-| `global`           | The whole app.                                                          |
-| `team:<slug>`      | Resources owned by the named team.                                      |
-| `zone:<zone-name>` | A single zone (canonical FQDN with trailing dot, e.g. `corp.example.`). |
-| `server:<slug>`    | Every zone on one backend.                                              |
+| Scope              | Applies to                                                                                                                       |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `global`           | The whole app.                                                                                                                   |
+| `team:<slug>`      | The named team itself (view / update / manage members). Does **not** open any zone - see below.                                  |
+| `zone:<zone-name>` | Every zone with that name, on any backend (canonical FQDN with trailing dot, e.g. `corp.example.`). Zone-bound permissions only. |
+| `server:<slug>`    | The backend object itself. Does **not** open the zones on it - see below.                                                        |
 
-Example: assign **Zone Editor** scoped to `zone:corp.example.` and the user can
-edit records in that one zone and nothing else.
+Example: map an IdP group to **Zone Editor** scoped to `zone:corp.example.` and its
+members can open `corp.example.` from the Zones list and edit its records - and
+nothing else. The Zones list shows them only that zone; every other zone, and the
+admin pages, refuse them.
+
+### What a zone scope grants
+
+Effective access to a zone is the union of three sources, checked by one helper
+(`canActOnZone` in `lib/rbac/zone-permissions.ts`) on the zones list, the zone page
+and its tabs, every record / SOA / settings / DNSSEC / metadata write, zone
+export, the realtime stream, MCP tools and DynDNS:
+
+1. a role assigned at `global` scope;
+2. a [per-zone grant](#per-zone-grants) for that exact (server, zone);
+3. a role scoped to `zone:<that zone's name>`.
+
+A zone-scoped role contributes only its **zone-bound** permissions: `zone.*`
+(except `zone.create`), `record.*`, `soa.*`, `dnssec.*` and `metadata.*`. Anything
+else the role carries - `user.read`, `server.read`, `settings.read`, `tsig.*`,
+`token.*` - is ignored at zone scope, so a Read Only role scoped to one zone does
+not let the user read users, servers or settings. `zone.create` always needs a
+global assignment: a zone that doesn't exist yet can't be inside a zone scope.
+The role's own limits still apply - a zone-scoped Zone Editor gets no SOA tab, no
+apex NS writes and no Zone settings tab, exactly like a global one.
+
+The Zones list shows a zone-scoped zone when the role carries `zone.read`; the SOA,
+Zone settings, DNSSEC and Metadata tabs follow `soa.read`, `zone.settings.read`,
+`dnssec.read` and `metadata.read` as usual.
+
+**A zone scope names a zone, not a backend.** `zone:corp.example.` matches a zone
+called `corp.example.` on every backend the app manages - all peers of a cluster,
+and also an unrelated primary that happens to serve a zone with the same name (for
+example an internal and a public copy). The name is compared case-insensitively
+and with or without the trailing dot. If you need access pinned to one backend,
+use a per-zone grant instead; it carries a server.
+[ADR-0024](./adr/0024-zone-scoped-roles-grant-zone-access.md) records the trade-off.
+
+### Per-zone grants
+
+A `zone_grants` row (Admin → Users / Teams → _Zone grants_) gives a user or a team a
+list of permissions on exactly one (server, zone), without a role. Grants are the
+way to pin access to one backend, and the way to give a whole team zone access.
+
+### Known limitations
+
+- **Admin → Users can't issue a zone-scoped assignment yet.** The role-assignment
+  route refuses `zone` scope (on Postgres the scope column holds UUIDs only), so a
+  zone scope today comes from an **IdP group mapping**. To give one local user one
+  zone from the admin UI, use a per-zone grant.
+- **Team- and server-scoped roles don't open zones.** Zones live in PowerDNS and
+  carry neither a team nor a server binding the authorizer can match, so a
+  `team:` or `server:` assignment never grants zone or record access. Use team
+  zone grants for "this team edits these zones".
+- **Team- and server-scoped IdP mappings don't resolve.** A mapping saved from
+  the Authentication admin pages stores the team's or server's slug as the scope
+  id, and group sync passes it through verbatim, while the authorizer compares
+  team and server scopes against UUIDs - so a mapping like
+  `noc → team-owner @ team:noc` grants nothing at all, not even the team itself.
+  (Mappings applied from provisioning YAML are resolved to UUIDs at apply time.)
+  Global and zone mappings are unaffected. Not fixed yet.
 
 List pages follow the same rule. A **Team Owner** scoped to `team:<slug>` can open
 **Admin → Teams**, but the list only shows the teams their assignments cover.
 Creating a team still takes a global `team.create`, because a new team has no
-scope to match yet.
+scope to match yet. The navigation menu shows an entry only when its page would
+admit you: a user whose only access is zone-scoped sees **Zones** and nothing
+admin-wide.
 
 ## Assigning roles
 

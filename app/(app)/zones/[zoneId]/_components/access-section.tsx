@@ -67,7 +67,8 @@ export async function AccessSection({ serverId, zoneName }: Props) {
         </h2>
         <p className="mb-3 text-xs text-[color:var(--color-fg-muted)]">
           Every role whose permission set includes zone-scope actions. Operators with these roles
-          assigned (globally, or at a matching team / server scope) can act on this zone.
+          assigned globally, or scoped to this zone (including through an IdP group mapping), can
+          act on this zone.
         </p>
         {rolesWithZoneAccess.length === 0 ? (
           <p className="text-xs text-[color:var(--color-fg-muted)] italic">

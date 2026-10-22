@@ -36,7 +36,8 @@ interface RouteContext {
 
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { user, globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
+    const { user } = auth;
     await requireCsrf(request);
     const { zoneId: zoneParam } = await context.params;
     const zoneName = normalizeZoneId(decodeURIComponent(zoneParam));
@@ -59,13 +60,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     }
 
     const canOnZone = (serverId: string, zone: string, permission: string): boolean =>
-      canActOnZone({
-        hasGlobalPermission: globalPermissions.has(permission),
-        grants: zoneGrants,
-        serverId,
-        zoneName: zone,
-        permission,
-      });
+      canActOnZone(auth, { serverId, zoneName: zone, permission });
 
     // Same gate as the PATCH: you may only plan what you could apply.
     const addressChanges = input.changes.filter((c) => isAddressType(c.type));

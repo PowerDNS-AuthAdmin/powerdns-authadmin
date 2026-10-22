@@ -87,7 +87,8 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
 
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { user: actor, globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
+    const { user: actor } = auth;
     await requireCsrf(request);
 
     const { zoneId } = await context.params;
@@ -106,15 +107,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     }
 
     const selected = await resolveServer(body.serverSlug);
-    if (
-      !canActOnZone({
-        hasGlobalPermission: globalPermissions.has("dnssec.configure"),
-        grants: zoneGrants,
-        serverId: selected.id,
-        zoneName,
-        permission: "dnssec.configure",
-      })
-    ) {
+    if (!canActOnZone(auth, { serverId: selected.id, zoneName, permission: "dnssec.configure" })) {
       throw new ForbiddenError("Missing dnssec.configure for this zone.");
     }
 

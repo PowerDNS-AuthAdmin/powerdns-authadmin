@@ -31,7 +31,7 @@ interface RouteContext {
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
     const { zoneId } = await context.params;
     const url = new URL(request.url);
     let parsed;
@@ -55,15 +55,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
 
     const zoneName = decodeURIComponent(zoneId);
 
-    if (
-      !canActOnZone({
-        hasGlobalPermission: globalPermissions.has("zone.read"),
-        grants: zoneGrants,
-        serverId: selected.id,
-        zoneName,
-        permission: "zone.read",
-      })
-    ) {
+    if (!canActOnZone(auth, { serverId: selected.id, zoneName, permission: "zone.read" })) {
       throw new ForbiddenError("Missing zone.read for this zone.");
     }
 

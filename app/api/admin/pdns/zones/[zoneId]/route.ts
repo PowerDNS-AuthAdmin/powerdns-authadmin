@@ -39,7 +39,8 @@ interface RouteContext {
 
 export async function DELETE(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { user: actor, globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
+    const { user: actor } = auth;
     await requireCsrf(request);
 
     const { zoneId } = await context.params;
@@ -68,15 +69,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     // the audit resource id must not vary with the casing the URL carried.
     const zoneName = canonicalZoneName(decodeURIComponent(zoneId));
 
-    if (
-      !canActOnZone({
-        hasGlobalPermission: globalPermissions.has("zone.delete"),
-        grants: zoneGrants,
-        serverId: selected.id,
-        zoneName,
-        permission: "zone.delete",
-      })
-    ) {
+    if (!canActOnZone(auth, { serverId: selected.id, zoneName, permission: "zone.delete" })) {
       throw new ForbiddenError("Missing zone.delete for this zone.");
     }
 

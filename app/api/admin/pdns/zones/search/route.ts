@@ -28,7 +28,7 @@ export interface ZoneSearchHit {
 
 export async function GET(request: Request): Promise<Response> {
   try {
-    const { globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
     const url = new URL(request.url);
     const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
     if (q.length > 255) throw new ValidationError("Query too long.");
@@ -47,13 +47,7 @@ export async function GET(request: Request): Promise<Response> {
       return clusterSlugs.get(clusterId) ?? null;
     };
     const can = (permission: string, serverId: string, zone: string): boolean =>
-      canActOnZone({
-        hasGlobalPermission: globalPermissions.has(permission),
-        grants: zoneGrants,
-        serverId,
-        zoneName: zone,
-        permission,
-      });
+      canActOnZone(auth, { serverId, zoneName: zone, permission });
 
     const totals = { public: 0, internal: 0 };
     const hits: ZoneSearchHit[] = [];

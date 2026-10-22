@@ -44,6 +44,7 @@ import {
   reverseDnsBadge,
   zoneMonitorBadge,
 } from "@/lib/monitoring/zone-monitor";
+import { navAccessOf } from "@/lib/rbac/nav-access";
 
 /**
  * Paths a non-compliant user (forced-MFA-not-enrolled, or flagged
@@ -110,21 +111,27 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   const appSettings = await getAppSettings();
 
-  const canReadZones = current.ability.can("read", "Zone");
-  const canReadServers = current.ability.can("read", "Server");
-  const canReadTsig = current.ability.can("read", "Tsig");
-  const canManageAutoprimary = current.ability.can("manage", "Autoprimary");
-  const canReadUsers = current.ability.can("read", "User");
-  const canReadRoles = current.ability.can("read", "Role");
-  const canReadTeams = current.ability.can("read", "Team");
-  // The three log pages require GLOBAL audit.read (requireUserForPage without
-  // an instance), so the Logs section uses the same test: a type-level
-  // ability check would also pass for a team-scoped role and show links that
-  // answer 403.
-  const canReadLogs = current.globalPermissions.has("audit.read");
-  const canReadSettings = current.ability.can("read", "Settings");
-  const canReadAuth = current.ability.can("read", "Auth");
-  const canUseTemplates = current.ability.can("use", "Template");
+  // Each flag mirrors the guard of the page it links to (`navAccessOf`), so a
+  // menu item never leads to a refusal. A type-level `ability.can(...)` would
+  // be true for any scoped rule and offer pages that only admit global grants.
+  const navAccess = navAccessOf({
+    globalPermissions: current.globalPermissions,
+    zoneGrants: current.zoneGrants,
+    zoneScopedPermissions: current.zoneScopedPermissions,
+    canReadAnyTeam: current.ability.can("read", "Team"),
+    features: optionalFeatures,
+  });
+  const canReadZones = navAccess.zones;
+  const canReadServers = navAccess.servers;
+  const canReadTsig = navAccess.tsigKeys;
+  const canManageAutoprimary = navAccess.autoprimaries;
+  const canReadUsers = navAccess.users;
+  const canReadRoles = navAccess.roles;
+  const canReadTeams = navAccess.teams;
+  const canReadLogs = navAccess.audit;
+  const canReadSettings = navAccess.settings;
+  const canReadAuth = navAccess.authentication;
+  const canUseTemplates = navAccess.zoneTemplates;
 
   // Zone monitoring runs in the background from the first authenticated render.
   ensureZoneMonitorRunning();
@@ -145,17 +152,17 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // at least one of its children. The three logs (Change, Request, Audit) sit
   // together under Logs.
   const hasInfrastructure =
-    canReadServers || canReadTsig || canManageAutoprimary || canUseTemplates || canReadZones;
+    canReadServers ||
+    canReadTsig ||
+    canManageAutoprimary ||
+    canUseTemplates ||
+    navAccess.importExport;
   const hasAccess = canReadUsers || canReadRoles || canReadTeams || canReadAuth;
   const hasSystem = canReadSettings;
-  // The two fleet-wide zone pages need global read (they list every zone), so
-  // the links only show to users who could open them.
-  const globalRecordRead = current.globalPermissions.has("record.read");
-  const globalZoneRead = current.globalPermissions.has("zone.read");
-  // Both pages are opt-in (REVERSE_DNS_ENABLED / ZONE_MONITOR_ENABLED): when a
-  // feature is off its sidebar entry does not exist.
-  const showReverseDns = optionalFeatures.reverseDns && globalRecordRead;
-  const showMonitoring = optionalFeatures.zoneMonitoring && globalZoneRead;
+  // The two fleet-wide zone pages need global read (they list every zone) and
+  // are opt-in (REVERSE_DNS_ENABLED / ZONE_MONITOR_ENABLED) - `navAccessOf`.
+  const showReverseDns = navAccess.reverseDns;
+  const showMonitoring = navAccess.zoneMonitoring;
   const reverseBadge = showReverseDns ? reverseDnsBadge() : 0;
   const monitorBadge = showMonitoring ? zoneMonitorBadge() : { problems: 0, tone: "warn" as const };
 
@@ -215,13 +222,13 @@ export default async function AppLayout({ children }: Readonly<{ children: React
                 ) : null}
               </>
             ) : null}
-            {canUseTemplates || canReadZones ? (
+            {canUseTemplates || navAccess.importExport ? (
               <>
                 <NavGroupLabel label="Zones" />
                 {canUseTemplates ? (
                   <NavLink nested href="/admin/zone-templates" label="Zone templates" />
                 ) : null}
-                {canReadZones ? (
+                {navAccess.importExport ? (
                   <NavLink nested href="/admin/import-export" label="Import / Export" />
                 ) : null}
               </>

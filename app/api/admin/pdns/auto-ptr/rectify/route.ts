@@ -54,7 +54,8 @@ const canonicalName = (name: string): string => {
 export async function POST(request: Request): Promise<Response> {
   try {
     requireFeature("reverseDns");
-    const { user, globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
+    const { user } = auth;
     await requireCsrf(request);
     let input;
     try {
@@ -99,13 +100,7 @@ export async function POST(request: Request): Promise<Response> {
       forwardZone: "",
       changes,
       canOnZone: (serverId, zone, permission) =>
-        canActOnZone({
-          hasGlobalPermission: globalPermissions.has(permission),
-          grants: zoneGrants,
-          serverId,
-          zoneName: zone,
-          permission,
-        }),
+        canActOnZone(auth, { serverId, zoneName: zone, permission }),
       dryRun: false,
       actor: { type: "user", id: user.id },
       request: getRequestContext(await headers()),

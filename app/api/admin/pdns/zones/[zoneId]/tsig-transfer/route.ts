@@ -44,7 +44,8 @@ interface RouteContext {
 
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { user: actor, globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
+    const { user: actor } = auth;
     await requireCsrf(request);
 
     const { zoneId } = await context.params;
@@ -67,15 +68,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       throw new NotFoundError("No PDNS backend selected.");
     }
 
-    if (
-      !canActOnZone({
-        hasGlobalPermission: globalPermissions.has("metadata.write"),
-        grants: zoneGrants,
-        serverId: primary.id,
-        zoneName,
-        permission: "metadata.write",
-      })
-    ) {
+    if (!canActOnZone(auth, { serverId: primary.id, zoneName, permission: "metadata.write" })) {
       throw new ForbiddenError("Missing metadata.write for this zone.");
     }
 

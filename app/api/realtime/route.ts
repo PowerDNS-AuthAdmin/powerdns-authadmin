@@ -20,6 +20,7 @@
 
 import { requireUser } from "@/lib/auth/require-user";
 import { canonicalZoneName } from "@/lib/dns/zone-name";
+import { hasZoneScopedPermission } from "@/lib/rbac/zone-permissions";
 import { subscribeAll, type RealtimeEvent } from "@/lib/realtime/event-bus";
 import { registerPollerSubscriber } from "@/lib/realtime/zone-poller";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
@@ -42,7 +43,8 @@ const MAX_CONNS_PER_USER = 8;
 
 export async function GET(request: Request): Promise<Response> {
   try {
-    const { user, globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
+    const { user, globalPermissions, zoneGrants } = auth;
     const globalZoneRead = globalPermissions.has("zone.read");
     // The stream is per-user and per-event filtered, so even a user with
     // no read permissions can hold an open connection - they just receive
@@ -78,6 +80,10 @@ export async function GET(request: Request): Promise<Response> {
         if (slug) grantKeys.add(`${slug}:${canonicalZoneName(g.zoneName)}`);
       }
     }
+    // A zone-scoped role names a zone on every backend, so its events match
+    // by name alone - the zones a scoped role lets the user read.
+    const scopedZoneRead = (zone: string): boolean =>
+      hasZoneScopedPermission(auth, zone, "zone.read");
 
     conns.set(user.id, active + 1);
 
@@ -137,7 +143,8 @@ export async function GET(request: Request): Promise<Response> {
             if (
               !globalZoneRead &&
               (event.type === "zone.updated" || event.type === "zone.sync.changed") &&
-              !grantKeys.has(`${event.serverSlug}:${canonicalZoneName(event.zone)}`)
+              !grantKeys.has(`${event.serverSlug}:${canonicalZoneName(event.zone)}`) &&
+              !scopedZoneRead(event.zone)
             ) {
               return;
             }
