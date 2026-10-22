@@ -6,11 +6,15 @@
  * server can be authoritative for some zones and a mirror for others, so
  * read-only-ness is a per-zone property:
  *
- *   - Master / Primary / Native / Producer → authoritative, content editable.
+ *   - Master / Primary / Native            → authoritative, content editable.
  *   - Slave / Secondary / Consumer         → AXFR mirror: records + DNSSEC are
  *                                            owned by the primary and
  *                                            overwritten on the next transfer,
  *                                            so editing them here is futile.
+ *   - Producer                             → catalog zone: PowerDNS generates
+ *                                            its member records from the zones
+ *                                            that name it, so a hand edit is
+ *                                            meaningless at best (#209).
  *
  * Replication CONFIG (the zone's `masters`, transfer metadata) and removing
  * the mirror are NOT gated here - those are legitimate on a mirror.
@@ -20,7 +24,7 @@
  */
 
 import { ConflictError } from "@/lib/errors";
-import { isMirrorKind } from "./zone-kinds";
+import { catalogRole, isMirrorKind } from "./zone-kinds";
 
 /** True for AXFR-mirror kinds whose records/DNSSEC come from the primary. */
 export function isReadOnlyZoneKind(kind: string): boolean {
@@ -54,9 +58,10 @@ export interface ZoneOps {
  */
 export function zoneCapabilities(kind: string): ZoneOps {
   const mirror = isReadOnlyZoneKind(kind);
+  const producer = catalogRole(kind) === "producer";
   return {
-    rrsets: !mirror,
-    dnssec: !mirror,
+    rrsets: !mirror && !producer,
+    dnssec: !mirror && !producer,
     metadata: true,
     masters: mirror,
     axfrRetrieve: mirror,
@@ -64,8 +69,14 @@ export function zoneCapabilities(kind: string): ZoneOps {
   };
 }
 
-/** Throw (409) when a zone-content write targets an AXFR-mirror zone. */
+/** Throw (409) when a zone-content write targets an AXFR-mirror or catalog Producer zone. */
 export function assertEditableZoneKind(kind: string): void {
+  if (catalogRole(kind) === "producer") {
+    throw new ConflictError(
+      "This is a catalog Producer zone - PowerDNS generates its records from the zones that " +
+        "name it as their catalog, so they can't be edited here. Change a zone's catalog in its settings instead.",
+    );
+  }
   if (isReadOnlyZoneKind(kind)) {
     throw new ConflictError(
       `This is a ${kind} zone - its records and DNSSEC are managed by its primary over AXFR ` +

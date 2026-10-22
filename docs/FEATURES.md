@@ -475,8 +475,9 @@ the audit trail behave identically whichever door the user came through.
 - **What.** A bell in the top header surfaces active advisories computed every poll cycle:
   unreachable backends, API-key rejections (401/403), replication drift past a threshold, TSIG
   keys missing on a secondary, mirror zones without `masters`, daemon-config drift between
-  peers. Zone monitoring findings (§ 20) land in the same bell under their own `monitor.`
-  code namespace, visible to users who can read zones. Acknowledged advisories disappear
+  peers, member zones naming a catalog zone that doesn't exist, and a `default-catalog-zone`
+  that is missing or isn't a Producer zone (§ 4.1.2). Zone monitoring findings (§ 20) land in
+  the same bell under their own `monitor.` code namespace, visible to users who can read zones. Acknowledged advisories disappear
   automatically when the underlying condition resolves. Same signal feeds the per-row red/warn
   tints on [PowerDNS servers](#31-multi-backend-management) - bell and table never disagree.
 - **Where.** `lib/health/evaluator.ts`, `components/domain/health-bell.tsx`,
@@ -565,6 +566,26 @@ the audit trail behave identically whichever door the user came through.
   <source media="(prefers-color-scheme: dark)" srcset="../screenshots/dark/zones-list.png" />
   <img src="../screenshots/light/zones-list.png" alt="Amalgamated zones list" width="720" />
 </picture>
+
+### 4.1.2 Catalog zones as system zones
+
+- **What.** Catalog zones (RFC 9432, kinds `Producer` and `Consumer`) are provisioning plumbing,
+  not content, so the zones list keeps them out of **Forward / Reverse / All** and lists them on a
+  **System** tab (shown only when the fleet has one), with a `catalog · producer|consumer` badge
+  and a **Members** column. Their page explains what they are and lists their members; a
+  Producer zone's records and DNSSEC are read-only, since PowerDNS generates them.
+- **Deleting one.** A Producer zone with members answers `409 catalog-has-members` unless the
+  caller passes `?confirmCatalog=<zone>`; the danger zone warns with the member count, asks for
+  `yes, delete catalog <zone>` and says that recreating a Producer of the same name restores the
+  membership. The audit entry records the kind and member count.
+- **Membership.** A zone's **Catalog** is set on its Zone settings tab and in the create form
+  (defaulting to the backend's `default-catalog-zone`), from the backend's Producer zones; the
+  routes refuse a name that isn't one. The zone header shows `in <catalog>`. Producer zones can be
+  created from the app, so a deleted catalog can be restored there.
+- **Elsewhere.** Search, the record wizard, Zone Monitoring and Reverse DNS skip system zones; the
+  health bell reports a missing catalog and an unresolved `default-catalog-zone` (§ 3.8).
+- **Where.** `lib/pdns/zone-kinds.ts` (`isSystemKind`, `catalogRole`), `lib/pdns/catalog.ts`,
+  `app/(app)/zones/[zoneId]/_components/catalog-zone-banner.tsx`. Requires PowerDNS 4.7+.
 
 ### 4.2 Per-RRset editor with diff-before-apply
 

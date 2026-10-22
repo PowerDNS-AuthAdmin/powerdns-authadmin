@@ -25,6 +25,8 @@ import { Switch } from "@/components/ui/switch";
 import { SelectMenu, type SelectOption } from "@/components/ui/select-menu";
 import { Field as SharedField } from "@/components/ui/form";
 import { type ZoneHorizon } from "@/lib/dns/zone-horizon";
+import { displayZoneName } from "@/lib/dns/zone-name";
+import { isSystemKind } from "@/lib/pdns/zone-kinds";
 
 interface Props {
   zoneIdEncoded: string;
@@ -35,9 +37,16 @@ interface Props {
     soa_edit?: string;
     soa_edit_api?: string;
     api_rectify?: boolean;
+    /** Catalog membership (canonical), "" when the zone is in none. */
+    catalog?: string;
     /** App-side, not from PDNS. `public` unless the operator classified it. */
     horizon: ZoneHorizon;
   };
+  /**
+   * The backend's Producer zones a member can join (#209). `null` hides the
+   * Catalog field - the backend predates catalog zones, or this zone is one.
+   */
+  catalogChoices: readonly string[] | null;
   canEdit: boolean;
 }
 
@@ -83,7 +92,13 @@ const SOA_EDIT_API_OPTIONS: ReadonlyArray<SelectOption<string>> = [
   })),
 ];
 
-export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit }: Props) {
+export function ZoneSettingsPanel({
+  zoneIdEncoded,
+  serverSlug,
+  initial,
+  catalogChoices,
+  canEdit,
+}: Props) {
   const router = useRouter();
   const { toast } = useDialog();
 
@@ -94,6 +109,10 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
   const [soaEdit, setSoaEdit] = useState(initial.soa_edit ?? "");
   const [soaEditApi, setSoaEditApi] = useState(initial.soa_edit_api ?? "");
   const [apiRectify, setApiRectify] = useState(initial.api_rectify ?? false);
+  const [catalog, setCatalog] = useState(initial.catalog ?? "");
+  // A catalog zone's kind is fixed here: the picker only offers content kinds,
+  // and switching a Producer to Native would drop the catalog silently.
+  const systemZone = isSystemKind(initial.kind);
   const [internal, setInternal] = useState(initial.horizon === "internal");
   const [saving, setSaving] = useState(false);
 
@@ -104,6 +123,7 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
     soaEdit !== (initial.soa_edit ?? "") ||
     soaEditApi !== (initial.soa_edit_api ?? "") ||
     apiRectify !== (initial.api_rectify ?? false) ||
+    catalog !== (initial.catalog ?? "") ||
     internal !== initialInternal;
   useUnsavedChangesGuard(dirty);
 
@@ -117,6 +137,7 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
         soa_edit?: string;
         soa_edit_api?: string;
         api_rectify?: boolean;
+        catalog?: string;
         horizon?: ZoneHorizon;
       }
       const patch: Patch = { serverSlug };
@@ -133,6 +154,7 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
       if (soaEdit !== (initial.soa_edit ?? "")) patch.soa_edit = soaEdit;
       if (soaEditApi !== (initial.soa_edit_api ?? "")) patch.soa_edit_api = soaEditApi;
       if (apiRectify !== (initial.api_rectify ?? false)) patch.api_rectify = apiRectify;
+      if (catalog !== (initial.catalog ?? "")) patch.catalog = catalog;
       if (internal !== initialInternal) patch.horizon = internal ? "internal" : "public";
 
       const result = await mutate(`/api/admin/pdns/zones/${zoneIdEncoded}/settings`, {
@@ -170,8 +192,32 @@ export function ZoneSettingsPanel({ zoneIdEncoded, serverSlug, initial, canEdit 
           label="Zone Type"
           help="Native: no replication. Primary: sends AXFR. Secondary: pulls AXFR."
         >
-          <SelectMenu value={kind} options={ZONE_KINDS} onChange={setKind} disabled={!canEdit} />
+          {systemZone ? (
+            <p className="py-1 font-mono text-xs">{initial.kind} (catalog zone)</p>
+          ) : (
+            <SelectMenu value={kind} options={ZONE_KINDS} onChange={setKind} disabled={!canEdit} />
+          )}
         </Field>
+
+        {catalogChoices !== null ? (
+          <Field
+            label="Catalog"
+            help="The catalog zone that lists this zone for secondaries. On PowerDNS 4.9 only Primary zones are listed; Native zones are left out."
+          >
+            <SelectMenu
+              value={catalog}
+              options={[
+                { value: "", label: "(none)" },
+                ...[...new Set([...catalogChoices, ...(catalog ? [catalog] : [])])].map((c) => ({
+                  value: c,
+                  label: displayZoneName(c),
+                })),
+              ]}
+              onChange={setCatalog}
+              disabled={!canEdit}
+            />
+          </Field>
+        ) : null}
 
         {kind === "Slave" ? (
           <Field label="Primaries (masters)" help="One IP[:port] per line.">

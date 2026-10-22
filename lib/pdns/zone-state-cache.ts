@@ -28,6 +28,11 @@ export interface CachedZoneSnapshot {
   dnssec: boolean;
   /** AXFR source addresses for a mirror zone - drives derived topology. */
   masters: string[];
+  /**
+   * The catalog this zone is a member of (PDNS 4.7+), canonical; null when it
+   * names none. A Producer zone's members are the zones naming it here.
+   */
+  catalog: string | null;
 }
 
 export interface CachedListEntry {

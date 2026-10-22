@@ -23,6 +23,16 @@ describe("deriveCapabilities", () => {
     expect(caps.autosecondary).toBe(false);
   });
 
+  it("reads default-catalog-zone canonically, and omits it when unset", () => {
+    expect(
+      deriveCapabilities(cfg({ "default-catalog-zone": "Catalog.Example" })).defaultCatalogZone,
+    ).toBe("catalog.example.");
+    expect(
+      deriveCapabilities(cfg({ "default-catalog-zone": "" })).defaultCatalogZone,
+    ).toBeUndefined();
+    expect(deriveCapabilities(cfg({})).defaultCatalogZone).toBeUndefined();
+  });
+
   it("accepts legacy master/slave/superslave aliases", () => {
     const caps = deriveCapabilities(cfg({ master: "yes", slave: "yes", superslave: "yes" }));
     expect(caps.primary).toBe(true);

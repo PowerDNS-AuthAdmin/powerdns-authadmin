@@ -12,6 +12,9 @@ import { listSelectableBackends } from "@/lib/db/repositories/selectable-backend
 import { listAllZoneTemplates } from "@/lib/db/repositories/zone-templates";
 import { listEligibleTsigKeys } from "@/lib/realtime/tsig-eligibility";
 import { ensureBackendsObserved } from "@/lib/realtime/zone-poller";
+import { readCachedZones } from "@/lib/pdns/zone-state-cache";
+import { producerZoneNames } from "@/lib/pdns/catalog";
+import type { PdnsServer } from "@/lib/db/schema";
 import { CreateZoneForm, type BackendOption } from "../_components/create-zone-form";
 
 export const metadata = { title: "Create zone" };
@@ -33,9 +36,8 @@ export default async function NewZonePage({
     listSelectableBackends(),
     listAllZoneTemplates(),
   ]);
-  if (canReadTsig) {
-    await ensureBackendsObserved();
-  }
+  // The zone cache feeds both the TSIG key lists and the catalog choices.
+  await ensureBackendsObserved();
 
   const tsigKeysByBackend = new Map<string, Array<{ name: string; zoneCount: number }>>();
   if (canReadTsig) {
@@ -79,6 +81,7 @@ export default async function NewZonePage({
           primaryIds: b.peers.map((peer) => peer.id),
           secondaries: [],
           tsigKeys: tsigKeysByBackend.get(`cluster:${b.cluster.slug}`) ?? [],
+          catalog: catalogOptionFor(b.representativeServer),
         }
       : {
           kind: "server",
@@ -88,6 +91,7 @@ export default async function NewZonePage({
           primaryIds: [b.server.id],
           secondaries: b.secondaries.map((s) => ({ slug: s.slug, name: s.name })),
           tsigKeys: tsigKeysByBackend.get(`server:${b.server.slug}`) ?? [],
+          catalog: catalogOptionFor(b.server),
         },
   );
 
@@ -153,4 +157,14 @@ function describeGroupTopology(peerCount: number, secondaryCount: number): strin
   if (peerCount >= 2) return `${peerCount}-peer cluster`;
   if (secondaryCount === 0) return "primary";
   return `primary + ${secondaryCount} ${secondaryCount === 1 ? "secondary" : "secondaries"}`;
+}
+
+/** The backend's catalog choices for the form, from the zone cache and capability snapshot. */
+function catalogOptionFor(server: PdnsServer): BackendOption["catalog"] {
+  if (!server.versionCache?.capabilities.supportsCatalogZones) return null;
+  const cached = readCachedZones(server.id);
+  return {
+    producers: cached ? producerZoneNames([...cached.zones.values()]) : [],
+    defaultCatalog: server.capabilities?.defaultCatalogZone ?? null,
+  };
 }

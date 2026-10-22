@@ -14,6 +14,10 @@
  *                         Producer zone is transferred exactly like a Master
  *                         zone (its Consumers are ordinary secondaries of it).
  *   - Native            - neither: no DNS-protocol replication at all.
+ *   - system kinds      - Producer / Consumer: catalog zones (RFC 9432). They
+ *                         are provisioning plumbing, not content - PowerDNS
+ *                         generates or transfers their records - so the UI
+ *                         lists them apart and guards their deletion.
  *
  * Six copies of these sets used to live in six modules with three different
  * memberships - `createZoneAndNotify` skipped the NOTIFY on a Producer zone
@@ -35,4 +39,17 @@ export function isMirrorKind(kind: string): boolean {
 /** True for kinds PowerDNS sends out over AXFR and NOTIFY (incl. catalog Producer). */
 export function isTransferredKind(kind: string): boolean {
   return TRANSFERRED_KINDS.has(kind.toLowerCase());
+}
+
+const SYSTEM_KINDS: ReadonlySet<string> = new Set(["producer", "consumer"]);
+
+/** Catalog zones (RFC 9432): infrastructure, not content. */
+export function isSystemKind(kind: string): boolean {
+  return SYSTEM_KINDS.has(kind.toLowerCase());
+}
+
+/** Which side of a catalog a system zone is, or null for a content zone. */
+export function catalogRole(kind: string): "producer" | "consumer" | null {
+  const k = kind.toLowerCase();
+  return k === "producer" ? "producer" : k === "consumer" ? "consumer" : null;
 }

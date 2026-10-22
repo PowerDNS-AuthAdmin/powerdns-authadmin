@@ -230,6 +230,11 @@ export class PdnsClient {
     masters?: string[];
     rrsets?: ZoneRRsetPatchBody["rrsets"];
     dnssec?: boolean;
+    /**
+     * Catalog membership (PDNS 4.7+). Omitted, PDNS applies its
+     * `default-catalog-zone`; "" asks for none.
+     */
+    catalog?: string;
   }): Promise<PdnsZoneDetail> {
     const body: Record<string, unknown> = {
       name: normalizeZoneId(input.name),
@@ -246,6 +251,9 @@ export class PdnsClient {
     }
     if (input.dnssec) {
       body["dnssec"] = true;
+    }
+    if (input.catalog !== undefined) {
+      body["catalog"] = input.catalog;
     }
 
     const raw = await this.request<unknown>({
@@ -302,6 +310,8 @@ export class PdnsClient {
       soa_edit?: string;
       soa_edit_api?: string;
       api_rectify?: boolean;
+      /** Catalog membership (PDNS 4.7+): a Producer zone's name, or "" for none. */
+      catalog?: string;
       // DNSSEC on/off. `true` on an unsigned zone makes PDNS add its default
       // keys (default-ksk/zsk-algorithm), rectify when API-RECTIFY is on, and
       // bump the serial per SOA-EDIT-API - all in one transaction. `false`

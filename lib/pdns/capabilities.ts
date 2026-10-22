@@ -7,6 +7,7 @@
  * which is why this replaces the operator-declared `role`.
  */
 
+import { canonicalZoneName } from "@/lib/dns/zone-name";
 import {
   areLuaRecordUpdatesLocked,
   ENABLE_LUA_RECORD_UPDATES_SETTING,
@@ -65,6 +66,7 @@ export function deriveCapabilities(
   // always DNSSEC-capable with no flag.
   const dnssec =
     config.some((c) => /-dnssec$/i.test(c.name) && isYes(c.value)) || backends.includes("lmdb");
+  const defaultCatalogZone = map.get("default-catalog-zone")?.trim() ?? "";
 
   return {
     // We only ever call this on a successful /config read, so the API is on
@@ -82,6 +84,7 @@ export function deriveCapabilities(
     backends,
     dnssec,
     ...(opts?.autoprimaryCount !== undefined ? { autoprimaryCount: opts.autoprimaryCount } : {}),
+    ...(defaultCatalogZone ? { defaultCatalogZone: canonicalZoneName(defaultCatalogZone) } : {}),
     fetchedAt: new Date().toISOString(),
   };
 }

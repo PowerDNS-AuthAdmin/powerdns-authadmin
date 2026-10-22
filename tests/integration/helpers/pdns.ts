@@ -110,6 +110,7 @@ export interface PdnsZone {
   rrsets?: PdnsRRset[];
   master_tsig_key_ids?: string[];
   slave_tsig_key_ids?: string[];
+  catalog?: string;
 }
 
 async function pdnsCall(

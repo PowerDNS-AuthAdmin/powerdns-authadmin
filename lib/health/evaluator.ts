@@ -64,6 +64,14 @@ export interface BackendHealthInput {
    * managed secondary.
    */
   missingTransferKeys?: number;
+  /**
+   * Catalogs that member zones name but no catalog zone on this backend
+   * answers to (`lib/pdns/catalog.ts`). PowerDNS logs "orphaned member zones"
+   * for them; secondaries can no longer follow zone additions and removals.
+   */
+  orphanedCatalogs?: ReadonlyArray<{ catalog: string; members: number }>;
+  /** `default-catalog-zone` naming a zone that is missing or isn't a Producer. */
+  defaultCatalogProblem?: { name: string; problem: "missing" | "not-producer" } | null;
 }
 
 /**
@@ -160,6 +168,31 @@ export function evaluateBackendHealth(input: BackendHealthInput): EvaluatedAdvis
       severity: "warn",
       title: "Primary zones won't NOTIFY",
       detail: `Authoritative for ${primaryZones} zone(s) but reports primary=no - it won't send NOTIFYs on change. Set primary=yes if you rely on NOTIFY-driven replication.`,
+    });
+  }
+
+  const orphaned = input.orphanedCatalogs ?? [];
+  if (orphaned.length > 0) {
+    const members = orphaned.reduce((sum, o) => sum + o.members, 0);
+    const names = orphaned.map((o) => o.catalog).join(", ");
+    out.push({
+      code: "catalog.orphaned-members",
+      severity: "error",
+      title: orphaned.length === 1 ? "Catalog zone is missing" : "Catalog zones are missing",
+      detail: `${members} zone(s) name ${names} as their catalog, but no such catalog zone exists on this backend. Secondaries reading the catalog can't follow zone additions and removals. Recreate it as a Producer zone with the same name - its members rejoin at once.`,
+    });
+  }
+
+  const defaultCatalog = input.defaultCatalogProblem;
+  if (defaultCatalog) {
+    out.push({
+      code: "catalog.default-unresolved",
+      severity: "error",
+      title: "Default catalog zone not found",
+      detail:
+        defaultCatalog.problem === "missing"
+          ? `default-catalog-zone names ${defaultCatalog.name}, which doesn't exist on this backend - zones created here join a catalog nobody serves. Create it as a Producer zone, or change default-catalog-zone in pdns.conf.`
+          : `default-catalog-zone names ${defaultCatalog.name}, which isn't a Producer zone - zones created here can't be listed in it. Make it a Producer zone, or change default-catalog-zone in pdns.conf.`,
     });
   }
 

@@ -74,6 +74,14 @@ export function ZoneHeader({
           <h1 className="font-mono text-2xl font-semibold tracking-tight">
             {displayZoneName(zone.name)}
             <ZoneHorizonBadge horizon={horizon} className="ml-2 align-middle" />
+            {zone.catalog ? (
+              <span
+                className="ml-2 rounded bg-[color:var(--color-bg-muted)] px-1.5 py-0.5 align-middle font-sans text-[0.6875rem] font-normal text-[color:var(--color-fg-muted)]"
+                title="Listed in this catalog zone - secondaries reading it serve this zone"
+              >
+                in {displayZoneName(zone.catalog)}
+              </span>
+            ) : null}
           </h1>
           <ZoneRealtimeSubscriber zoneName={zone.name} inSync={inSync} />
           {inSync === null ? <PollingDisabledHint /> : null}
