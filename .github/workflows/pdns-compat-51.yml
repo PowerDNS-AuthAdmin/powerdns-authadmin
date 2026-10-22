@@ -1,12 +1,25 @@
 # PowerDNS Authoritative 5.1 compatibility. One workflow per version so each
 # gets its own live badge.svg (no committed JSON). Delegates to the reusable
 # pdns-compat-run.yml. Runs on minor/major release tags (vX.Y.0), monthly to
-# catch upstream `:latest` drift, and on demand.
+# catch upstream `:latest` drift, and on demand. As the newest supported
+# release it also runs on PRs that touch the PDNS layer or the stack the suite
+# boots, so a 5.1 regression shows up before merge rather than on the next
+# monthly run. PR runs don't move the badge, which reports the default branch.
 
 name: PowerDNS 5.1
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/pdns/**"
+      - "app/api/admin/pdns/**"
+      - "tests/integration/**"
+      - "docker/pdns/**"
+      - "docker-compose-combined.yml"
+      - ".github/workflows/pdns-compat-51.yml"
+      - ".github/workflows/pdns-compat-run.yml"
   push:
     tags: ["v*.*.0"]
   schedule:
@@ -14,6 +27,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   compat:
