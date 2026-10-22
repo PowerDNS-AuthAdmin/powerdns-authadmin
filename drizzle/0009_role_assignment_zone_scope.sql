@@ -1,0 +1,1 @@
+ALTER TABLE "role_assignments" ALTER COLUMN "scope_id" SET DATA TYPE text;

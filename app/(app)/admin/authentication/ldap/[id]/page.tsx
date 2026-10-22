@@ -13,7 +13,7 @@ import { findLdapProviderById } from "@/lib/db/repositories/ldap-providers";
 import { listRoles } from "@/lib/db/repositories/roles";
 import { listAllTeams } from "@/lib/db/repositories/teams";
 import { mappingForForm } from "@/lib/auth/providers/group-sync-pure";
-import { unknownZoneTargetsFor } from "../../_lib/unknown-zone-targets";
+import { unknownZoneTargetsFor } from "@/lib/realtime/unknown-zone-targets";
 import { UnknownZoneTargetsNotice } from "../../_components/unknown-zone-targets-notice";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { LdapProviderForm } from "../_components/ldap-provider-form";

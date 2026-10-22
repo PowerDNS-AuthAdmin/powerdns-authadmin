@@ -12,7 +12,7 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { createAndLogin, loginAsBootstrap, uniqueEmail } from "../helpers/auth";
+import { createAndLogin, loginAsBootstrap, resolveRoleId, uniqueEmail } from "../helpers/auth";
 import { dbQuery } from "../helpers/db";
 import { resetState } from "../helpers/reset";
 import { type TestHttp } from "../helpers/http";
@@ -136,5 +136,75 @@ describe("zone-scoped roles grant their zone only", () => {
 
     expect((await client.call("/api/admin/users")).status).toBe(403);
     expect((await client.call("/api/admin/pdns-servers")).status).toBe(403);
+  }, 30_000);
+
+  it("an admin-issued zone-scoped assignment grants that zone only", async () => {
+    const admin = await loginAsBootstrap();
+    const scoped = randomZone("assigned");
+    const other = randomZone("assigned-other");
+    await createZone(admin, scoped);
+    await createZone(admin, other);
+
+    const { user, client } = await createAndLogin(admin, {
+      email: uniqueEmail("zone-assigned"),
+      name: "Zone-assigned editor",
+      password: "zone-assigned-pw-1234",
+    });
+    expect((await upsertA(client, scoped)).status).toBe(403);
+
+    const assign = await admin.call(`/api/admin/users/${user.id}/role-assignments`, {
+      method: "POST",
+      json: {
+        roleId: await resolveRoleId(admin, "zone-editor"),
+        scopeType: "zone",
+        // Typed loosely on purpose: the route stores the canonical name.
+        scopeId: scoped.toUpperCase().replace(/\.$/, ""),
+      },
+    });
+    expect(assign.status).toBe(201);
+    const { assignment } = (await assign.json()) as { assignment: { scopeId: string } };
+    expect(assignment.scopeId).toBe(scoped);
+
+    expect((await upsertA(client, scoped)).status).toBe(200);
+    expect((await upsertA(client, other)).status).toBe(403);
+    expect((await client.call("/api/admin/users")).status).toBe(403);
+  }, 30_000);
+
+  it("an assignment to a zone no backend serves is accepted with a warning", async () => {
+    const admin = await loginAsBootstrap();
+    const { user } = await createAndLogin(admin, {
+      email: uniqueEmail("zone-assigned-missing"),
+      name: "Zone-assigned, zone missing",
+      password: "zone-assigned-missing-pw-1234",
+    });
+    const res = await admin.call(`/api/admin/users/${user.id}/role-assignments`, {
+      method: "POST",
+      json: {
+        roleId: await resolveRoleId(admin, "zone-editor"),
+        scopeType: "zone",
+        scopeId: randomZone("not-created"),
+      },
+    });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { warning?: string };
+    expect(body.warning).toMatch(/No backend serves/);
+  }, 30_000);
+
+  it("rejects a zone target that is not a zone name", async () => {
+    const admin = await loginAsBootstrap();
+    const { user } = await createAndLogin(admin, {
+      email: uniqueEmail("zone-assigned-bad"),
+      name: "Zone-assigned, bad name",
+      password: "zone-assigned-bad-pw-1234",
+    });
+    const res = await admin.call(`/api/admin/users/${user.id}/role-assignments`, {
+      method: "POST",
+      json: {
+        roleId: await resolveRoleId(admin, "zone-editor"),
+        scopeType: "zone",
+        scopeId: "not a zone",
+      },
+    });
+    expect(res.status).toBe(400);
   }, 30_000);
 });

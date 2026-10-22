@@ -14,6 +14,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { useDialog } from "@/components/ui/dialog";
 import { LocalTime } from "@/components/ui/local-time";
 import { SelectMenu } from "@/components/ui/select-menu";
+import { inputBaseClass } from "@/components/ui/form";
 import { apiFetch, mutate } from "@/lib/client/api-fetch";
 
 interface Assignment {
@@ -52,7 +53,7 @@ export function RoleAssignmentsPanel(props: PanelProps) {
   const router = useRouter();
   const { confirm, toast } = useDialog();
   const [roleId, setRoleId] = useState<string>(props.roles[0]?.id ?? "");
-  const [scopeType, setScopeType] = useState<"global" | "team" | "server">("global");
+  const [scopeType, setScopeType] = useState<"global" | "team" | "server" | "zone">("global");
   const [scopeId, setScopeId] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
@@ -77,11 +78,11 @@ export function RoleAssignmentsPanel(props: PanelProps) {
         scopeType,
       };
       if (scopeType !== "global") {
-        if (!scopeId) {
-          setError("Pick a scope target.");
+        if (!scopeId.trim()) {
+          setError(scopeType === "zone" ? "Enter a zone name." : "Pick a scope target.");
           return;
         }
-        body.scopeId = scopeId;
+        body.scopeId = scopeId.trim();
       }
       const res = await apiFetch(`/api/admin/users/${props.userId}/role-assignments`, {
         method: "POST",
@@ -93,8 +94,13 @@ export function RoleAssignmentsPanel(props: PanelProps) {
         setError(data?.error ?? "Could not assign role.");
         return;
       }
+      const data = (await res.json().catch(() => null)) as { warning?: string } | null;
       setScopeId("");
-      toast({ kind: "success", description: "Role assigned." });
+      toast(
+        data?.warning
+          ? { kind: "warn", title: "Role assigned", description: data.warning }
+          : { kind: "success", description: "Role assigned." },
+      );
       router.refresh();
     } finally {
       setBusy(false);
@@ -202,7 +208,9 @@ export function RoleAssignmentsPanel(props: PanelProps) {
           Role assignments ({props.assignments.length})
         </h2>
         <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
-          Each assignment grants a role&apos;s permissions within a scope.
+          Each assignment grants a role&apos;s permissions within a scope. A zone scope covers that
+          zone on every backend, and only the role&apos;s zone, record, SOA, DNSSEC and metadata
+          permissions; use a zone grant to pin access to one backend.
         </p>
       </header>
 
@@ -242,17 +250,31 @@ export function RoleAssignmentsPanel(props: PanelProps) {
 
             <SelectMenu
               value={scopeType}
-              onChange={(v) => setScopeType(v)}
+              onChange={(v) => {
+                setScopeType(v);
+                setScopeId("");
+              }}
               options={[
                 { value: "global", label: "Global" },
                 { value: "team", label: "Team" },
                 { value: "server", label: "PowerDNS server" },
+                { value: "zone", label: "Zone" },
               ]}
               ariaLabel="Scope"
               className="text-sm"
             />
 
-            {scopeType !== "global" ? (
+            {scopeType === "zone" ? (
+              <input
+                value={scopeId}
+                onChange={(e) => setScopeId(e.target.value)}
+                placeholder="example.com."
+                aria-label="Zone name"
+                autoComplete="off"
+                spellCheck={false}
+                className={`${inputBaseClass} font-mono text-sm`}
+              />
+            ) : scopeType !== "global" ? (
               <SelectMenu
                 value={scopeId}
                 onChange={(v) => setScopeId(v)}

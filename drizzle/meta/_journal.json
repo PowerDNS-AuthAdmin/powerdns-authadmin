@@ -64,6 +64,13 @@
       "when": 1792524569595,
       "tag": "0008_monitor_accept_single_ns",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792690631899,
+      "tag": "0009_role_assignment_zone_scope",
+      "breakpoints": true
     }
   ]
 }
