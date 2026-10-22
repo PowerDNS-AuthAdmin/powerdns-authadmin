@@ -3,7 +3,8 @@
  *
  * /api/admin/audit/export - CSV export of audit rows. Tests verify a
  * just-generated user.create event appears in the export, that the
- * action= filter narrows results, and that a non-auditor caller is 403.
+ * action= filter narrows results, that a `__proto__` key is harmless,
+ * and that a non-auditor caller is 403.
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
@@ -44,6 +45,16 @@ describe("/api/admin/audit/export", () => {
     const csv = await res.text();
     const lines = csv.split("\n").filter((l) => l.trim() !== "");
     // First line is the header row; remaining lines should all be user.create.
+    for (const line of lines.slice(1)) {
+      expect(line).toContain("user.create");
+    }
+  });
+
+  it("treats a __proto__ query key as an ordinary unknown filter", async () => {
+    const admin = await loginAsBootstrap();
+    const res = await admin.call("/api/admin/audit/export?__proto__=x&action=user.create");
+    expect(res.status).toBe(200);
+    const lines = (await res.text()).split("\n").filter((l) => l.trim() !== "");
     for (const line of lines.slice(1)) {
       expect(line).toContain("user.create");
     }

@@ -26,10 +26,10 @@ export async function GET(request: Request): Promise<Response> {
     const { user } = await requireUser({ can: "audit.read" });
 
     const url = new URL(request.url);
-    const flat: Record<string, string> = {};
-    for (const [k, v] of url.searchParams.entries()) {
-      if (typeof v === "string" && v !== "") flat[k] = v;
-    }
+    // fromEntries defines own properties, so a `__proto__` key can't reach the prototype.
+    const flat: Record<string, string> = Object.fromEntries(
+      [...url.searchParams.entries()].filter(([, v]) => v !== ""),
+    );
 
     const parsed = auditQuerySchema.safeParse(flat);
     if (!parsed.success) {

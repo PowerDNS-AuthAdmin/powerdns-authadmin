@@ -97,8 +97,8 @@
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
-    "@vitest/coverage-v8": "4.1.11",
-    "@vitest/ui": "4.1.11",
+    "@vitest/coverage-v8": "4.1.12",
+    "@vitest/ui": "4.1.12",
     "drizzle-kit": "0.31.10",
     "eslint": "10.4.0",
     "eslint-config-next": "16.4.2",
@@ -110,7 +110,7 @@
     "tailwindcss": "4.3.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.59.4",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "overrides": {
     "comment": "Transitive-dep CVE patches. Revisit when upstream ships fixes.",

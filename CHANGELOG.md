@@ -20,6 +20,14 @@ All notable changes to this project are documented here. The format is based on
   uses none of the affected modes (`SAFE_FOR_TEMPLATES`, `IN_PLACE`, an XHTML parser type).
 - **`ip-address` 10.7.3 → 10.7.4** (through the MCP SDK's rate limiter), fixing
   [GHSA-rxp7-6hxx-x8q5](https://github.com/advisories/GHSA-rxp7-6hxx-x8q5) (moderate).
+- **`vitest` 4.1.11 → 4.1.12** (with `@vitest/ui` and `@vitest/coverage-v8`; development
+  dependencies, not in the image), fixing
+  [GHSA-xp26-3454-mjgp](https://github.com/advisories/GHSA-xp26-3454-mjgp) and
+  [GHSA-qxg6-89mg-rqv8](https://github.com/advisories/GHSA-qxg6-89mg-rqv8) in `@vitest/mocker`.
+- **The audit CSV export copied query-string keys onto a plain object**, so a `__proto__` key
+  addressed its prototype (CodeQL `js/remote-property-injection`). The filters are now built
+  with own properties only. It wasn't exploitable: only `audit.read` holders reach the route,
+  assigning a string to `__proto__` is a no-op, and the filter schema drops unknown keys.
 
 ## [1.11.0] - 2026-10-22
 
