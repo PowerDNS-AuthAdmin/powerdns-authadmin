@@ -15,6 +15,9 @@ import {
 import { freshnessOf } from "@/lib/freshness";
 import { listRoles } from "@/lib/db/repositories/roles";
 import { listAllTeams } from "@/lib/db/repositories/teams";
+import { mappingForForm } from "@/lib/auth/providers/group-sync-pure";
+import { unknownZoneTargetsFor } from "../../_lib/unknown-zone-targets";
+import { UnknownZoneTargetsNotice } from "../../_components/unknown-zone-targets-notice";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { AdminAuditPanel } from "@/components/domain/admin-audit-panel";
 import { SamlProviderForm } from "../_components/saml-provider-form";
@@ -45,6 +48,7 @@ export default async function SamlProviderEditPage({
     listAllTeams(),
     listAllPdnsServers(),
   ]);
+  const unknownZones = await unknownZoneTargetsFor(provider.groupMappings, pickerServers);
 
   // The signature algorithm is a "sha1" | "sha256" | "sha512" enum in the
   // form type but the DB column is a free `text` (for forward compat with
@@ -103,6 +107,8 @@ export default async function SamlProviderEditPage({
         ) : null}
       </header>
 
+      <UnknownZoneTargetsNotice zones={unknownZones} />
+
       <SamlProviderForm
         mode="edit"
         initial={{
@@ -125,7 +131,9 @@ export default async function SamlProviderEditPage({
           claimGroups: provider.claimGroups,
           enabled: provider.enabled,
           allowedEmailDomains: provider.allowedEmailDomains,
-          groupMappings: provider.groupMappings ?? [],
+          groupMappings: (provider.groupMappings ?? []).map((m) =>
+            mappingForForm(m, { teams: pickerTeams, servers: pickerServers }),
+          ),
         }}
         canEdit={canManage}
         pickers={{

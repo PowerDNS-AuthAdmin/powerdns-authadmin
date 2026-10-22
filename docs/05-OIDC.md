@@ -125,9 +125,9 @@ Each mapping is `group → role @ scope`. Scope syntax:
 | Scope              | Applies to                                                                                      |
 | ------------------ | ----------------------------------------------------------------------------------------------- |
 | `global`           | everywhere                                                                                      |
-| `team:<slug>`      | the named team (see the limitation below)                                                       |
+| `team:<slug>`      | the named team (never its zones - see below)                                                    |
 | `zone:<zone-name>` | every zone with that name, on any backend (canonical FQDN, trailing dot - e.g. `corp.example.`) |
-| `server:<slug>`    | the backend object (see the limitation below)                                                   |
+| `server:<slug>`    | the backend object (never its zones - see below)                                                |
 
 A **zone-scoped** mapping gives the group's members the role's zone-bound
 permissions (`zone.*` except `zone.create`, `record.*`, `soa.*`, `dnssec.*`,
@@ -138,11 +138,17 @@ zone name is matched on every backend, so a zone with the same name on two
 backends is covered on both. See
 [Roles & permissions → What a zone scope grants](./07-RBAC.md#what-a-zone-scope-grants).
 
-> **Known limitation - team and server scopes.** A team- or server-scoped mapping
-> saved from the admin UI stores the slug, but the authorizer compares those scopes
-> against UUIDs, so such a mapping currently grants nothing. Team and server scopes
-> never open zones in any case (zones carry no team/server binding) - use a
-> zone-scoped mapping, or a team zone grant, for zone access.
+Team and server targets are stored by slug and resolved at each sign-in, so a
+mapping keeps working when the team or server is re-created under the same slug.
+A target that no longer exists grants nothing and is recorded in the audit log as
+`auth.group_sync.mapping_unresolved`. Team and server scopes never open zones
+(zones carry no team/server binding) - use a zone-scoped mapping, or a team zone
+grant, for zone access.
+
+Zone targets are stored canonically (lowercase, trailing dot). The provider's
+edit page warns when a zone target matches no zone on any backend - a typo there
+grants nothing. A mapping row with a group or target filled in but something
+else missing is refused on save rather than dropped.
 
 Example (provisioning YAML - the UI exposes the same fields):
 

@@ -14,6 +14,7 @@
 
 import "server-only";
 import { z } from "zod";
+import { groupMappingsSchema as sharedGroupMappingsSchema } from "./group-mappings";
 import { slugSchema } from "./common";
 
 /**
@@ -73,18 +74,7 @@ const allowedEmailDomainsSchema = z
   .max(64, "At most 64 domains.")
   .nullable();
 
-const groupMappingSchema = z
-  .object({
-    group: z.string().min(1).max(500),
-    roleSlug: z.string().min(1).max(64),
-    scopeType: z.enum(["global", "team", "zone", "server"]),
-    scopeId: z.string().min(1).max(255).nullable(),
-  })
-  .refine((m) => (m.scopeType === "global" ? m.scopeId === null : m.scopeId !== null), {
-    message: "scopeId must be null for global scope and non-null for team/zone/server scope.",
-  });
-
-const groupMappingsSchema = z.array(groupMappingSchema).max(200).nullable();
+const groupMappingsSchema = sharedGroupMappingsSchema(500);
 
 export const createSamlProviderSchema = z.object({
   slug: slugSchema,

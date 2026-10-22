@@ -8,7 +8,13 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { diffGroupSync, readGroupClaim, type ResolvedAssignment } from "./group-sync-pure";
+import {
+  diffGroupSync,
+  mappingForForm,
+  readGroupClaim,
+  resolveMappingScopeId,
+  type ResolvedAssignment,
+} from "./group-sync-pure";
 
 const mapping = (group: string, roleSlug: string) =>
   ({ group, roleSlug, scopeType: "global", scopeId: null }) as const;
@@ -108,5 +114,63 @@ describe("readGroupClaim", () => {
 
   it("returns empty for an empty string", () => {
     expect(readGroupClaim("")).toEqual(new Set());
+  });
+});
+
+describe("resolveMappingScopeId", () => {
+  const targets = {
+    teams: [{ id: "8d6f0c1e-team-uuid", slug: "noc" }],
+    servers: [{ id: "2b7a9e44-server-uuid", slug: "primary-a" }],
+  };
+  const scoped = (scopeType: "global" | "team" | "zone" | "server", scopeId: string | null) => ({
+    scopeType,
+    scopeId,
+  });
+
+  it("resolves a team or server slug saved from the admin form to its id", () => {
+    expect(resolveMappingScopeId(scoped("team", "noc"), targets)).toBe("8d6f0c1e-team-uuid");
+    expect(resolveMappingScopeId(scoped("server", "primary-a"), targets)).toBe(
+      "2b7a9e44-server-uuid",
+    );
+  });
+
+  it("keeps an id written by provisioning", () => {
+    expect(resolveMappingScopeId(scoped("team", "8d6f0c1e-team-uuid"), targets)).toBe(
+      "8d6f0c1e-team-uuid",
+    );
+  });
+
+  it("fails closed on a reference that names nothing", () => {
+    expect(resolveMappingScopeId(scoped("team", "gone"), targets)).toBeNull();
+    expect(resolveMappingScopeId(scoped("server", "noc"), targets)).toBeNull();
+  });
+
+  it("passes global and zone scopes through", () => {
+    expect(resolveMappingScopeId(scoped("global", null), targets)).toBeNull();
+    expect(resolveMappingScopeId(scoped("zone", "example.com."), targets)).toBe("example.com.");
+  });
+});
+
+describe("mappingForForm", () => {
+  const targets = {
+    teams: [{ id: "8d6f0c1e-team-uuid", slug: "noc" }],
+    servers: [],
+  };
+
+  it("shows a provisioned team id as the slug the picker lists", () => {
+    const m = {
+      group: "g",
+      roleSlug: "r",
+      scopeType: "team" as const,
+      scopeId: "8d6f0c1e-team-uuid",
+    };
+    expect(mappingForForm(m, targets).scopeId).toBe("noc");
+  });
+
+  it("leaves slugs and unknown references as stored", () => {
+    const slug = { group: "g", roleSlug: "r", scopeType: "team" as const, scopeId: "noc" };
+    const gone = { group: "g", roleSlug: "r", scopeType: "team" as const, scopeId: "gone" };
+    expect(mappingForForm(slug, targets)).toBe(slug);
+    expect(mappingForForm(gone, targets)).toBe(gone);
   });
 });

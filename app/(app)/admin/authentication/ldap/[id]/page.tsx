@@ -12,6 +12,9 @@ import { requireUserForPage } from "@/lib/auth/require-user";
 import { findLdapProviderById } from "@/lib/db/repositories/ldap-providers";
 import { listRoles } from "@/lib/db/repositories/roles";
 import { listAllTeams } from "@/lib/db/repositories/teams";
+import { mappingForForm } from "@/lib/auth/providers/group-sync-pure";
+import { unknownZoneTargetsFor } from "../../_lib/unknown-zone-targets";
+import { UnknownZoneTargetsNotice } from "../../_components/unknown-zone-targets-notice";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { LdapProviderForm } from "../_components/ldap-provider-form";
 import { LdapProviderActions } from "../_components/ldap-provider-actions";
@@ -33,6 +36,7 @@ export default async function LdapProviderEditPage({
     listAllTeams(),
     listAllPdnsServers(),
   ]);
+  const unknownZones = await unknownZoneTargetsFor(provider.groupMappings, pickerServers);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -44,6 +48,8 @@ export default async function LdapProviderEditPage({
           the slug can&apos;t be renamed (would break in-flight sign-ins).
         </p>
       </header>
+
+      <UnknownZoneTargetsNotice zones={unknownZones} />
 
       <LdapProviderForm
         mode="edit"
@@ -64,7 +70,9 @@ export default async function LdapProviderEditPage({
           tlsCaCertSet: provider.tlsCaCert !== null,
           enabled: provider.enabled,
           allowedEmailDomains: provider.allowedEmailDomains,
-          groupMappings: provider.groupMappings ?? [],
+          groupMappings: (provider.groupMappings ?? []).map((m) =>
+            mappingForForm(m, { teams: pickerTeams, servers: pickerServers }),
+          ),
         }}
         canEdit={canManage}
         pickers={{

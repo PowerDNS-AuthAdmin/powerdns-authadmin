@@ -115,9 +115,8 @@ assignments are never touched.
 
 Scopes behave as described for OIDC: a `zone:<name>` mapping grants the role's
 zone-bound permissions on that zone (on any backend) and nothing else, and
-team/server-scoped mappings saved from the admin UI currently grant nothing - see
-[OIDC → Group → role mapping](./05-OIDC.md#group--role-mapping) and
-[Roles & permissions → Known limitations](./07-RBAC.md#known-limitations).
+team/server targets are resolved by slug at each sign-in - see
+[OIDC → Group → role mapping](./05-OIDC.md#group--role-mapping).
 
 ## Encrypted assertions (optional)
 

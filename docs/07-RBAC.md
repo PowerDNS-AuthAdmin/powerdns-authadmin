@@ -163,13 +163,6 @@ way to pin access to one backend, and the way to give a whole team zone access.
   carry neither a team nor a server binding the authorizer can match, so a
   `team:` or `server:` assignment never grants zone or record access. Use team
   zone grants for "this team edits these zones".
-- **Team- and server-scoped IdP mappings don't resolve.** A mapping saved from
-  the Authentication admin pages stores the team's or server's slug as the scope
-  id, and group sync passes it through verbatim, while the authorizer compares
-  team and server scopes against UUIDs - so a mapping like
-  `noc → team-owner @ team:noc` grants nothing at all, not even the team itself.
-  (Mappings applied from provisioning YAML are resolved to UUIDs at apply time.)
-  Global and zone mappings are unaffected. Not fixed yet.
 
 List pages follow the same rule. A **Team Owner** scoped to `team:<slug>` can open
 **Admin → Teams**, but the list only shows the teams their assignments cover.

@@ -15,6 +15,9 @@ import { freshnessOf } from "@/lib/freshness";
 import { probeFailureLabel, type ProbeFailureReason } from "@/lib/auth/providers/oidc-probe";
 import { listRoles } from "@/lib/db/repositories/roles";
 import { listAllTeams } from "@/lib/db/repositories/teams";
+import { mappingForForm } from "@/lib/auth/providers/group-sync-pure";
+import { unknownZoneTargetsFor } from "../../_lib/unknown-zone-targets";
+import { UnknownZoneTargetsNotice } from "../../_components/unknown-zone-targets-notice";
 import { listAllPdnsServers } from "@/lib/db/repositories/pdns-servers";
 import { AdminAuditPanel } from "@/components/domain/admin-audit-panel";
 import { OidcProviderForm } from "../_components/oidc-provider-form";
@@ -55,6 +58,7 @@ export default async function OidcProviderEditPage({
     listAllTeams(),
     listAllPdnsServers(),
   ]);
+  const unknownZones = await unknownZoneTargetsFor(provider.groupMappings, pickerServers);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -118,6 +122,8 @@ export default async function OidcProviderEditPage({
         ) : null}
       </header>
 
+      <UnknownZoneTargetsNotice zones={unknownZones} />
+
       <OidcProviderForm
         mode="edit"
         initial={{
@@ -133,7 +139,9 @@ export default async function OidcProviderEditPage({
           requireEmailVerified: provider.requireEmailVerified,
           allowedEmailDomains: provider.allowedEmailDomains,
           iconUrl: provider.iconUrl,
-          groupMappings: provider.groupMappings ?? [],
+          groupMappings: (provider.groupMappings ?? []).map((m) =>
+            mappingForForm(m, { teams: pickerTeams, servers: pickerServers }),
+          ),
         }}
         canEdit={canManage}
         pickers={{

@@ -92,8 +92,9 @@ one zone and all its replicas (cluster peers, secondaries).
 - Grant-delegation ceilings (`/admin/users/:id/zone-grants`, team grants, team membership) still
   count only global permissions and grants. A zone-scoped role lets you act on a zone, not hand it
   on.
-- Not addressed here: team- and server-scoped IdP mappings saved from the admin UI store slugs while
-  the authorizer compares UUIDs, so they grant nothing (documented as a known limitation).
+- Not addressed here: team- and server-scoped IdP mappings saved from the admin UI stored slugs while
+  the authorizer compared UUIDs, so they granted nothing. Fixed separately (#200): group sync
+  resolves the slug at sign-in.
 
 ### Threat model
 

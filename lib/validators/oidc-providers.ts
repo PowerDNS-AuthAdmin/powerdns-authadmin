@@ -10,6 +10,7 @@
 
 import "server-only";
 import { z } from "zod";
+import { groupMappingsSchema as sharedGroupMappingsSchema } from "./group-mappings";
 import { isSafeIconUrl } from "@/lib/security/icon-url";
 import { slugSchema } from "./common";
 
@@ -80,27 +81,7 @@ const allowedEmailDomainsSchema = z
   .max(64, "At most 64 domains.")
   .nullable();
 
-/**
- * Per-provider group → role-assignment rule. Mirrors the shape
- * persisted in `oidc_providers.group_mappings`. Resolved-at-sign-in,
- * stored as slugs (roles + teams + servers) for stability across
- * UUID changes; zone scope carries the canonical zone name.
- */
-const groupMappingSchema = z
-  .object({
-    /** Exact group value to match. Case-sensitive. */
-    group: z.string().min(1).max(500),
-    /** Role slug (system or custom). */
-    roleSlug: z.string().min(1).max(64),
-    scopeType: z.enum(["global", "team", "zone", "server"]),
-    /** Null when scopeType=global; slug or fqdn otherwise. */
-    scopeId: z.string().min(1).max(255).nullable(),
-  })
-  .refine((m) => (m.scopeType === "global" ? m.scopeId === null : m.scopeId !== null), {
-    message: "scopeId must be null for global scope and non-null for team/zone/server scope.",
-  });
-
-const groupMappingsSchema = z.array(groupMappingSchema).max(200).nullable();
+const groupMappingsSchema = sharedGroupMappingsSchema(500);
 
 export const createOidcProviderSchema = z.object({
   slug: slugSchema,
