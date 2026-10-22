@@ -29,6 +29,8 @@ import {
 import { ZONE_HORIZONS } from "@/lib/dns/zone-horizon";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { canonicalZoneName } from "@/lib/dns/zone-name";
+import { producerZoneNames } from "@/lib/pdns/catalog";
+import { isSystemKind } from "@/lib/pdns/zone-kinds";
 import { PdnsError } from "@/lib/pdns/errors";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { redact } from "@/lib/errors/redact";
@@ -52,6 +54,12 @@ const putBodySchema = z.object({
   soa_edit: z.string().max(64).optional(),
   soa_edit_api: z.string().max(64).optional(),
   api_rectify: z.boolean().optional(),
+  /**
+   * Catalog membership (#209): the name of a Producer zone on this backend, or
+   * "" to leave every catalog. Checked against the backend's zone list - PDNS
+   * accepts any name, and a typo would orphan the zone from its secondaries.
+   */
+  catalog: z.string().trim().max(255).optional(),
   /**
    * Horizon classification (#121). The odd one out in this payload: every other
    * field is forwarded to PowerDNS, this one is app-side state. It rides along
@@ -115,12 +123,28 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
       soa_edit?: string;
       soa_edit_api?: string;
       api_rectify?: boolean;
+      catalog?: string;
     } = {};
     if (body.kind !== undefined) patch.kind = body.kind;
     if (body.masters !== undefined) patch.masters = [...body.masters];
     if (body.soa_edit !== undefined) patch.soa_edit = body.soa_edit;
     if (body.soa_edit_api !== undefined) patch.soa_edit_api = body.soa_edit_api;
     if (body.api_rectify !== undefined) patch.api_rectify = body.api_rectify;
+    if (body.catalog !== undefined) {
+      const catalog = body.catalog === "" ? "" : canonicalZoneName(body.catalog);
+      if (catalog !== "") {
+        if (isSystemKind(before?.kind ?? "")) {
+          throw new ValidationError("A catalog zone can't itself be a member of a catalog.");
+        }
+        const producers = producerZoneNames(await client.listZones());
+        if (!producers.includes(catalog)) {
+          throw new ValidationError(
+            `${catalog} isn't a Producer zone on this backend. Pick one of its catalog zones, or none.`,
+          );
+        }
+      }
+      patch.catalog = catalog;
+    }
 
     // A horizon-only save carries no PowerDNS-side change; don't spend a PUT
     // (and don't log a settings-update that updated nothing) on it.
@@ -141,6 +165,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
               soa_edit: before.soa_edit,
               soa_edit_api: before.soa_edit_api,
               api_rectify: before.api_rectify,
+              catalog: before.catalog ?? "",
             }
           : null,
         after: after
@@ -150,6 +175,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
               soa_edit: after.soa_edit,
               soa_edit_api: after.soa_edit_api,
               api_rectify: after.api_rectify,
+              catalog: after.catalog ?? "",
             }
           : null,
         request: getRequestContext(hdrs),

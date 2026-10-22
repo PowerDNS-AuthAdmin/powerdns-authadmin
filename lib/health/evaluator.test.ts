@@ -155,3 +155,36 @@ describe("evaluateBackendHealth", () => {
     expect(out.map((a) => a.code)).not.toContain("autosecondary.no-autoprimaries");
   });
 });
+
+describe("catalog findings", () => {
+  const base = { reachable: true, capabilities: caps({ primary: true }), zoneKinds: { master: 3 } };
+
+  it("errors when member zones name a catalog that doesn't exist", () => {
+    const out = evaluateBackendHealth({
+      ...base,
+      orphanedCatalogs: [{ catalog: "catalog.invalid.", members: 42 }],
+    });
+    const finding = out.find((a) => a.code === "catalog.orphaned-members");
+    expect(finding?.severity).toBe("error");
+    expect(finding?.detail).toContain("42 zone(s) name catalog.invalid.");
+  });
+
+  it("errors when default-catalog-zone is missing or not a Producer", () => {
+    for (const problem of ["missing", "not-producer"] as const) {
+      const out = evaluateBackendHealth({
+        ...base,
+        defaultCatalogProblem: { name: "catalog.invalid.", problem },
+      });
+      expect(out.find((a) => a.code === "catalog.default-unresolved")?.severity).toBe("error");
+    }
+  });
+
+  it("says nothing about catalogs when they are consistent", () => {
+    const out = evaluateBackendHealth({
+      ...base,
+      orphanedCatalogs: [],
+      defaultCatalogProblem: null,
+    });
+    expect(out.filter((a) => a.code.startsWith("catalog."))).toEqual([]);
+  });
+});

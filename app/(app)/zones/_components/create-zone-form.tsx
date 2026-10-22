@@ -64,6 +64,12 @@ export interface BackendOption {
   secondaries: Array<{ slug: string; name: string }>;
   /** Keys present on every backend needed for transfer authentication. */
   tsigKeys: Array<{ name: string; zoneCount: number }>;
+  /**
+   * Catalog zones on this backend (#209), or null when it predates them
+   * (PDNS < 4.7). `defaultCatalog` is its `default-catalog-zone` - where a new
+   * zone is listed unless the operator picks otherwise.
+   */
+  catalog: { producers: string[]; defaultCatalog: string | null } | null;
 }
 
 interface TemplateOption {
@@ -131,6 +137,11 @@ const KINDS = [
     value: "Secondary",
     label: "Secondary",
     hint: "We replicate from a Primary; provide its IP below. (PDNS legacy: 'Slave'.)",
+  },
+  {
+    value: "Producer",
+    label: "Catalog (producer)",
+    hint: "A catalog zone (RFC 9432): PowerDNS lists its member zones here for secondaries to follow. A single NS such as invalid. is conventional; templates don't apply.",
   },
 ] as const;
 
@@ -202,6 +213,20 @@ export function CreateZoneForm(props: Props) {
   const [nameservers, setNameservers] = useState<string[]>([""]);
   const [masters, setMasters] = useState<string[]>([]);
   const [selectedTsigKey, setSelectedTsigKey] = useState("");
+  // null until the operator picks: the field then shows - and the zone joins -
+  // the backend's default-catalog-zone. A backend switch forgets the pick.
+  const [catalogPick, setCatalogPick] = useState<string | null>(null);
+  useEffect(() => setCatalogPick(null), [backendKey]);
+  const catalogInfo = selectedBackend?.catalog ?? null;
+  const defaultCatalog = catalogInfo?.defaultCatalog ?? "";
+  const catalogValue = catalogPick ?? defaultCatalog;
+  // Secondary zones get their catalog from the primary's; a backend with no
+  // catalog zone and no default has nothing to offer.
+  const showCatalog =
+    kind !== "Secondary" &&
+    kind !== "Producer" &&
+    catalogInfo !== null &&
+    (catalogInfo.producers.length > 0 || defaultCatalog !== "");
   const tsigTouched = useRef(false);
   const tsigScopeRef = useRef(`${backendKey}:${kind}`);
 
@@ -329,7 +354,7 @@ export function CreateZoneForm(props: Props) {
       setSaving(false);
       return;
     }
-    if (!isSecondary && cleanNs.length === 0 && !selectedTemplate) {
+    if (!isSecondary && cleanNs.length === 0 && (!selectedTemplate || kind === "Producer")) {
       setError(
         "At least one NS record is required. Add one here, or pick a template that defines defaults.",
       );
@@ -355,7 +380,10 @@ export function CreateZoneForm(props: Props) {
     // Only send a horizon the operator chose - absent, the server applies the
     // name's default (internal under a private-use name, else public).
     if (internalChoice !== null) body["horizon"] = internalChoice ? "internal" : "public";
-    if (templateId) body["templateId"] = templateId;
+    // Only an explicit departure from the backend default is sent; omitted,
+    // PowerDNS applies default-catalog-zone itself.
+    if (showCatalog && catalogValue !== defaultCatalog) body["catalog"] = catalogValue;
+    if (templateId && kind !== "Producer") body["templateId"] = templateId;
     if (responsibleEmail) body["responsibleEmail"] = responsibleEmail;
     if (kind === "Primary" && selectedTsigKey) body["tsigKeyName"] = selectedTsigKey;
 
@@ -409,7 +437,7 @@ export function CreateZoneForm(props: Props) {
             </p>
           ) : null}
         </Field>
-        {props.templates.length > 0 ? (
+        {props.templates.length > 0 && kind !== "Producer" ? (
           <Field
             label="Template (optional)"
             hint="Templates prefill name servers + SOA timers below - you can still override before submitting."
@@ -530,6 +558,39 @@ export function CreateZoneForm(props: Props) {
           </div>
         ) : null}
       </Section>
+
+      {showCatalog && catalogInfo ? (
+        <Section
+          title="Catalog"
+          subtitle="The catalog zone that lists this zone, so secondaries reading it start serving it. On PowerDNS 4.9 only Primary zones are listed; Native zones are left out."
+        >
+          <Field label="Catalog zone">
+            <SelectMenu
+              value={catalogValue}
+              onChange={(v) => setCatalogPick(v)}
+              ariaLabel="Catalog zone"
+              options={[
+                { value: "", label: "(none)" },
+                ...[
+                  ...new Set([
+                    ...catalogInfo.producers,
+                    ...(defaultCatalog ? [defaultCatalog] : []),
+                  ]),
+                ].map((c) => ({
+                  value: c,
+                  label: `${c.replace(/\.$/, "")}${c === defaultCatalog ? " (server default)" : ""}`,
+                })),
+              ]}
+              className="mt-1 w-full"
+            />
+          </Field>
+          {fieldErrors["catalog"] ? (
+            <p className="text-xs text-[color:var(--color-error-fg)]" role="alert">
+              {fieldErrors["catalog"].join(" ")}
+            </p>
+          ) : null}
+        </Section>
+      ) : null}
 
       {kind === "Primary" && eligibleTsigKeys.length > 0 ? (
         <Section

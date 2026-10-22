@@ -33,6 +33,8 @@
  */
 
 import "server-only";
+import { canonicalZoneName } from "@/lib/dns/zone-name";
+import { catalogHealthInputs } from "@/lib/pdns/catalog";
 import { newSystemRequestId, withRequestId } from "@/lib/request-context";
 import { listAllActiveBackends, markPdnsServersSeen } from "@/lib/db/repositories/pdns-servers";
 import { countActiveSessions } from "@/lib/db/repositories/sessions";
@@ -413,6 +415,7 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
           kind: z.kind,
           dnssec: z.dnssec ?? false,
           masters: z.masters ?? [],
+          catalog: z.catalog ? canonicalZoneName(z.catalog) : null,
         }));
 
         const channelSlug = channelSlugById.get(b.id) ?? b.slug;
@@ -598,6 +601,7 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
             mirrorZonesWithoutMasters,
             replicationDriftMs: driftMsById.get(b.id) ?? null,
             missingTransferKeys: tsigMissingById(b.id),
+            ...catalogHealthInputs(r.snapshots ?? [], b.capabilities?.defaultCatalogZone),
           }),
         );
       } catch (err) {

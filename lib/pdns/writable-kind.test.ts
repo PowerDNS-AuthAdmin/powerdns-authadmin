@@ -15,11 +15,15 @@ describe("assertEditableZoneKind", () => {
     expect(() => assertEditableZoneKind("Slave")).toThrow(ConflictError);
     expect(() => assertEditableZoneKind("Native")).not.toThrow();
   });
+
+  it("throws on a catalog Producer zone, whose records PowerDNS generates", () => {
+    expect(() => assertEditableZoneKind("Producer")).toThrow(/catalog Producer zone/);
+  });
 });
 
 describe("zoneCapabilities", () => {
   it("authoritative kinds: content + DNSSEC editable, no upstream to mirror from", () => {
-    for (const k of ["Native", "Master", "Producer"]) {
+    for (const k of ["Native", "Master"]) {
       const ops = zoneCapabilities(k);
       expect(ops).toEqual({
         rrsets: true,
@@ -30,6 +34,17 @@ describe("zoneCapabilities", () => {
         delete: true,
       });
     }
+  });
+
+  it("catalog Producer: content + DNSSEC read-only, nothing to mirror from", () => {
+    expect(zoneCapabilities("Producer")).toEqual({
+      rrsets: false,
+      dnssec: false,
+      metadata: true,
+      masters: false,
+      axfrRetrieve: false,
+      delete: true,
+    });
   });
 
   it("mirror kinds: content + DNSSEC read-only, but masters/metadata/retrieve/delete open", () => {

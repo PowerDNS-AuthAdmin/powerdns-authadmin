@@ -32,6 +32,7 @@ import { zoneKind } from "@/lib/dns/zone-kind";
 import { redact } from "@/lib/errors/redact";
 import { logger } from "@/lib/logger";
 import { isReadOnlyZoneKind } from "@/lib/pdns/writable-kind";
+import { isSystemKind } from "@/lib/pdns/zone-kinds";
 import { readCachedZones } from "@/lib/pdns/zone-state-cache";
 import type { PdnsClient } from "@/lib/pdns/client";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
@@ -162,6 +163,10 @@ export async function scanFleet(): Promise<FleetScan> {
         }
         zones = [...cachedList.zones.values()];
       }
+      // Catalog zones (Producer/Consumer) are provisioning plumbing: their
+      // records name member zones, not hosts, so search, the record wizard,
+      // zone monitoring and the reverse report all leave them out (#209).
+      zones = zones.filter((z) => !isSystemKind(z.kind));
       const writable = server.writeMode !== "read_only";
       await eachLimited(zones, ZONE_CONCURRENCY, async (z) => {
         const name = canonicalZone(z.name);

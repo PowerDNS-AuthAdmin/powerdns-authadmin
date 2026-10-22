@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMirrorKind, isTransferredKind } from "./zone-kinds";
+import { catalogRole, isMirrorKind, isSystemKind, isTransferredKind } from "./zone-kinds";
 
 describe("zone kinds", () => {
   it("mirror kinds are the AXFR consumers, in either PDNS spelling", () => {
@@ -25,5 +25,22 @@ describe("zone kinds", () => {
     for (const k of ["Master", "Primary", "Producer", "Slave", "Secondary", "Consumer", "Native"]) {
       expect(isMirrorKind(k) && isTransferredKind(k)).toBe(false);
     }
+  });
+});
+
+describe("system kinds", () => {
+  it("are the catalog Producer and Consumer, case-insensitively", () => {
+    for (const k of ["Producer", "producer", "Consumer", "CONSUMER"]) {
+      expect(isSystemKind(k)).toBe(true);
+    }
+    for (const k of ["Master", "Primary", "Slave", "Secondary", "Native"]) {
+      expect(isSystemKind(k)).toBe(false);
+    }
+  });
+
+  it("name the catalog side", () => {
+    expect(catalogRole("Producer")).toBe("producer");
+    expect(catalogRole("consumer")).toBe("consumer");
+    expect(catalogRole("Master")).toBeNull();
   });
 });

@@ -43,6 +43,9 @@ import {
 } from "@/lib/db/repositories/zone-horizons";
 import { defaultZoneHorizonForName } from "@/lib/dns/zone-horizon";
 import { dedupeZonesByIdentity } from "@/lib/dns/zone-dedupe";
+import { catalogMemberCounts } from "@/lib/pdns/catalog";
+import { canonicalZoneName } from "@/lib/dns/zone-name";
+import { catalogRole } from "@/lib/pdns/zone-kinds";
 import { isReadOnlyZoneKind } from "@/lib/pdns/writable-kind";
 import { latestEditTimestampsByZone } from "@/lib/db/repositories/audit-log";
 import { checkZonesSyncBatch, type SecondarySyncStatus } from "@/lib/pdns/sync";
@@ -386,6 +389,7 @@ async function rowsFromBackend(
     };
   }
   const zones = [...cached.zones.values()];
+  const catalogCounts = catalogMemberCounts(zones);
 
   // Sync state - branches on the group's composition (ADR-0014). All variants
   // read serials from the cache (poller-maintained), never live. With
@@ -427,6 +431,7 @@ async function rowsFromBackend(
       rowsBackend,
       syncByZone.get(z.name) ?? [],
       horizonFrom(horizonIndex, horizonScope, z.name),
+      catalogCounts,
     ),
   );
   return { label, lastEditServerSlug, rows, error: null };
@@ -463,6 +468,7 @@ function readOnlySecondaryRows(
   const parentId = derivedParentOf(secondary.id);
   const parent = parentId ? (backendServersById.get(parentId) ?? null) : null;
 
+  const catalogCounts = catalogMemberCounts([...cached.zones.values()]);
   const rows: ZoneRow[] = [];
   for (const z of cached.zones.values()) {
     const fold = foldLastEdit(z.serial, null);
@@ -487,6 +493,7 @@ function readOnlySecondaryRows(
       syncStates: [],
       syncWorst: null,
       readOnly: isReadOnlyZoneKind(z.kind),
+      catalog: catalogInfo(z, catalogCounts),
     });
   }
   return { label, rows, error: null };
@@ -546,11 +553,21 @@ function clusterSyncFromCache(
   return out;
 }
 
+/** A catalog zone's side and member count on its backend; null for a content zone. */
+function catalogInfo(
+  zone: Pick<CachedZoneSnapshot, "name" | "kind">,
+  catalogCounts: ReadonlyMap<string, number>,
+): ZoneRow["catalog"] {
+  const role = catalogRole(zone.kind);
+  return role ? { role, members: catalogCounts.get(canonicalZoneName(zone.name)) ?? 0 } : null;
+}
+
 function toZoneRow(
   zone: CachedZoneSnapshot,
   backend: ZoneRow["backend"],
   sync: SecondarySyncStatus[],
   horizon: ZoneRow["horizon"],
+  catalogCounts: ReadonlyMap<string, number>,
 ): ZoneRow {
   // Worst-case sync verdict across peers/secondaries: error > missing
   // > lagging > ahead > refresh-due > in-sync. Drives the column's color.
@@ -577,6 +594,7 @@ function toZoneRow(
     // Read-only by zone kind - a Slave/Secondary/Consumer zone is an AXFR
     // mirror even when it lives on an otherwise-writable (primary) backend.
     readOnly: isReadOnlyZoneKind(zone.kind),
+    catalog: catalogInfo(zone, catalogCounts),
     backend,
     lastEditIso: null,
     lastEditSource: null,

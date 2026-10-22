@@ -8,6 +8,11 @@
  * flow; the API does NOT (per the user's call - programmatic clients
  * shouldn't be asked to type a phrase). The API still requires CSRF
  * + the right permission.
+ *
+ * One exception (#209): a catalog Producer zone with members answers 409
+ * `catalog-has-members` unless `?confirmCatalog=<zone name>` is passed.
+ * Deleting it silently stops every secondary reading the catalog from
+ * following zone additions and removals, which no ordinary delete does.
  */
 
 import { headers } from "next/headers";
@@ -23,6 +28,8 @@ import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositori
 import { deleteZoneHorizon, horizonScopeFor } from "@/lib/db/repositories/zone-horizons";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { canonicalZoneName } from "@/lib/dns/zone-name";
+import { catalogMembers } from "@/lib/pdns/catalog";
+import { catalogRole } from "@/lib/pdns/zone-kinds";
 import { PdnsError, PdnsNotFoundError } from "@/lib/pdns/errors";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import { redact } from "@/lib/errors/redact";
@@ -31,6 +38,8 @@ import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } fro
 
 const deleteQuerySchema = z.object({
   serverSlug: z.string().optional(),
+  /** The zone's name, repeated: required to delete a catalog Producer zone that has members. */
+  confirmCatalog: z.string().max(255).optional(),
 });
 
 interface RouteContext {
@@ -78,6 +87,24 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     // the operator has the download for forensics anyway.
     const before = await client.getZone(zoneName).catch(() => null);
 
+    let catalogMemberCount: number | null = null;
+    if (before && catalogRole(before.kind) === "producer") {
+      catalogMemberCount = catalogMembers(await client.listZones(), zoneName).length;
+      const confirmed =
+        parsed.confirmCatalog !== undefined &&
+        canonicalZoneName(parsed.confirmCatalog) === zoneName;
+      if (catalogMemberCount > 0 && !confirmed) {
+        return Response.json(
+          {
+            error: "catalog-has-members",
+            members: catalogMemberCount,
+            detail: `${catalogMemberCount} zone(s) name ${zoneName} as their catalog. Deleting it stops secondaries from learning about zone additions and removals. Pass confirmCatalog=${zoneName} to delete it anyway.`,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
     try {
       await client.deleteZone(zoneName);
     } catch (err) {
@@ -120,6 +147,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
             kind: before.kind,
             serial: before.serial,
             rrsetCount: (before.rrsets ?? []).length,
+            ...(catalogMemberCount !== null ? { catalogMembers: catalogMemberCount } : {}),
           }
         : null,
       after: null,

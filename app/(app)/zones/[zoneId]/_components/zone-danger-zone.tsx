@@ -13,6 +13,11 @@
  * The API itself (`DELETE /api/admin/pdns/zones/[zoneId]`) doesn't
  * enforce either - programmatic clients are trusted to back up on
  * their own.
+ *
+ * A catalog Producer zone with members (#209) gets a warning naming the
+ * effect, and the phrase becomes `yes, delete catalog <zone>` so muscle
+ * memory from deleting ordinary zones doesn't carry over. The request then
+ * carries `confirmCatalog`, which the API requires for such a zone.
  */
 
 import { useState } from "react";
@@ -25,9 +30,17 @@ interface Props {
   serverSlug: string;
   zoneName: string;
   canDelete: boolean;
+  /** Members of this zone when it is a catalog Producer zone; null otherwise. */
+  catalogMembers: number | null;
 }
 
-export function ZoneDangerZone({ zoneIdEncoded, serverSlug, zoneName, canDelete }: Props) {
+export function ZoneDangerZone({
+  zoneIdEncoded,
+  serverSlug,
+  zoneName,
+  canDelete,
+  catalogMembers,
+}: Props) {
   const router = useRouter();
   const { toast } = useDialog();
   const [downloaded, setDownloaded] = useState(false);
@@ -39,7 +52,10 @@ export function ZoneDangerZone({ zoneIdEncoded, serverSlug, zoneName, canDelete 
   // from the canonical PDNS zone name so the phrase reads naturally -
   // `yes, delete example.com` rather than `yes, delete example.com.`.
   const cleanName = zoneName.replace(/\.$/, "");
-  const requiredPhrase = `yes, delete ${cleanName}`;
+  const guardedCatalog = catalogMembers !== null && catalogMembers > 0;
+  const requiredPhrase = guardedCatalog
+    ? `yes, delete catalog ${cleanName}`
+    : `yes, delete ${cleanName}`;
   const phraseMatches = confirmText === requiredPhrase;
 
   async function handleDownload() {
@@ -76,7 +92,8 @@ export function ZoneDangerZone({ zoneIdEncoded, serverSlug, zoneName, canDelete 
     if (!phraseMatches || !downloaded) return;
     setDeleting(true);
     try {
-      const url = `/api/admin/pdns/zones/${zoneIdEncoded}?serverSlug=${encodeURIComponent(serverSlug)}`;
+      const confirm = guardedCatalog ? `&confirmCatalog=${encodeURIComponent(zoneName)}` : "";
+      const url = `/api/admin/pdns/zones/${zoneIdEncoded}?serverSlug=${encodeURIComponent(serverSlug)}${confirm}`;
       const result = await mutate(url, { method: "DELETE" });
       if (!result.ok) {
         toast({
@@ -108,6 +125,25 @@ export function ZoneDangerZone({ zoneIdEncoded, serverSlug, zoneName, canDelete 
           fail.
         </p>
       </header>
+
+      {guardedCatalog ? (
+        <div
+          role="note"
+          className="mt-4 rounded-md border border-[color:var(--color-error)] bg-[color:var(--color-bg)] p-3 text-sm"
+        >
+          <p>
+            <strong className="text-[color:var(--color-error-fg)]">This is a catalog zone.</strong>{" "}
+            {catalogMembers} zone{catalogMembers === 1 ? "" : "s"} name {cleanName} as their
+            catalog. Deleting it stops every secondary that reads the catalog from learning about
+            zone additions and removals - depending on the secondary, it may also remove those
+            zones.
+          </p>
+          <p className="mt-2 text-xs text-[color:var(--color-fg-muted)]">
+            Deleted by mistake? Recreate a Producer zone with the same name: the members still name
+            it, so PowerDNS rebuilds the catalog at once.
+          </p>
+        </div>
+      ) : null}
 
       <ol className="mt-4 space-y-4 text-sm">
         <li>

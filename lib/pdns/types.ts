@@ -405,6 +405,12 @@ export interface PdnsDaemonCapabilities {
    * field existed, or when the autoprimary read failed.
    */
   autoprimaryCount?: number;
+  /**
+   * `default-catalog-zone` (PDNS 4.8+), canonical: the catalog every zone the
+   * API creates joins. Absent when unset, unsupported, or on snapshots taken
+   * before this field existed.
+   */
+  defaultCatalogZone?: string;
   /** When this snapshot was taken (ISO timestamp). */
   fetchedAt: string;
 }

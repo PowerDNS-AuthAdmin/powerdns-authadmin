@@ -24,6 +24,8 @@
  */
 
 import "server-only";
+import { canonicalZoneName } from "@/lib/dns/zone-name";
+import { catalogHealthInputs } from "@/lib/pdns/catalog";
 import type { PdnsServer } from "@/lib/db/schema";
 import {
   listAllActiveBackends,
@@ -155,6 +157,7 @@ export async function refreshBackendHealth(
       kind: z.kind,
       dnssec: z.dnssec ?? false,
       masters: z.masters ?? [],
+      catalog: z.catalog ? canonicalZoneName(z.catalog) : null,
     }));
   } catch (err) {
     authError = err instanceof PdnsAuthError;
@@ -199,6 +202,7 @@ export async function refreshBackendHealth(
         // Read the poll's last cross-backend computation so a single-backend
         // Test/Refresh doesn't prune a missing-key advisory it can't recompute.
         missingTransferKeys: getTsigMissingCount(backend.id),
+        ...catalogHealthInputs(snapshots ?? [], backend.capabilities?.defaultCatalogZone),
       }),
       { immediate },
     );

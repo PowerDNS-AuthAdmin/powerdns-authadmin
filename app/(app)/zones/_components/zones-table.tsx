@@ -24,11 +24,16 @@ import { ZoneHorizonBadge } from "@/components/domain/zone-horizon-badge";
 import { isSettledSyncState, type SyncState } from "@/lib/pdns/serial-sync";
 import { ToggleChip } from "@/components/ui/toggle-chip";
 
-type ScopeFilter = "all" | "forward" | "reverse";
+/**
+ * `system` lists catalog zones (Producer/Consumer) and nothing else; every
+ * other scope leaves them out, so "All" means all of the operator's own zones
+ * and its count doesn't move because the fleet has a catalog (#209).
+ */
+type ScopeFilter = "all" | "forward" | "reverse" | "system";
 const SCOPE_STORAGE_KEY = "pda.zones.scope";
 
 function isValidScope(s: unknown): s is ScopeFilter {
-  return s === "all" || s === "forward" || s === "reverse";
+  return s === "all" || s === "forward" || s === "reverse" || s === "system";
 }
 
 type HorizonFilter = "all" | ZoneHorizon;
@@ -124,6 +129,11 @@ export interface ZoneRow {
   /** True when this row is a read-only mirror (an unpinned secondary's zone
    *  that no primary serves). The row links to a read-only zone detail. */
   readOnly?: boolean;
+  /**
+   * Set for a catalog zone (RFC 9432): which side it is and how many zones on
+   * its backend name it as their catalog. Null/absent for a content zone.
+   */
+  catalog?: { role: "producer" | "consumer"; members: number } | null;
 }
 
 interface ZonesTableProps {
@@ -184,7 +194,16 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
                   cluster
                 </span>
               ) : null}
-              <ZoneHorizonBadge horizon={row.horizon} className="ml-2" />
+              {row.catalog ? (
+                <span
+                  className="ml-2 rounded bg-[color:var(--color-accent)]/15 px-1 py-0.5 font-mono text-[0.625rem] tracking-wide text-[color:var(--color-accent)] uppercase"
+                  title="Catalog zone (RFC 9432) - lists the zones secondaries should serve"
+                >
+                  catalog · {row.catalog.role}
+                </span>
+              ) : (
+                <ZoneHorizonBadge horizon={row.horizon} className="ml-2" />
+              )}
               {row.readOnly ? (
                 <span
                   className="ml-2 rounded bg-[color:var(--color-bg-muted)] px-1 py-0.5 font-mono text-[0.625rem] tracking-wide text-[color:var(--color-fg-muted)] uppercase"
@@ -312,41 +331,63 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
     let forward = 0;
     let reverse = 0;
     let internal = 0;
+    let system = 0;
     for (const z of zones) {
+      if (z.catalog) {
+        system++;
+        continue;
+      }
       if (isReverseZone(z.name)) reverse++;
       else forward++;
       if (z.horizon === "internal") internal++;
     }
-    return {
-      all: zones.length,
-      forward,
-      reverse,
-      internal,
-      public: zones.length - internal,
-    };
+    const all = forward + reverse;
+    return { all, forward, reverse, system, internal, public: all - internal };
   }, [zones]);
 
+  // A remembered System tab falls back to All once the fleet has no catalog.
+  const activeScope: ScopeFilter = scope === "system" && counts.system === 0 ? "all" : scope;
   const filtered = useMemo(() => {
     return zones.filter((z) => {
-      if (scope !== "all" && isReverseZone(z.name) !== (scope === "reverse")) return false;
+      if (activeScope === "system") return Boolean(z.catalog);
+      if (z.catalog) return false;
+      if (activeScope !== "all" && isReverseZone(z.name) !== (activeScope === "reverse")) {
+        return false;
+      }
       if (horizon !== "all" && z.horizon !== horizon) return false;
       return true;
     });
-  }, [zones, scope, horizon]);
+  }, [zones, activeScope, horizon]);
+
+  // The member count only means something for catalog zones, so the column
+  // exists on the System tab alone.
+  const visibleColumns = useMemo(() => {
+    if (activeScope !== "system") return columns;
+    const members: ColumnDef<ZoneRow, unknown> = {
+      id: "members",
+      accessorFn: (row) => row.catalog?.members ?? 0,
+      header: "Members",
+      cell: (ctx) => (
+        <span className="font-mono text-xs tabular-nums">{ctx.getValue<number>()}</span>
+      ),
+      meta: { className: "w-[8%]" },
+    };
+    return [columns[0]!, members, ...columns.slice(1)];
+  }, [columns, activeScope]);
 
   return (
     <div className="space-y-3">
       {/* The tabs filter the table below; `tableId` ties them together for
           assistive technology via aria-controls. */}
       <div className="flex flex-wrap items-center gap-2">
-        <ScopeTabs scope={scope} counts={counts} onChange={setScope} controls={tableId} />
-        {counts.internal > 0 ? (
+        <ScopeTabs scope={activeScope} counts={counts} onChange={setScope} controls={tableId} />
+        {counts.internal > 0 && activeScope !== "system" ? (
           <HorizonTabs horizon={horizon} counts={counts} onChange={setHorizon} controls={tableId} />
         ) : null}
       </div>
       <div id={tableId}>
         <DataTable
-          columns={columns}
+          columns={visibleColumns}
           data={filtered}
           searchPlaceholder="Search zones by name or backend…"
           // Default order: desynced first (Sync desc), then name asc.
@@ -367,7 +408,7 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
           pageSizeParam="pageSize"
           stateKey="zones"
           rowHref={zoneHref}
-          noDataMessage={emptyMessage(scope, horizon)}
+          noDataMessage={emptyMessage(activeScope, horizon)}
         />
       </div>
     </div>
@@ -376,6 +417,7 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
 
 /** Empty-state copy that names whichever filters are actually narrowing the list. */
 function emptyMessage(scope: ScopeFilter, horizon: HorizonFilter): string {
+  if (scope === "system") return "No catalog zones across any backend.";
   const kind = scope === "forward" ? "forward " : scope === "reverse" ? "reverse " : "";
   const audience = horizon === "internal" ? "internal " : horizon === "public" ? "public " : "";
   return `No ${audience}${kind}zones across any backend yet.`;
@@ -388,7 +430,7 @@ function ScopeTabs({
   controls,
 }: {
   scope: ScopeFilter;
-  counts: { all: number; forward: number; reverse: number };
+  counts: { all: number; forward: number; reverse: number; system: number };
   onChange: (next: ScopeFilter) => void;
   controls: string;
 }) {
@@ -402,6 +444,10 @@ function ScopeTabs({
         { id: "all", label: "All", count: counts.all },
         { id: "forward", label: "Forward", count: counts.forward },
         { id: "reverse", label: "Reverse", count: counts.reverse },
+        // Shown only when catalog zones exist, like the horizon chips.
+        ...(counts.system > 0
+          ? [{ id: "system" as const, label: "System", count: counts.system }]
+          : []),
       ]}
     />
   );
