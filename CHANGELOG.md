@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Security
+
+- **`next` 16.4.0 → 16.4.2** (and `eslint-config-next` to match), fixing
+  [GHSA-2464-fhr4-w9xw](https://github.com/advisories/GHSA-2464-fhr4-w9xw) (critical) and
+  [GHSA-p3m5-59mp-jv5r](https://github.com/advisories/GHSA-p3m5-59mp-jv5r) in the Image
+  Optimization API. The app runs with `images.unoptimized`, so the vulnerable endpoint isn't
+  reachable here; the update clears the audit gate.
+- **`dompurify` 3.4.16 → 3.4.17** (through `isomorphic-dompurify`, which sanitizes uploaded SVG
+  logos), fixing [GHSA-cg2g-xh64-v4q7](https://github.com/advisories/GHSA-cg2g-xh64-v4q7)
+  (critical), [GHSA-mrv2-3pqr-j5jr](https://github.com/advisories/GHSA-mrv2-3pqr-j5jr) and
+  [GHSA-c6gr-qvv4-5v3f](https://github.com/advisories/GHSA-c6gr-qvv4-5v3f). The logo sanitizer
+  uses none of the affected modes (`SAFE_FOR_TEMPLATES`, `IN_PLACE`, an XHTML parser type).
+- **`ip-address` 10.7.3 → 10.7.4** (through the MCP SDK's rate limiter), fixing
+  [GHSA-rxp7-6hxx-x8q5](https://github.com/advisories/GHSA-rxp7-6hxx-x8q5) (moderate).
+
 ## [1.11.0] - 2026-10-22
 
 Adds PowerDNS Authoritative 5.1 to the supported versions. **No schema change, no migration.**
