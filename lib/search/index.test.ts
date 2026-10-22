@@ -146,6 +146,7 @@ function auth(permissions: string[], extra: Partial<SearchAuth> = {}): SearchAut
   return {
     globalPermissions: new Set(permissions),
     zoneGrants: [],
+    zoneScopedPermissions: new Map(),
     canReadTeam: () => false,
     ...extra,
   };
@@ -228,6 +229,18 @@ describe("searchEverything", () => {
       horizon: "internal",
       kind: "Master",
     });
+  });
+
+  it("admits a zone-scoped role to its zone only, on any backend (ADR-0024)", async () => {
+    const scoped = auth([], {
+      zoneScopedPermissions: new Map([["secret-lab.net.", new Set(["zone.read", "record.read"])]]),
+    });
+    const res = await run("e", scoped);
+    const titles = res.groups.flatMap((g) => g.items.map((i) => i.title));
+    expect(titles).toContain("secret-lab.net");
+    expect(titles).toContain("db.secret-lab.net");
+    expect(titles).not.toContain("example.com");
+    expect(titles).not.toContain("www.example.com");
   });
 
   it("matches record content and links with the content as the table filter", async () => {
@@ -344,6 +357,11 @@ describe("searchTabVisibility", () => {
         auth([], { zoneGrants: [{ serverId: "s", zoneName: "z.", permissions: ["zone.read"] }] }),
       ),
     ).toEqual({ zones: true, records: false, config: true, requests: false, audit: false });
+    expect(
+      searchTabVisibility(
+        auth([], { zoneScopedPermissions: new Map([["z.", new Set(["record.read"])]]) }),
+      ),
+    ).toEqual({ zones: false, records: true, config: true, requests: false, audit: false });
     expect(searchTabVisibility(auth(["audit.read", "record.read"]))).toEqual({
       zones: false,
       records: true,

@@ -42,7 +42,8 @@ export async function loadDnssecZone(
   csrfRequest?: Request,
   opts: { rrsets?: boolean } = {},
 ): Promise<DnssecRouteContext> {
-  const { user: actor, globalPermissions, zoneGrants } = await requireUser();
+  const auth = await requireUser();
+  const { user: actor } = auth;
   if (csrfRequest) await requireCsrf(csrfRequest);
   const zoneName = normalizeZoneId(decodeURIComponent(rawZoneId));
 
@@ -56,15 +57,7 @@ export async function loadDnssecZone(
         : "No default PDNS backend - pass serverSlug.",
     );
   }
-  if (
-    !canActOnZone({
-      hasGlobalPermission: globalPermissions.has(permission),
-      grants: zoneGrants,
-      serverId: server.id,
-      zoneName,
-      permission,
-    })
-  ) {
+  if (!canActOnZone(auth, { serverId: server.id, zoneName, permission })) {
     throw new ForbiddenError(`Missing ${permission} for this zone.`);
   }
 

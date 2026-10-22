@@ -60,7 +60,8 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
     // Authenticate without the type-level `can:` short-circuit - we
     // grant on EITHER the type-level role permission OR a per-zone
     // grant via `canActOnZone` below.
-    const { user: actor, globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
+    const { user: actor } = auth;
     await requireCsrf(request);
 
     const { zoneId, kind: rawKind } = await context.params;
@@ -87,15 +88,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
     const client = getBackendGateway(selected);
     const zoneName = canonicalZoneName(decodeURIComponent(zoneId));
 
-    if (
-      !canActOnZone({
-        hasGlobalPermission: globalPermissions.has("metadata.write"),
-        grants: zoneGrants,
-        serverId: selected.id,
-        zoneName,
-        permission: "metadata.write",
-      })
-    ) {
+    if (!canActOnZone(auth, { serverId: selected.id, zoneName, permission: "metadata.write" })) {
       throw new ForbiddenError("Missing metadata.write for this zone.");
     }
 
@@ -134,7 +127,8 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
 export async function DELETE(request: Request, context: RouteContext): Promise<Response> {
   try {
     // Same EITHER-OR pattern as PUT - see comment there.
-    const { user: actor, globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
+    const { user: actor } = auth;
     await requireCsrf(request);
 
     const { zoneId, kind: rawKind } = await context.params;
@@ -147,15 +141,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
     const client = getBackendGateway(selected);
     const zoneName = canonicalZoneName(decodeURIComponent(zoneId));
 
-    if (
-      !canActOnZone({
-        hasGlobalPermission: globalPermissions.has("metadata.write"),
-        grants: zoneGrants,
-        serverId: selected.id,
-        zoneName,
-        permission: "metadata.write",
-      })
-    ) {
+    if (!canActOnZone(auth, { serverId: selected.id, zoneName, permission: "metadata.write" })) {
       throw new ForbiddenError("Missing metadata.write for this zone.");
     }
 

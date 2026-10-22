@@ -60,7 +60,7 @@ const zoneHref = (zone: string, server: string): string =>
 export async function GET(request: Request): Promise<Response> {
   try {
     requireFeature("reverseDns");
-    const { globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
     const url = new URL(request.url);
     const zoneParam = url.searchParams.get("zone") ?? "";
     if (!/^[A-Za-z0-9._\-/]{1,255}$/.test(zoneParam)) throw new ValidationError("Invalid zone.");
@@ -73,13 +73,7 @@ export async function GET(request: Request): Promise<Response> {
     const scan = await getFleetScan();
     const bySlug = new Map(scan.servers.map((s) => [s.slug, s]));
     const can = (permission: string, serverId: string, zoneName: string): boolean =>
-      canActOnZone({
-        hasGlobalPermission: globalPermissions.has(permission),
-        grants: zoneGrants,
-        serverId,
-        zoneName,
-        permission,
-      });
+      canActOnZone(auth, { serverId, zoneName, permission });
     const canReadBySlug = (serverSlug: string, zoneName: string): boolean => {
       const s = bySlug.get(serverSlug);
       return s !== undefined && can("zone.read", s.id, zoneName);

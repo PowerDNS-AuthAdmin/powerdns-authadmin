@@ -22,7 +22,7 @@ import { findUserById } from "@/lib/db/repositories/users";
 import { loadUserAssignmentsForAbility } from "@/lib/db/repositories/roles";
 import { latestSessionForUser } from "@/lib/db/repositories/sessions";
 import { listGrantsForUser, mapServersToClusterPeers } from "@/lib/db/repositories/zone-grants";
-import { expandGrantsAcrossClusters } from "@/lib/rbac/zone-permissions";
+import { expandGrantsAcrossClusters, zoneScopedPermissionsOf } from "@/lib/rbac/zone-permissions";
 import { recomputeIdpPermissions } from "@/lib/auth/providers/idp-perms-recompute";
 import type { User } from "@/lib/db/schema";
 import type { ZoneGrant } from "@/lib/db/schema";
@@ -49,14 +49,14 @@ export interface AuthenticatedRequest {
    * resource of this type" decision: a type-level CASL check returns
    * true even for a team/zone/server-scoped rule (see
    * `globalPermissionsOf`). Zone/record/dnssec/metadata routes combine
-   * this with a per-zone `zone_grants` lookup via `canActOnZone`.
+   * this with `zoneGrants` and `zoneScopedPermissions` via `canActOnZone`.
    */
   globalPermissions: ReadonlySet<string>;
   /**
-   * Per-zone grants the user holds. Routes that mutate a specific
+   * Per-zone grants the user holds. Routes that act on a specific
    * zone consult `canActOnZone` (`lib/rbac/zone-permissions`), which
-   * allows the action when EITHER a global permission OR a matching
-   * `zone_grants` row covers it.
+   * allows the action when a global permission, a matching
+   * `zone_grants` row, or a zone-scoped role covers it.
    *
    * Token-auth callers see this narrowed to the same intersection
    * with `tokenRow.scopes` that `narrowAssignmentsByTokenScopes`
@@ -64,6 +64,13 @@ export interface AuthenticatedRequest {
    * permission the user lost.
    */
   zoneGrants: readonly ZoneGrant[];
+  /**
+   * Canonical zone name → zone-bound permissions from role assignments
+   * scoped to `zone:<name>`, admin-issued and IdP-derived alike (ADR-0024).
+   * Built from the same (token-narrowed) source list as the ability, so a
+   * token can't use a zone-scoped permission its scopes exclude.
+   */
+  zoneScopedPermissions: ReadonlyMap<string, ReadonlySet<string>>;
   source: "session" | "token";
 }
 
@@ -119,6 +126,7 @@ export async function getCurrentUser(): Promise<AuthenticatedRequest | null> {
       ability,
       globalPermissions: globalPermissionsOf(sources),
       zoneGrants: await expandClusterGrants(zoneGrants),
+      zoneScopedPermissions: zoneScopedPermissionsOf(sources),
       source: "session",
     };
   }
@@ -274,6 +282,7 @@ async function resolvePresentedToken(
     ability,
     globalPermissions: globalPermissionsOf(sources),
     zoneGrants: await expandClusterGrants(zoneGrants),
+    zoneScopedPermissions: zoneScopedPermissionsOf(sources),
     source: "token",
   };
 }

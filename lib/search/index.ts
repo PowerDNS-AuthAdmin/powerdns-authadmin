@@ -8,7 +8,8 @@
  *
  * Every source is checked on its own; nothing here trusts that a user who
  * can open the palette may see everything in it. Zone-scoped items go through
- * `canActOnZone` (a global grant OR a zone grant on that backend), admin items
+ * `canActOnZone` (a global grant, a zone grant on that backend, or a role
+ * scoped to the zone - ADR-0024), admin items
  * through the global permission set, teams through the same per-team ability
  * check as the Teams page.
  *
@@ -21,7 +22,7 @@
  */
 
 import "server-only";
-import { canActOnZone, type ZoneGrantInput } from "@/lib/rbac/zone-permissions";
+import { canActOnZone, holdsOnSomeZone, type ZoneAccess } from "@/lib/rbac/zone-permissions";
 import { scoreMatch, type MatchRange, type ScoreOptions } from "./fuzzy";
 import type {
   SearchGroup,
@@ -125,9 +126,7 @@ export interface SearchSources {
 }
 
 /** The slice of the authenticated request the search decides with. */
-export interface SearchAuth {
-  globalPermissions: ReadonlySet<string>;
-  zoneGrants: readonly ZoneGrantInput[];
+export interface SearchAuth extends ZoneAccess {
   /** Per-team read check (the Teams page lets a team-scoped owner see their own teams). */
   canReadTeam: (teamId: string) => boolean;
   /** The opt-in pages that exist on this install; absent means none. */
@@ -336,11 +335,11 @@ const withoutDot = (name: string): string => (name.endsWith(".") ? name.slice(0,
 /* ------------------------------------------------------------ visibility */
 
 const anyZoneGrantWith = (auth: SearchAuth, permission: string): boolean =>
-  auth.zoneGrants.some((g) => g.permissions.includes(permission));
+  holdsOnSomeZone(auth, (p) => p === permission);
 
 /**
  * Which tabs this user may see at all. Zones and Records open to a global
- * grant or any zone grant carrying the read permission; Config to any one of
+ * grant, or any zone grant or zone-scoped role carrying the read permission; Config to any one of
  * the config permissions; Requests and Audit to `audit.read`.
  */
 export function searchTabVisibility(auth: SearchAuth): SearchTabVisibility {
@@ -359,13 +358,7 @@ export function searchTabVisibility(auth: SearchAuth): SearchTabVisibility {
 type GroupResult = SearchItem[];
 
 function zoneAllowed(auth: SearchAuth, permission: string, serverId: string, zone: string) {
-  return canActOnZone({
-    hasGlobalPermission: auth.globalPermissions.has(permission),
-    grants: auth.zoneGrants,
-    serverId,
-    zoneName: zone,
-    permission,
-  });
+  return canActOnZone(auth, { serverId, zoneName: zone, permission });
 }
 
 async function searchZones(

@@ -52,11 +52,8 @@ const cloneSchema = z.object({
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const {
-      user: actor,
-      globalPermissions,
-      zoneGrants,
-    } = await requireUser({ can: "zone.create" });
+    const auth = await requireUser({ can: "zone.create" });
+    const { user: actor } = auth;
     await requireCsrf(request);
 
     let input;
@@ -88,15 +85,7 @@ export async function POST(request: Request): Promise<Response> {
     // Cloning copies every RRset of the source, so it is a read of that zone:
     // `zone.create` alone must not let a grant-scoped operator lift the
     // contents of a zone they can't open.
-    if (
-      !canActOnZone({
-        hasGlobalPermission: globalPermissions.has("zone.read"),
-        grants: zoneGrants,
-        serverId: selected.id,
-        zoneName: source,
-        permission: "zone.read",
-      })
-    ) {
+    if (!canActOnZone(auth, { serverId: selected.id, zoneName: source, permission: "zone.read" })) {
       throw new ForbiddenError("You don't have zone.read on the source zone.");
     }
 

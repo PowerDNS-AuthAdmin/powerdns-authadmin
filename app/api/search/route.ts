@@ -45,6 +45,7 @@ export async function GET(request: Request): Promise<Response> {
       auth: {
         globalPermissions: auth.globalPermissions,
         zoneGrants: auth.zoneGrants,
+        zoneScopedPermissions: auth.zoneScopedPermissions,
         canReadTeam: (id) => auth.ability.can("read", { __type: "Team", id }),
         features: optionalFeatures,
       },

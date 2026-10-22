@@ -12,8 +12,12 @@ import type { AuthenticatedRequest } from "@/lib/auth/get-current-user";
 import type { SearchFeatures } from "./index";
 import type { SearchQuickLink, SearchTabVisibility } from "./types";
 import { searchTabVisibility } from "./index";
+import { canListZones, canUseRecordWizard } from "@/lib/rbac/zone-permissions";
 
-type Actor = Pick<AuthenticatedRequest, "ability" | "globalPermissions" | "zoneGrants">;
+type Actor = Pick<
+  AuthenticatedRequest,
+  "ability" | "globalPermissions" | "zoneGrants" | "zoneScopedPermissions"
+>;
 
 /** Empty-state shortcuts for this user, zone pages first. */
 export function buildSearchQuickLinks(actor: Actor, features: SearchFeatures): SearchQuickLink[] {
@@ -23,13 +27,14 @@ export function buildSearchQuickLinks(actor: Actor, features: SearchFeatures): S
       label: "Zones",
       href: "/zones",
       hint: "Every zone you can read",
-      allowed: ability.can("read", "Zone") || actor.zoneGrants.length > 0,
+      // The /zones page guard (and its nav entry) - see lib/rbac/nav-access.ts.
+      allowed: canListZones(actor),
     },
     {
       label: "Add record",
       href: "/zones/new-record",
       hint: "Pick a zone, then the record",
-      allowed: ability.can("create", "Record"),
+      allowed: canUseRecordWizard(actor),
     },
     {
       label: "Reverse DNS",
@@ -62,6 +67,7 @@ export function searchTabsFor(actor: Actor): SearchTabVisibility {
   return searchTabVisibility({
     globalPermissions: actor.globalPermissions,
     zoneGrants: actor.zoneGrants,
+    zoneScopedPermissions: actor.zoneScopedPermissions,
     canReadTeam: (id) => actor.ability.can("read", { __type: "Team", id }),
   });
 }

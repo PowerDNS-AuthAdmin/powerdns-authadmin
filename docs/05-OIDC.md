@@ -122,12 +122,27 @@ truth. Admin-issued assignments (not tagged to a provider) are never touched.
 
 Each mapping is `group → role @ scope`. Scope syntax:
 
-| Scope              | Applies to                                                     |
-| ------------------ | -------------------------------------------------------------- |
-| `global`           | everywhere                                                     |
-| `team:<slug>`      | the named team                                                 |
-| `zone:<zone-name>` | one zone (canonical FQDN, trailing dot - e.g. `corp.example.`) |
-| `server:<slug>`    | every zone on one backend                                      |
+| Scope              | Applies to                                                                                      |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| `global`           | everywhere                                                                                      |
+| `team:<slug>`      | the named team (see the limitation below)                                                       |
+| `zone:<zone-name>` | every zone with that name, on any backend (canonical FQDN, trailing dot - e.g. `corp.example.`) |
+| `server:<slug>`    | the backend object (see the limitation below)                                                   |
+
+A **zone-scoped** mapping gives the group's members the role's zone-bound
+permissions (`zone.*` except `zone.create`, `record.*`, `soa.*`, `dnssec.*`,
+`metadata.*`) on that zone: it appears in their Zones list and they can act on it
+as the role allows - and on no other zone. The role's non-zone permissions
+(`user.read`, `server.read`, `settings.read`, …) are ignored at zone scope. The
+zone name is matched on every backend, so a zone with the same name on two
+backends is covered on both. See
+[Roles & permissions → What a zone scope grants](./07-RBAC.md#what-a-zone-scope-grants).
+
+> **Known limitation - team and server scopes.** A team- or server-scoped mapping
+> saved from the admin UI stores the slug, but the authorizer compares those scopes
+> against UUIDs, so such a mapping currently grants nothing. Team and server scopes
+> never open zones in any case (zones carry no team/server binding) - use a
+> zone-scoped mapping, or a team zone grant, for zone access.
 
 Example (provisioning YAML - the UI exposes the same fields):
 

@@ -49,7 +49,12 @@ import {
   type NarrowableAssignment,
 } from "@/lib/auth/token-scope-narrowing";
 import { globalPermissionsOf } from "@/lib/rbac/ability";
-import { expandGrantsAcrossClusters, hasZonePermissionViaGrant } from "@/lib/rbac/zone-permissions";
+import {
+  canActOnZone,
+  expandGrantsAcrossClusters,
+  zoneScopedPermissionsOf,
+  type ZoneAccess,
+} from "@/lib/rbac/zone-permissions";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { replaceRRset, zonePatchBody } from "@/lib/pdns/rrsets";
 import { redact } from "@/lib/errors/redact";
@@ -129,8 +134,8 @@ export async function GET(request: Request): Promise<Response> {
 
   // Narrow assignments + zone grants to the token's stored scopes, then
   // derive the user's global permissions. The DynDNS update needs
-  // `record.update` - held either at GLOBAL scope OR via a zone_grant for
-  // the specific zone the hostname falls under (checked per-zone below).
+  // `record.update` - held at GLOBAL scope, via a zone_grant, or via a
+  // zone-scoped role for the zone the hostname falls under (checked below).
   const rawAssignments = await loadUserAssignmentsForAbility(user.id);
   const narrowed = narrowAssignmentsByTokenScopes(
     rawAssignments as readonly NarrowableAssignment[],
@@ -157,6 +162,14 @@ export async function GET(request: Request): Promise<Response> {
     clusterPeers.size === 0
       ? narrowedGrants
       : expandGrantsAcrossClusters(narrowedGrants, clusterPeers);
+  // Zone-scoped admin assignments count too (ADR-0024), from the same
+  // token-narrowed list. IdP-derived permissions stay out of this path, as
+  // they always have: DynDNS authenticates with a token alone.
+  const access: ZoneAccess = {
+    globalPermissions,
+    zoneGrants,
+    zoneScopedPermissions: zoneScopedPermissionsOf(narrowed),
+  };
 
   // ── Source IP - use the explicit param when given, else derive ──────────
   const sourceIp = myip ?? getClientIp(hdrs);
@@ -187,13 +200,15 @@ export async function GET(request: Request): Promise<Response> {
     if (!zoneNameNoDot) continue;
     const zoneName = `${zoneNameNoDot}.`;
 
-    // record.update held at GLOBAL scope OR via a zone_grant for THIS
-    // (server, zone). A type-level CASL check would let a token with any
-    // scoped record.update rewrite every zone - see
+    // record.update held at GLOBAL scope, via a zone_grant for THIS (server,
+    // zone), or via a role scoped to this zone. A type-level CASL check would
+    // let a token with any scoped record.update rewrite every zone - see
     // lib/rbac/ability.ts:globalPermissionsOf.
-    const allowed =
-      globalPermissions.has("record.update") ||
-      hasZonePermissionViaGrant(zoneGrants, server.id, zoneName, "record.update");
+    const allowed = canActOnZone(access, {
+      serverId: server.id,
+      zoneName,
+      permission: "record.update",
+    });
     if (!allowed) {
       return plain("nohost");
     }

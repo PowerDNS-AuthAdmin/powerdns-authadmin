@@ -25,7 +25,7 @@ interface RouteContext {
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
     const { zoneId } = await context.params;
     const zone = normalizeZoneId(decodeURIComponent(zoneId));
     const url = new URL(request.url);
@@ -38,13 +38,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
     if (server?.disabledAt !== null)
       throw new ValidationError("Unknown or disabled PowerDNS backend.");
     const can = (permission: string): boolean =>
-      canActOnZone({
-        hasGlobalPermission: globalPermissions.has(permission),
-        grants: zoneGrants,
-        serverId: server.id,
-        zoneName: zone,
-        permission,
-      });
+      canActOnZone(auth, { serverId: server.id, zoneName: zone, permission });
     if (!can("zone.read") || !can("record.read"))
       throw new ForbiddenError("Missing zone.read / record.read for this zone.");
 

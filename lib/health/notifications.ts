@@ -59,9 +59,9 @@ export interface NotificationSummary {
 }
 
 export interface NotificationViewer {
-  /** `server.read` at any scope: the audience for backend health. */
+  /** Global `server.read`: the audience for backend health. */
   canReadServers: boolean;
-  /** `zone.read` on this zone on this backend (global or through a grant). */
+  /** `zone.read` on this zone on this backend (`canActOnZone`: global, grant or zone-scoped role). */
   canReadZone: (serverId: string, zone: string) => boolean;
   /** Global `zone.read`: needed for a monitoring row whose zone cannot be parsed. */
   globalZoneRead: boolean;

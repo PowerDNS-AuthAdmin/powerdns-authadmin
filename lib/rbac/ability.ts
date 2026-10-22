@@ -200,8 +200,9 @@ export function buildAbility(sources: readonly AbilitySource[]): AppAbility {
  * A genuine "all instances" capability is exactly a **global** grant. Callers
  * that must make an all-instances decision (zone/record/dnssec/metadata
  * operations - which have no zone→team mapping and are gated per-zone by
- * `zone_grants` instead - plus zone/server *creation* and admin-wide list
- * endpoints) consult this set. Callers holding a concrete resource pass a
+ * `zone_grants` and zone-scoped roles in `lib/rbac/zone-permissions.ts`
+ * instead - plus zone/server *creation* and admin-wide list endpoints)
+ * consult this set. Callers holding a concrete resource pass a
  * subject instance to `ability.can` for a properly scoped check.
  */
 export function globalPermissionsOf(sources: readonly AbilitySource[]): ReadonlySet<Permission> {

@@ -13,7 +13,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireUserForPage } from "@/lib/auth/require-user";
-import { hasZonePermissionViaGrant } from "@/lib/rbac/zone-permissions";
+import { canActOnZone } from "@/lib/rbac/zone-permissions";
 import {
   findDefaultPdnsServer,
   findPdnsServerById,
@@ -99,10 +99,11 @@ export const revalidate = 0;
 export const metadata: Metadata = { title: "Zone" };
 
 export default async function ZoneDetailPage({ params, searchParams }: PageProps) {
-  // Authenticate only - the zone.read gate is per-zone (global permission
-  // OR a zone_grant for THIS server+zone) and is applied below once the
-  // backend + canonical zone name are resolved.
-  const { globalPermissions, zoneGrants } = await requireUserForPage();
+  // Authenticate only - the zone.read gate is per-zone (global permission,
+  // a zone_grant for THIS server+zone, or a role scoped to this zone) and is
+  // applied below once the backend + canonical zone name are resolved.
+  const auth = await requireUserForPage();
+  const { globalPermissions } = auth;
   const { zoneId } = await params;
   const {
     server: requestedSlug,
@@ -216,14 +217,13 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   // the selected backend.
   const auditSlugs = clusterContext ? clusterContext.peers.map((p) => p.slug) : [selected.slug];
 
-  // Per-zone authorization: a permission is held if it's granted at GLOBAL
-  // scope OR a zone_grant covers THIS (server, zone). We deliberately avoid a
-  // type-level `ability.can(action, "Type")` - it returns true for a
-  // team/zone-scoped rule and would expose every zone. See
+  // Per-zone authorization: a GLOBAL grant, a zone_grant for THIS (server,
+  // zone), or a role scoped to this zone (`canActOnZone`). We deliberately
+  // avoid a type-level `ability.can(action, "Type")` - it returns true for
+  // any scoped rule and would expose every zone. See
   // `lib/rbac/ability.ts:globalPermissionsOf`.
   const zoneCan = (perm: string): boolean =>
-    globalPermissions.has(perm) ||
-    hasZonePermissionViaGrant(zoneGrants, selected.id, canonical, perm);
+    canActOnZone(auth, { serverId: selected.id, zoneName: canonical, permission: perm });
   if (!zoneCan("zone.read")) {
     redirect("/zones?flash=forbidden&need=zone.read");
   }

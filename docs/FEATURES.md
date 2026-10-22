@@ -325,13 +325,16 @@ the audit trail behave identically whichever door the user came through.
 ### 2.4 Scoped assignments
 
 - **What.** Every assignment is `(user, role, scope)` where scope is one of
-  `global` / `team:<id>` / `zone:<fqdn>` / `server:<id>`. The CASL builder walks scopes at
-  request time so an operator with `record.update` on `zone:example.com.` can edit records
-  there but nowhere else. Collection views that accept a scoped grant (e.g. the Teams list
+  `global` / `team:<id>` / `zone:<fqdn>` / `server:<id>`. Zone access is decided by one
+  helper, `canActOnZone` (`lib/rbac/zone-permissions.ts`): global roles, per-zone grants and
+  zone-scoped roles, so an operator with `record.update` on `zone:example.com.` can edit
+  records in every zone named `example.com.` (any backend) but nowhere else; the role's
+  non-zone permissions are ignored at zone scope (ADR-0024). Team and server scopes don't open
+  zones. Collection views that accept a scoped grant (e.g. the Teams list
   for a team-scoped Team Owner) opt in with `requireUser({ can, anyInstance: true })` and
   filter every row through an instance check; everything else stays global-only.
-- **Where.** `lib/rbac/ability.ts`, `lib/rbac/policy.ts`,
-  `lib/db/schema/role-assignments.ts`, `lib/db/schema/zone-grants.ts`.
+- **Where.** `lib/rbac/ability.ts`, `lib/rbac/policy.ts`, `lib/rbac/zone-permissions.ts`,
+  `lib/rbac/nav-access.ts`, `lib/db/schema/role-assignments.ts`, `lib/db/schema/zone-grants.ts`.
 - **How.** Issue assignments from `/admin/users/<id>` (gated on `role.assign`), or let IdP
   group mapping derive them per session (see § 1.3 and § 1.13). Admin-issued assignments and
   IdP-derived permissions never overwrite each other.

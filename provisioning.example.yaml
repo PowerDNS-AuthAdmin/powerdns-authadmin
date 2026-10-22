@@ -484,9 +484,12 @@ pdns_servers:
 # `scope` syntax in group_mappings:
 #
 #   global              applies everywhere
-#   team:<slug>         applies inside the named team
-#   zone:<zone-name>    applies to a single PDNS zone (canonical fqdn)
-#   server:<slug>       applies to all zones on one backend
+#   team:<slug>         applies to the named team itself (no zone access)
+#   zone:<zone-name>    the role's zone-bound permissions on every zone with that
+#                       name, on any backend (canonical fqdn); nothing else
+#   server:<slug>       applies to the backend object itself; does NOT grant the
+#                       zones on it (zones carry no server binding the authorizer
+#                       can match) - use zone: scopes or zone grants for that
 #
 # Mappings whose role / team / server can't be resolved at sign-in are
 # logged + audited under auth.oidc.group_sync.mapping_unresolved and
@@ -526,18 +529,21 @@ oidc:
         role: operator
         scope: global
 
-      # team-scoped → role applies to the team (membership-equivalent for
-      # visibility). The team slug must exist (defined above or pre-existing).
+      # team-scoped → role applies to the team itself (view/update/members);
+      # it does not open the team's zones - give the team zone grants for that.
+      # The team slug must exist (defined above or pre-existing).
       - group: noc-zone-editors
         role: zone-editor
         scope: team:noc
 
-      # zone-scoped → role applies to ONE zone (canonical fqdn - trailing dot).
+      # zone-scoped → the role's zone-bound permissions on ONE zone name
+      # (canonical fqdn - trailing dot), matched on every backend.
       - group: corp-zone-readers
         role: read-only
         scope: zone:corp.example.
 
-      # server-scoped → role applies to every zone on one backend.
+      # server-scoped → role applies to the backend object only; it does NOT
+      # grant the zones on it (see the scope syntax note above).
       - group: public-dns-only
         role: zone-editor
         scope: server:primary-public

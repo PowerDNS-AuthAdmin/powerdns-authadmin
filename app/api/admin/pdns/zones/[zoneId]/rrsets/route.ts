@@ -73,7 +73,8 @@ interface RouteContext {
 
 export async function PATCH(request: Request, context: RouteContext): Promise<Response> {
   try {
-    const { user, globalPermissions, zoneGrants } = await requireUser();
+    const auth = await requireUser();
+    const { user } = auth;
     await requireCsrf(request);
     const { zoneId: zoneParam } = await context.params;
     const zoneName = normalizeZoneId(decodeURIComponent(zoneParam));
@@ -97,19 +98,10 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
       throw new ValidationError("Unknown or disabled PowerDNS backend.");
     }
 
-    // Permission check, per-change. Each permission passes if EITHER:
-    //   - the user holds it at GLOBAL scope via a role assignment
-    //     (`globalPermissions.has(...)`), OR
-    //   - the user holds a zone_grant for THIS (server, zone) that
-    //     includes it (`hasZonePermissionViaGrant`).
+    // Permission check, per-change: a global role, a zone_grant for THIS
+    // (server, zone), or a role scoped to this zone (see `canActOnZone`).
     const hasZonePermission = (permission: string): boolean =>
-      canActOnZone({
-        hasGlobalPermission: globalPermissions.has(permission),
-        grants: zoneGrants,
-        serverId: server.id,
-        zoneName,
-        permission,
-      });
+      canActOnZone(auth, { serverId: server.id, zoneName, permission });
 
     // Two RRsets cost more than `record.*` (#119): the SOA is its own
     // resource (`soa.update`, INSTEAD of the record permission - it has
@@ -454,13 +446,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
           forwardZone: zoneName,
           changes: enabledChanges,
           canOnZone: (serverId, zone, permission) =>
-            canActOnZone({
-              hasGlobalPermission: globalPermissions.has(permission),
-              grants: zoneGrants,
-              serverId,
-              zoneName: zone,
-              permission,
-            }),
+            canActOnZone(auth, { serverId, zoneName: zone, permission }),
           dryRun: false,
           actor: { type: "user", id: user.id },
           request: reqInfo,

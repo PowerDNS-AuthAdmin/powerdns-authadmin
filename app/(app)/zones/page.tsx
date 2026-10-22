@@ -21,7 +21,8 @@
  *   • Cluster                              → all peers' serials vs the
  *                                            representative peer's
  *
- * Permission: `zone.read`.
+ * Permission: global `zone.read`, or a zone_grant / zone-scoped role (the
+ * list is then filtered to those zones - `listableZoneFilter`).
  */
 
 import type { Metadata } from "next";
@@ -56,6 +57,12 @@ import { ZonesTable, type ZoneRow } from "./_components/zones-table";
 import { createCtaClass } from "@/components/ui/create-button";
 import { PollingDisabledHint } from "@/components/domain/polling-disabled-hint";
 import { ServerRealtimeSubscriber } from "./_components/server-realtime-subscriber";
+import {
+  canListZones,
+  canUseRecordWizard,
+  listableZoneFilter,
+  zoneIsListable,
+} from "@/lib/rbac/zone-permissions";
 import { optionalFeatures, pdnsBackgroundPollingEnabled } from "@/lib/env";
 
 /** Compact bordered actions, the same recipe as the Reverse DNS page's Refresh buttons. */
@@ -66,24 +73,22 @@ export const metadata: Metadata = { title: "Zones" };
 
 export default async function ZonesPage() {
   // Authenticate, then decide zone visibility. A user with GLOBAL zone.read
-  // sees every backend's zones; a non-global user (zone_grants only) sees
-  // only the zones they're granted. A type-level CASL check would leak every
-  // zone name to a team-scoped role - see lib/rbac/ability.ts:globalPermissionsOf.
-  const { globalPermissions, zoneGrants } = await requireUserForPage();
-  const globalZoneRead = globalPermissions.has("zone.read");
-  if (!globalZoneRead && zoneGrants.length === 0) {
+  // sees every backend's zones; anyone else sees only the zones a zone_grant
+  // or a zone-scoped role covers (`listableZoneFilter`). A type-level CASL
+  // check would leak every zone name to a scoped role - see
+  // lib/rbac/ability.ts:globalPermissionsOf. The same `canListZones` gates the
+  // nav entry, so the menu and this page can't disagree.
+  const auth = await requireUserForPage();
+  const { globalPermissions } = auth;
+  if (!canListZones(auth)) {
     redirect("/dashboard?flash=forbidden&need=zone.read");
   }
-  // Grant zone names are stored canonical (lowercase + trailing dot), which
-  // matches the canonical names PDNS returns in the list below.
-  const grantedZoneNames = new Set(zoneGrants.map((g) => g.zoneName));
+  const zoneFilter = listableZoneFilter(auth);
   const canCreateServer = globalPermissions.has("server.create");
   const canCreateZone = globalPermissions.has("zone.create");
-  // The Add record wizard searches zones per grant, so a zone-granted operator
-  // gets the button too; the page itself re-checks with `anyInstance`.
-  const canCreateRecord =
-    globalPermissions.has("record.create") ||
-    zoneGrants.some((g) => g.permissions.includes("record.create"));
+  // The Add record wizard offers only the zones the user may write to, so a
+  // zone-level operator (grant or zone-scoped role) gets the button too.
+  const canCreateRecord = canUseRecordWizard(auth);
   const canReadAudit = globalPermissions.has("audit.read");
   // The reverse DNS reconciler reads every zone's records, so it is gated on
   // the global permission rather than on any single zone grant.
@@ -173,12 +178,10 @@ export default async function ZonesPage() {
   const { kept: dedupedRows, hidden: hiddenRows } = dedupeZonesByIdentity(allRows);
 
   // Restrict the amalgamated list to zones the viewer may actually read.
-  // Global zone.read sees all; otherwise only granted zone names. (The
-  // zone detail page + API enforce per-(server,zone) precisely; this list
-  // filter is the display-side counterpart.)
-  const visibleRows = globalZoneRead
-    ? dedupedRows
-    : dedupedRows.filter((r) => grantedZoneNames.has(r.name));
+  // Global zone.read sees all; otherwise only granted / zone-scoped names.
+  // (The zone detail page + API enforce per-(server,zone) precisely; this
+  // list filter is the display-side counterpart.)
+  const visibleRows = dedupedRows.filter((r) => zoneIsListable(zoneFilter, r.name));
 
   // Surface what de-dup collapsed (scoped to zones the viewer can see), so an
   // operator knows the same zone is served by a backend that ISN'T shown - but
@@ -211,9 +214,9 @@ export default async function ZonesPage() {
       })
       .map((s) => s.slug),
   );
-  const visibleHidden = (
-    globalZoneRead ? hiddenRows : hiddenRows.filter((r) => grantedZoneNames.has(r.name))
-  ).filter((r) => !derivedSecondarySlugs.has(r.backend.serverSlug ?? ""));
+  const visibleHidden = hiddenRows
+    .filter((r) => zoneIsListable(zoneFilter, r.name))
+    .filter((r) => !derivedSecondarySlugs.has(r.backend.serverSlug ?? ""));
   const hiddenBackends = new Map<string, { name: string; type: string }>();
   for (const r of visibleHidden) {
     const type = r.readOnly

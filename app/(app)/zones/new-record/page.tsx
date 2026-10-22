@@ -1,11 +1,12 @@
 /**
  * app/(app)/zones/new-record/page.tsx
  *
- * Add record wizard landing. Permission: `record.create` on at least one
- * zone - `anyInstance` admits a zone-granted operator as well as a global
- * one, and the wizard's zone search only offers zones the caller may write
- * to (each hit carries `canCreate`, decided per zone on the server), so the
- * type-level check here leaks nothing.
+ * Add record wizard landing. Permission: `record.create` globally or on at
+ * least one zone through a zone_grant or a zone-scoped role
+ * (`canUseRecordWizard`, the same check the Zones page uses for its button). The
+ * wizard's zone search only offers zones the caller may write to (each hit
+ * carries `canCreate`, decided per zone on the server), so admitting a
+ * zone-level operator here leaks nothing.
  *
  * Everything else (horizon totals, zone search, existence checks, the write,
  * propagation) is fetched by the client wizard from the zones API, so this
@@ -13,7 +14,9 @@
  * deep-link with.
  */
 
+import { redirect } from "next/navigation";
 import { requireUserForPage } from "@/lib/auth/require-user";
+import { canUseRecordWizard } from "@/lib/rbac/zone-permissions";
 import { parseWizardPrefill } from "@/components/domain/record-wizard-format";
 import { AddRecordWizard } from "./_components/add-record-wizard";
 
@@ -30,7 +33,12 @@ export default async function NewRecordPage({
     content?: string;
   }>;
 }) {
-  await requireUserForPage({ can: "record.create", anyInstance: true });
+  // Not `anyInstance`: the CASL ability carries zone-scoped roles but not
+  // zone_grants, so a grant-only operator would be refused.
+  const auth = await requireUserForPage();
+  if (!canUseRecordWizard(auth)) {
+    redirect("/dashboard?flash=forbidden&need=record.create");
+  }
   const prefill = parseWizardPrefill(await searchParams);
 
   return (

@@ -54,7 +54,8 @@ ready-to-use install without a single click.
   PowerDNS itself reports as ordinary writable primaries.
 - **Real RBAC.** Five system roles plus org-defined custom roles. Permissions span 54 actions
   across zones, records, DNSSEC, TSIG, metadata, autoprimaries, templates, users, teams, servers,
-  API tokens, audit, and auth providers. Assignments scope to global / team / zone / server.
+  API tokens, audit, and auth providers. Assignments scope to global / team / zone / server; a
+  role scoped to a zone (e.g. from an IdP group) grants that zone and nothing else.
   A zone's authority is held apart from its records - the SOA, the apex NS and the Zone
   settings tab each answer to their own permission, so a hosting customer can manage their
   records without ever being shown the knobs that break the zone.
