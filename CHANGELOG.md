@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **On PowerDNS 4.7 and 4.8, deleting a catalog zone with members wasn't guarded.** Those
+  versions leave `catalog` empty in the zone list, so every catalog looked empty: the delete went
+  through without the confirmation, the Members column showed 0 and the banner listed nobody. The
+  delete route now reads each zone's catalog there and asks for confirmation when any zone is a
+  member, or when it can't read them all. The zones list and banner show membership as unknown
+  instead of zero. ([#216](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/216))
+- **PowerDNS 4.6 was offered catalog zones it doesn't have.** The create form no longer lists the
+  Producer kind for a backend older than 4.7, and the create and settings routes refuse `Producer`
+  and `catalog` there with a message that says why.
+  ([#217](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/217))
+- **A catalog Producer zone turned the fleet DESYNCED.** Sync checks expected every secondary
+  to hold a copy of it, but a Producer only reaches the secondaries that consume it (a Consumer
+  zone of the same name). A secondary serving the member zones the classic way showed the
+  catalog as missing: the header chip read DESYNCED everywhere, the System tab showed `MISSING`,
+  and the poller counted the secondary as drifting. A Producer now counts only on mirrors that
+  hold it, across the zones list, the zone page, the sync API, the header chip, drift tracking
+  and the servers page. On the System tab a catalog zone's Kind reads "Catalog producer" or
+  "Catalog consumer" in place of the badge, and a Producer shows "-" for DNSSEC and, when nothing
+  consumes it, for Sync, with a tooltip that says why.
+  ([#219](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/219))
+
 ## [1.12.0] - 2026-10-23
 
 Zone-scoped roles now work end to end, catalog zones are handled as system zones, and this

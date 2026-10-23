@@ -23,6 +23,7 @@ import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { readCachedZones } from "@/lib/pdns/zone-state-cache";
 import { derivedMirrorsForPrimary } from "@/lib/pdns/topology-cache";
 import { isWriteCapable } from "@/lib/pdns/capabilities";
+import { mirrorFollowsZone } from "@/lib/pdns/zone-kinds";
 import {
   classifyMirrorSerial,
   isSettledSyncState,
@@ -90,9 +91,15 @@ async function discoverMirrors(primary: PdnsServer): Promise<MirrorBackend[]> {
   return out;
 }
 
-/** Does this mirror cover the primary's given zone (group member, or derived)? */
-function mirrorsZone(m: MirrorBackend, zoneName: string): boolean {
-  return m.inGroup || m.derivedZones.has(zoneName);
+/**
+ * Does this mirror cover the primary's given zone (group member, or derived)?
+ * A catalog Producer counts only on a mirror that holds it as a Consumer
+ * (`mirrorFollowsZone`); without a kind, the zone is taken as content.
+ */
+function mirrorsZone(m: MirrorBackend, zoneName: string, kind?: string): boolean {
+  if (!m.inGroup && !m.derivedZones.has(zoneName)) return false;
+  if (kind === undefined) return true;
+  return mirrorFollowsZone(kind, readCachedZones(m.server.id)?.zones.has(zoneName) ?? false);
 }
 
 /** Serial-comparison status for one mirror's zone, read from the zone-state cache. */
@@ -141,7 +148,7 @@ export async function checkZoneSync(
   const serials = zoneSerialsOf(zone);
   const refresh = soaRefreshSeconds(zone.name, zone.rrsets ?? []);
   return mirrors
-    .filter((m) => mirrorsZone(m, zone.name))
+    .filter((m) => mirrorsZone(m, zone.name, zone.kind))
     .map((m) => statusFromCache(m, zone.name, serials, refresh));
 }
 
@@ -222,14 +229,14 @@ export async function globalAnyLagging(): Promise<boolean> {
  */
 export async function checkZonesSyncBatch(
   primary: PdnsServer,
-  zones: ReadonlyArray<{ name: string } & ZoneSerials>,
+  zones: ReadonlyArray<{ name: string; kind?: string } & ZoneSerials>,
 ): Promise<Map<string, SecondarySyncStatus[]>> {
   const mirrors = await discoverMirrors(primary);
   if (mirrors.length === 0 || zones.length === 0) return new Map();
 
   const out = new Map<string, SecondarySyncStatus[]>();
   for (const z of zones) {
-    const relevant = mirrors.filter((m) => mirrorsZone(m, z.name));
+    const relevant = mirrors.filter((m) => mirrorsZone(m, z.name, z.kind));
     if (relevant.length === 0) continue;
     out.set(
       z.name,

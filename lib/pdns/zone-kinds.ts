@@ -53,3 +53,14 @@ export function catalogRole(kind: string): "producer" | "consumer" | null {
   const k = kind.toLowerCase();
   return k === "producer" ? "producer" : k === "consumer" ? "consumer" : null;
 }
+
+/**
+ * Whether a mirror's copy of a primary's zone counts toward sync at all. A
+ * catalog Producer only reaches the secondaries set up to consume it, each with
+ * a Consumer zone of the same name; a mirror without one isn't behind, it just
+ * doesn't follow the catalog, so it must never read as "missing". Every other
+ * kind keeps the caller's own rule.
+ */
+export function mirrorFollowsZone(primaryKind: string, mirrorHasZone: boolean): boolean {
+  return catalogRole(primaryKind) !== "producer" || mirrorHasZone;
+}

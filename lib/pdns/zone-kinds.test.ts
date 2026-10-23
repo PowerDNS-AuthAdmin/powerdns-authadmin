@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { catalogRole, isMirrorKind, isSystemKind, isTransferredKind } from "./zone-kinds";
+import {
+  catalogRole,
+  isMirrorKind,
+  isSystemKind,
+  isTransferredKind,
+  mirrorFollowsZone,
+} from "./zone-kinds";
 
 describe("zone kinds", () => {
   it("mirror kinds are the AXFR consumers, in either PDNS spelling", () => {
@@ -42,5 +48,19 @@ describe("system kinds", () => {
     expect(catalogRole("Producer")).toBe("producer");
     expect(catalogRole("consumer")).toBe("consumer");
     expect(catalogRole("Master")).toBeNull();
+  });
+});
+
+describe("mirrorFollowsZone", () => {
+  it("counts a catalog Producer only on a mirror that consumes it", () => {
+    expect(mirrorFollowsZone("Producer", false)).toBe(false);
+    expect(mirrorFollowsZone("producer", true)).toBe(true);
+  });
+
+  it("leaves every other kind to the caller", () => {
+    for (const k of ["Master", "Primary", "Native"]) {
+      expect(mirrorFollowsZone(k, false)).toBe(true);
+      expect(mirrorFollowsZone(k, true)).toBe(true);
+    }
   });
 });

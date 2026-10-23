@@ -34,7 +34,7 @@
 
 import "server-only";
 import { canonicalZoneName } from "@/lib/dns/zone-name";
-import { catalogHealthInputs } from "@/lib/pdns/catalog";
+import { catalogHealthInputs, zoneListCarriesCatalog } from "@/lib/pdns/catalog";
 import { newSystemRequestId, withRequestId } from "@/lib/request-context";
 import { listAllActiveBackends, markPdnsServersSeen } from "@/lib/db/repositories/pdns-servers";
 import { countActiveSessions } from "@/lib/db/repositories/sessions";
@@ -66,7 +66,7 @@ import {
   type CachedZoneSnapshot,
 } from "@/lib/pdns/zone-state-cache";
 import { classifyMirrorSerial, isSettledSyncState } from "@/lib/pdns/serial-sync";
-import { isMirrorKind, isTransferredKind } from "@/lib/pdns/zone-kinds";
+import { isMirrorKind, isTransferredKind, mirrorFollowsZone } from "@/lib/pdns/zone-kinds";
 import { publishHealthEvent, publishZoneEvent } from "./event-bus";
 import { pdnsBackgroundPollingEnabled } from "@/lib/env";
 
@@ -601,7 +601,9 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
             mirrorZonesWithoutMasters,
             replicationDriftMs: driftMsById.get(b.id) ?? null,
             missingTransferKeys: tsigMissingById(b.id),
-            ...catalogHealthInputs(r.snapshots ?? [], b.capabilities?.defaultCatalogZone),
+            ...catalogHealthInputs(r.snapshots ?? [], b.capabilities?.defaultCatalogZone, {
+              membersListed: zoneListCarriesCatalog(b.versionCache?.parsed),
+            }),
           }),
         );
       } catch (err) {
@@ -937,8 +939,8 @@ function computeNotSynced(
   }>,
 ): Set<string> {
   const out = new Set<string>();
-  // Master/Primary and the catalog Producer all reach the group's secondaries
-  // over AXFR, so all three count for "has the mirror caught up".
+  // Master/Primary reach every secondary over AXFR; a catalog Producer only the
+  // secondaries that consume it (`mirrorFollowsZone` below).
   const isReplicatingPrimaryKind = (kind: string): boolean => isTransferredKind(kind);
 
   // 1. Explicit group edges: a mirror's primary is its group's representative
@@ -958,8 +960,10 @@ function computeNotSynced(
     if (!primaryEntry || !secondaryEntry) continue;
     for (const [zoneName, primarySnap] of primaryEntry.zones) {
       if (!isReplicatingPrimaryKind(primarySnap.kind)) continue;
-      // A missing zone on the secondary is also "not synced".
+      // A missing zone on the secondary is also "not synced" - except a catalog
+      // the secondary doesn't consume.
       const secondarySnap = secondaryEntry.zones.get(zoneName) ?? null;
+      if (!mirrorFollowsZone(primarySnap.kind, secondarySnap !== null)) continue;
       if (!isSettledSyncState(classifyMirrorSerial(primarySnap, secondarySnap))) {
         out.add(s.id);
         break;
@@ -979,6 +983,7 @@ function computeNotSynced(
     if (!primarySnap || !isReplicatingPrimaryKind(primarySnap.kind)) continue;
     for (const secId of secIds) {
       const secondarySnap = readCachedZones(secId)?.zones.get(zoneName) ?? null;
+      if (!mirrorFollowsZone(primarySnap.kind, secondarySnap !== null)) continue;
       if (!isSettledSyncState(classifyMirrorSerial(primarySnap, secondarySnap))) out.add(secId);
     }
   }

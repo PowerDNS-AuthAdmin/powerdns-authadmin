@@ -44,7 +44,12 @@ import { resolveDefaultTtl, zoneDefaultTtlFromMetadata } from "@/lib/dns/default
 import { resolveAutoPtr, zoneAutoPtrFromMetadata } from "@/lib/dns/auto-ptr-setting";
 import { getAppSettings } from "@/lib/settings/app-settings";
 import { normalizeMaster } from "@/lib/pdns/topology";
-import { catalogMembers, producerZoneNames, type CatalogZoneLike } from "@/lib/pdns/catalog";
+import {
+  catalogMembers,
+  producerZoneNames,
+  zoneListCarriesCatalog,
+  type CatalogZoneLike,
+} from "@/lib/pdns/catalog";
 import { catalogRole } from "@/lib/pdns/zone-kinds";
 import { readCachedZones } from "@/lib/pdns/zone-state-cache";
 import { derivedUpstreamFor } from "@/lib/pdns/topology-cache";
@@ -286,10 +291,15 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
   const isReadOnlyZone = !ops.rrsets;
   // Catalog zones (#209): a Producer/Consumer page explains itself and lists
   // its members; a content zone's settings offer the backend's Producer zones.
-  // Both come from the backend's zone list - the poller's copy when warm.
+  // Both come from the backend's zone list - the poller's copy when warm. On
+  // PowerDNS 4.7 / 4.8 that list doesn't carry membership, so it's unknown (null).
   const catalogSide = catalogRole(zone.kind);
   const backendZones = await backendZoneList(selected.id, client);
-  const catalogMemberNames = catalogSide ? catalogMembers(backendZones, zone.name) : [];
+  const catalogMemberNames = !catalogSide
+    ? []
+    : zoneListCarriesCatalog(selected.versionCache?.parsed)
+      ? catalogMembers(backendZones, zone.name)
+      : null;
   const producerChoices = producerZoneNames(backendZones).filter((n) => n !== canonical);
   // For a mirror zone, its upstream is read from the site-wide derived topology
   // (poller-computed from masters[], ADR-0014) - no per-page deriving. Matched →
@@ -632,7 +642,9 @@ export default async function ZoneDetailPage({ params, searchParams }: PageProps
               serverSlug={selected.slug}
               zoneName={zone.name}
               canDelete={canDeleteZone}
-              catalogMembers={catalogSide === "producer" ? catalogMemberNames.length : null}
+              catalogMembers={
+                catalogSide === "producer" ? (catalogMemberNames?.length ?? "unknown") : null
+              }
             />
           </div>
         ) : tab === "dnssec" ? (

@@ -196,6 +196,16 @@ export async function POST(request: Request): Promise<Response> {
       input.catalog === undefined || input.catalog === ""
         ? input.catalog
         : canonicalZoneName(input.catalog);
+    // Catalog zones arrived in PowerDNS 4.7. An older daemon would store a
+    // "Producer" zone as an ordinary one and ignore the catalog field.
+    if (
+      (isProducer || catalog) &&
+      server.versionCache?.capabilities.supportsCatalogZones === false
+    ) {
+      throw new ValidationError(
+        "This backend's PowerDNS version predates catalog zones (they need 4.7 or later).",
+      );
+    }
     if (catalog && (isSecondary || isProducer)) {
       throw new ValidationError(
         isProducer
