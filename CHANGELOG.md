@@ -6,6 +6,53 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-23
+
+Zone-scoped roles now work end to end, catalog zones are handled as system zones, and this
+release carries security updates for Next.js and DOMPurify. **One small migration on Postgres**
+(`role_assignments.scope_id` from `uuid` to `text`), applied automatically at boot; SQLite is
+unchanged. Pull the new tag and recreate the container. IdP group mappings that were saved but
+never took effect start granting access at the next sign-in, so review them first (see the
+[upgrade notes](./docs/09-UPGRADING.md#upgrading-to-1120-from-1110)). The RBAC fixes come from
+[@Nefise-Akar](https://github.com/Nefise-Akar) (#199 to #203), thanks Nefise.
+
+### Added
+
+- **Zone-scoped role assignments from Admin → Users.** The user page's assignment panel has a
+  **Zone** scope with a name field. The role applies to that zone only, under the same privilege
+  ceiling as other assignments. Assigning to a zone no backend serves still works, with a
+  warning. ([#203](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/203))
+- **Catalog zones are system zones** (RFC 9432, kinds `Producer` and `Consumer`). They move to a
+  **System** tab on the zones list with a catalog badge and a **Members** column, and Forward,
+  Reverse and All leave them out. A catalog zone's page explains what it is and lists its
+  members. A Producer's records and DNSSEC are read-only, since PowerDNS generates them.
+  Deleting a Producer that has members needs the phrase `yes, delete catalog <zone>`. Zone
+  settings and the create form gain a **Catalog** field that defaults to the server's
+  `default-catalog-zone` and only accepts a Producer zone on that backend, and Producer is now a
+  kind you can create. The notification bell reports member zones naming a catalog that doesn't
+  exist, and a `default-catalog-zone` that is missing or isn't a Producer. Search, the Add record
+  wizard, Zone Monitoring and Reverse DNS skip catalog zones.
+  ([#209](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/209))
+
+### Fixed
+
+- **Zone-scoped roles granted nothing.** A role scoped to `zone:<name>`, typically from an IdP
+  group mapping, was stored on the session but ignored by every zone page and route. Every zone
+  surface now honours it, and it only ever grants zone-level permissions on that exact zone (see
+  [ADR-0024](./docs/adr/0024-zone-scoped-roles-grant-zone-access.md)).
+  ([#199](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/199))
+- **The sidebar showed pages the user couldn't open, and hid ones they could.** An entry now
+  appears exactly when the page's own access check would let the user in.
+  ([#202](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/202))
+- **Team- and server-scoped IdP mappings granted nothing.** The OIDC, SAML and LDAP forms saved
+  the target as a slug, while the permission check compares ids. Sign-in now resolves the target,
+  and a target that no longer exists is dropped and recorded in the audit log.
+  ([#200](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/200))
+- **The IdP mapping editor dropped half-filled rows without a word.** A partly filled row now
+  blocks the save with a message naming what's missing, zone targets are normalised, and the
+  provider page warns about a zone target no backend serves.
+  ([#201](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/201))
+
 ### Security
 
 - **`next` 16.4.0 → 16.4.2** (and `eslint-config-next` to match), fixing
@@ -2358,7 +2405,9 @@ First production release.
 - **Distribution** - multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.10.1...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.11.0...v1.12.0
+[1.11.0]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.10.1...v1.11.0
 [1.10.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.9.1...v1.10.0
 [1.5.6]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.5.5...v1.5.6
