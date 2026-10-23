@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-10-23
+
+Fixes for catalog zones from 1.12.0. **No schema change, no migration.** Pull the new tag and
+recreate the container. If a catalog Producer zone made the header read DESYNCED, it now
+settles; see the [upgrade notes](./docs/09-UPGRADING.md#upgrading-to-1121-from-1120) for what
+changes on PowerDNS 4.6 to 4.8.
+
 ### Fixed
 
 - **On PowerDNS 4.7 and 4.8, deleting a catalog zone with members wasn't guarded.** Those
@@ -2428,7 +2435,8 @@ First production release.
 - **Distribution** - multi-arch (`linux/amd64` + `linux/arm64`) image published to Docker Hub as
   `jseifeddine/powerdns-authadmin`, plus a one-command minimal-demo stack.
 
-[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.12.1...HEAD
+[1.12.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.10.1...v1.11.0
 [1.10.1]: https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/compare/v1.10.0...v1.10.1

@@ -39,6 +39,23 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.12.1 (from 1.12.0)
+
+No migration, no schema change, no config change - pull the new tag and recreate the
+container. All the changes concern catalog zones:
+
+- **A catalog Producer zone no longer reads as missing on secondaries that don't consume it.**
+  Only a secondary with a Consumer zone of the same name receives the catalog, so one that
+  serves the member zones as ordinary secondaries is left out of the comparison. If the header
+  chip read DESYNCED because of a catalog zone, it settles after the next poll.
+- **PowerDNS 4.7 and 4.8** don't report catalog membership in their zone list. On those
+  backends the Members column and the catalog banner show membership as unknown, deleting a
+  Producer zone always asks for the catalog confirmation phrase, and the delete itself reads
+  each zone's catalog first. That read is one API call per zone, so on a large backend the
+  delete takes a moment.
+- **PowerDNS 4.6** has no catalog zones: the create form no longer offers a Producer zone for it,
+  and the API refuses `Producer` and `catalog` there.
+
 ### Upgrading to 1.12.0 (from 1.11.0)
 
 **One migration on Postgres**, applied at boot: `0009_role_assignment_zone_scope` changes
