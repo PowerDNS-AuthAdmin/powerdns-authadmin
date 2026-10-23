@@ -39,6 +39,36 @@ half-migrated schema; fix the cause and restart.
 
 ## Version-specific notes
 
+### Upgrading to 1.12.0 (from 1.11.0)
+
+**One migration on Postgres**, applied at boot: `0009_role_assignment_zone_scope` changes
+`role_assignments.scope_id` from `uuid` to `text` so an assignment can name a zone. It is a
+single `ALTER COLUMN`; the table is small, so it finishes in a moment. SQLite already stores
+the column as text and has no migration. No config change. Back up as usual, then pull the new
+tag and recreate the container.
+
+Before you upgrade, **review your IdP group mappings** (Admin → Authentication → OIDC, SAML and
+LDAP). Two kinds of mapping were saved but granted nothing before 1.12.0, and both take effect at
+each user's next sign-in:
+
+- **Zone-scoped mappings** (`group → role @ zone:<name>`) now grant that role's zone-level
+  permissions on that zone.
+- **Team- and server-scoped mappings** saved from the admin forms now resolve to their team or
+  server. A target that no longer exists is skipped and logged as
+  `auth.group_sync.mapping_unresolved` with `reason: "scope-not-found"`.
+
+If a mapping shouldn't grant access, remove it before upgrading. A mapping row that is only
+partly filled in now blocks the save instead of being dropped, so an old provider may need its
+empty rows cleared the next time you edit it.
+
+Catalog zones (`Producer` and `Consumer`) now show on a **System** tab of the zones list instead
+of in Forward and Reverse. Two API behaviours change for automation:
+
+- `DELETE /api/admin/pdns/zones/:zone` on a Producer zone that still has members returns
+  `409 catalog-has-members` unless the request adds `?confirmCatalog=<zone>`.
+- RRset and DNSSEC changes on a Producer zone return 409, as they already did for Consumer zones.
+  PowerDNS generates a Producer zone's contents from its members.
+
 ### Upgrading to 1.11.0 (from 1.10.1)
 
 No migration, no schema change, no config change - pull the new tag and
