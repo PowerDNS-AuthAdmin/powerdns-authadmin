@@ -194,16 +194,8 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
                   cluster
                 </span>
               ) : null}
-              {row.catalog ? (
-                <span
-                  className="ml-2 rounded bg-[color:var(--color-accent)]/15 px-1 py-0.5 font-mono text-[0.625rem] tracking-wide text-[color:var(--color-accent)] uppercase"
-                  title="Catalog zone (RFC 9432) - lists the zones secondaries should serve"
-                >
-                  catalog · {row.catalog.role}
-                </span>
-              ) : (
-                <ZoneHorizonBadge horizon={row.horizon} className="ml-2" />
-              )}
+              {/* A catalog zone has no horizon; its Kind cell says what it is. */}
+              {row.catalog ? null : <ZoneHorizonBadge horizon={row.horizon} className="ml-2" />}
               {row.readOnly ? (
                 <span
                   className="ml-2 rounded bg-[color:var(--color-bg-muted)] px-1 py-0.5 font-mono text-[0.625rem] tracking-wide text-[color:var(--color-fg-muted)] uppercase"
@@ -220,7 +212,19 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
       {
         accessorKey: "kind",
         header: "Kind",
-        cell: (ctx) => <span className="text-xs">{ctx.getValue<string>()}</span>,
+        cell: (ctx) => {
+          const catalog = ctx.row.original.catalog;
+          return catalog ? (
+            <span
+              className="text-xs"
+              title="Catalog zone (RFC 9432) - lists the zones secondaries should serve"
+            >
+              Catalog {catalog.role}
+            </span>
+          ) : (
+            <span className="text-xs">{ctx.getValue<string>()}</span>
+          );
+        },
         meta: { className: "w-[10%]" },
       },
       {
@@ -235,7 +239,17 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
       {
         accessorKey: "dnssec",
         header: "DNSSEC",
-        cell: (ctx) => <DnssecCell on={ctx.getValue<boolean>()} />,
+        cell: (ctx) =>
+          ctx.row.original.catalog?.role === "producer" ? (
+            <span
+              className="text-xs text-[color:var(--color-fg-muted)]"
+              title="Not applicable - PowerDNS generates a catalog zone's records"
+            >
+              -
+            </span>
+          ) : (
+            <DnssecCell on={ctx.getValue<boolean>()} />
+          ),
         meta: { className: "w-[8%]" },
       },
     ];
@@ -558,7 +572,17 @@ function SyncCell({ row }: { row: ZoneRow }) {
   // Standalone primary (no secondaries, not in a cluster) → no peers
   // to compare → render "-". Same convention the dashboard uses.
   if (row.syncStates.length === 0) {
-    return <span className="text-xs text-[color:var(--color-fg-muted)]">-</span>;
+    // A catalog Producer replicates only to secondaries that consume it, so
+    // "no peers" there means none do - say so instead of a bare dash.
+    const title =
+      row.catalog?.role === "producer"
+        ? "No secondary consumes this catalog. Only a secondary with a Consumer zone of the same name follows it."
+        : undefined;
+    return (
+      <span className="text-xs text-[color:var(--color-fg-muted)]" title={title}>
+        -
+      </span>
+    );
   }
   const worst = row.syncWorst;
   const isSynced = worst !== null && isSettledSyncState(worst);

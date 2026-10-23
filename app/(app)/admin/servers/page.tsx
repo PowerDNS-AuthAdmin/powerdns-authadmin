@@ -20,7 +20,7 @@ import { latestAdminEditTimestampsForServers } from "@/lib/db/repositories/audit
 import { freshnessOf } from "@/lib/freshness";
 import { rawCache } from "@/lib/pdns/zone-state-cache";
 import { classifyMirrorSerial, isSettledSyncState } from "@/lib/pdns/serial-sync";
-import { isTransferredKind } from "@/lib/pdns/zone-kinds";
+import { isTransferredKind, mirrorFollowsZone } from "@/lib/pdns/zone-kinds";
 import { derivedParentOf } from "@/lib/pdns/topology-cache";
 import { isReadOnlyBackend } from "@/lib/pdns/capabilities";
 import { CapabilityBadges } from "@/components/domain/capability-badges";
@@ -659,7 +659,9 @@ function computeSecondarySync(
       let anyMatch = false;
       for (const [zoneName, primarySnap] of primaryEntry.zones) {
         if (!isReplicatedKind(primarySnap.kind)) continue;
-        const state = classifyMirrorSerial(primarySnap, secondaryEntry.zones.get(zoneName) ?? null);
+        const secondarySnap = secondaryEntry.zones.get(zoneName) ?? null;
+        if (!mirrorFollowsZone(primarySnap.kind, secondarySnap !== null)) continue;
+        const state = classifyMirrorSerial(primarySnap, secondarySnap);
         if (isSettledSyncState(state)) anyMatch = true;
         else {
           lagging = true;
@@ -673,8 +675,8 @@ function computeSecondarySync(
 }
 
 /**
- * Zones that PDNS replicates via AXFR (Master/Primary and the catalog
- * Producer, whose Consumers are ordinary secondaries of it). Everything else
+ * Zones that PDNS replicates via AXFR (Master/Primary, and a catalog Producer
+ * to the secondaries that consume it - see `mirrorFollowsZone`). Everything else
  * (Native, Consumer copies, anything mistakenly tagged Slave on a primary) is
  * skipped by the sync check - those legitimately don't mirror onto the
  * secondary.

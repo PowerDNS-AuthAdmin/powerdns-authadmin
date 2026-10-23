@@ -584,6 +584,10 @@ the audit trail behave identically whichever door the user came through.
   created from the app, so a deleted catalog can be restored there.
 - **Elsewhere.** Search, the record wizard, Zone Monitoring and Reverse DNS skip system zones; the
   health bell reports a missing catalog and an unresolved `default-catalog-zone` (§ 3.8).
+- **Sync.** A Producer reaches only the secondaries that consume it (a Consumer zone of the same
+  name), so sync counts it only on mirrors that hold it (`mirrorFollowsZone` in
+  `lib/pdns/zone-kinds.ts`). A secondary that serves the member zones the classic way never reads
+  as missing the catalog or turns the header chip DESYNCED.
 - **Where.** `lib/pdns/zone-kinds.ts` (`isSystemKind`, `catalogRole`), `lib/pdns/catalog.ts`,
   `lib/pdns/catalog-members.ts`, `app/(app)/zones/[zoneId]/_components/catalog-zone-banner.tsx`.
 - **PowerDNS versions.** Catalog zones need PowerDNS 4.7+; on an older backend the create form

@@ -18,6 +18,16 @@ All notable changes to this project are documented here. The format is based on
   Producer kind for a backend older than 4.7, and the create and settings routes refuse `Producer`
   and `catalog` there with a message that says why.
   ([#217](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/217))
+- **A catalog Producer zone turned the fleet DESYNCED.** Sync checks expected every secondary
+  to hold a copy of it, but a Producer only reaches the secondaries that consume it (a Consumer
+  zone of the same name). A secondary serving the member zones the classic way showed the
+  catalog as missing: the header chip read DESYNCED everywhere, the System tab showed `MISSING`,
+  and the poller counted the secondary as drifting. A Producer now counts only on mirrors that
+  hold it, across the zones list, the zone page, the sync API, the header chip, drift tracking
+  and the servers page. On the System tab a catalog zone's Kind reads "Catalog producer" or
+  "Catalog consumer" in place of the badge, and a Producer shows "-" for DNSSEC and, when nothing
+  consumes it, for Sync, with a tooltip that says why.
+  ([#219](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/219))
 
 ## [1.12.0] - 2026-10-23
 
