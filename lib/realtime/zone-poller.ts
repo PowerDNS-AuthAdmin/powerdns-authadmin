@@ -34,7 +34,7 @@
 
 import "server-only";
 import { canonicalZoneName } from "@/lib/dns/zone-name";
-import { catalogHealthInputs } from "@/lib/pdns/catalog";
+import { catalogHealthInputs, zoneListCarriesCatalog } from "@/lib/pdns/catalog";
 import { newSystemRequestId, withRequestId } from "@/lib/request-context";
 import { listAllActiveBackends, markPdnsServersSeen } from "@/lib/db/repositories/pdns-servers";
 import { countActiveSessions } from "@/lib/db/repositories/sessions";
@@ -601,7 +601,9 @@ async function runPollCycle({ full }: { full: boolean }): Promise<void> {
             mirrorZonesWithoutMasters,
             replicationDriftMs: driftMsById.get(b.id) ?? null,
             missingTransferKeys: tsigMissingById(b.id),
-            ...catalogHealthInputs(r.snapshots ?? [], b.capabilities?.defaultCatalogZone),
+            ...catalogHealthInputs(r.snapshots ?? [], b.capabilities?.defaultCatalogZone, {
+              membersListed: zoneListCarriesCatalog(b.versionCache?.parsed),
+            }),
           }),
         );
       } catch (err) {

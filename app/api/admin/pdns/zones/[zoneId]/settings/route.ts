@@ -133,6 +133,11 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
     if (body.catalog !== undefined) {
       const catalog = body.catalog === "" ? "" : canonicalZoneName(body.catalog);
       if (catalog !== "") {
+        if (selected.versionCache?.capabilities.supportsCatalogZones === false) {
+          throw new ValidationError(
+            "This backend's PowerDNS version predates catalog zones (they need 4.7 or later).",
+          );
+        }
         if (isSystemKind(before?.kind ?? "")) {
           throw new ValidationError("A catalog zone can't itself be a member of a catalog.");
         }

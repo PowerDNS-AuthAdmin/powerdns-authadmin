@@ -30,8 +30,11 @@ interface Props {
   serverSlug: string;
   zoneName: string;
   canDelete: boolean;
-  /** Members of this zone when it is a catalog Producer zone; null otherwise. */
-  catalogMembers: number | null;
+  /**
+   * Members of this zone when it is a catalog Producer zone, "unknown" when the
+   * backend's zone list doesn't report membership; null for any other zone.
+   */
+  catalogMembers: number | "unknown" | null;
 }
 
 export function ZoneDangerZone({
@@ -52,7 +55,8 @@ export function ZoneDangerZone({
   // from the canonical PDNS zone name so the phrase reads naturally -
   // `yes, delete example.com` rather than `yes, delete example.com.`.
   const cleanName = zoneName.replace(/\.$/, "");
-  const guardedCatalog = catalogMembers !== null && catalogMembers > 0;
+  const guardedCatalog =
+    catalogMembers === "unknown" || (catalogMembers !== null && catalogMembers > 0);
   const requiredPhrase = guardedCatalog
     ? `yes, delete catalog ${cleanName}`
     : `yes, delete ${cleanName}`;
@@ -133,10 +137,19 @@ export function ZoneDangerZone({
         >
           <p>
             <strong className="text-[color:var(--color-error-fg)]">This is a catalog zone.</strong>{" "}
-            {catalogMembers} zone{catalogMembers === 1 ? "" : "s"} name {cleanName} as their
-            catalog. Deleting it stops every secondary that reads the catalog from learning about
-            zone additions and removals - depending on the secondary, it may also remove those
-            zones.
+            {catalogMembers === "unknown" ? (
+              <>
+                This PowerDNS version doesn&apos;t report which zones name {cleanName} as their
+                catalog.
+              </>
+            ) : (
+              <>
+                {catalogMembers} zone{catalogMembers === 1 ? "" : "s"} name {cleanName} as their
+                catalog.
+              </>
+            )}{" "}
+            Deleting it stops every secondary that reads the catalog from learning about zone
+            additions and removals - depending on the secondary, it may also remove those zones.
           </p>
           <p className="mt-2 text-xs text-[color:var(--color-fg-muted)]">
             Deleted by mistake? Recreate a Producer zone with the same name: the members still name

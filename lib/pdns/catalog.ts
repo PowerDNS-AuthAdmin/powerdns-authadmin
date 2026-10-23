@@ -48,6 +48,19 @@ export function producerZoneNames(zones: readonly CatalogZoneLike[]): string[] {
     .sort();
 }
 
+/**
+ * Whether the backend's zone list carries each zone's `catalog`. PowerDNS 4.7
+ * and 4.8 leave it empty there and only fill it on the single-zone GET, so
+ * membership read off their list would always look like zero members. An
+ * unknown version is assumed to be current.
+ */
+export function zoneListCarriesCatalog(
+  version: { major: number; minor: number } | null | undefined,
+): boolean {
+  if (!version || (version.major === 0 && version.minor === 0)) return true;
+  return version.major > 4 || (version.major === 4 && version.minor >= 9);
+}
+
 export interface CatalogHealthInputs {
   /** Catalogs member zones name that no catalog zone on the backend answers to. */
   orphanedCatalogs: Array<{ catalog: string; members: number }>;
@@ -58,14 +71,17 @@ export interface CatalogHealthInputs {
 /**
  * What the health evaluator needs to know about catalogs on one backend. A
  * member's catalog counts as present when a Producer or Consumer zone of that
- * name exists (on a consumer, members name the Consumer zone).
+ * name exists (on a consumer, members name the Consumer zone). When the list
+ * doesn't carry membership (`membersListed: false`), orphaned members can't be
+ * seen, so none are reported.
  */
 export function catalogHealthInputs(
   zones: readonly CatalogZoneLike[],
   defaultCatalogZone: string | undefined,
+  opts?: { membersListed?: boolean },
 ): CatalogHealthInputs {
   const kindByName = new Map(zones.map((z) => [canonicalZoneName(z.name), z.kind]));
-  const orphanedCatalogs = [...catalogMemberCounts(zones)]
+  const orphanedCatalogs = [...(opts?.membersListed === false ? [] : catalogMemberCounts(zones))]
     .filter(([catalog]) => !isSystemKind(kindByName.get(catalog) ?? ""))
     .map(([catalog, members]) => ({ catalog, members }))
     .sort((a, b) => a.catalog.localeCompare(b.catalog));

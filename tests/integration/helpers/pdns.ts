@@ -140,6 +140,15 @@ export async function getZone(backend: PdnsBackend, zoneId: string): Promise<Pdn
   return (await res.json()) as PdnsZone;
 }
 
+/** The daemon's version as `[major, minor]`, from `GET /servers/localhost`. */
+export async function getServerVersion(backend: PdnsBackend): Promise<[number, number]> {
+  const res = await pdnsCall(backend, "/servers/localhost");
+  if (!res.ok) throw new Error(`[pdns] ${backend.slug} server info → HTTP ${res.status}`);
+  const { version } = (await res.json()) as { version: string };
+  const [major = 0, minor = 0] = version.split(".").map((n) => Number.parseInt(n, 10));
+  return [major, minor];
+}
+
 export interface PdnsConfigSetting {
   type: string;
   name: string;

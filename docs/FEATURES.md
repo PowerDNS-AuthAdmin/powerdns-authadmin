@@ -585,7 +585,12 @@ the audit trail behave identically whichever door the user came through.
 - **Elsewhere.** Search, the record wizard, Zone Monitoring and Reverse DNS skip system zones; the
   health bell reports a missing catalog and an unresolved `default-catalog-zone` (§ 3.8).
 - **Where.** `lib/pdns/zone-kinds.ts` (`isSystemKind`, `catalogRole`), `lib/pdns/catalog.ts`,
-  `app/(app)/zones/[zoneId]/_components/catalog-zone-banner.tsx`. Requires PowerDNS 4.7+.
+  `lib/pdns/catalog-members.ts`, `app/(app)/zones/[zoneId]/_components/catalog-zone-banner.tsx`.
+- **PowerDNS versions.** Catalog zones need PowerDNS 4.7+; on an older backend the create form
+  doesn't offer a Producer zone, there's no Catalog field, and the routes refuse both. PowerDNS
+  4.7 and 4.8 don't report membership in their zone list, so there the Members column and banner
+  show it as unknown, the delete phrase is always the catalog one, and the delete route reads
+  each zone's catalog before deciding whether to ask for confirmation.
 
 ### 4.2 Per-RRset editor with diff-before-apply
 

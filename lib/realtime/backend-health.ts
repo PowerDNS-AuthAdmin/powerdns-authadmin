@@ -25,7 +25,7 @@
 
 import "server-only";
 import { canonicalZoneName } from "@/lib/dns/zone-name";
-import { catalogHealthInputs } from "@/lib/pdns/catalog";
+import { catalogHealthInputs, zoneListCarriesCatalog } from "@/lib/pdns/catalog";
 import type { PdnsServer } from "@/lib/db/schema";
 import {
   listAllActiveBackends,
@@ -202,7 +202,9 @@ export async function refreshBackendHealth(
         // Read the poll's last cross-backend computation so a single-backend
         // Test/Refresh doesn't prune a missing-key advisory it can't recompute.
         missingTransferKeys: getTsigMissingCount(backend.id),
-        ...catalogHealthInputs(snapshots ?? [], backend.capabilities?.defaultCatalogZone),
+        ...catalogHealthInputs(snapshots ?? [], backend.capabilities?.defaultCatalogZone, {
+          membersListed: zoneListCarriesCatalog(backend.versionCache?.parsed),
+        }),
       }),
       { immediate },
     );

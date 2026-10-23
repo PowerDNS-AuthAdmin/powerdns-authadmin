@@ -28,7 +28,7 @@ import { findDefaultPdnsServer, findPdnsServerBySlug } from "@/lib/db/repositori
 import { deleteZoneHorizon, horizonScopeFor } from "@/lib/db/repositories/zone-horizons";
 import { getBackendGateway } from "@/lib/realtime/backend-gateway";
 import { canonicalZoneName } from "@/lib/dns/zone-name";
-import { catalogMembers } from "@/lib/pdns/catalog";
+import { liveCatalogMembers } from "@/lib/pdns/catalog-members";
 import { catalogRole } from "@/lib/pdns/zone-kinds";
 import { PdnsError, PdnsNotFoundError } from "@/lib/pdns/errors";
 import { canActOnZone } from "@/lib/rbac/zone-permissions";
@@ -89,16 +89,23 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
 
     let catalogMemberCount: number | null = null;
     if (before && catalogRole(before.kind) === "producer") {
-      catalogMemberCount = catalogMembers(await client.listZones(), zoneName).length;
+      const live = await liveCatalogMembers(client, zoneName);
+      catalogMemberCount = live.members.length;
       const confirmed =
         parsed.confirmCatalog !== undefined &&
         canonicalZoneName(parsed.confirmCatalog) === zoneName;
-      if (catalogMemberCount > 0 && !confirmed) {
+      // A zone that couldn't be read might be a member, so an incomplete count
+      // needs the same confirmation as a non-zero one.
+      if ((catalogMemberCount > 0 || !live.complete) && !confirmed) {
+        const counted = live.complete
+          ? `${catalogMemberCount} zone(s) name ${zoneName} as their catalog.`
+          : `At least ${catalogMemberCount} zone(s) name ${zoneName} as their catalog; some zones couldn't be read.`;
         return Response.json(
           {
             error: "catalog-has-members",
             members: catalogMemberCount,
-            detail: `${catalogMemberCount} zone(s) name ${zoneName} as their catalog. Deleting it stops secondaries from learning about zone additions and removals. Pass confirmCatalog=${zoneName} to delete it anyway.`,
+            complete: live.complete,
+            detail: `${counted} Deleting it stops secondaries from learning about zone additions and removals. Pass confirmCatalog=${zoneName} to delete it anyway.`,
           },
           { status: 409 },
         );

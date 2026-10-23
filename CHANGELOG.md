@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **On PowerDNS 4.7 and 4.8, deleting a catalog zone with members wasn't guarded.** Those
+  versions leave `catalog` empty in the zone list, so every catalog looked empty: the delete went
+  through without the confirmation, the Members column showed 0 and the banner listed nobody. The
+  delete route now reads each zone's catalog there and asks for confirmation when any zone is a
+  member, or when it can't read them all. The zones list and banner show membership as unknown
+  instead of zero. ([#216](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/216))
+- **PowerDNS 4.6 was offered catalog zones it doesn't have.** The create form no longer lists the
+  Producer kind for a backend older than 4.7, and the create and settings routes refuse `Producer`
+  and `catalog` there with a message that says why.
+  ([#217](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/217))
+
 ## [1.12.0] - 2026-10-23
 
 Zone-scoped roles now work end to end, catalog zones are handled as system zones, and this

@@ -217,6 +217,11 @@ export function CreateZoneForm(props: Props) {
   // the backend's default-catalog-zone. A backend switch forgets the pick.
   const [catalogPick, setCatalogPick] = useState<string | null>(null);
   useEffect(() => setCatalogPick(null), [backendKey]);
+  // A backend without catalog zones (PDNS < 4.7) can't host a Producer zone.
+  const producerAllowed = selectedBackend?.catalog !== null;
+  useEffect(() => {
+    if (!producerAllowed) setKind((k) => (k === "Producer" ? "Native" : k));
+  }, [producerAllowed]);
   const catalogInfo = selectedBackend?.catalog ?? null;
   const defaultCatalog = catalogInfo?.defaultCatalog ?? "";
   const catalogValue = catalogPick ?? defaultCatalog;
@@ -486,7 +491,10 @@ export function CreateZoneForm(props: Props) {
             value={kind}
             onChange={(v) => setKind(v)}
             ariaLabel="Kind"
-            options={KINDS.map((k) => ({ value: k.value, label: k.label }))}
+            options={KINDS.filter((k) => producerAllowed || k.value !== "Producer").map((k) => ({
+              value: k.value,
+              label: k.label,
+            }))}
             className="mt-1 w-full"
           />
           <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">

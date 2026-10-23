@@ -4,6 +4,7 @@ import {
   catalogMemberCounts,
   catalogMembers,
   producerZoneNames,
+  zoneListCarriesCatalog,
   type CatalogZoneLike,
 } from "./catalog";
 
@@ -45,6 +46,13 @@ describe("catalogHealthInputs", () => {
     });
   });
 
+  it("reports no orphans when the zone list doesn't carry membership", () => {
+    expect(catalogHealthInputs(fleet, "nope.invalid.", { membersListed: false })).toEqual({
+      orphanedCatalogs: [],
+      defaultCatalogProblem: { name: "nope.invalid.", problem: "missing" },
+    });
+  });
+
   it("accepts a Consumer zone as the catalog on a secondary", () => {
     const secondary = [
       zone("catalog.invalid.", "Consumer"),
@@ -63,5 +71,19 @@ describe("catalogHealthInputs", () => {
       name: "c.example.",
       problem: "not-producer",
     });
+  });
+});
+
+describe("zoneListCarriesCatalog", () => {
+  it("is false before PowerDNS 4.9", () => {
+    expect(zoneListCarriesCatalog({ major: 4, minor: 7 })).toBe(false);
+    expect(zoneListCarriesCatalog({ major: 4, minor: 8 })).toBe(false);
+    expect(zoneListCarriesCatalog({ major: 4, minor: 9 })).toBe(true);
+    expect(zoneListCarriesCatalog({ major: 5, minor: 0 })).toBe(true);
+  });
+
+  it("assumes a current daemon when the version is unknown", () => {
+    expect(zoneListCarriesCatalog(null)).toBe(true);
+    expect(zoneListCarriesCatalog({ major: 0, minor: 0 })).toBe(true);
   });
 });

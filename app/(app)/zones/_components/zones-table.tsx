@@ -133,7 +133,7 @@ export interface ZoneRow {
    * Set for a catalog zone (RFC 9432): which side it is and how many zones on
    * its backend name it as their catalog. Null/absent for a content zone.
    */
-  catalog?: { role: "producer" | "consumer"; members: number } | null;
+  catalog?: { role: "producer" | "consumer"; members: number | null } | null;
 }
 
 interface ZonesTableProps {
@@ -365,11 +365,21 @@ export function ZonesTable({ zones, showLastEdit, showSync }: ZonesTableProps) {
     if (activeScope !== "system") return columns;
     const members: ColumnDef<ZoneRow, unknown> = {
       id: "members",
-      accessorFn: (row) => row.catalog?.members ?? 0,
+      accessorFn: (row) => row.catalog?.members ?? -1,
       header: "Members",
-      cell: (ctx) => (
-        <span className="font-mono text-xs tabular-nums">{ctx.getValue<number>()}</span>
-      ),
+      cell: (ctx) => {
+        const members = ctx.row.original.catalog?.members ?? null;
+        return members === null ? (
+          <span
+            className="font-mono text-xs text-[color:var(--color-fg-muted)]"
+            title="This PowerDNS version doesn't list catalog members (4.9 and later do)."
+          >
+            -
+          </span>
+        ) : (
+          <span className="font-mono text-xs tabular-nums">{members}</span>
+        );
+      },
       meta: { className: "w-[8%]" },
     };
     return [columns[0]!, members, ...columns.slice(1)];

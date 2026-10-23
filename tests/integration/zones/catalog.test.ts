@@ -4,13 +4,15 @@
  * Catalog zones as system zones (#209): a Producer zone can be created, a
  * content zone joins it through the settings route (which refuses a catalog
  * that isn't a Producer on the backend), and deleting a Producer with members
- * needs an explicit `confirmCatalog`.
+ * needs an explicit `confirmCatalog`. Catalog zones need PowerDNS 4.7, so the
+ * suite skips on older daemons; on 4.7 and 4.8 the zone list leaves `catalog`
+ * empty, which the delete guard has to see past.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, type TestContext } from "vitest";
 import { type TestHttp } from "../helpers/http";
 import { loginAsBootstrap } from "../helpers/auth";
-import { getZone, PDNS_BY_TOPOLOGY } from "../helpers/pdns";
+import { getServerVersion, getZone, PDNS_BY_TOPOLOGY } from "../helpers/pdns";
 import { resetState } from "../helpers/reset";
 
 const NS = ["ns1.example.com.", "ns2.example.com."] as const;
@@ -45,7 +47,15 @@ function deleteZone(admin: TestHttp, zone: string, confirmCatalog?: string): Pro
 }
 
 describe("catalog zones", () => {
-  beforeEach(async () => {
+  let catalogsSupported = true;
+
+  beforeAll(async () => {
+    const [major, minor] = await getServerVersion(PDNS_BY_TOPOLOGY.standalone);
+    catalogsSupported = major > 4 || (major === 4 && minor >= 7);
+  });
+
+  beforeEach(async (ctx: TestContext) => {
+    if (!catalogsSupported) ctx.skip();
     await resetState();
   });
 
