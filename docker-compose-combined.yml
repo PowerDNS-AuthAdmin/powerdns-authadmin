@@ -99,7 +99,10 @@ services:
     networks:
       - pdnsnet
     healthcheck:
-      test: ["CMD-SHELL", "mariadb -updns -ppdns-pw -e 'SELECT 1' pdns"]
+      # Over TCP, not the socket: on first boot the image runs a socket-only
+      # temporary server while it loads the schema, and a socket check passes
+      # against it before PowerDNS can connect over the network.
+      test: ["CMD-SHELL", "mariadb -h 127.0.0.1 -updns -ppdns-pw -e 'SELECT 1' pdns"]
       interval: 5s
       timeout: 5s
       retries: 20

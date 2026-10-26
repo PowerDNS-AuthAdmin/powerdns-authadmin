@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **The multi-PowerDNS demo and test stacks sometimes failed to start.** MariaDB's healthcheck
+  passed against the socket-only server the image runs while loading the schema, so the
+  PowerDNS peers started before MariaDB accepted network connections and kept restarting. The
+  check now connects over TCP, as PowerDNS does. Only `docker-compose-combined.yml` and
+  `docker-compose-multi-primary.yml` change; the app image is unaffected.
+  ([#221](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/221))
+
 ## [1.12.1] - 2026-10-23
 
 Fixes for catalog zones from 1.12.0. **No schema change, no migration.** Pull the new tag and
