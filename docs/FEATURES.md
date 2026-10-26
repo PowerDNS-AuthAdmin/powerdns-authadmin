@@ -477,7 +477,12 @@ the audit trail behave identically whichever door the user came through.
   keys missing on a secondary, mirror zones without `masters`, daemon-config drift between
   peers, member zones naming a catalog zone that doesn't exist, and a `default-catalog-zone`
   that is missing or isn't a Producer zone (§ 4.1.2). Zone monitoring findings (§ 20) land in
-  the same bell under their own `monitor.` code namespace, visible to users who can read zones. Acknowledged advisories disappear
+  the same bell under their own `monitor.` code namespace, visible to users who can read zones.
+  The same finding on two or more zones (same code, severity and dismissed state) is shown as one
+  entry, in the bell and on the Notifications page: "SOA MNAME is not one of the nameservers,
+  117 zones", which expands to the zone list, dismisses as a whole and, for a finding with a bulk
+  fix, links to **Review and fix all** on Zone Monitoring (§ 20). Counts and the badge still
+  count findings. Acknowledged advisories disappear
   automatically when the underlying condition resolves. Same signal feeds the per-row red/warn
   tints on [PowerDNS servers](#31-multi-backend-management) - bell and table never disagree.
 - **Where.** `lib/health/evaluator.ts`, `components/domain/health-bell.tsx`,
@@ -1573,6 +1578,19 @@ SOA-EDIT-API) and saves with `PATCH /api/admin/pdns/zones/<zone>/rrsets`, which 
 change to `soa.update` on the zone (global role or zone grant), exactly as the zone's SOA panel
 does. The zone is then re-checked so the finding clears; a 403 is reported as "You don't have
 permission to change this zone's SOA".
+
+**Fix all.** When two or more zones carry the `soa.mname` fix, a banner above the table offers
+**Review and fix all** (#183). One **Review changes** dialog reads every affected zone's live SOA
+(four at a time) and shows each zone's before/after with a checkbox; **Apply** saves the selected
+zones three at a time through the same `PATCH .../rrsets` route as the one-zone Fix, so each zone
+still gets its own `soa.update` check, validation, audit row and NOTIFY. There is no bulk write
+route. Zones the viewer can't change are listed up front and skipped: each result in
+`GET /api/admin/monitoring/zones` carries `canUpdateSoa` for the caller, and the route still
+refuses a stale one with 403. Zones whose SOA already names the suggested primary, and zones
+whose SOA couldn't be read, are listed and left out. After Apply the saved zones are re-checked
+in one pass (`POST /api/admin/monitoring/zones/refresh` with `{ zones: [{ zone, serverSlug }] }`,
+which keeps each zone's re-check cooldown). `/zones/monitoring?fix=soa.mname`, the link on a
+grouped notification, opens the review once the results load.
 
 | Code                                                    | Severity                                                                                                                       | Meaning                                                                                                                                                                                                                                                                                                                                            | What to do                                                                                                                              |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |

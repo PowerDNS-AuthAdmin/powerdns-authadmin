@@ -3,7 +3,9 @@
 /**
  * The Notifications page body: filter chips, a searchable table with one
  * chevron accordion for the detail, and dismissal per row or for everything
- * currently shown. Data arrives as server props and is refreshed in place on
+ * currently shown. Filters apply per finding; what passes is then grouped, so
+ * one finding on many zones is one row whose detail lists the zones and links
+ * to Zone Monitoring's bulk fix where there is one. Data arrives as server props and is refreshed in place on
  * `health.updated` (and after a realtime reconnect), so filters, search and
  * the open row survive every update.
  */
@@ -12,8 +14,15 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { AppNotification, NotificationSeverity } from "@/lib/health/notifications";
-import { apiFetch } from "@/lib/client/api-fetch";
+import {
+  entryIds,
+  entryKey,
+  groupNotifications,
+  type AppNotification,
+  type NotificationEntry,
+  type NotificationGroup,
+  type NotificationSeverity,
+} from "@/lib/health/notifications";
 import { DataTable } from "@/components/ui/data-table";
 import { useDialog } from "@/components/ui/dialog";
 import { LocalTime } from "@/components/ui/local-time";
@@ -25,7 +34,8 @@ import {
 } from "@/components/ui/row-disclosure";
 import { ToggleChip, type ToggleChipTone } from "@/components/ui/toggle-chip";
 import { useRealtimeEvent } from "@/components/realtime/realtime-provider";
-import { severityDotClass, severityWord } from "@/components/domain/notification-format";
+import { dismissNotificationIds } from "@/components/domain/notification-dismiss";
+import { entryView, severityDotClass, severityWord } from "@/components/domain/notification-format";
 
 type StatusFilter = "active" | "dismissed" | "all";
 type SourceFilter = "backend" | "zone";
@@ -108,7 +118,7 @@ export function NotificationsList({ notifications }: { notifications: AppNotific
     return { active: notifications.length - dismissed, dismissed, all: notifications.length };
   }, [notifications]);
 
-  const rows = useMemo(
+  const shown = useMemo(
     () =>
       byStatus.filter(
         (n) =>
@@ -117,7 +127,8 @@ export function NotificationsList({ notifications }: { notifications: AppNotific
       ),
     [byStatus, severities, sources],
   );
-  const dismissableShown = rows.filter((n) => !n.acknowledged);
+  const rows = useMemo(() => groupNotifications(shown), [shown]);
+  const dismissableShown = shown.filter((n) => !n.acknowledged);
 
   function toggle<T>(set: ReadonlySet<T>, key: T): Set<T> {
     const next = new Set(set);
@@ -126,28 +137,16 @@ export function NotificationsList({ notifications }: { notifications: AppNotific
     return next;
   }
 
-  async function dismiss(ids: string[], label: string) {
-    setBusy(ids.length === 1 ? ids[0]! : "bulk");
+  async function dismiss(ids: string[], label: string, busyKey: string) {
+    setBusy(busyKey);
     try {
-      const res = await apiFetch("/api/admin/notifications/dismiss", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
-      });
-      const data = (await res.json().catch(() => null)) as {
-        dismissed?: string[];
-        error?: string;
-      } | null;
-      if (!res.ok) {
-        toast({
-          kind: "error",
-          title: `Could not dismiss ${label}`,
-          description: data?.error ?? `The server answered ${res.status}.`,
-        });
+      const outcome = await dismissNotificationIds(ids);
+      if (!outcome.ok) {
+        toast({ kind: "error", title: `Could not dismiss ${label}`, description: outcome.error });
         return;
       }
-      const n = data?.dismissed?.length ?? 0;
       if (ids.length > 1) {
+        const n = outcome.dismissed;
         toast({
           kind: "success",
           title: `Dismissed ${n} notification${n === 1 ? "" : "s"}`,
@@ -155,12 +154,6 @@ export function NotificationsList({ notifications }: { notifications: AppNotific
         });
       }
       router.refresh();
-    } catch {
-      toast({
-        kind: "error",
-        title: `Could not dismiss ${label}`,
-        description: "Network error - nothing was changed.",
-      });
     } finally {
       setBusy(null);
     }
@@ -175,43 +168,53 @@ export function NotificationsList({ notifications }: { notifications: AppNotific
         "They leave the bell and this list's Active view. Any that change or come back after clearing will notify again.",
       confirmLabel: "Dismiss",
     });
-    if (ok) await dismiss(ids, "the notifications");
+    if (ok) await dismiss(ids, "the notifications", "bulk");
   }
 
-  const columns = useMemo<Array<ColumnDef<AppNotification, unknown>>>(
+  const columns = useMemo<Array<ColumnDef<NotificationEntry, unknown>>>(
     () => [
       {
         id: "notification",
-        accessorFn: (n) => `${n.title} ${n.detail} ${n.zone ?? ""} ${n.backendName}`,
+        // A group is found by any of its zones, not only the few named in its summary.
+        accessorFn: (e) => {
+          const v = entryView(e);
+          const zones = e.kind === "group" ? e.members.map((m) => m.zone).join(" ") : "";
+          return `${v.title} ${v.detail} ${zones} ${v.backendName ?? ""}`;
+        },
         header: "Notification",
-        sortingFn: (a, b) =>
-          SEVERITY_RANK[a.original.severity] - SEVERITY_RANK[b.original.severity] ||
-          a.original.title.localeCompare(b.original.title),
+        sortingFn: (a, b) => {
+          const va = entryView(a.original);
+          const vb = entryView(b.original);
+          return (
+            SEVERITY_RANK[va.severity] - SEVERITY_RANK[vb.severity] ||
+            va.title.localeCompare(vb.title)
+          );
+        },
         meta: { className: "md:w-[55%]" },
         cell: ({ row }) => {
-          const n = row.original;
+          const v = entryView(row.original);
           return (
             <span className="flex min-w-0 items-start gap-2">
               <DisclosureChevron
-                open={details.isOpen(n.id)}
-                onToggle={() => details.toggle(n.id)}
-                label={n.title}
-                controls={rowDetailId(PANEL_PREFIX, n.id)}
+                open={details.isOpen(v.key)}
+                onToggle={() => details.toggle(v.key)}
+                label={v.title}
+                controls={rowDetailId(PANEL_PREFIX, v.key)}
               />
               <span
                 aria-hidden
-                className={`mt-2 h-2 w-2 shrink-0 rounded-full ${severityDotClass(n.severity)}`}
+                className={`mt-2 h-2 w-2 shrink-0 rounded-full ${severityDotClass(v.severity)}`}
               />
               <span className="min-w-0">
                 <Link
-                  href={n.href}
-                  className={`text-sm font-medium break-words hover:underline ${n.acknowledged ? "text-[color:var(--color-fg-muted)]" : ""}`}
+                  href={v.href}
+                  className={`text-sm font-medium break-words hover:underline ${v.acknowledged ? "text-[color:var(--color-fg-muted)]" : ""}`}
                 >
-                  <span className="sr-only">{severityWord(n.severity)}: </span>
-                  {n.title}
+                  <span className="sr-only">{severityWord(v.severity)}: </span>
+                  {v.title}
                 </Link>
                 <span className="mt-0.5 line-clamp-1 block text-xs break-words text-[color:var(--color-fg-muted)]">
-                  {n.detail}
+                  {v.detail}
                 </span>
               </span>
             </span>
@@ -220,23 +223,31 @@ export function NotificationsList({ notifications }: { notifications: AppNotific
       },
       {
         id: "source",
-        accessorFn: (n) => `${sourceLabel(n)} ${n.backendName}`,
+        accessorFn: (e) => {
+          const v = entryView(e);
+          return `${v.source} ${v.backendName ?? ""}`;
+        },
         header: "Source",
-        cell: ({ row }) => (
-          <span className="text-xs">
-            <span className="block">{sourceLabel(row.original)}</span>
-            <span className="block font-mono text-[color:var(--color-fg-muted)]">
-              {row.original.backendName}
+        cell: ({ row }) => {
+          const v = entryView(row.original);
+          return (
+            <span className="text-xs">
+              <span className="block">{v.source}</span>
+              {v.backendName ? (
+                <span className="block font-mono text-[color:var(--color-fg-muted)]">
+                  {v.backendName}
+                </span>
+              ) : null}
             </span>
-          </span>
-        ),
+          );
+        },
       },
       {
         id: "lastSeen",
-        accessorFn: (n) => n.lastSeenAt,
+        accessorFn: (e) => entryView(e).lastSeenAt,
         header: "Last seen",
         cell: ({ row }) => (
-          <LocalTime ts={row.original.lastSeenAt} style="relative" className="text-xs" />
+          <LocalTime ts={entryView(row.original).lastSeenAt} style="relative" className="text-xs" />
         ),
       },
       {
@@ -245,19 +256,27 @@ export function NotificationsList({ notifications }: { notifications: AppNotific
         enableSorting: false,
         meta: { className: "text-right" },
         cell: ({ row }) => {
-          const n = row.original;
-          if (n.acknowledged) {
+          const e = row.original;
+          const v = entryView(e);
+          if (v.acknowledged) {
             return <span className="text-xs text-[color:var(--color-fg-subtle)]">Dismissed</span>;
           }
+          const group = e.kind === "group";
           return (
             <button
               type="button"
-              onClick={() => void dismiss([n.id], "the notification")}
+              onClick={() =>
+                void dismiss(
+                  entryIds(e),
+                  group ? "the notifications" : "the notification",
+                  entryKey(e),
+                )
+              }
               disabled={busy !== null}
               className="rounded-md border border-[color:var(--color-border)] px-2 py-1 text-xs hover:bg-[color:var(--color-bg-subtle)] disabled:opacity-50"
             >
-              {busy === n.id ? "Dismissing…" : "Dismiss"}
-              <span className="sr-only"> {n.title}</span>
+              {busy === v.key ? "Dismissing…" : group ? "Dismiss all" : "Dismiss"}
+              <span className="sr-only"> {v.title}</span>
             </button>
           );
         },
@@ -349,16 +368,21 @@ export function NotificationsList({ notifications }: { notifications: AppNotific
               ? "You're all caught up."
               : "No notifications match the selected filters."
         }
-        renderRowDetail={(n) =>
-          details.isOpen(n.id) ? (
+        renderRowDetail={(e) => {
+          const v = entryView(e);
+          return details.isOpen(v.key) ? (
             <RowDisclosurePanel
-              id={rowDetailId(PANEL_PREFIX, n.id)}
-              label={`Details for ${n.title}`}
+              id={rowDetailId(PANEL_PREFIX, v.key)}
+              label={`Details for ${v.title}`}
             >
-              <NotificationDetail n={n} />
+              {e.kind === "group" ? (
+                <GroupDetail group={e} />
+              ) : (
+                <NotificationDetail n={e.notification} />
+              )}
             </RowDisclosurePanel>
-          ) : null
-        }
+          ) : null;
+        }}
       />
     </div>
   );
@@ -402,6 +426,66 @@ function NotificationDetail({ n }: { n: AppNotification }) {
       <div className="lg:col-span-3">
         <Link href={n.href} className="text-sm text-[color:var(--color-accent)] hover:underline">
           {n.source === "zone" ? "Open Zone Monitoring" : "Open the backend"}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/** Above this many zones the detail shows the first ones and says how many more. */
+const GROUP_DETAIL_LIMIT = 50;
+
+function GroupDetail({ group }: { group: NotificationGroup }) {
+  const shown = group.members.slice(0, GROUP_DETAIL_LIMIT);
+  const more = group.members.length - shown.length;
+  const sample = group.members[0]!;
+  return (
+    <div className="space-y-3 pt-3 text-sm">
+      <p className="text-xs text-[color:var(--color-fg-muted)]">
+        <code className="font-mono">{group.finding}</code> on {group.members.length} zones. For{" "}
+        <span className="font-mono">{sample.zone}</span>: {sample.detail}
+      </p>
+      <ul className="grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2 xl:grid-cols-3">
+        {shown.map((m) => {
+          const href = zoneHref(m);
+          return (
+            <li key={m.id} className="flex min-w-0 items-baseline gap-2">
+              {href ? (
+                <Link
+                  href={href}
+                  className="min-w-0 font-mono break-all text-[color:var(--color-accent)] hover:underline"
+                >
+                  {m.zone}
+                </Link>
+              ) : (
+                <span className="min-w-0 font-mono break-all">{m.zone}</span>
+              )}
+              <span className="shrink-0 font-mono text-[color:var(--color-fg-muted)]">
+                {m.backendName}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      {more > 0 ? (
+        <p className="text-xs text-[color:var(--color-fg-muted)]">
+          and {more} more; search by zone name to find one.
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {group.fixHref ? (
+          <Link
+            href={group.fixHref}
+            className="text-sm font-medium text-[color:var(--color-accent)] hover:underline"
+          >
+            Review and fix all on Zone Monitoring
+          </Link>
+        ) : null}
+        <Link
+          href={group.href}
+          className="text-sm text-[color:var(--color-accent)] hover:underline"
+        >
+          Open Zone Monitoring
         </Link>
       </div>
     </div>

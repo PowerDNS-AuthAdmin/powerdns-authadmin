@@ -64,6 +64,11 @@ export interface ZoneMonitorResult {
   durationMs: number;
   severity: FindingSeverity | null;
   findings: ZoneFinding[];
+  /**
+   * Whether the viewer may change this zone's SOA (`soa.update`), set per
+   * request by the monitoring routes. Absent in the shared in-memory state.
+   */
+  canUpdateSoa?: boolean;
   summary: {
     delegation: DelegationResult["status"] | "skipped";
     parentNameservers: string[];
@@ -610,6 +615,30 @@ export async function refreshZone(
   // repeat click probed the zone straight away.
   state.perZoneRefreshAt.set(k, Date.now());
   return state.results.get(k) ?? null;
+}
+
+/**
+ * Operator-triggered re-check of several zones in one pass, after a bulk fix.
+ * One cycle over just these zones keeps the monitor's own pacing (a few at a
+ * time) instead of one request per zone. Each zone keeps its own cooldown, so
+ * zones checked moments ago are left out; returns how many were checked.
+ */
+export async function refreshZones(
+  targets: ReadonlyArray<{ zone: string; server: string }>,
+): Promise<number | false> {
+  if (!zoneMonitorConfig.enabled) return false;
+  const now = Date.now();
+  const due = targets.filter(
+    (t) =>
+      now - (state.perZoneRefreshAt.get(key(t.zone, t.server)) ?? 0) >=
+      PER_ZONE_REFRESH_INTERVAL_MS,
+  );
+  if (due.length === 0) return 0;
+  for (const t of due) state.perZoneRefreshAt.set(key(t.zone, t.server), now);
+  await cycle({ immediate: true, only: due });
+  const done = Date.now();
+  for (const t of due) state.perZoneRefreshAt.set(key(t.zone, t.server), done);
+  return due.length;
 }
 
 /**

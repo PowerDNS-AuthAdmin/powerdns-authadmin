@@ -3,34 +3,19 @@
 /**
  * app/(app)/zones/monitoring/_components/soa-mname-fix-dialog.tsx
  *
- * The review step of a monitoring finding's suggested SOA MNAME fix. Reads
- * the zone's live SOA, shows the BIND-style before/after the same way the
- * record editor's "Review changes" does, and saves through the record
- * editor's own write route (`PATCH /api/admin/pdns/zones/<zone>/rrsets`), so
- * the `soa.update` permission check, validation, audit row and NOTIFY are the
- * ones a manual SOA edit gets. The server is the authority on permission: the
- * monitoring page is readable with `zone.read`, so a 403 here is expected for
- * read-only operators and is said plainly.
- *
- * The SOA is read when the dialog opens rather than taken from the finding:
- * the finding is from the last probe and may be minutes old, and the review
- * must show what will actually be replaced.
+ * The review step of one zone's suggested SOA MNAME fix: the BIND-style
+ * before/after the same way the record editor's "Review changes" does, saved
+ * through the zone's own write route (see ./soa-mname-fix.ts). The server is
+ * the authority on permission: the monitoring page is readable with
+ * `zone.read`, so a 403 here is expected for read-only operators and is said
+ * plainly.
  */
 
 import { useEffect, useState } from "react";
 import { BareDiff, computeBindDiff } from "@/app/(app)/zones/[zoneId]/_components/bare-diff";
-import { withSoaMname, type ZoneFindingFix } from "@/components/domain/zone-monitor-format";
+import type { ZoneFindingFix } from "@/components/domain/zone-monitor-format";
 import { Dialog, useDialog } from "@/components/ui/dialog";
-import { mutate } from "@/lib/client/api-fetch";
-
-const HTTP_FORBIDDEN = 403;
-
-interface SoaRRset {
-  name: string;
-  type: string;
-  ttl: number;
-  records: Array<{ content: string; disabled?: boolean }>;
-}
+import { planSoaMnameFix, saveSoa, type SoaRRset } from "./soa-mname-fix";
 
 type Loaded =
   | { state: "loading" }
@@ -57,35 +42,15 @@ export function SoaMnameFixDialog({
 
   useEffect(() => {
     let cancelled = false;
-    const query = new URLSearchParams({ serverSlug, name: "@", type: "SOA" });
-    void mutate<{ rrsets: SoaRRset[] }>(
-      `/api/admin/pdns/zones/${encodeURIComponent(zone)}/records?${query.toString()}`,
-    ).then((result) => {
+    void planSoaMnameFix(zone, serverSlug, suggested).then((plan) => {
       if (cancelled) return;
-      if (!result.ok) {
+      if (plan.state === "error") setLoaded({ state: "error", message: plan.message });
+      else if (plan.state === "unchanged")
         setLoaded({
           state: "error",
-          message:
-            result.status === HTTP_FORBIDDEN
-              ? "You don't have permission to read this zone's SOA."
-              : result.error,
+          message: `The SOA already names ${suggested}; re-check the zone to clear the finding.`,
         });
-        return;
-      }
-      const before = result.data.rrsets.find((rr) => rr.type === "SOA");
-      const record = before?.records[0];
-      if (!before || !record) {
-        setLoaded({ state: "error", message: "The zone has no SOA record to change." });
-        return;
-      }
-      setLoaded({
-        state: "ready",
-        before,
-        after: {
-          ...before,
-          records: [{ ...record, content: withSoaMname(record.content, suggested) }],
-        },
-      });
+      else setLoaded(plan);
     });
     return () => {
       cancelled = true;
@@ -95,46 +60,18 @@ export function SoaMnameFixDialog({
   async function save(after: SoaRRset): Promise<void> {
     setSaving(true);
     try {
-      const result = await mutate<{ notified?: boolean; notifyError?: string } | null>(
-        `/api/admin/pdns/zones/${encodeURIComponent(zone)}/rrsets`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            serverSlug,
-            changes: [
-              {
-                kind: "upsert" as const,
-                name: after.name,
-                type: "SOA",
-                ttl: after.ttl,
-                records: after.records.map((r) => ({
-                  content: r.content,
-                  disabled: r.disabled ?? false,
-                })),
-              },
-            ],
-          }),
-        },
-      );
+      const result = await saveSoa(zone, serverSlug, after);
       if (!result.ok) {
-        toast({
-          kind: "error",
-          title: "Could not save SOA",
-          description:
-            result.status === HTTP_FORBIDDEN
-              ? "You don't have permission to change this zone's SOA."
-              : result.error,
-        });
+        toast({ kind: "error", title: "Could not save SOA", description: result.error });
         return;
       }
-      const notifySuffix = result.data?.notifyError
-        ? ` NOTIFY failed: ${result.data.notifyError}`
-        : result.data?.notified
+      const notifySuffix = result.notifyError
+        ? ` NOTIFY failed: ${result.notifyError}`
+        : result.notified
           ? " Secondaries notified."
           : "";
       toast({
-        kind: result.data?.notifyError ? "warn" : "success",
+        kind: result.notifyError ? "warn" : "success",
         description: `SOA MNAME of ${zone} set to ${suggested}.${notifySuffix}`,
       });
       onApplied();

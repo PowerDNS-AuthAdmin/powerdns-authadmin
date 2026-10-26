@@ -7,8 +7,10 @@
  * The server passes a short preview (the most pressing few, already filtered
  * to what this user may see) and the counts, not the whole list, so a fleet
  * with hundreds of findings costs every page render nothing extra. "Show all"
- * opens the Notifications page. Dismissing POSTs to the dismiss route, which
- * re-checks visibility, then refreshes in place.
+ * opens the Notifications page. The same finding on many zones shows as one
+ * entry ("SOA MNAME is not one of the nameservers, 117 zones") with a link to
+ * fix them together. Dismissing POSTs to the dismiss route, which re-checks
+ * visibility, then refreshes in place.
  *
  * Presentational only - no lib/db / lib/pdns imports (three-layer boundary).
  */
@@ -17,14 +19,20 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Bell, CheckCircle2 } from "lucide-react";
-import type { AppNotification, NotificationSummary } from "@/lib/health/notifications";
-import { apiFetch } from "@/lib/client/api-fetch";
+import {
+  entryIds,
+  entryKey,
+  type NotificationEntry,
+  type NotificationSummary,
+} from "@/lib/health/notifications";
 import { useDialog } from "@/components/ui/dialog";
 import { LocalTime } from "@/components/ui/local-time";
 import { useRealtimeEvent } from "@/components/realtime/realtime-provider";
+import { dismissNotificationIds } from "@/components/domain/notification-dismiss";
 import {
   badgeCount,
   bellLabel,
+  entryView,
   severityDotClass,
   severityWord,
   summaryLine,
@@ -34,7 +42,7 @@ export function HealthBell({
   preview,
   summary,
 }: {
-  preview: AppNotification[];
+  preview: NotificationEntry[];
   summary: NotificationSummary;
 }) {
   const router = useRouter();
@@ -87,25 +95,21 @@ export function HealthBell({
   const total = summary.active + summary.dismissed;
   const summaryText = summaryLine(summary);
 
-  async function dismiss(n: AppNotification) {
-    setBusy(n.id);
+  async function dismiss(entry: NotificationEntry) {
+    setBusy(entryKey(entry));
     try {
-      const res = await apiFetch(`/api/admin/backend-advisories/${n.id}/ack`, { method: "POST" });
-      if (res.ok) {
+      const outcome = await dismissNotificationIds(entryIds(entry));
+      if (outcome.ok) {
         router.refresh();
         return;
       }
-      const data = (await res.json().catch(() => null)) as { error?: string } | null;
       toast({
         kind: "error",
-        title: "Could not dismiss the notification",
-        description: data?.error ?? `The server answered ${res.status}.`,
-      });
-    } catch {
-      toast({
-        kind: "error",
-        title: "Could not dismiss the notification",
-        description: "Network error - it is still active.",
+        title:
+          entry.kind === "group"
+            ? "Could not dismiss the notifications"
+            : "Could not dismiss the notification",
+        description: outcome.error,
       });
     } finally {
       setBusy(null);
@@ -176,41 +180,14 @@ export function HealthBell({
             </div>
           ) : (
             <ul className="divide-y divide-[color:var(--color-border)]">
-              {preview.map((n) => (
-                <li key={n.id} className="px-4 py-3">
-                  <div className="flex items-start gap-3">
-                    <span
-                      aria-hidden
-                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${severityDotClass(n.severity)}`}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        href={n.href}
-                        onClick={() => setOpen(false)}
-                        className="line-clamp-2 text-sm font-medium break-words hover:underline"
-                      >
-                        <span className="sr-only">{severityWord(n.severity)}: </span>
-                        {n.title}
-                      </Link>
-                      <p className="mt-0.5 line-clamp-2 text-xs break-words text-[color:var(--color-fg-muted)]">
-                        {n.detail}
-                      </p>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--color-fg-subtle)]">
-                        <span>{n.source === "zone" ? "Zone monitoring" : "Backend health"}</span>
-                        <span className="font-mono">{n.backendName}</span>
-                        <LocalTime ts={n.lastSeenAt} style="relative" />
-                        <button
-                          type="button"
-                          onClick={() => void dismiss(n)}
-                          disabled={busy === n.id}
-                          className="ml-auto text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)] hover:underline disabled:opacity-50"
-                        >
-                          {busy === n.id ? "Dismissing…" : "Dismiss"}
-                          <span className="sr-only"> {n.title}</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+              {preview.map((entry) => (
+                <li key={entryKey(entry)} className="px-4 py-3">
+                  <BellEntry
+                    entry={entry}
+                    busy={busy === entryKey(entry)}
+                    onNavigate={() => setOpen(false)}
+                    onDismiss={() => void dismiss(entry)}
+                  />
                 </li>
               ))}
             </ul>
@@ -228,6 +205,64 @@ export function HealthBell({
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function BellEntry({
+  entry,
+  busy,
+  onNavigate,
+  onDismiss,
+}: {
+  entry: NotificationEntry;
+  busy: boolean;
+  onNavigate: () => void;
+  onDismiss: () => void;
+}) {
+  const v = entryView(entry);
+  return (
+    <div className="flex items-start gap-3">
+      <span
+        aria-hidden
+        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${severityDotClass(v.severity)}`}
+      />
+      <div className="min-w-0 flex-1">
+        <Link
+          href={v.href}
+          onClick={onNavigate}
+          className="line-clamp-2 text-sm font-medium break-words hover:underline"
+        >
+          <span className="sr-only">{severityWord(v.severity)}: </span>
+          {v.title}
+        </Link>
+        <p className="mt-0.5 line-clamp-2 text-xs break-words text-[color:var(--color-fg-muted)]">
+          {v.detail}
+        </p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--color-fg-subtle)]">
+          <span>{v.source}</span>
+          {v.backendName ? <span className="font-mono">{v.backendName}</span> : null}
+          <LocalTime ts={v.lastSeenAt} style="relative" />
+          {v.fixHref ? (
+            <Link
+              href={v.fixHref}
+              onClick={onNavigate}
+              className="font-medium text-[color:var(--color-accent)] hover:underline"
+            >
+              Review and fix all
+            </Link>
+          ) : null}
+          <button
+            type="button"
+            onClick={onDismiss}
+            disabled={busy}
+            className="ml-auto text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)] hover:underline disabled:opacity-50"
+          >
+            {busy ? "Dismissing…" : entry.kind === "group" ? "Dismiss all" : "Dismiss"}
+            <span className="sr-only"> {v.title}</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
