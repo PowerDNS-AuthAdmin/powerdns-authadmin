@@ -27,6 +27,26 @@ All notable changes to this project are documented here. The format is based on
   `docker-compose-multi-primary.yml` change; the app image is unaffected.
   ([#221](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/221))
 
+### Security
+
+- **`zod` 4.4.3 → 4.6.7**, fixing
+  [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) (high): validating
+  an oversized collection against a size constraint could exhaust memory. Every route validates
+  its input with Zod, so treat this one as reachable.
+- **`undici` 8.11.2 → 8.12.3** (the PowerDNS client's HTTP agent), and 7.29.1 → 7.30.1 inside
+  `jsdom`, fixing [GHSA-4qv8-2p9j-2685](https://github.com/advisories/GHSA-4qv8-2p9j-2685),
+  [GHSA-f72v-6w45-q472](https://github.com/advisories/GHSA-f72v-6w45-q472) and
+  [GHSA-xjj6-f33q-929c](https://github.com/advisories/GHSA-xjj6-f33q-929c) (high).
+- **`nodemailer` 10.0.10 → 10.1.7**, fixing three address-parser advisories:
+  [GHSA-8c8m-p3m8-cjg8](https://github.com/advisories/GHSA-8c8m-p3m8-cjg8),
+  [GHSA-m943-m63m-w62w](https://github.com/advisories/GHSA-m943-m63m-w62w) and
+  [GHSA-85x2-q946-cp5h](https://github.com/advisories/GHSA-85x2-q946-cp5h) (moderate).
+- **`body-parser` 2.3.0 → 2.4.0** and **`fast-uri` 3.1.8 → 3.1.9** (both through the MCP SDK),
+  fixing [GHSA-27r3-jxmh-p828](https://github.com/advisories/GHSA-27r3-jxmh-p828) (high) and
+  four `fast-uri` advisories (moderate). The MCP endpoint uses the SDK's web-standard transport,
+  not its Express server, so `body-parser` isn't reachable here; the update clears the audit
+  gate.
+
 ## [1.12.1] - 2026-10-23
 
 Fixes for catalog zones from 1.12.0. **No schema change, no migration.** Pull the new tag and
