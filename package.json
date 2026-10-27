@@ -68,7 +68,7 @@
     "ldapts": "8.1.8",
     "lucide-react": "1.16.0",
     "next": "16.4.2",
-    "nodemailer": "10.0.10",
+    "nodemailer": "10.1.7",
     "openid-client": "6.8.4",
     "pg": "8.21.0",
     "pino": "10.3.1",
@@ -80,9 +80,9 @@
     "react-dom": "19.2.6",
     "server-only": "0.0.1",
     "tsx": "4.22.3",
-    "undici": "8.11.2",
+    "undici": "8.12.3",
     "xml-crypto": "6.1.2",
-    "zod": "4.4.3"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
