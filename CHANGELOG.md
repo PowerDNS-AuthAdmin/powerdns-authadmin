@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Group identical monitoring findings, and fix SOA MNAME on many zones with one review.** The
+  same zone-monitoring finding on several zones now shows as one entry in the bell and on the
+  Notifications page ("SOA MNAME is not one of the nameservers, 117 zones"), which expands to
+  the zone list and dismisses as a whole. Zone Monitoring gets **Review and fix all** for the SOA
+  MNAME finding: one review with every zone's SOA before/after, then one Apply. Each zone is
+  saved through the same route as the one-zone Fix, with its own `soa.update` check, audit row
+  and NOTIFY. Zones you can't change are listed and skipped, and the saved zones are re-checked
+  in one pass.
+  ([#183](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/183))
+
 ### Fixed
 
 - **The multi-PowerDNS demo and test stacks sometimes failed to start.** MariaDB's healthcheck

@@ -13,6 +13,8 @@ import {
   verdictOf,
   withSoaMname,
   describeFix,
+  fixTargets,
+  partitionFixTargets,
   type ZoneMonitorResult,
   type ZoneMonitorState,
   orderVerdictChips,
@@ -239,5 +241,55 @@ describe("orderVerdictChips", () => {
       "info",
       "ok",
     ]);
+  });
+});
+
+describe("bulk fix targets", () => {
+  const withMname = (zone: string, server = "primary", canUpdateSoa?: boolean) => {
+    const r = resultOf(zone, "warn", server);
+    r.findings = [
+      { code: "nameserver.count", severity: "warn", title: "t", detail: "d" },
+      {
+        code: "soa.mname",
+        severity: "warn",
+        title: "SOA MNAME is not one of the nameservers",
+        detail: "d",
+        fix: { kind: "soa.mname", zone, current: "old.example.", suggested: "ns1.example." },
+      },
+    ];
+    return canUpdateSoa === undefined ? r : { ...r, canUpdateSoa };
+  };
+
+  it("collects each zone with the fix once, by zone then backend", () => {
+    const targets = fixTargets(
+      [
+        withMname("b.example."),
+        resultOf("x.example.", "warn"),
+        withMname("a.example.", "z"),
+        withMname("a.example."),
+      ],
+      "soa.mname",
+    );
+    expect(targets.map((t) => `${t.result.zone}@${t.result.server}`)).toEqual([
+      "a.example.@primary",
+      "a.example.@z",
+      "b.example.@primary",
+    ]);
+    expect(targets[0]!.fix.suggested).toBe("ns1.example.");
+  });
+
+  it("skips only zones the viewer is known not to be able to change", () => {
+    const { allowed, forbidden } = partitionFixTargets(
+      fixTargets(
+        [
+          withMname("a.example.", "primary", true),
+          withMname("b.example.", "primary", false),
+          withMname("c.example."),
+        ],
+        "soa.mname",
+      ),
+    );
+    expect(allowed.map((t) => t.result.zone)).toEqual(["a.example.", "c.example."]);
+    expect(forbidden.map((t) => t.result.zone)).toEqual(["b.example."]);
   });
 });

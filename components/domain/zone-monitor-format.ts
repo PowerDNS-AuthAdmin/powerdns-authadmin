@@ -95,6 +95,45 @@ export function resultKey(result: Pick<ZoneMonitorResult, "zone" | "server">): s
 
 export { plural };
 
+/** A zone whose finding carries a fix of the kind being applied in bulk. */
+export interface FixTarget {
+  result: ZoneMonitorResult;
+  fix: ZoneFindingFix;
+}
+
+/**
+ * Every result with a finding whose fix is of `kind`, by zone then backend.
+ * One target per result: a zone shows a given finding once per backend.
+ */
+export function fixTargets(
+  results: readonly ZoneMonitorResult[],
+  kind: ZoneFindingFix["kind"],
+): FixTarget[] {
+  const out: FixTarget[] = [];
+  for (const result of results) {
+    const fix = result.findings.find((f) => f.fix?.kind === kind)?.fix;
+    if (fix) out.push({ result, fix });
+  }
+  return out.sort(
+    (a, b) =>
+      a.result.zone.localeCompare(b.result.zone) || a.result.server.localeCompare(b.result.server),
+  );
+}
+
+/**
+ * Splits targets by whether the viewer may apply the fix. A result without
+ * the flag (an older response) counts as allowed: the write route decides.
+ */
+export function partitionFixTargets(targets: readonly FixTarget[]): {
+  allowed: FixTarget[];
+  forbidden: FixTarget[];
+} {
+  const allowed: FixTarget[] = [];
+  const forbidden: FixTarget[] = [];
+  for (const t of targets) (t.result.canUpdateSoa === false ? forbidden : allowed).push(t);
+  return { allowed, forbidden };
+}
+
 /** One-line text for a finding's suggested fix, shown under the finding. */
 export function describeFix(fix: ZoneFindingFix): string {
   switch (fix.kind) {

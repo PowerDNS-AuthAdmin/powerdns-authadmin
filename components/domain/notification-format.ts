@@ -5,7 +5,12 @@
  * Pure, so the copy and colour rules are unit-tested once.
  */
 
-import type { NotificationSeverity, NotificationSummary } from "@/lib/health/notifications";
+import {
+  entryKey,
+  type NotificationEntry,
+  type NotificationSeverity,
+  type NotificationSummary,
+} from "@/lib/health/notifications";
 
 export function severityDotClass(severity: NotificationSeverity): string {
   if (severity === "error") return "bg-[color:var(--color-error)]";
@@ -42,4 +47,72 @@ export function badgeCount(n: number): string {
 export function bellLabel(s: NotificationSummary): string {
   if (s.active === 0) return "Notifications: none active";
   return `Notifications: ${plural(s.active, "active", "active")}${s.error ? `, ${plural(s.error, "error", "errors")}` : ""}`;
+}
+
+/**
+ * The zones behind a grouped finding, for one line under its title:
+ * "a.example., b.example., c.example. and 114 more". A zone served by two
+ * backends is named once.
+ */
+export function groupZoneSample(zones: ReadonlyArray<string | null>, shown = 3): string {
+  const unique = [...new Set(zones.filter((z): z is string => z !== null))];
+  const head = unique.slice(0, shown).join(", ");
+  const rest = unique.length - shown;
+  return rest > 0 ? `${head} and ${rest} more` : head;
+}
+
+/** "117 zones" or "117 zones on 2 backends". */
+export function groupScope(
+  members: ReadonlyArray<{ zone: string | null; backendId: string }>,
+): string {
+  const zones = new Set(members.map((m) => m.zone)).size;
+  const backends = new Set(members.map((m) => m.backendId)).size;
+  const base = plural(zones, "zone", "zones");
+  return backends > 1 ? `${base} on ${plural(backends, "backend", "backends")}` : base;
+}
+
+/** What a bell row or a Notifications row shows, for a single finding or a group. */
+export interface EntryView {
+  key: string;
+  severity: NotificationSeverity;
+  title: string;
+  detail: string;
+  href: string;
+  /** Zone Monitoring's bulk fix for a grouped finding. */
+  fixHref: string | null;
+  source: string;
+  /** Null for a group: its members may sit on several backends. */
+  backendName: string | null;
+  lastSeenAt: string;
+  acknowledged: boolean;
+}
+
+export function entryView(entry: NotificationEntry): EntryView {
+  if (entry.kind === "single") {
+    const n = entry.notification;
+    return {
+      key: entryKey(entry),
+      severity: n.severity,
+      title: n.title,
+      detail: n.detail,
+      href: n.href,
+      fixHref: null,
+      source: n.source === "zone" ? "Zone monitoring" : "Backend health",
+      backendName: n.backendName,
+      lastSeenAt: n.lastSeenAt,
+      acknowledged: n.acknowledged,
+    };
+  }
+  return {
+    key: entryKey(entry),
+    severity: entry.severity,
+    title: `${entry.title}, ${groupScope(entry.members)}`,
+    detail: groupZoneSample(entry.members.map((m) => m.zone)),
+    href: entry.href,
+    fixHref: entry.fixHref,
+    source: "Zone monitoring",
+    backendName: null,
+    lastSeenAt: entry.lastSeenAt,
+    acknowledged: entry.acknowledged,
+  };
 }

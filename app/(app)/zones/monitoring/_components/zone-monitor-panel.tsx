@@ -23,7 +23,11 @@
  * A finding with a suggested fix gets a Fix button that opens a review
  * dialog; the save goes through the zone's own write route (see
  * ./soa-mname-fix-dialog.tsx) and the zone is re-checked afterwards so the
- * finding clears in place.
+ * finding clears in place. When several zones share the SOA MNAME finding, a
+ * banner offers "Review and fix all": one review of every zone, one Apply,
+ * each zone saved through that same route (./soa-mname-bulk-fix-dialog.tsx),
+ * then one re-check of the saved zones. `?fix=soa.mname` (the link on a
+ * grouped notification) opens that review as soon as the results load.
  */
 
 import { type ColumnDef } from "@tanstack/react-table";
@@ -41,6 +45,7 @@ import {
   compareResults,
   DELEGATION_HINT,
   DELEGATION_LABEL,
+  fixTargets,
   formatInterval,
   isNextRunDue,
   plural,
@@ -52,6 +57,7 @@ import {
   VERDICT_ORDER,
   orderVerdictChips,
   verdictOf,
+  type FixTarget,
   type ZoneFinding,
   type ZoneFindingFix,
   type ZoneMonitorResult,
@@ -72,6 +78,7 @@ import { SelectMenu } from "@/components/ui/select-menu";
 import { Skeleton, SkeletonTable } from "@/components/ui/skeleton";
 import { ToggleChip, type ToggleChipTone } from "@/components/ui/toggle-chip";
 import { mutate } from "@/lib/client/api-fetch";
+import { SoaMnameBulkFixDialog } from "./soa-mname-bulk-fix-dialog";
 import { SoaMnameFixDialog } from "./soa-mname-fix-dialog";
 
 // ---------------------------------------------------------------- contract
@@ -130,6 +137,9 @@ const BUTTON_CLASS =
   "inline-flex items-center gap-1 rounded border border-[color:var(--color-border)] px-2 py-1 text-xs whitespace-nowrap hover:bg-[color:var(--color-bg-muted)] disabled:cursor-not-allowed disabled:opacity-50";
 const TOOLBAR_BUTTON_CLASS =
   "inline-flex items-center justify-center gap-1.5 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-3 py-1.5 text-sm font-medium whitespace-nowrap hover:bg-[color:var(--color-bg-muted)] disabled:cursor-not-allowed disabled:opacity-50";
+/** The `?fix=` value that opens the bulk SOA MNAME review on load. */
+const BULK_FIX_PARAM = "soa.mname";
+
 const NOTICE_WARN_CLASS =
   "rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 p-3 text-xs";
 
@@ -156,6 +166,8 @@ export function ZoneMonitorPanel() {
     fix: ZoneFindingFix;
     result: ZoneMonitorResult;
   } | null>(null);
+  /** The zones under bulk review; fixed when the dialog opens. */
+  const [bulkFix, setBulkFix] = useState<FixTarget[] | null>(null);
 
   const loadState = useCallback(async (opts: { quiet?: boolean } = {}) => {
     if (opts.quiet) setUpdating(true);
@@ -317,6 +329,42 @@ export function ZoneMonitorPanel() {
     [rows, activeVerdicts, horizon],
   );
   const hasInternal = useMemo(() => rows.some((r) => r.horizon === "internal"), [rows]);
+  const soaMnameTargets = useMemo(() => fixTargets(rows, "soa.mname"), [rows]);
+
+  // A grouped notification links here with `?fix=soa.mname`: open its review
+  // once, when the first results are in, and drop the parameter so a reload
+  // or a later refresh does not open it again.
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (autoOpened.current || state === null || waitingForFirst) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("fix") !== BULK_FIX_PARAM) return;
+    autoOpened.current = true;
+    url.searchParams.delete("fix");
+    window.history.replaceState(window.history.state, "", url);
+    if (soaMnameTargets.length > 0) setBulkFix(soaMnameTargets);
+    else
+      toast({
+        kind: "success",
+        title: "Nothing to fix",
+        description: "No zone has the SOA MNAME finding any more.",
+      });
+  }, [state, waitingForFirst, soaMnameTargets, toast]);
+
+  // The saved zones, re-checked in one pass. A refusal is not worth a
+  // warning: the saves succeeded, and the next cycle clears the findings.
+  const recheckFixed = useCallback(async (saved: readonly FixTarget[]) => {
+    setLiveMessage(`Re-checking ${plural(saved.length, "zone")}…`);
+    const result = await mutate<ZoneMonitorState>(REFRESH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        zones: saved.map((t) => ({ zone: t.result.zone, serverSlug: t.result.server })),
+      }),
+    });
+    if (result.ok) setState(result.data);
+    setLiveMessage(result.ok ? `${plural(saved.length, "zone")} re-checked.` : "");
+  }, []);
 
   const columns = useMemo<Array<ColumnDef<ZoneMonitorResult, unknown>>>(
     () => [
@@ -614,6 +662,26 @@ export function ZoneMonitorPanel() {
         ) : null}
       </div>
 
+      {soaMnameTargets.length > 1 ? (
+        <div
+          className="flex flex-col gap-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-subtle)] p-3 text-xs sm:flex-row sm:items-center sm:justify-between"
+          role="status"
+        >
+          <span>
+            <strong>{plural(soaMnameTargets.length, "zone")}</strong> have an SOA MNAME that is not
+            one of their nameservers, each with a suggested primary.
+          </span>
+          <button
+            type="button"
+            onClick={() => setBulkFix(soaMnameTargets)}
+            disabled={busy !== null}
+            className={TOOLBAR_BUTTON_CLASS}
+          >
+            Review and fix all
+          </button>
+        </div>
+      ) : null}
+
       {firstLoad ? (
         loadError ? null : (
           <SkeletonTable rows={8} cols={7} />
@@ -658,6 +726,13 @@ export function ZoneMonitorPanel() {
           serverSlug={fixTarget.result.server}
           onClose={() => setFixTarget(null)}
           onApplied={() => void recheck(fixTarget.result, { afterFix: true })}
+        />
+      ) : null}
+      {bulkFix ? (
+        <SoaMnameBulkFixDialog
+          targets={bulkFix}
+          onClose={() => setBulkFix(null)}
+          onApplied={(saved) => void recheckFixed(saved)}
         />
       ) : null}
     </div>

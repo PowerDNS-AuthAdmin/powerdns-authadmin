@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   bellPreview,
   canSeeAdvisory,
+  entryIds,
+  entryKey,
+  groupNotifications,
+  monitorFindingOf,
   monitorZoneOf,
   summarizeNotifications,
   visibleNotifications,
@@ -46,6 +50,21 @@ describe("monitorZoneOf", () => {
   it("returns null for backend codes and malformed monitor codes", () => {
     expect(monitorZoneOf("pdns.unreachable")).toBeNull();
     expect(monitorZoneOf("monitor.nodots")).toBeNull();
+  });
+});
+
+describe("monitorFindingOf", () => {
+  it("returns the finding after the zone", () => {
+    expect(monitorFindingOf("monitor.example.com..soa.mname")).toBe("soa.mname");
+    expect(monitorFindingOf("monitor.2.0.192.in-addr.arpa..nameserver.count")).toBe(
+      "nameserver.count",
+    );
+    expect(monitorFindingOf("monitor...delegation.missing")).toBe("delegation.missing");
+  });
+
+  it("returns null for backend codes and malformed monitor codes", () => {
+    expect(monitorFindingOf("pdns.unreachable")).toBeNull();
+    expect(monitorFindingOf("monitor.nodots")).toBeNull();
   });
 });
 
@@ -128,6 +147,108 @@ describe("visibleNotifications, summary and bell preview", () => {
       info: 1,
       dismissed: 1,
     });
-    expect(bellPreview(list).map((n) => n.id)).toEqual(["e", "w-new", "z"]);
+    expect(bellPreview(list).map(entryKey)).toEqual(["e", "w-new", "z"]);
+  });
+});
+
+describe("groupNotifications", () => {
+  const everyone: NotificationViewer = {
+    canReadServers: true,
+    globalZoneRead: true,
+    canReadZone: () => true,
+  };
+  const mname = (zone: string, minute: number, over: Partial<AdvisoryRow> = {}): AdvisoryRow =>
+    row({
+      id: `mname-${zone}`,
+      code: `monitor.${zone}.soa.mname`,
+      title: `${zone} SOA MNAME is not one of the nameservers`,
+      detail: `MNAME old.provider. is not in the NS set of ${zone}`,
+      lastSeenAt: at(minute),
+      ...over,
+    });
+
+  it("collapses one finding on many zones into a group, keeping list order", () => {
+    const list = visibleNotifications(
+      [
+        row({ id: "down", code: "pdns.unreachable", severity: "error", lastSeenAt: at(1) }),
+        mname("a.example.", 2),
+        mname("b.example.", 5),
+        mname("c.example.", 3),
+      ],
+      everyone,
+    );
+    const entries = groupNotifications(list);
+    expect(entries.map(entryKey)).toEqual(["down", "soa.mname|warn|active"]);
+    const group = entries[1]!;
+    expect(group).toMatchObject({
+      kind: "group",
+      finding: "soa.mname",
+      title: "SOA MNAME is not one of the nameservers",
+      href: "/zones/monitoring",
+      fixHref: "/zones/monitoring?fix=soa.mname",
+      lastSeenAt: at(5).toISOString(),
+    });
+    // Most recently seen member first.
+    expect(entryIds(group)).toEqual(["mname-b.example.", "mname-c.example.", "mname-a.example."]);
+  });
+
+  it("strips the internal marker of a split-horizon copy from the group title", () => {
+    const list = visibleNotifications(
+      [
+        mname("a.example.", 1, {
+          id: "internal",
+          title: "a.example. (internal) SOA MNAME is not one of the nameservers",
+          backendId: "srv-b",
+        }),
+        mname("b.example.", 2),
+      ],
+      everyone,
+    );
+    const [group] = groupNotifications(list);
+    expect(group).toMatchObject({
+      kind: "group",
+      title: "SOA MNAME is not one of the nameservers",
+    });
+  });
+
+  it("leaves a finding seen on a single zone as it is", () => {
+    const list = visibleNotifications([mname("a.example.", 1)], everyone);
+    expect(groupNotifications(list)).toEqual([{ kind: "single", notification: list[0] }]);
+  });
+
+  it("keeps severities, dismissed findings and findings without a bulk fix apart", () => {
+    const list = visibleNotifications(
+      [
+        mname("a.example.", 1),
+        mname("b.example.", 2),
+        mname("c.example.", 3, { acknowledgedAt: at(4) }),
+        mname("d.example.", 4, { acknowledgedAt: at(4) }),
+        row({ id: "ns1", code: "monitor.a.example..nameserver.count", lastSeenAt: at(1) }),
+        row({ id: "ns2", code: "monitor.b.example..nameserver.count", lastSeenAt: at(2) }),
+      ],
+      everyone,
+    );
+    const groups = groupNotifications(list).filter((e) => e.kind === "group");
+    expect(groups.map(entryKey).sort()).toEqual([
+      "nameserver.count|warn|active",
+      "soa.mname|warn|active",
+      "soa.mname|warn|dismissed",
+    ]);
+    expect(groups.find((g) => g.key === "nameserver.count|warn|active")).toMatchObject({
+      fixHref: null,
+    });
+  });
+
+  it("groups the bell preview, so many zones take one slot", () => {
+    const list = visibleNotifications(
+      [
+        mname("a.example.", 1),
+        mname("b.example.", 2),
+        mname("c.example.", 3),
+        row({ id: "down", code: "pdns.unreachable", severity: "error" }),
+      ],
+      everyone,
+    );
+    expect(bellPreview(list).map(entryKey)).toEqual(["down", "soa.mname|warn|active"]);
   });
 });
