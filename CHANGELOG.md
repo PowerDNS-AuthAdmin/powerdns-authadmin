@@ -25,6 +25,7 @@ All notable changes to this project are documented here. The format is based on
   it appears. A deployment that hands tokens to a setup tool of its own can show a badge under
   the token with `TOKEN_SETUP_HINT_COMMAND`, `TOKEN_SETUP_HINT_TEXT` and
   `TOKEN_SETUP_HINT_URL`; it is off unless configured.
+  ([#227](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pull/227))
 
 ### Fixed
 
