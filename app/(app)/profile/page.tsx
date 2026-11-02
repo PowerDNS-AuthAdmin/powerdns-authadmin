@@ -20,7 +20,7 @@ import { PasskeysSection } from "./_components/passkeys-section";
 import { SectionTabs, SectionTabPanel } from "@/components/ui/section-tabs";
 import { ComplianceBanner } from "@/components/auth/compliance-guard";
 import { isBootstrapAdminLocked } from "@/lib/auth/bootstrap-admin";
-import { env } from "@/lib/env";
+import { env, tokenSetupHint } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -224,6 +224,8 @@ export default async function ProfilePage({
               createdAt: t.createdAt.toISOString(),
             }))}
             availablePermissions={availablePermissions}
+            appUrl={env.APP_URL}
+            setupHint={tokenSetupHint}
           />
         </SectionTabPanel>
       </SectionTabs>

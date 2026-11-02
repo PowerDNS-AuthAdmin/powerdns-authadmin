@@ -6,7 +6,9 @@
  * Self-service personal access token management. Lists existing
  * tokens + Add form (name, optional expiry, scope checkboxes
  * limited to the user's effective permissions). Shown-once panel
- * after a successful issue (S-8 reveal pattern).
+ * after a successful issue (S-8 reveal pattern): the token itself, the
+ * deployment's optional setup hint, and folded client snippets
+ * (components/domain/token-reveal.tsx).
  */
 
 import { useRouter } from "next/navigation";
@@ -14,6 +16,7 @@ import { useState } from "react";
 import { useDialog } from "@/components/ui/dialog";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { LocalTime } from "@/components/ui/local-time";
+import { TokenReveal, type TokenRevealHint } from "@/components/domain/token-reveal";
 import { apiFetch, mutate } from "@/lib/client/api-fetch";
 
 interface TokenRow {
@@ -35,9 +38,18 @@ interface Props {
    * `lib/rbac/permissions`. Used to render the checkbox list.
    */
   availablePermissions: string[];
+  /** The deployment's public URL (`APP_URL`), for the connect snippets. */
+  appUrl: string;
+  /** `TOKEN_SETUP_HINT_*`, read on the server; `null` when not configured. */
+  setupHint: TokenRevealHint | null;
 }
 
-export function ApiTokensSection({ initialTokens, availablePermissions }: Props) {
+export function ApiTokensSection({
+  initialTokens,
+  availablePermissions,
+  appUrl,
+  setupHint,
+}: Props) {
   const router = useRouter();
   const { confirm, toast } = useDialog();
   const [open, setOpen] = useState(false);
@@ -184,22 +196,13 @@ export function ApiTokensSection({ initialTokens, availablePermissions }: Props)
       </p>
 
       {revealed ? (
-        <div className="mb-3 rounded-md border border-[color:var(--color-warn)] bg-[color:var(--color-warn)]/10 p-3 text-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="font-medium">Token - shown once</p>
-              <p className="mt-1 text-xs text-[color:var(--color-fg-muted)]">
-                Copy now; the secret won't be shown again. Reloading the page loses access to it.
-              </p>
-            </div>
-            <button type="button" onClick={() => setRevealed(null)} className="text-xs underline">
-              Dismiss
-            </button>
-          </div>
-          <code className="mt-2 block rounded bg-[color:var(--color-bg)] p-2 font-mono text-xs break-all">
-            {revealed.secret}
-          </code>
-        </div>
+        <TokenReveal
+          token={revealed.secret}
+          name={revealed.name}
+          appUrl={appUrl}
+          hint={setupHint}
+          onDone={() => setRevealed(null)}
+        />
       ) : null}
 
       {open ? (

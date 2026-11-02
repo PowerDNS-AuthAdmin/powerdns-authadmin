@@ -85,6 +85,24 @@ normal installs.
 | `TOKEN_IDP_FALLBACK_TTL_SECONDS` | `86400` (24 h)              | How old the latest session's IdP-derived-permissions snapshot may be before an SSO user's API tokens stop carrying the IdP-derived slice (they fall back to admin-issued permissions until the user signs in). |
 | `IDP_PERMS_CACHE_TTL_SECONDS`    | `60`                        | Cache window for the live IdP group re-fetch on the API-token path (OIDC refresh-token → userinfo, LDAP service-account search). Lower = fresher permissions, more IdP load.                                   |
 
+## API token setup hint (optional)
+
+Off unless configured. When `TOKEN_SETUP_HINT_COMMAND` is set, the panel shown after a user
+issues an API token (**Profile → API tokens**) gets a badge under the token: the command,
+linked to `TOKEN_SETUP_HINT_URL`, with `TOKEN_SETUP_HINT_TEXT` beside it. Use it when your
+organisation hands tokens to a setup tool of its own, so people paste just the token there
+instead of copying a full client command. The client snippets (Claude Code, `.mcp.json`,
+curl) stay available, folded, either way. See [MCP → Create a token](./14-MCP.md#1-create-a-token).
+
+| Variable                   | Default                                               | Notes                                                                       |
+| -------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------- |
+| `TOKEN_SETUP_HINT_COMMAND` | unset (no hint)                                       | The command on the badge, e.g. `acme-setup`. Turns the hint on. ≤ 80 chars. |
+| `TOKEN_SETUP_HINT_TEXT`    | "Paste just this token when `<command>` asks for it." | The sentence beside the badge. Plain text, ≤ 300 chars.                     |
+| `TOKEN_SETUP_HINT_URL`     | unset (badge not linked)                              | Where the badge links, e.g. the tool's docs. `http(s)://` only.             |
+
+Setting `TOKEN_SETUP_HINT_TEXT` or `TOKEN_SETUP_HINT_URL` without `TOKEN_SETUP_HINT_COMMAND`
+fails the boot, rather than being silently ignored.
+
 ## Local authentication
 
 | Variable             | Default | Notes                                               |
