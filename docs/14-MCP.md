@@ -28,6 +28,16 @@ your own permissions and are the ceiling for everything the assistant can do:
 Leave scopes empty to inherit everything you hold (re-evaluated on every call). The token is
 shown once; copy it. Revoke it from the same page at any time - revocation is immediate.
 
+The panel that shows the new token leads with the token and a **Copy token** button. Under
+**Connect a client (advanced)** it has the snippets from the next section ready to copy, with
+your server's URL and the token already filled in: `claude mcp add` (user scope), `.mcp.json`
+(token from `$PDNS_AUTHADMIN_TOKEN`) and a `curl` that lists the tools. They start folded.
+
+A deployment can add a setup hint between the two, for organisations that hand tokens to a
+setup tool of their own ("paste just this token when `<command>` asks for it"). It is off
+unless `TOKEN_SETUP_HINT_COMMAND` is set; with it on, the folded section reads **Other ways to
+connect (advanced)**. See [Configuration → API token setup hint](./03-CONFIGURATION.md#api-token-setup-hint-optional).
+
 > A token with a per-zone grant instead of a global role is the right shape for a bot that
 > should only ever touch one zone. See [RBAC → per-zone grants](./07-RBAC.md).
 
@@ -40,9 +50,14 @@ responses, safe behind any reverse proxy and across replicas.
 ### Claude Code
 
 ```sh
-claude mcp add --transport http powerdns https://dns.example.com/api/mcp \
+# your user only; never --scope project (puts the token in the repo)
+claude mcp add --transport http --scope user powerdns https://dns.example.com/api/mcp \
   --header "Authorization: Bearer pda_pat_xxxxxxxx"
 ```
+
+`--scope user` keeps the server, header included, in your own Claude Code config. Never use
+`--scope project` with a token in the header: it writes both into the repository's
+`.mcp.json`, where the next commit picks the token up.
 
 Or commit a project-level `.mcp.json` (the token stays in the environment):
 

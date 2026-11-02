@@ -4,6 +4,7 @@ import {
   detectBuildTimePlaceholders,
   ENV_KEYS,
   envSchema,
+  tokenSetupHintFrom,
 } from "./env";
 
 describe("ENV_KEYS coverage", () => {
@@ -107,5 +108,53 @@ describe("detectBuildTimePlaceholders", () => {
       isBuildPhase: false,
     });
     expect(v).toEqual(["APP_SECRET_KEY"]);
+  });
+});
+
+describe("TOKEN_SETUP_HINT_*", () => {
+  const hintSchema = envSchema.pick({
+    TOKEN_SETUP_HINT_COMMAND: true,
+    TOKEN_SETUP_HINT_TEXT: true,
+    TOKEN_SETUP_HINT_URL: true,
+  });
+
+  it("is off when no command is configured", () => {
+    expect(tokenSetupHintFrom(hintSchema.parse({}))).toBeNull();
+  });
+
+  it("carries the command, text and link when configured", () => {
+    const parsed = hintSchema.parse({
+      TOKEN_SETUP_HINT_COMMAND: " acme-setup ",
+      TOKEN_SETUP_HINT_TEXT: "Paste just this token when acme-setup asks for it.",
+      TOKEN_SETUP_HINT_URL: "https://docs.example.com/setup",
+    });
+    expect(tokenSetupHintFrom(parsed)).toEqual({
+      command: "acme-setup",
+      text: "Paste just this token when acme-setup asks for it.",
+      url: "https://docs.example.com/setup",
+    });
+  });
+
+  it("leaves text and link null when only the command is set", () => {
+    const parsed = hintSchema.parse({ TOKEN_SETUP_HINT_COMMAND: "acme-setup" });
+    expect(tokenSetupHintFrom(parsed)).toEqual({ command: "acme-setup", text: null, url: null });
+  });
+
+  it("refuses a link that is not http(s)", () => {
+    expect(
+      hintSchema.safeParse({
+        TOKEN_SETUP_HINT_COMMAND: "acme-setup",
+        TOKEN_SETUP_HINT_URL: "javascript:alert(1)",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("refuses an over-long sentence", () => {
+    expect(
+      hintSchema.safeParse({
+        TOKEN_SETUP_HINT_COMMAND: "acme-setup",
+        TOKEN_SETUP_HINT_TEXT: "x".repeat(301),
+      }).success,
+    ).toBe(false);
   });
 });

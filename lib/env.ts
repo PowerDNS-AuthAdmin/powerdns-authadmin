@@ -83,6 +83,10 @@ const secretKey = z
     message: "looks like a placeholder. Generate a real secret with: openssl rand -base64 32",
   });
 
+// Bounds for the token setup hint: a command and one sentence, not a page.
+const MAX_HINT_COMMAND_LENGTH = 80;
+const MAX_HINT_TEXT_LENGTH = 300;
+
 export const envSchema = z.object({
   // --- Runtime ---
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -148,6 +152,22 @@ export const envSchema = z.object({
   // tighter freshness, more IdP load. Higher → looser freshness, less
   // load. Default: 60s.
   IDP_PERMS_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
+
+  // --- API token setup hint (optional) ---
+  // A deployment-specific line shown under a freshly issued token, for sites
+  // that hand tokens to a setup tool of their own ("paste just this token when
+  // <command> asks for it"). Unset = no hint; the panel then shows only the
+  // generic client snippets. Plain text, rendered as text - never as HTML.
+  /** The command on the hint badge, e.g. `acme-setup`. Turns the hint on. */
+  TOKEN_SETUP_HINT_COMMAND: z.string().trim().min(1).max(MAX_HINT_COMMAND_LENGTH).optional(),
+  /** The sentence beside the badge. Default: "Paste just this token when <command> asks for it." */
+  TOKEN_SETUP_HINT_TEXT: z.string().trim().min(1).max(MAX_HINT_TEXT_LENGTH).optional(),
+  /** Where the badge links (the tool's docs). http(s) only. */
+  TOKEN_SETUP_HINT_URL: z
+    .string()
+    .url("TOKEN_SETUP_HINT_URL must be a fully-qualified URL")
+    .refine((u) => /^https?:\/\//i.test(u), "TOKEN_SETUP_HINT_URL must be an http(s) URL")
+    .optional(),
 
   // --- Local auth ---
   // Whether email + password sign-in is enabled at all. Default true.
@@ -589,6 +609,9 @@ export const ENV_KEYS = [
   "SESSION_TTL_SECONDS",
   "TOKEN_IDP_FALLBACK_TTL_SECONDS",
   "IDP_PERMS_CACHE_TTL_SECONDS",
+  "TOKEN_SETUP_HINT_COMMAND",
+  "TOKEN_SETUP_HINT_TEXT",
+  "TOKEN_SETUP_HINT_URL",
   "COOKIE_DOMAIN",
   "LOCAL_AUTH_ENABLED",
   "SIGNUP_ENABLED",
@@ -800,6 +823,20 @@ function parseEnv(): Env {
     throw new Error(msg);
   }
 
+  // The text and link hang off the badge, so without a command they would be
+  // a silent no-op. Fail loudly instead, like BOOTSTRAP_ADMIN_RO above.
+  if (
+    !isBuildPhase &&
+    !parsed.TOKEN_SETUP_HINT_COMMAND &&
+    (parsed.TOKEN_SETUP_HINT_TEXT || parsed.TOKEN_SETUP_HINT_URL)
+  ) {
+    const msg =
+      "\n[env] TOKEN_SETUP_HINT_TEXT / TOKEN_SETUP_HINT_URL need TOKEN_SETUP_HINT_COMMAND to be set.\n";
+
+    console.error(msg);
+    throw new Error(msg);
+  }
+
   // S-9 runtime guard. If a build-time placeholder somehow makes it into
   // a deployed image (e.g. NEXT_PHASE accidentally set in the runtime
   // env, or the placeholder substituted into the deployment template by
@@ -906,3 +943,30 @@ export const zoneMonitorConfig = {
   internalResolvers: resolverList(env.ZONE_MONITOR_INTERNAL_RESOLVERS),
   externalPtrIntervalMs: env.EXTERNAL_PTR_INTERVAL_SECONDS * 1000,
 } as const;
+
+/** The optional hint shown under a newly issued API token. */
+export interface TokenSetupHint {
+  command: string;
+  text: string | null;
+  url: string | null;
+}
+
+/**
+ * Build the token setup hint from parsed env. Pure, so it can be unit-tested
+ * without re-importing this module.
+ *
+ * @returns the hint, or `null` when `TOKEN_SETUP_HINT_COMMAND` is unset.
+ */
+export function tokenSetupHintFrom(
+  input: Pick<Env, "TOKEN_SETUP_HINT_COMMAND" | "TOKEN_SETUP_HINT_TEXT" | "TOKEN_SETUP_HINT_URL">,
+): TokenSetupHint | null {
+  if (!input.TOKEN_SETUP_HINT_COMMAND) return null;
+  return {
+    command: input.TOKEN_SETUP_HINT_COMMAND,
+    text: input.TOKEN_SETUP_HINT_TEXT ?? null,
+    url: input.TOKEN_SETUP_HINT_URL ?? null,
+  };
+}
+
+/** The deployment's token setup hint (`TOKEN_SETUP_HINT_*`), or `null`. */
+export const tokenSetupHint: TokenSetupHint | null = tokenSetupHintFrom(env);

@@ -121,7 +121,10 @@ the audit trail behave identically whichever door the user came through.
   `app/(app)/admin/users/_components/tokens-panel.tsx`,
   `app/api/profile/tokens/`.
 - **How.** From `/profile#api-tokens`, **Create token**, pick scopes + optional expiry. The
-  plaintext value is shown ONCE and never round-tripped again. Use the token by sending it
+  plaintext value is shown ONCE and never round-tripped again: the panel leads with the token
+  and its Copy button, then folded client snippets (Claude Code, `.mcp.json`, curl) built from
+  `APP_URL`, plus an optional deployment hint (`TOKEN_SETUP_HINT_*`,
+  `components/domain/token-reveal.tsx`). Use the token by sending it
   as `Authorization: Bearer pda_pat_…` or `X-API-Key: pda_pat_…`. Admins with `token.read.all`
   see every user's token inventory on the **API tokens** tab of `/admin/users/<id>`. For SSO
   users the token's permissions follow the IdP live - see § 1.13.

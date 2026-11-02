@@ -17,6 +17,15 @@ All notable changes to this project are documented here. The format is based on
   and NOTIFY. Zones you can't change are listed and skipped, and the saved zones are re-checked
   in one pass.
   ([#183](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/issues/183))
+- **The new-token panel shows how to connect, and can carry a setup hint.** After you issue
+  an API token, the panel leads with the token and a **Copy token** button, then folds the
+  client snippets underneath, filled in with this server's URL and the token: `claude mcp add`
+  (user scope, never project scope), `.mcp.json` reading the token from the environment, and
+  a `curl` that lists the MCP tools. Each has its own Copy, and the token is marked wherever
+  it appears. A deployment that hands tokens to a setup tool of its own can show a badge under
+  the token with `TOKEN_SETUP_HINT_COMMAND`, `TOKEN_SETUP_HINT_TEXT` and
+  `TOKEN_SETUP_HINT_URL`; it is off unless configured.
+  ([#227](https://github.com/PowerDNS-AuthAdmin/powerdns-authadmin/pull/227))
 
 ### Fixed
 
